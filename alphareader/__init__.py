@@ -1,0 +1,1 @@
+"""Alpha Pattern Reader — turn images of alpha/tapestry-crochet charts into structured patterns."""
