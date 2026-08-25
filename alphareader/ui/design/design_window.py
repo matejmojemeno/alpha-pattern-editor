@@ -4,7 +4,7 @@ Dense, tool-oriented, desktop layout. No progress display anywhere (§6.1)."""
 from __future__ import annotations
 
 import numpy as np
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QColor, QFont, QKeySequence
 from PySide6.QtWidgets import (
     QButtonGroup, QColorDialog, QFileDialog, QGroupBox, QHBoxLayout, QLabel, QListWidget,
@@ -47,12 +47,30 @@ class DesignWindow(QMainWindow):
         self._stroke = False
         self._stroke_recorded = False
         self._rect_start: tuple[int, int] | None = None
+        self._fitted = False
 
         self.setWindowTitle(f"Design — {project.pattern.name}")
         self.resize(1180, 800)
         self._build_ui()
         self._build_menu()
         self._refresh()
+
+    def showEvent(self, e):
+        super().showEvent(e)
+        # Fit the whole pattern into the viewport the first time the window is shown
+        # (deferred so the layout — and thus the real viewport size — is settled).
+        if not self._fitted:
+            self._fitted = True
+            QTimer.singleShot(0, self._fit_to_view)
+
+    def _fit_to_view(self):
+        from .design_canvas import MARGIN
+        vp = self.scroll.viewport().size()
+        avail_w, avail_h = vp.width() - MARGIN - 6, vp.height() - MARGIN - 6
+        if self.pattern.cols < 1 or self.pattern.rows < 1 or avail_w < 1 or avail_h < 1:
+            return
+        cell = min(avail_w / self.pattern.cols, avail_h / self.pattern.rows)
+        self.canvas.set_cell_size(int(max(4, min(48, cell))))
 
     # --- UI ------------------------------------------------------------------
     def _build_ui(self):
@@ -80,6 +98,9 @@ class DesignWindow(QMainWindow):
             zb.clicked.connect(lambda _=False, d=delta: self._zoom(d))
             zoom.addWidget(zb)
         tools.addLayout(zoom)
+        fit_btn = QPushButton("Fit")
+        fit_btn.clicked.connect(self._fit_to_view)
+        tools.addWidget(fit_btn)
         tools.addStretch(1)
         root.addLayout(tools)
 

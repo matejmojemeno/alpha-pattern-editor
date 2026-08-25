@@ -178,6 +178,21 @@ def test_start_working_persists_work_stage(qapp, tmp_path):
     assert reloaded.stage == "work"
 
 
+def test_fit_to_view_shows_whole_pattern(qapp):
+    """Opening a project fits the whole chart in the viewport (no manual zoom-out)."""
+    from ..ui.design.design_window import DesignWindow
+    proj, img = _project()
+    win = DesignWindow(proj, source_img=img)
+    win.resize(1000, 700)
+    win.show()
+    qapp.processEvents()
+    win._fit_to_view()
+    vp = win.scroll.viewport().size()
+    assert win.canvas.width() <= vp.width() + 2      # whole width fits
+    assert win.canvas.height() <= vp.height() + 2    # whole height fits
+    assert win.canvas.cell >= 4                       # cells stay visible/editable
+
+
 def test_no_progress_ui(qapp):
     """§6.1: the Design window shows no progress state."""
     import inspect
