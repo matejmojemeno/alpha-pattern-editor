@@ -108,6 +108,14 @@ def save_project(project: Project, path: str, source_img: np.ndarray | None = No
             z.writestr("source.png", ibuf.getvalue())
 
 
+def delete_project(path: str) -> None:
+    """Remove a saved project file. Guards against deleting anything but an .alpha."""
+    if not path.endswith(".alpha"):
+        raise ValueError("Refusing to delete a non-project file.")
+    if os.path.exists(path):
+        os.remove(path)
+
+
 def load_project(path: str) -> Project:
     with zipfile.ZipFile(path, "r") as z:
         meta = json.loads(z.read("meta.json"))

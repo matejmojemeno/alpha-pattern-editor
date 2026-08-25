@@ -6,8 +6,8 @@ import os
 from PySide6.QtCore import QEvent, QFileSystemWatcher, Qt, QTimer, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
-    QFrame, QGridLayout, QHBoxLayout, QLabel, QMainWindow, QProgressBar, QPushButton,
-    QScrollArea, QVBoxLayout, QWidget,
+    QFrame, QGridLayout, QHBoxLayout, QLabel, QMainWindow, QMessageBox, QProgressBar,
+    QPushButton, QScrollArea, QVBoxLayout, QWidget,
 )
 
 from ...core import io
@@ -17,7 +17,8 @@ from ...core.io import ProjectSummary
 class ProjectCard(QFrame):
     """A single saved project: source-image thumbnail, name, dims, progress."""
 
-    opened = Signal(str)     # emits the .alpha path
+    opened = Signal(str)         # emits the .alpha path
+    deleteRequested = Signal(str)
 
     def __init__(self, summary: ProjectSummary):
         super().__init__()
@@ -56,6 +57,19 @@ class ProjectCard(QFrame):
         bar.setFormat("%p% done")
         bar.setFixedHeight(16)
         lay.addWidget(bar)
+
+        # Corner "remove" button (overlaid, so it doesn't disturb the layout). A child
+        # button consumes its own click, so pressing it never opens the project.
+        self.delete_btn = QPushButton("✕", self)
+        self.delete_btn.setFixedSize(24, 24)
+        self.delete_btn.setToolTip("Remove from library")
+        self.delete_btn.setCursor(Qt.ArrowCursor)
+        self.delete_btn.move(self.width() - 30, 6)
+        self.delete_btn.setStyleSheet(
+            "QPushButton { border:none; border-radius:12px; background:rgba(0,0,0,0.35);"
+            " color:white; font-weight:bold; }"
+            " QPushButton:hover { background:#d33; }")
+        self.delete_btn.clicked.connect(lambda: self.deleteRequested.emit(self.path))
 
     def mousePressEvent(self, _e):
         self.opened.emit(self.path)
@@ -145,8 +159,22 @@ class LibraryWindow(QMainWindow):
         for i, s in enumerate(summaries):
             card = ProjectCard(s)
             card.opened.connect(self._open_project)
+            card.deleteRequested.connect(self._delete_project)
             self.grid.addWidget(card, i // self.COLUMNS, i % self.COLUMNS)
         self._sync_watch_paths()
+
+    def _delete_project(self, path: str):
+        name = os.path.splitext(os.path.basename(path))[0]
+        if QMessageBox.question(
+                self, "Remove project",
+                f"Remove “{name}” from your library?\n\nThis deletes the saved file and "
+                f"can't be undone.") != QMessageBox.Yes:
+            return
+        try:
+            io.delete_project(path)
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.critical(self, "Couldn't remove", str(e))
+        self.reload()
 
     def changeEvent(self, e):
         # Refresh whenever the library regains focus — a reliable backstop for any

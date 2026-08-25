@@ -42,6 +42,40 @@ def test_library_shows_saved_cards(qapp, tmp_path, monkeypatch):
     assert win.empty_label.isHidden()
 
 
+def test_card_delete_button_emits_path(qapp):
+    from ..ui.library.library_window import ProjectCard
+    summary = io.ProjectSummary(path="/x/y.alpha", name="n", rows=5, cols=5,
+                                progress_pct=0.0, updated_at=0.0, thumbnail_png=None)
+    card = ProjectCard(summary)
+    got = []
+    card.deleteRequested.connect(got.append)
+    card.delete_btn.click()
+    assert got == ["/x/y.alpha"]
+
+
+def test_delete_project_removes_file_and_card(qapp, tmp_path, monkeypatch):
+    import os
+    from PySide6.QtWidgets import QMessageBox
+    monkeypatch.setattr(io, "SAVED_DIR", str(tmp_path))
+    _make_saved_project(tmp_path)
+    from ..ui.library.library_window import LibraryWindow
+    win = LibraryWindow()
+    win.reload()
+    assert win.grid.count() == 1
+    path = win.grid.itemAt(0).widget().path
+    # auto-confirm the "are you sure?" dialog
+    monkeypatch.setattr(QMessageBox, "question", staticmethod(lambda *a, **k: QMessageBox.Yes))
+    win._delete_project(path)
+    assert not os.path.exists(path)
+    assert win.grid.count() == 0
+
+
+def test_delete_project_refuses_non_alpha():
+    import pytest
+    with pytest.raises(ValueError):
+        io.delete_project("/tmp/not-a-project.txt")
+
+
 def test_library_empty_state(qapp, tmp_path, monkeypatch):
     monkeypatch.setattr(io, "SAVED_DIR", str(tmp_path))
     from ..ui.library.library_window import LibraryWindow

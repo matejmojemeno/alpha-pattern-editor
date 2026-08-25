@@ -55,7 +55,8 @@ test_images/            # drop your charts here
 
 Projects are saved as `.alpha` files in a **`saved/`** folder in the project root, with
 one-click saving (no dialog). The landing screen is a **library** of preview cards
-(source thumbnail, dimensions, % done); click one to resume it.
+(source thumbnail, dimensions, % done); click one to resume it, or the **✕** in a card's
+corner to remove it from the library.
 
 Load a chart (button / drag-drop / Ctrl+V), then on the confirmation screen:
 
