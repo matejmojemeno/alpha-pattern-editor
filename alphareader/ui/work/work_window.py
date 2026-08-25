@@ -139,6 +139,11 @@ class WorkWindow(QMainWindow):
         hc = QAction("High contrast", self, checkable=True)
         hc.toggled.connect(self._set_high_contrast)
         v.addAction(hc)
+        v.addSeparator()
+        self.start_right_act = QAction("Start rows from the right", self, checkable=True)
+        self.start_right_act.setChecked(self.project.pattern.start_direction == "RTL")
+        self.start_right_act.toggled.connect(self._set_start_right)
+        v.addAction(self.start_right_act)
 
     # --- refresh -------------------------------------------------------------
     def refresh(self):
@@ -230,6 +235,13 @@ class WorkWindow(QMainWindow):
 
     def _set_high_contrast(self, on: bool):
         self.setStyleSheet(_HC_STYLE if on else "")
+
+    def _set_start_right(self, on: bool):
+        """Choose which side row 1 starts from (conventions vary, §4.4). Completed rows
+        keep their progress; only the read-out order flips."""
+        self.project.pattern.start_direction = "RTL" if on else "LTR"
+        self._dirty = True
+        self.refresh()
 
     # --- keyboard / close ----------------------------------------------------
     def keyPressEvent(self, e):

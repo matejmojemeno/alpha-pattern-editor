@@ -16,6 +16,7 @@ def _pattern(cells, names=("White", "Brown"), **kw):
     rows, cols = cells.shape
     palette = [PaletteEntry(id=f"p{i}", hex="#000000", name=n) for i, n in enumerate(names)]
     kw.setdefault("bottom_up", False)      # tests set order explicitly for clarity
+    kw.setdefault("start_direction", "LTR")  # direction-mechanics tests pin the start side
     return Pattern(id="x", name="t", created_at=0, updated_at=0, cols=cols, rows=rows,
                    row_ids=[f"r{i}" for i in range(rows)], cells=cells, palette=palette, **kw)
 
@@ -39,6 +40,17 @@ def test_bottom_up_numbering_and_direction():
     assert working_number(p, 2) == 1 and working_number(p, 0) == 3
     assert row_direction(p, 2) == "LTR"      # first worked row
     assert row_direction(p, 1) == "RTL"      # second worked row
+
+
+def test_default_start_direction_is_right_to_left():
+    """App default: row 1 (the bottom row, worked first) reads right-to-left."""
+    from ..core.model import Pattern
+    p = Pattern(id="x", name="t", created_at=0, updated_at=0, cols=2, rows=2,
+                row_ids=["r0", "r1"], cells=np.zeros((2, 2), np.uint16), palette=[])
+    assert p.start_direction == "RTL"
+    assert p.bottom_up is True
+    assert row_direction(p, 1) == "RTL"      # bottom row (worked first) -> right-to-left
+    assert row_direction(p, 0) == "LTR"      # next row turns
 
 
 def test_rtl_row_is_reversed():

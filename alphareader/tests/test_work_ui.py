@@ -40,6 +40,18 @@ def test_work_window_starts_on_first_row(qapp):
     assert win.chips._layout.count() >= 1
 
 
+def test_start_side_toggle(qapp):
+    from ..ui.work.work_window import WorkWindow
+    proj, img = _project()
+    win = WorkWindow(proj, source_img=img)
+    assert proj.pattern.start_direction == "RTL"          # app default: right-to-left
+    assert win.start_right_act.isChecked()
+    assert "←" in win.row_label.text()                     # row 1 arrow points left
+    win._set_start_right(False)
+    assert proj.pattern.start_direction == "LTR"
+    assert "→" in win.row_label.text() and win._dirty
+
+
 def test_complete_and_previous_buttons(qapp):
     from ..ui.work.work_window import WorkWindow
     proj, img = _project()

@@ -31,7 +31,7 @@ class Pattern:
     row_ids: list[str]                    # len == rows, stable across structural edits
     cells: np.ndarray                     # uint16, shape (rows, cols), palette indices
     palette: list[PaletteEntry]
-    start_direction: Literal["LTR", "RTL"] = "LTR"
+    start_direction: Literal["LTR", "RTL"] = "RTL"   # row 1 (bottom) reads right->left
     alternate_direction: bool = True
     bottom_up: bool = True                # work is followed bottom row first (§4.4)
 
