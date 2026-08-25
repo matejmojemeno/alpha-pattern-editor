@@ -51,12 +51,24 @@ def test_complete_and_previous_buttons(qapp):
     assert first not in proj.progress.completed_row_ids  # reopened
 
 
-def test_arrow_keys_advance_runs(qapp):
+def test_keys_navigate_rows(qapp):
+    """Space completes the row (keyPressEvent); Right/Left navigate rows (shortcuts)."""
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QKeyEvent, QShortcut
     from ..ui.work.work_window import WorkWindow
     proj, img = _project()
     win = WorkWindow(proj, source_img=img)
-    win._advance_run()
-    win._retreat_run()  # should not raise
+    shortcuts = {s.key().toString(): s for s in win.findChildren(QShortcut)}
+    assert {"Left", "Right", "Up", "Down"} <= set(shortcuts)
+
+    first = proj.progress.current_row_id
+    win.keyPressEvent(QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Space, Qt.NoModifier))
+    assert first in proj.progress.completed_row_ids          # space completed the row
+    second = proj.progress.current_row_id
+    shortcuts["Right"].activated.emit()
+    assert second in proj.progress.completed_row_ids          # right completed the next row
+    shortcuts["Left"].activated.emit()
+    assert second not in proj.progress.completed_row_ids       # left reopened it
 
 
 def test_finishing_marks_complete(qapp):

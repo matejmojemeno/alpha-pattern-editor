@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import numpy as np
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QFont, QKeySequence
+from PySide6.QtGui import QAction, QFont, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QFileDialog, QHBoxLayout, QLabel, QMainWindow, QMessageBox, QProgressBar,
     QPushButton, QScrollArea, QVBoxLayout, QWidget,
@@ -44,6 +44,12 @@ class WorkWindow(QMainWindow):
         self.resize(940, 860)
         self._build_ui()
         self._build_menu()
+        # Arrow keys are otherwise eaten by Qt's widget focus-navigation before they reach
+        # keyPressEvent, so bind them as window-level shortcuts instead.
+        for keys, handler in ((("Right", "Down"), self._complete_row),
+                              (("Left", "Up"), self._previous_row)):
+            for k in keys:
+                QShortcut(QKeySequence(k), self, activated=handler)
         self.project.progress = work.ensure_started(project.pattern, project.progress)
         self.refresh()
 
@@ -180,14 +186,6 @@ class WorkWindow(QMainWindow):
                                                      self.project.progress)
         self._changed()
 
-    def _advance_run(self):
-        self.project.progress = work.advance(self.project.pattern, self.project.progress)
-        self._changed()
-
-    def _retreat_run(self):
-        self.project.progress = work.retreat(self.project.pattern, self.project.progress)
-        self._changed()
-
     def _on_chip_clicked(self, index: int):
         self.project.progress = work.set_run_index(self.project.pattern,
                                                     self.project.progress, index)
@@ -235,14 +233,11 @@ class WorkWindow(QMainWindow):
 
     # --- keyboard / close ----------------------------------------------------
     def keyPressEvent(self, e):
-        if e.key() in (Qt.Key_Right, Qt.Key_Space, Qt.Key_Return, Qt.Key_Enter):
-            self._advance_run()
-        elif e.key() == Qt.Key_Left:
-            self._retreat_run()
-        elif e.key() == Qt.Key_Down:
+        # Space / Enter complete the current row. Arrow keys are handled by window
+        # shortcuts (installed in __init__) because Qt's focus navigation eats them
+        # before they reach here.
+        if e.key() in (Qt.Key_Space, Qt.Key_Return, Qt.Key_Enter):
             self._complete_row()
-        elif e.key() == Qt.Key_Up:
-            self._previous_row()
         else:
             super().keyPressEvent(e)
 

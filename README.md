@@ -129,9 +129,18 @@ solid-black rows, non-integer downscale and JPEG re-encode.
 Opened for a project with no progress yet (or via **Back to Design** from the Work stage,
 and **Work on this →** the other way). Left: paint / fill / rectangle / eyedropper /
 fill-row / fill-column tools and zoom. Centre: the editable chart (black gridlines, axis
-numbers). Right: the palette (add / recolour / delete) and a structure panel (borders in
-the current colour, mirror, flip, rotate 180°, trim uniform edges). Full undo/redo
-(Ctrl+Z / Ctrl+Shift+Z, a paint stroke is one step), Save to `saved/`, and Export PNG.
+numbers). Right: the palette and a structure panel:
+
+- **Palette** — add, recolour, or **delete** a colour. Deleting repaints its cells with
+  the perceptually nearest remaining colour, so unwanted colours collapse cleanly.
+- **Pad to size** — type a target width × height and it grows the chart to that size by
+  adding a border in the pattern's dominant border colour (padding only, never crops).
+- **Scale ×N** — integer, pixel-exact upscaling (each cell becomes an N×N block); no
+  interpolation, no new colours.
+- **Mirror / Flip / Rotate 180° / Trim uniform edges.**
+
+Full undo/redo (Ctrl+Z / Ctrl+Shift+Z, a paint stroke is one step), Save to `saved/`, and
+Export PNG.
 
 ## Not yet built
 

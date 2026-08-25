@@ -123,16 +123,32 @@ class DesignWindow(QMainWindow):
     def _structural_panel(self) -> QGroupBox:
         box = QGroupBox("Structure")
         lay = QVBoxLayout(box)
-        grid = QHBoxLayout()
-        self._border_spins = {}
-        for edge in ("top", "right", "bottom", "left"):
-            grid.addWidget(QLabel(edge[0].upper()))
-            s = QSpinBox(); s.setRange(-99, 99); grid.addWidget(s)
-            self._border_spins[edge] = s
-        lay.addLayout(grid)
-        apply_b = QPushButton("Apply border (current colour)")
-        apply_b.clicked.connect(self._apply_border)
-        lay.addWidget(apply_b)
+
+        # Pad to a target size with the pattern's border colour (fills, never crops).
+        size_row = QHBoxLayout()
+        size_row.addWidget(QLabel("W"))
+        self._pad_w = QSpinBox(); self._pad_w.setRange(1, 2000)
+        self._pad_w.setValue(self.pattern.cols)
+        size_row.addWidget(self._pad_w)
+        size_row.addWidget(QLabel("H"))
+        self._pad_h = QSpinBox(); self._pad_h.setRange(1, 2000)
+        self._pad_h.setValue(self.pattern.rows)
+        size_row.addWidget(self._pad_h)
+        lay.addLayout(size_row)
+        pad_b = QPushButton("Pad to size (border colour)")
+        pad_b.clicked.connect(self._pad_to_size)
+        lay.addWidget(pad_b)
+
+        # Integer scale (pixel-exact, no interpolation).
+        scale_row = QHBoxLayout()
+        scale_row.addWidget(QLabel("Scale ×"))
+        self._scale_factor = QSpinBox(); self._scale_factor.setRange(2, 12)
+        scale_row.addWidget(self._scale_factor)
+        scale_b = QPushButton("Apply scale")
+        scale_b.clicked.connect(self._scale)
+        scale_row.addWidget(scale_b)
+        lay.addLayout(scale_row)
+
         for label, fn in (("Mirror ⇄", edit.mirror_h), ("Flip ⇅", edit.mirror_v),
                           ("Rotate 180°", edit.rotate_180)):
             b = QPushButton(label); b.clicked.connect(lambda _=False, f=fn: self._commit(f(self.pattern)))
@@ -174,6 +190,12 @@ class DesignWindow(QMainWindow):
     def _after_edit(self):
         self._dirty = True
         self.project.pattern = self.pattern
+        # Keep the pad target valid (>= current) without clobbering a larger typed target.
+        if hasattr(self, "_pad_w"):
+            if self._pad_w.value() < self.pattern.cols:
+                self._pad_w.setValue(self.pattern.cols)
+            if self._pad_h.value() < self.pattern.rows:
+                self._pad_h.setValue(self.pattern.rows)
         self._refresh()
 
     def _undo(self):
@@ -258,23 +280,33 @@ class DesignWindow(QMainWindow):
             self._commit(edit.recolor_palette_entry(self.pattern, entry.id, col.name()))
 
     def _delete_color(self):
+        """Remove the selected colour; its cells fold into the nearest remaining one."""
         i = self.palette_list.currentRow()
         if i < 0 or len(self.pattern.palette) <= 1:
             return
         entry = self.pattern.palette[i]
-        replacement = self.pattern.palette[0 if i != 0 else 1]
-        self._commit(edit.delete_palette_entry(self.pattern, entry.id, replacement.id))
+        self._commit(edit.delete_palette_entry_nearest(self.pattern, entry.id))
 
-    def _apply_border(self):
-        vals = {k: s.value() for k, s in self._border_spins.items()}
-        if not any(vals.values()):
+    def _pad_to_size(self):
+        tw, th = self._pad_w.value(), self._pad_h.value()
+        if tw < self.pattern.cols or th < self.pattern.rows:
+            QMessageBox.information(
+                self, "Pad to size",
+                "Target must be at least the current size — this adds a border, "
+                "it doesn't crop.")
             return
-        try:
-            self._commit(edit.add_border(self.pattern, palette_index=self.color_index, **vals))
-        except ValueError as e:
-            QMessageBox.warning(self, "Border", str(e))
-        for s in self._border_spins.values():
-            s.setValue(0)
+        if tw == self.pattern.cols and th == self.pattern.rows:
+            return
+        self._commit(edit.pad_to_size(self.pattern, tw, th))
+        self._sync_size_spins()
+
+    def _scale(self):
+        self._commit(edit.scale(self.pattern, self._scale_factor.value()))
+        self._sync_size_spins()
+
+    def _sync_size_spins(self):
+        self._pad_w.setValue(self.pattern.cols)
+        self._pad_h.setValue(self.pattern.rows)
 
     # --- refresh -------------------------------------------------------------
     def _refresh(self):

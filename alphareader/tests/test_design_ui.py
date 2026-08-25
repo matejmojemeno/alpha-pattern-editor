@@ -107,6 +107,50 @@ def test_palette_recolor(qapp):
     assert win.pattern.palette[0].hex == "#123456"
 
 
+def test_delete_color_folds_to_nearest(qapp):
+    from ..ui.design.design_window import DesignWindow
+    proj, img = _project()
+    win = DesignWindow(proj, source_img=img)
+    n = len(win.pattern.palette)
+    win.palette_list.setCurrentRow(2)
+    win._delete_color()
+    assert len(win.pattern.palette) == n - 1
+    assert win.pattern.cells.max() < len(win.pattern.palette)   # no dangling index
+
+
+def test_scale_button(qapp):
+    from ..ui.design.design_window import DesignWindow
+    proj, img = _project()
+    win = DesignWindow(proj, source_img=img)
+    r0, c0 = win.pattern.rows, win.pattern.cols
+    win._scale_factor.setValue(3)
+    win._scale()
+    assert (win.pattern.rows, win.pattern.cols) == (r0 * 3, c0 * 3)
+    assert (win._pad_w.value(), win._pad_h.value()) == (c0 * 3, r0 * 3)
+
+
+def test_pad_to_size_button(qapp):
+    from ..ui.design.design_window import DesignWindow
+    proj, img = _project()
+    win = DesignWindow(proj, source_img=img)
+    r0, c0 = win.pattern.rows, win.pattern.cols
+    win._pad_w.setValue(c0 + 4)
+    win._pad_h.setValue(r0 + 2)
+    win._pad_to_size()
+    assert (win.pattern.rows, win.pattern.cols) == (r0 + 2, c0 + 4)
+
+
+def test_pad_target_clamped_after_undo(qapp):
+    from ..ui.design.design_window import DesignWindow
+    proj, img = _project()
+    win = DesignWindow(proj, source_img=img)
+    c0 = win.pattern.cols
+    win._scale_factor.setValue(2); win._scale()      # dims double, target follows
+    assert win._pad_w.value() == c0 * 2
+    win._undo()                                       # back to original dims
+    assert win._pad_w.value() >= win.pattern.cols     # target stays valid
+
+
 def test_save_and_export(qapp, tmp_path):
     from ..ui.design.design_window import DesignWindow, open_project_design
     proj, img = _project()

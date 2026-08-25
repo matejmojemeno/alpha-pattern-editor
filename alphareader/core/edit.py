@@ -244,3 +244,63 @@ def delete_palette_entry(p: Pattern, entry_id: str, replacement_id: str) -> Patt
     cells = _remove_index(p.cells, di, ri)
     palette = [e for i, e in enumerate(p.palette) if i != di]
     return _clone(p, cells=cells, palette=palette)
+
+
+def nearest_entry_id(p: Pattern, entry_id: str) -> str:
+    """The id of the palette entry perceptually closest (CIELAB) to `entry_id`."""
+    from .detect.palette import hex_to_rgb, srgb_to_lab
+    di = _index_of(p, entry_id)
+    labs = srgb_to_lab(np.array([hex_to_rgb(e.hex) for e in p.palette], dtype=float))
+    dists = np.linalg.norm(labs - labs[di], axis=1)
+    dists[di] = np.inf
+    return p.palette[int(np.argmin(dists))].id
+
+
+def delete_palette_entry_nearest(p: Pattern, entry_id: str) -> Pattern:
+    """Remove an entry, repainting its cells with the perceptually nearest remaining
+    colour (so unwanted colours collapse into the closest one automatically)."""
+    if len(p.palette) <= 1:
+        raise ValueError("Cannot remove the only colour.")
+    return delete_palette_entry(p, entry_id, nearest_entry_id(p, entry_id))
+
+
+# --- scaling & sizing --------------------------------------------------------
+
+def scale(p: Pattern, factor: int) -> Pattern:
+    """Integer upscale: every cell becomes a factor x factor block. Pixel-exact — no
+    interpolation or new colours, just a larger version of the same chart."""
+    factor = int(factor)
+    if factor < 1:
+        raise ValueError("Scale factor must be a positive integer.")
+    if factor == 1:
+        return _clone(p)
+    cells = np.repeat(np.repeat(p.cells, factor, axis=0), factor, axis=1)
+    row_ids = [uuid.uuid4().hex for _ in range(cells.shape[0])]
+    return _clone(p, cells=cells, row_ids=row_ids)
+
+
+def major_border_index(p: Pattern) -> int:
+    """The most common palette index around the outermost ring of cells — the colour a
+    frame/border is drawn in."""
+    c = p.cells
+    if p.rows < 2 or p.cols < 2:
+        perim = c.ravel()
+    else:
+        perim = np.concatenate([c[0, :], c[-1, :], c[1:-1, 0], c[1:-1, -1]])
+    vals, counts = np.unique(perim, return_counts=True)
+    return int(vals[int(np.argmax(counts))])
+
+
+def pad_to_size(p: Pattern, target_cols: int, target_rows: int,
+                palette_index: int | None = None) -> Pattern:
+    """Grow the chart to target_cols x target_rows by adding a border, centred as evenly
+    as possible. The border colour defaults to the pattern's major border colour (§9).
+    Padding only — never crops, so the artwork is untouched."""
+    if target_cols < p.cols or target_rows < p.rows:
+        raise ValueError("Target size must be at least the current size (this only pads).")
+    if palette_index is None:
+        palette_index = major_border_index(p)
+    dc, dr = target_cols - p.cols, target_rows - p.rows
+    left, top = dc // 2, dr // 2
+    return add_border(p, top=top, bottom=dr - top, left=left, right=dc - left,
+                      palette_index=palette_index)

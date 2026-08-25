@@ -115,6 +115,65 @@ def test_delete_palette_entry_repaints():
     assert "p0" not in [e.id for e in q.palette]
 
 
+def test_delete_palette_entry_nearest():
+    """Deleting a colour repaints its cells with the perceptually closest remaining one."""
+    p = _pattern([[0, 1, 2]])
+    # colours: 0 black, 1 near-black, 2 white -> deleting 1 should fold into 0, not 2.
+    p.palette[0].hex = "#000000"
+    p.palette[1].hex = "#101010"
+    p.palette[2].hex = "#ffffff"
+    q = edit.delete_palette_entry_nearest(p, p.palette[1].id)
+    assert len(q.palette) == 2
+    # cell that was colour 1 now shares the (reindexed) black entry, not white
+    black_idx = [i for i, e in enumerate(q.palette) if e.hex == "#000000"][0]
+    assert q.cells[0, 1] == black_idx
+    assert q.cells.max() < len(q.palette)
+
+
+def test_scale_is_pixel_exact():
+    p = _pattern([[0, 1], [2, 0]])
+    q = edit.scale(p, 2)
+    assert (q.rows, q.cols) == (4, 4)
+    assert np.array_equal(q.cells, [[0, 0, 1, 1], [0, 0, 1, 1],
+                                    [2, 2, 0, 0], [2, 2, 0, 0]])
+    assert len(q.palette) == len(p.palette)          # no new colours
+    assert len(set(q.row_ids)) == 4
+
+
+def test_scale_factor_one_is_noop_copy():
+    p = _pattern([[0, 1]])
+    q = edit.scale(p, 1)
+    assert np.array_equal(q.cells, p.cells) and q is not p
+
+
+def test_major_border_index():
+    # perimeter is mostly colour 2, interior colour 0
+    p = _pattern([[2, 2, 2], [2, 0, 2], [2, 2, 2]])
+    assert edit.major_border_index(p) == 2
+
+
+def test_pad_to_size_uses_border_colour():
+    p = _pattern([[2, 2, 2], [2, 0, 2], [2, 2, 2]])   # border colour 2
+    q = edit.pad_to_size(p, target_cols=5, target_rows=5)
+    assert (q.rows, q.cols) == (5, 5)
+    assert np.all(q.cells[0, :] == 2) and np.all(q.cells[:, 0] == 2)   # new ring is colour 2
+    assert q.cells[2, 2] == 0                                          # original centre intact
+
+
+def test_pad_to_size_centres_and_preserves_row_ids():
+    p = _pattern([[0, 1], [1, 0]])
+    original = list(p.row_ids)
+    q = edit.pad_to_size(p, target_cols=2, target_rows=4, palette_index=0)
+    assert q.rows == 4
+    assert original[0] in q.row_ids and original[1] in q.row_ids       # progress survives
+
+
+def test_pad_to_size_rejects_shrink():
+    p = _pattern([[0, 1], [1, 0]])
+    with __import__("pytest").raises(ValueError):
+        edit.pad_to_size(p, target_cols=1, target_rows=1)
+
+
 def test_trim_uniform_edges():
     p = _pattern([[0, 0, 0], [0, 1, 0], [0, 0, 0]])
     q = edit.trim_uniform_edges(p, top=True, bottom=True)
