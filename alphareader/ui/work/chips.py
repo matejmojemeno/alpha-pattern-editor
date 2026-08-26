@@ -20,15 +20,18 @@ class RunChip(QFrame):
     clicked = Signal(int)
 
     _STYLES = {
-        "done":   "#runChip { background:palette(window); border:1px solid #666; border-radius:10px; }",
+        "done":    "#runChip { background:palette(window); border:1px solid #666; border-radius:10px; }",
+        "current": "#runChip { background:palette(base); border:2px solid #f0a800; border-radius:10px; }",
         "pending": "#runChip { background:palette(base); border:1px solid #999; border-radius:10px; }",
     }
 
-    def __init__(self, index: int, entry: PaletteEntry, count: int, state: str):
+    def __init__(self, index: int, entry: PaletteEntry, count: int, state: str,
+                 done_stitches: int = 0):
         super().__init__()
         self.index = index
         self.setObjectName("runChip")
         self.setCursor(Qt.PointingHandCursor)
+        self.setToolTip("Tap to record how much of this colour you've done")
         self.setStyleSheet(self._STYLES.get(state, self._STYLES["pending"]))
         lay = QHBoxLayout(self)
         lay.setContentsMargins(12, 8, 14, 8)
@@ -41,8 +44,14 @@ class RunChip(QFrame):
         swatch.setStyleSheet(f"background:{entry.hex}; border:1px solid {border}; border-radius:4px;")
         lay.addWidget(swatch)
 
+        # "23 Baby Blue", with a ✓ when done or "· 12/23" when partway through.
+        label = f"{count}  {entry.name}"
+        if state == "done":
+            label += "  ✓"
+        elif state == "current" and 0 < done_stitches < count:
+            label += f"   · {done_stitches}/{count}"
         faded = "color:#aaa;" if state == "done" else ""
-        text = QLabel(f"{count}  {entry.name}")
+        text = QLabel(label)
         text.setStyleSheet(f"font-size:18px; font-weight:600; {faded}")
         lay.addWidget(text)
         lay.addStretch(1)
@@ -63,7 +72,8 @@ class ChipsBar(QWidget):
         self._layout.setSpacing(8)
         self._layout.addStretch(1)
 
-    def set_runs(self, runs: list[Run], palette: list[PaletteEntry], active_index: int):
+    def set_runs(self, runs: list[Run], palette: list[PaletteEntry],
+                 current_index: int, current_stitches: int = 0):
         # Remove existing chips (everything except the trailing stretch).
         while self._layout.count() > 1:
             item = self._layout.takeAt(0)
@@ -72,11 +82,16 @@ class ChipsBar(QWidget):
                 w.setParent(None)
                 w.deleteLater()
         for i, run in enumerate(runs):
-            # No active-run highlight: whole rows are completed at once, so a per-run
-            # cursor highlight isn't needed (and read poorly against dark-mode text).
-            state = "done" if i < active_index else "pending"
+            # Segments before the cursor are done; the cursor segment may be partway
+            # through (shows n/count); the rest are pending.
+            if i < current_index:
+                state, done = "done", run.count
+            elif i == current_index and current_stitches > 0:
+                state, done = "current", current_stitches
+            else:
+                state, done = "pending", 0
             entry = palette[run.palette_index] if run.palette_index < len(palette) else \
                 PaletteEntry(id="?", hex="#dddddd", name="skip")
-            chip = RunChip(i, entry, run.count, state)
+            chip = RunChip(i, entry, run.count, state, done)
             chip.clicked.connect(self.chipClicked)
             self._layout.insertWidget(self._layout.count() - 1, chip)

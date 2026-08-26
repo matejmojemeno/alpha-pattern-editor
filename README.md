@@ -83,7 +83,10 @@ the direction alternating (turning) each row (§4.4). The View menu has a **"Sta
 from the right"** toggle since this convention varies. The current row's stitches show as
 large run-length chips (`27 White`, `1 Very Dark Topaz`, …) with the working **direction
 arrow**. **Row complete** (or Spacebar / →) finishes the whole current row and moves up;
-← goes back a row. The chart fits fully on screen (no scrolling), with **black gridlines**
+← goes back a row. To stop **mid-row**, tap a colour segment chip: mark that segment done
+(which also marks every earlier segment in the row done) or enter how many of its stitches
+you've finished — the chip then shows a ✓ or `n/count`, and it all saves with the project.
+The chart fits fully on screen (no scrolling), with **black gridlines**
 and **row/column numbers** to help counting; completed rows are dimmed and struck through,
 the current one outlined. **Save** writes to `saved/`, and closing prompts to save. Focus
 mode / high-contrast are in the View menu; Project → Export readout writes the pattern as

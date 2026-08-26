@@ -98,6 +98,44 @@ def test_retreat_reopens_previous_row():
     assert pr.current_run_index == work.num_runs(p, 0) - 1
 
 
+def test_mark_segment_complete_marks_previous():
+    # one row, three runs: [0][1 1][0 0 0] -> runs of 1, 2, 3
+    p = _pattern([[0, 1, 1, 0, 0, 0]])
+    pr = work.ensure_started(p, Progress())
+    pr = work.mark_segment_complete(p, pr, 1)     # finish 2nd segment -> also 1st
+    assert pr.current_run_index == 2              # cursor now on the 3rd segment
+    assert pr.current_run_stitches == 0
+    # 1 (run0) + 2 (run1) done of 6 -> 3 left
+    assert work.remaining_stitches(p, pr) == 3
+
+
+def test_mark_last_segment_completes_row():
+    p = _pattern([[0, 1, 1], [2, 2, 2]], names=("A", "B", "C"))
+    pr = work.ensure_started(p, Progress())
+    pr = work.mark_segment_complete(p, pr, 1)     # 2nd (last) segment of row 0
+    assert "r0" in pr.completed_row_ids and pr.current_row_id == "r1"
+
+
+def test_set_run_stitches_partial_and_full():
+    p = _pattern([[0, 1, 1, 1, 1]])               # runs: 1 x'0', 4 x'1'
+    pr = work.ensure_started(p, Progress())
+    pr = work.set_run_stitches(p, pr, 1, 2)       # 2 of the 4 in segment 1
+    assert pr.current_run_index == 1 and pr.current_run_stitches == 2
+    assert work.remaining_stitches(p, pr) == 2    # 5 total - (1 seg0 + 2 partial) = 2
+    pr = work.set_run_stitches(p, pr, 1, 4)       # fill the segment -> completes it
+    assert pr.current_run_stitches == 0
+    # last segment filled -> whole (single) row done
+    assert work.is_complete(p, pr)
+
+
+def test_partial_resets_when_row_completes():
+    p = _pattern([[0, 1, 1, 1], [2, 2, 2, 2]], names=("A", "B", "C"))
+    pr = work.ensure_started(p, Progress())
+    pr = work.set_run_stitches(p, pr, 1, 2)       # partial on row 0
+    pr = work.complete_current_row(p, pr)
+    assert pr.current_run_stitches == 0 and pr.current_run_index == 0
+
+
 def test_started_at_stamped_once():
     p = _pattern([[0, 1]])
     pr = work.ensure_started(p, Progress())

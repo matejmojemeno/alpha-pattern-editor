@@ -18,6 +18,7 @@ def _copy(pr: Progress) -> Progress:
         completed_row_ids=set(pr.completed_row_ids),
         current_row_id=pr.current_row_id,
         current_run_index=pr.current_run_index,
+        current_run_stitches=pr.current_run_stitches,
         started_at=pr.started_at,
     )
 
@@ -56,6 +57,7 @@ def ensure_started(p: Pattern, pr: Progress) -> Progress:
     if pr.current_row_id is None or pr.current_row_id not in p.row_ids:
         pr.current_row_id = first_incomplete_row(p, pr) or (p.row_ids[-1] if p.row_ids else None)
         pr.current_run_index = 0
+        pr.current_run_stitches = 0
     return pr
 
 
@@ -66,6 +68,41 @@ def set_run_index(p: Pattern, pr: Progress, index: int) -> Progress:
     if r is None:
         return pr
     pr.current_run_index = max(0, min(index, num_runs(p, r) - 1))
+    pr.current_run_stitches = 0
+    return pr
+
+
+def mark_segment_complete(p: Pattern, pr: Progress, run_index: int) -> Progress:
+    """Mark colour segment `run_index` in the current row done — and, implicitly, every
+    segment before it. If it's the last segment, the whole row completes."""
+    pr = ensure_started(p, pr)
+    r = row_index(p, pr.current_row_id)
+    if r is None:
+        return pr
+    nruns = num_runs(p, r)
+    run_index = max(0, min(run_index, nruns - 1))
+    if run_index + 1 >= nruns:
+        return complete_current_row(p, pr)
+    pr.current_run_index = run_index + 1
+    pr.current_run_stitches = 0
+    return pr
+
+
+def set_run_stitches(p: Pattern, pr: Progress, run_index: int, stitches: int) -> Progress:
+    """Record that `stitches` of colour segment `run_index` are done (segments before it
+    are marked complete). Reaching the segment's full count completes it."""
+    pr = ensure_started(p, pr)
+    r = row_index(p, pr.current_row_id)
+    if r is None:
+        return pr
+    runs = encode_row(p, r)
+    run_index = max(0, min(run_index, len(runs) - 1))
+    count = runs[run_index].count
+    stitches = max(0, min(stitches, count))
+    if stitches >= count:
+        return mark_segment_complete(p, pr, run_index)
+    pr.current_run_index = run_index
+    pr.current_run_stitches = stitches
     return pr
 
 
@@ -89,6 +126,7 @@ def complete_current_row(p: Pattern, pr: Progress) -> Progress:
     if nxt is not None:
         pr.current_row_id = nxt
     pr.current_run_index = 0
+    pr.current_run_stitches = 0
     return pr
 
 
@@ -104,18 +142,19 @@ def go_previous_row(p: Pattern, pr: Progress) -> Progress:
     pr.completed_row_ids.discard(pr.current_row_id)
     pr.current_row_id = prev
     pr.current_run_index = 0
+    pr.current_run_stitches = 0
     return pr
 
 
 def advance(p: Pattern, pr: Progress) -> Progress:
-    """Move the cursor to the next run; past the last run, complete the row (§10). Used
-    for fine, colour-by-colour tracking with the arrow keys."""
+    """Move the cursor to the next run; past the last run, complete the row (§10)."""
     pr = ensure_started(p, pr)
     r = row_index(p, pr.current_row_id)
     if r is None:
         return pr
     if pr.current_run_index + 1 < num_runs(p, r):
         pr.current_run_index += 1
+        pr.current_run_stitches = 0
         return pr
     return complete_current_row(p, pr)
 
@@ -126,6 +165,7 @@ def retreat(p: Pattern, pr: Progress) -> Progress:
     r = row_index(p, pr.current_row_id)
     if r is None:
         return pr
+    pr.current_run_stitches = 0
     if pr.current_run_index > 0:
         pr.current_run_index -= 1
         return pr
@@ -140,8 +180,8 @@ def retreat(p: Pattern, pr: Progress) -> Progress:
 
 
 def remaining_stitches(p: Pattern, pr: Progress) -> int:
-    """Stitches left: all cells in unfinished rows, minus runs already passed in the
-    current row (the active run still counts as remaining)."""
+    """Stitches left: all cells in unfinished rows, minus stitches already done in the
+    current row (completed segments plus any partial progress in the active one)."""
     total = 0
     for rid in p.row_ids:
         if rid in pr.completed_row_ids:
@@ -150,7 +190,8 @@ def remaining_stitches(p: Pattern, pr: Progress) -> int:
     r = row_index(p, pr.current_row_id)
     if r is not None and pr.current_row_id not in pr.completed_row_ids:
         runs = encode_row(p, r)
-        total -= sum(run.count for run in runs[: pr.current_run_index])
+        done = sum(run.count for run in runs[: pr.current_run_index]) + pr.current_run_stitches
+        total -= done
     return max(0, total)
 
 

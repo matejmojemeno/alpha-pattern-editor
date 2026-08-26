@@ -10,8 +10,19 @@ from PySide6.QtWidgets import QApplication      # noqa: E402
 from ..core import io, work                      # noqa: E402
 from ..core.confirm import ConfirmState, pattern_from_preview  # noqa: E402
 from ..core.detect import detect_pattern         # noqa: E402
-from ..core.model import Project                 # noqa: E402
+from ..core.model import PaletteEntry, Pattern, Project  # noqa: E402
+from ..core.readout import encode_row            # noqa: E402
 from . import synth                              # noqa: E402
+
+
+def _segmented_project():
+    """A project whose current row has several distinct colour segments."""
+    cells = np.array([[0, 0, 0, 1, 1, 0, 0, 2, 2, 2, 0, 0]] * 4, dtype=np.uint16)
+    palette = [PaletteEntry("a", "#ffffff", "White"), PaletteEntry("b", "#000000", "Black"),
+               PaletteEntry("c", "#e6be28", "Gold")]
+    pat = Pattern(id="x", name="seg", created_at=0, updated_at=0, cols=12, rows=4,
+                  row_ids=[f"r{i}" for i in range(4)], cells=cells, palette=palette)
+    return Project(pattern=pat)
 
 
 @pytest.fixture(scope="module")
@@ -38,6 +49,49 @@ def test_work_window_starts_on_first_row(qapp):
     assert proj.progress.started_at is not None
     assert "Row 1 of" in win.row_label.text()
     assert win.chips._layout.count() >= 1
+
+
+def test_segment_dialog_actions(qapp):
+    from ..ui.work.work_window import SegmentDialog
+    from ..core.model import PaletteEntry
+    dlg = SegmentDialog(None, PaletteEntry("a", "#ffffff", "White"), count=5, done=2)
+    assert dlg.stitches() == 2 and dlg.mark_complete is False
+    dlg._complete()
+    assert dlg.mark_complete is True
+
+
+def test_chip_click_marks_segment_and_previous(qapp, monkeypatch):
+    from ..ui.work import work_window as ww
+    proj = _segmented_project()
+    win = ww.WorkWindow(proj)
+
+    class FakeDlg:                                   # "Mark segment complete"
+        def __init__(self, *a): self.mark_complete = True
+        def exec(self): from PySide6.QtWidgets import QDialog; return QDialog.Accepted
+        def stitches(self): return 0
+    monkeypatch.setattr(ww, "SegmentDialog", FakeDlg)
+
+    win._on_chip_clicked(1)                          # complete the 2nd segment
+    # segments 0 and 1 are now done -> cursor sits on segment 2
+    assert proj.progress.current_run_index == 2
+    assert proj.progress.current_run_stitches == 0
+    assert win._dirty
+
+
+def test_chip_click_records_partial_stitches(qapp, monkeypatch):
+    from ..ui.work import work_window as ww
+    proj = _segmented_project()
+    win = ww.WorkWindow(proj)
+    runs = encode_row(proj.pattern, work.row_index(proj.pattern, proj.progress.current_row_id))
+
+    class FakeDlg:                                   # "2 stitches of segment 1"
+        def __init__(self, *a): self.mark_complete = False
+        def exec(self): from PySide6.QtWidgets import QDialog; return QDialog.Accepted
+        def stitches(self): return 2
+    monkeypatch.setattr(ww, "SegmentDialog", FakeDlg)
+
+    win._on_chip_clicked(1)
+    assert proj.progress.current_run_index == 1 and proj.progress.current_run_stitches == 2
 
 
 def test_start_side_toggle(qapp):

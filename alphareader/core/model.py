@@ -40,7 +40,8 @@ class Pattern:
 class Progress:
     completed_row_ids: set[str] = field(default_factory=set)
     current_row_id: str | None = None
-    current_run_index: int = 0
+    current_run_index: int = 0        # runs [0, this) in the current row are complete
+    current_run_stitches: int = 0     # stitches done within the in-progress run
     started_at: float | None = None
 
 

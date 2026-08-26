@@ -8,8 +8,8 @@ import numpy as np
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QFont, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
-    QFileDialog, QHBoxLayout, QLabel, QMainWindow, QMessageBox, QProgressBar,
-    QPushButton, QScrollArea, QVBoxLayout, QWidget,
+    QDialog, QDialogButtonBox, QFileDialog, QHBoxLayout, QLabel, QMainWindow, QMessageBox,
+    QProgressBar, QPushButton, QScrollArea, QSpinBox, QVBoxLayout, QWidget,
 )
 
 from ...core import io, work
@@ -155,7 +155,8 @@ class WorkWindow(QMainWindow):
         if cur is not None and not done:
             arrow = "→" if row_direction(p, cur) == "LTR" else "←"
             self.row_label.setText(f"Row {working_number(p, cur)} of {p.rows}   {arrow}")
-            self.chips.set_runs(encode_row(p, cur), p.palette, pr.current_run_index)
+            self.chips.set_runs(encode_row(p, cur), p.palette, pr.current_run_index,
+                                pr.current_run_stitches)
             nxt_id = work._work_neighbour(p, pr.current_row_id, +1)
             nxt = work.row_index(p, nxt_id)
             if nxt is not None:
@@ -192,8 +193,24 @@ class WorkWindow(QMainWindow):
         self._changed()
 
     def _on_chip_clicked(self, index: int):
-        self.project.progress = work.set_run_index(self.project.pattern,
-                                                    self.project.progress, index)
+        """Tap a colour segment to record mid-row progress (§ stopping mid-row)."""
+        p, pr = self.project.pattern, self.project.progress
+        cur = work.row_index(p, pr.current_row_id)
+        if cur is None:
+            return
+        runs = encode_row(p, cur)
+        if not (0 <= index < len(runs)):
+            return
+        run = runs[index]
+        entry = p.palette[run.palette_index] if run.palette_index < len(p.palette) else None
+        done = pr.current_run_stitches if index == pr.current_run_index else 0
+        dlg = SegmentDialog(self, entry, run.count, done)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        if dlg.mark_complete:
+            self.project.progress = work.mark_segment_complete(p, pr, index)
+        else:
+            self.project.progress = work.set_run_stitches(p, pr, index, dlg.stitches())
         self._changed()
 
     def _changed(self):
@@ -268,6 +285,52 @@ class WorkWindow(QMainWindow):
             e.accept()
         else:
             e.ignore()
+
+
+class SegmentDialog(QDialog):
+    """Record progress on one colour segment: either mark it done (which also marks the
+    segments before it done) or enter how many of its stitches are finished."""
+
+    def __init__(self, parent, entry, count: int, done: int):
+        super().__init__(parent)
+        self.setWindowTitle("Record progress")
+        self.mark_complete = False
+        self._count = count
+        lay = QVBoxLayout(self)
+
+        head = QHBoxLayout()
+        if entry is not None:
+            sw = QLabel(); sw.setFixedSize(24, 24)
+            sw.setStyleSheet(f"background:{entry.hex}; border:1px solid #888; border-radius:4px;")
+            head.addWidget(sw)
+            head.addWidget(QLabel(f"<b>{count} {entry.name}</b>"))
+        head.addStretch(1)
+        lay.addLayout(head)
+
+        row = QHBoxLayout()
+        row.addWidget(QLabel("Stitches done:"))
+        self._spin = QSpinBox(); self._spin.setRange(0, count); self._spin.setValue(min(done, count))
+        row.addWidget(self._spin)
+        row.addWidget(QLabel(f"of {count}"))
+        row.addStretch(1)
+        lay.addLayout(row)
+
+        done_btn = QPushButton("Mark segment complete")
+        done_btn.clicked.connect(self._complete)
+        lay.addWidget(done_btn)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.button(QDialogButtonBox.Ok).setText("Save progress")
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        lay.addWidget(buttons)
+
+    def _complete(self):
+        self.mark_complete = True
+        self.accept()
+
+    def stitches(self) -> int:
+        return self._spin.value()
 
 
 def open_project_work(path: str) -> WorkWindow:

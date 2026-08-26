@@ -76,6 +76,7 @@ def _progress_to_json(pr: Progress) -> dict:
         "completed_row_ids": sorted(pr.completed_row_ids),
         "current_row_id": pr.current_row_id,
         "current_run_index": pr.current_run_index,
+        "current_run_stitches": pr.current_run_stitches,
         "started_at": pr.started_at,
     }
 
@@ -85,6 +86,7 @@ def _progress_from_json(d: dict) -> Progress:
         completed_row_ids=set(d.get("completed_row_ids", [])),
         current_row_id=d.get("current_row_id"),
         current_run_index=d.get("current_run_index", 0),
+        current_run_stitches=d.get("current_run_stitches", 0),
         started_at=d.get("started_at"),
     )
 
