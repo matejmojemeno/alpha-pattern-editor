@@ -6,7 +6,7 @@ construction — there is no cell-editing path here (§6.1)."""
 from __future__ import annotations
 
 from PySide6.QtCore import QRect, Qt
-from PySide6.QtGui import QColor, QFont, QPainter, QPen
+from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
 from ...core.detect.palette import hex_to_rgb
@@ -67,7 +67,9 @@ class WorkChartView(QWidget):
         show_every_c = 1 if p.cols <= 15 else 5
         show_every_r = 1 if p.rows <= 15 else 5
         fs = int(max(8, min(13, cell * 0.5)))
-        painter.setFont(QFont("", fs))
+        font = self.font()            # keep the real inherited family (empty family spaces digits oddly)
+        font.setPixelSize(fs)
+        painter.setFont(font)
 
         black = QPen(QColor(0, 0, 0), 1)
         for draw_i, r in enumerate(vis):

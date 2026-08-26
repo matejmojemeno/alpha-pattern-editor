@@ -137,6 +137,18 @@ def test_keys_navigate_rows(qapp):
     assert second not in proj.progress.completed_row_ids       # left reopened it
 
 
+def test_stitch_counter_format_and_not_falsely_finished(qapp):
+    """Header shows done/total, and partway through it must NOT say 'Finished'."""
+    proj = _segmented_project()                      # 4 rows x 12 cols = 48 stitches
+    from ..ui.work.work_window import WorkWindow
+    win = WorkWindow(proj)
+    win._complete_row()                              # one row done
+    assert "/" in win.remaining_label.text() and "stitches" not in win.remaining_label.text()
+    assert win.remaining_label.text() == "12/48"     # 12 of 48 done
+    assert "Finished" not in win.row_label.text()    # not done yet
+    assert win.complete_btn.isEnabled()
+
+
 def test_finishing_marks_complete(qapp):
     from ..ui.work.work_window import WorkWindow
     proj, img = _project()

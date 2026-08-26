@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import numpy as np
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QFont, QKeySequence, QShortcut
+from PySide6.QtGui import QAction, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QDialog, QDialogButtonBox, QFileDialog, QHBoxLayout, QLabel, QMainWindow, QMessageBox,
     QProgressBar, QPushButton, QScrollArea, QSpinBox, QVBoxLayout, QWidget,
@@ -63,11 +63,14 @@ class WorkWindow(QMainWindow):
 
         header = QHBoxLayout()
         self.row_label = QLabel()
-        self.row_label.setFont(QFont("", 22, QFont.Bold))
+        # Size via stylesheet so the widget keeps its real inherited font family. Passing
+        # an empty family to QFont() substitutes a fallback that spaces digits out oddly
+        # on macOS ("791/4096" -> "7 9 1 / 4 0 9 6").
+        self.row_label.setStyleSheet("font-size:22px; font-weight:700;")
         header.addWidget(self.row_label)
         header.addStretch(1)
         self.remaining_label = QLabel()
-        self.remaining_label.setFont(QFont("", 13))
+        self.remaining_label.setStyleSheet("font-size:16px; font-weight:600;")
         header.addWidget(self.remaining_label)
         root.addLayout(header)
 
@@ -110,7 +113,7 @@ class WorkWindow(QMainWindow):
         self.complete_btn = QPushButton("Row complete →")
         self.complete_btn.setDefault(True)
         self.complete_btn.setMinimumHeight(48)
-        self.complete_btn.setFont(QFont("", 15, QFont.Bold))
+        self.complete_btn.setStyleSheet("font-size:15px; font-weight:700;")
         self.complete_btn.clicked.connect(self._complete_row)
         buttons.addWidget(self.complete_btn)
         root.addLayout(buttons)
@@ -171,7 +174,10 @@ class WorkWindow(QMainWindow):
         self.progress_bar.setMaximum(max(1, p.rows))
         self.progress_bar.setValue(work.completed_count(p, pr))
         self.progress_bar.setFormat("Row %v of %m done")
-        self.remaining_label.setText(f"{work.remaining_stitches(p, pr)} stitches left")
+        total = p.rows * p.cols
+        stitches_done = total - work.remaining_stitches(p, pr)
+        self.remaining_label.setText(f"{stitches_done}/{total}")
+        self.remaining_label.setToolTip("stitches done / total")
 
         if done:
             self.row_label.setText("Finished! 🎉")
