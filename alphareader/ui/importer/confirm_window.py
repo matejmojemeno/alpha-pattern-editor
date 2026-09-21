@@ -284,7 +284,7 @@ class ConfirmWindow(QMainWindow):
         project = Project(pattern=pattern, stage="design")
         path = io.default_save_path(pattern)
         try:
-            io.save_project(project, path, source_img=self.img)
+            project = io.save_project(project, path, source_img=self.img)
         except Exception as e:  # noqa: BLE001
             QMessageBox.critical(self, "Save failed", str(e))
             return None
