@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 
 from PySide6.QtCore import QEvent, QFileSystemWatcher, Qt, QTimer, Signal
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QAction, QKeySequence, QPixmap
 from PySide6.QtWidgets import (
     QFrame, QGridLayout, QHBoxLayout, QLabel, QMainWindow, QMessageBox, QProgressBar,
     QPushButton, QScrollArea, QVBoxLayout, QWidget,
@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 
 from ...core import io
 from ...core.io import ProjectSummary
+from .. import theme
 
 
 class ProjectCard(QFrame):
@@ -23,32 +24,36 @@ class ProjectCard(QFrame):
     def __init__(self, summary: ProjectSummary):
         super().__init__()
         self.path = summary.path
+        self._press_pos = None
         self.setObjectName("card")
         self.setStyleSheet(
-            "#card { border:1px solid #bbb; border-radius:10px; background:palette(base); }"
-            "#card:hover { border-color:#f0a800; }")
+            f"#card {{ border:1px solid {theme.border_hex(self)}; "
+            f"border-radius:{theme.RADIUS_LG}px; background:palette(base); }}"
+            f"#card:hover {{ border-color:{theme.ACCENT}; }}")
         self.setCursor(Qt.PointingHandCursor)
-        self.setFixedSize(240, 240)
+        self.setFocusPolicy(Qt.StrongFocus)      # the grid is keyboard-navigable
+        self.setFixedSize(theme.CARD_W, theme.CARD_H)
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(10, 10, 10, 10)
+        lay.setContentsMargins(*([theme.CARD_PAD] * 4))
 
         thumb = QLabel(alignment=Qt.AlignCenter)
-        thumb.setFixedHeight(150)
+        thumb.setFixedHeight(theme.CARD_THUMB_H)
         if summary.thumbnail_png:
             pm = QPixmap()
             pm.loadFromData(summary.thumbnail_png)
-            thumb.setPixmap(pm.scaled(218, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            thumb.setPixmap(pm.scaled(theme.CARD_THUMB_W, theme.CARD_THUMB_H,
+                                      Qt.KeepAspectRatio, Qt.SmoothTransformation))
         else:
             thumb.setText("(no preview)")
         lay.addWidget(thumb)
 
         name = QLabel(summary.name)
-        name.setStyleSheet("font-weight:600; font-size:14px;")
+        name.setStyleSheet(theme.font_css(14, 600))
         name.setWordWrap(True)
         lay.addWidget(name)
 
         meta = QLabel(f"{summary.cols}×{summary.rows}")
-        meta.setStyleSheet("color:#888; font-size:12px;")
+        meta.setStyleSheet(theme.muted_css(self) + theme.font_css(12))
         lay.addWidget(meta)
 
         bar = QProgressBar()
@@ -59,7 +64,9 @@ class ProjectCard(QFrame):
         lay.addWidget(bar)
 
         # Corner "remove" button (overlaid, so it doesn't disturb the layout). A child
-        # button consumes its own click, so pressing it never opens the project.
+        # button consumes its own click, so pressing it never opens the project. Hidden
+        # until hover: a destructive control on every card at rest is noise, and an easy
+        # misclick on the way to opening a project.
         self.delete_btn = QPushButton("✕", self)
         self.delete_btn.setFixedSize(24, 24)
         self.delete_btn.setToolTip("Remove from library")
@@ -68,11 +75,40 @@ class ProjectCard(QFrame):
         self.delete_btn.setStyleSheet(
             "QPushButton { border:none; border-radius:12px; background:rgba(0,0,0,0.35);"
             " color:white; font-weight:bold; }"
-            " QPushButton:hover { background:#d33; }")
+            f" QPushButton:hover {{ background:{theme.DANGER}; }}")
         self.delete_btn.clicked.connect(lambda: self.deleteRequested.emit(self.path))
+        self.delete_btn.hide()
 
-    def mousePressEvent(self, _e):
-        self.opened.emit(self.path)
+    def enterEvent(self, e):
+        self.delete_btn.show()
+        super().enterEvent(e)
+
+    def leaveEvent(self, e):
+        self.delete_btn.hide()
+        super().leaveEvent(e)
+
+    # --- activation ----------------------------------------------------------
+    # Open on *release*, left button only: opening on press meant a right-click opened
+    # the project, and there was no way to slide off a card to change your mind.
+    def mousePressEvent(self, e):
+        if e.button() != Qt.LeftButton:
+            self._press_pos = None
+            return
+        self.setFocus(Qt.MouseFocusReason)
+        self._press_pos = e.position().toPoint()
+
+    def mouseReleaseEvent(self, e):
+        pos, self._press_pos = self._press_pos, None
+        if pos is None or e.button() != Qt.LeftButton:
+            return
+        if self.rect().contains(e.position().toPoint()):
+            self.opened.emit(self.path)
+
+    def keyPressEvent(self, e):
+        if e.key() in (Qt.Key_Return, Qt.Key_Enter, Qt.Key_Space):
+            self.opened.emit(self.path)
+        else:
+            super().keyPressEvent(e)
 
 
 class LibraryWindow(QMainWindow):
@@ -80,13 +116,17 @@ class LibraryWindow(QMainWindow):
 
     COLUMNS = 3
 
-    def __init__(self):
+    def __init__(self, geometry=None):
         super().__init__()
         self.setWindowTitle("Alpha Pattern — Library")
-        self.resize(820, 640)
+        if geometry is not None:
+            self.setGeometry(geometry)       # inherited from the stage we came back from
+        else:
+            self.resize(820, 640)
         self._children: list = []            # keep opened windows alive
         self._closing = False
         self._build_ui()
+        self._build_menu()
 
         # Auto-refresh: watch the saved/ folder (and each project file) so the grid
         # updates itself when a project is saved elsewhere. A short debounce coalesces
@@ -122,7 +162,7 @@ class LibraryWindow(QMainWindow):
 
         top = QHBoxLayout()
         title = QLabel("Your projects")
-        title.setStyleSheet("font-size:20px; font-weight:700;")
+        title.setStyleSheet(theme.font_css(20, 700))
         top.addWidget(title)
         top.addStretch(1)
         new_btn = QPushButton("Import new chart…")
@@ -141,11 +181,26 @@ class LibraryWindow(QMainWindow):
         self.scroll.setWidget(self.grid_host)
         root.addWidget(self.scroll, 1)
 
+        # The empty state replaces the grid rather than sitting in a strip underneath it,
+        # so the message lands in the middle of the window where the user is looking.
         self.empty_label = QLabel(
             "No saved projects yet. Click “Import new chart…” to create one.")
         self.empty_label.setAlignment(Qt.AlignCenter)
-        self.empty_label.setStyleSheet("color:#888;")
-        root.addWidget(self.empty_label)
+        self.empty_label.setStyleSheet(theme.muted_css(self))
+        root.addWidget(self.empty_label, 1)
+
+    def _build_menu(self):
+        m = self.menuBar().addMenu("Project")
+        new = QAction("Import new chart…", self, shortcut=QKeySequence.New)
+        new.triggered.connect(self._import_new)
+        m.addAction(new)
+        refresh = QAction("Refresh", self, shortcut=QKeySequence.Refresh)
+        refresh.triggered.connect(self.reload)
+        m.addAction(refresh)
+        m.addSeparator()
+        close = QAction("Close", self, shortcut=QKeySequence.Close)
+        close.triggered.connect(self.close)
+        m.addAction(close)
 
     def reload(self):
         if self._closing:
@@ -156,6 +211,7 @@ class LibraryWindow(QMainWindow):
                 item.widget().deleteLater()
         summaries = io.list_saved_projects()
         self.empty_label.setVisible(not summaries)
+        self.scroll.setVisible(bool(summaries))
         for i, s in enumerate(summaries):
             card = ProjectCard(s)
             card.opened.connect(self._open_project)
@@ -195,6 +251,8 @@ class LibraryWindow(QMainWindow):
         # §6.4: default to Work if there is progress, else Design.
         project = io.load_project(path)
         source = io.load_source_image(path)
+        # No geometry handoff here: the library stays open behind the project, so reusing
+        # its frame would stack the two windows exactly on top of each other.
         started = project.stage == "work" or bool(project.progress.completed_row_ids)
         if started:
             from ..work.work_window import WorkWindow
@@ -210,3 +268,20 @@ class LibraryWindow(QMainWindow):
         win = ConfirmWindow()
         self._children.append(win)
         win.show()
+
+
+def show_library(geometry=None) -> LibraryWindow:
+    """Bring the library to the front, reusing the existing one if it's still open.
+
+    A stage window can be reached either from the library (which stays open behind it) or
+    straight from the command line, so "← Library" must not spawn a second copy."""
+    from PySide6.QtWidgets import QApplication
+    for w in QApplication.topLevelWidgets():
+        if isinstance(w, LibraryWindow) and not w._closing and w.isVisible():
+            w.reload()
+            w.raise_()
+            w.activateWindow()
+            return w
+    win = LibraryWindow(geometry=geometry)
+    win.show()
+    return win

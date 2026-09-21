@@ -4,8 +4,8 @@ Dense, tool-oriented, desktop layout. No progress display anywhere (§6.1)."""
 from __future__ import annotations
 
 import numpy as np
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QAction, QColor, QFont, QKeySequence
+from PySide6.QtCore import QEvent, QSize, Qt, QTimer
+from PySide6.QtGui import QAction, QColor, QKeySequence
 from PySide6.QtWidgets import (
     QButtonGroup, QColorDialog, QFileDialog, QGroupBox, QHBoxLayout, QLabel, QListWidget,
     QListWidgetItem, QMainWindow, QMessageBox, QPushButton, QScrollArea, QSpinBox,
@@ -15,23 +15,20 @@ from PySide6.QtWidgets import (
 from ...core import edit, io
 from ...core.detect.palette import hex_to_rgb
 from ...core.model import Pattern, Project
+from ...core.readout import format_stats
+from .. import icons, theme
 from .design_canvas import DesignCanvas
 
 UNDO_CAP = 50
-_TOOLS = [("paint", "Paint"), ("fill", "Fill"), ("rect", "Rectangle"),
-          ("eyedropper", "Pick colour"), ("row", "Fill row"), ("col", "Fill column")]
-
-
-def _bold_font() -> QFont:
-    f = QFont()
-    f.setBold(True)
-    f.setPointSize(f.pointSize() + 2)
-    return f
+# (key, label, shortcut) — single-key shortcuts follow the usual paint-tool conventions.
+_TOOLS = [("paint", "Paint", "B"), ("fill", "Fill", "F"), ("rect", "Rectangle", "R"),
+          ("eyedropper", "Pick colour", "I"), ("row", "Fill row", "H"),
+          ("col", "Fill column", "V")]
 
 
 class DesignWindow(QMainWindow):
     def __init__(self, project: Project, path: str | None = None,
-                 source_img: np.ndarray | None = None):
+                 source_img: np.ndarray | None = None, geometry=None):
         super().__init__()
         self.project = project
         self.pattern: Pattern = project.pattern
@@ -50,7 +47,12 @@ class DesignWindow(QMainWindow):
         self._fitted = False
 
         self.setWindowTitle(f"Design — {project.pattern.name}")
-        self.resize(1180, 800)
+        # Keep the frame we were handed by the previous stage, so switching stages doesn't
+        # move and resize the window under the user.
+        if geometry is not None:
+            self.setGeometry(geometry)
+        else:
+            self.resize(1180, 800)
         self._build_ui()
         self._build_menu()
         self._refresh()
@@ -71,6 +73,7 @@ class DesignWindow(QMainWindow):
             return
         cell = min(avail_w / self.pattern.cols, avail_h / self.pattern.rows)
         self.canvas.set_cell_size(int(max(4, min(48, cell))))
+        self._update_zoom_label()
 
     # --- UI ------------------------------------------------------------------
     def _build_ui(self):
@@ -82,11 +85,19 @@ class DesignWindow(QMainWindow):
         tools = QVBoxLayout()
         tools.addWidget(QLabel("<b>Tools</b>"))
         self._tool_group = QButtonGroup(self)
-        for key, label in _TOOLS:
+        self._tool_buttons = {}
+        for key, label, key_seq in _TOOLS:
             b = QToolButton(); b.setText(label); b.setCheckable(True)
-            b.setToolButtonStyle(Qt.ToolButtonTextOnly); b.setMinimumWidth(120)
+            # Icon *beside* the label, not instead of it: the picture makes the row of
+            # tools scannable, the word keeps it unambiguous.
+            b.setIcon(icons.tool_icon(key, self))
+            b.setIconSize(QSize(icons.SIZE, icons.SIZE))
+            b.setToolButtonStyle(Qt.ToolButtonTextBesideIcon); b.setMinimumWidth(130)
+            b.setShortcut(key_seq)                       # also surfaces in the tooltip
+            b.setToolTip(f"{label}  ({key_seq})")
             b.clicked.connect(lambda _=False, k=key: self._set_tool(k))
             self._tool_group.addButton(b)
+            self._tool_buttons[key] = b
             tools.addWidget(b)
             if key == self.tool:
                 b.setChecked(True)
@@ -98,10 +109,21 @@ class DesignWindow(QMainWindow):
             zb.clicked.connect(lambda _=False, d=delta: self._zoom(d))
             zoom.addWidget(zb)
         tools.addLayout(zoom)
+        self.zoom_label = QLabel()
+        self.zoom_label.setAlignment(Qt.AlignCenter)
+        self.zoom_label.setToolTip("Cell size — ⌘/Ctrl + scroll over the chart to zoom")
+        tools.addWidget(self.zoom_label)
         fit_btn = QPushButton("Fit")
         fit_btn.clicked.connect(self._fit_to_view)
         tools.addWidget(fit_btn)
         tools.addStretch(1)
+        # A visible way back. This used to exist only as a menu item, which is no answer
+        # to "there's no route back to the library" — especially on macOS, where the menu
+        # bar lives at the top of the screen rather than on the window.
+        self.library_btn = QPushButton("← Library")
+        self.library_btn.setToolTip("Save and go back to your projects  (⌘⇧L)")
+        self.library_btn.clicked.connect(self._open_library)
+        tools.addWidget(self.library_btn)
         root.addLayout(tools)
 
         # Center: canvas
@@ -109,6 +131,8 @@ class DesignWindow(QMainWindow):
         self.canvas.pressed.connect(self._on_pressed)
         self.canvas.dragged.connect(self._on_dragged)
         self.canvas.released.connect(self._on_released)
+        self.canvas.cancelled.connect(self._cancel_drag)
+        self.canvas.zoomed.connect(lambda _px: self._update_zoom_label())
         self.scroll = QScrollArea(); self.scroll.setWidget(self.canvas)
         self.scroll.setAlignment(Qt.AlignCenter)
         root.addWidget(self.scroll, 1)
@@ -116,6 +140,14 @@ class DesignWindow(QMainWindow):
         # Right: palette + structural
         right = QVBoxLayout()
         right.addWidget(QLabel("<b>Palette</b>"))
+        # The colour you're about to paint with, shown as itself rather than as a
+        # highlighted row you have to go find in the list.
+        current = QHBoxLayout()
+        self.current_swatch = QLabel(); self.current_swatch.setFixedSize(28, 28)
+        current.addWidget(self.current_swatch)
+        self.current_name = QLabel(); self.current_name.setWordWrap(True)
+        current.addWidget(self.current_name, 1)
+        right.addLayout(current)
         self.palette_list = QListWidget()
         self.palette_list.currentRowChanged.connect(self._on_color_selected)
         self.palette_list.itemDoubleClicked.connect(lambda _i: self._recolor_selected())
@@ -136,7 +168,9 @@ class DesignWindow(QMainWindow):
         right.addWidget(save_btn)
         self.work_btn = QPushButton("Start working →")
         self.work_btn.setMinimumHeight(44)
-        self.work_btn.setFont(_bold_font())
+        # Sized via stylesheet, not QFont(): an empty QFont family substitutes a macOS
+        # fallback with odd metrics (see the note in work_window).
+        self.work_btn.setStyleSheet(theme.font_css(17, 700))
         self.work_btn.clicked.connect(self._open_work)
         right.addWidget(self.work_btn)
         root.addLayout(right)
@@ -186,6 +220,8 @@ class DesignWindow(QMainWindow):
         m.addAction(self.act_save)
         exp = QAction("Export PNG…", self); exp.triggered.connect(self._export_png); m.addAction(exp)
         work = QAction("Work on this →", self); work.triggered.connect(self._open_work); m.addAction(work)
+        lib = QAction("← Library", self, shortcut="Ctrl+Shift+L")
+        lib.triggered.connect(self._open_library); m.addAction(lib)
         m.addSeparator()
         close = QAction("Close", self, shortcut=QKeySequence.Close); close.triggered.connect(self.close); m.addAction(close)
 
@@ -236,6 +272,24 @@ class DesignWindow(QMainWindow):
     # --- tool handling -------------------------------------------------------
     def _set_tool(self, key: str):
         self.tool = key
+        btn = self._tool_buttons.get(key)
+        if btn is not None and not btn.isChecked():
+            btn.setChecked(True)        # keyboard shortcuts must move the checked state too
+        self.canvas.set_tool_cursor(key)
+
+    def changeEvent(self, e):
+        # The tool icons are painted from the palette, so re-draw them on a theme switch.
+        if e.type() == QEvent.PaletteChange and hasattr(self, "_tool_buttons"):
+            for key, btn in self._tool_buttons.items():
+                btn.setIcon(icons.tool_icon(key, self))
+            self._refresh_current_color()
+            self._update_zoom_label()
+        super().changeEvent(e)
+
+    def _cancel_drag(self):
+        """Escape on the canvas: drop an in-progress rectangle instead of committing it."""
+        self._rect_start = None
+        self._stroke = False
 
     def _on_pressed(self, r: int, c: int):
         if self.tool == "paint":
@@ -284,6 +338,7 @@ class DesignWindow(QMainWindow):
     def _on_color_selected(self, row: int):
         if row >= 0:
             self.color_index = row
+            self._refresh_current_color()
 
     def _add_color(self):
         col = QColorDialog.getColor(Qt.white, self, "New colour")
@@ -344,15 +399,31 @@ class DesignWindow(QMainWindow):
         self.color_index = min(self.color_index, len(p.palette) - 1)
         self.palette_list.setCurrentRow(self.color_index)
         self.palette_list.blockSignals(False)
+        self._refresh_current_color()
 
-        self.status.setText(
-            f"{p.cols} × {p.rows}  ·  {p.rows*p.cols} stitches  ·  "
-            f"{len(p.palette)} colours  ·  {p.cols + 1} strings")
+        self.status.setText(format_stats(p.cols, p.rows, len(p.palette)))
         self.act_undo.setEnabled(bool(self.undo_stack))
         self.act_redo.setEnabled(bool(self.redo_stack))
+        self._update_zoom_label()
+
+    def _refresh_current_color(self):
+        p = self.pattern
+        if not (0 <= self.color_index < len(p.palette)):
+            return
+        entry = p.palette[self.color_index]
+        self.current_swatch.setStyleSheet(
+            f"background:{entry.hex}; border:1px solid {theme.border_hex(self.current_swatch)}; "
+            f"border-radius:{theme.RADIUS_SM}px;")
+        self.current_name.setText(entry.name)
+        self.current_name.setStyleSheet(theme.font_css(13, 600))
+
+    def _update_zoom_label(self):
+        self.zoom_label.setText(f"{self.canvas.cell} px / cell")
+        self.zoom_label.setStyleSheet(theme.muted_css(self) + theme.font_css(12))
 
     def _zoom(self, delta: int):
         self.canvas.set_cell_size(self.canvas.cell + delta)
+        self._update_zoom_label()
 
     # --- save / export / switch ----------------------------------------------
     def _save(self):
@@ -372,10 +443,17 @@ class DesignWindow(QMainWindow):
     def _open_work(self):
         self._save()
         from ..work.work_window import WorkWindow
-        self._work = WorkWindow(self.project, path=self.path, source_img=self.source_img)
+        self._work = WorkWindow(self.project, path=self.path, source_img=self.source_img,
+                                geometry=self.geometry())
         self._work._save()          # persist the design->work transition (stage, started_at)
         self._dirty = False         # already saved; don't prompt on close
         self._work.show()
+        self.close()
+
+    def _open_library(self):
+        self._save()
+        from ..library.library_window import show_library
+        self._library = show_library(geometry=self.geometry())
         self.close()
 
     def closeEvent(self, e):

@@ -115,12 +115,49 @@ def test_library_no_reload_after_close(qapp, tmp_path, monkeypatch):
     win.changeEvent(QEvent(QEvent.ActivationChange))
 
 
-def test_project_card_opens(qapp):
+def _click(card, button):
+    """Press and release inside the card, the way a real click arrives."""
+    from PySide6.QtCore import QEvent, QPointF, Qt
+    from PySide6.QtGui import QMouseEvent
+    pos = QPointF(card.rect().center())
+    card.mousePressEvent(
+        QMouseEvent(QEvent.MouseButtonPress, pos, pos, button, button, Qt.NoModifier))
+    card.mouseReleaseEvent(
+        QMouseEvent(QEvent.MouseButtonRelease, pos, pos, button, button, Qt.NoModifier))
+
+
+def _card():
     from ..ui.library.library_window import ProjectCard
     summary = io.ProjectSummary(path="/x/y.alpha", name="n", rows=5, cols=5,
                                 progress_pct=40.0, updated_at=0.0, thumbnail_png=None)
-    card = ProjectCard(summary)
+    return ProjectCard(summary)
+
+
+def test_project_card_opens_on_left_click(qapp):
+    from PySide6.QtCore import Qt
+    card = _card()
     received = []
     card.opened.connect(received.append)
-    card.mousePressEvent(None)                # emits opened(path) regardless of event
+    _click(card, Qt.LeftButton)
+    assert received == ["/x/y.alpha"]
+
+
+def test_project_card_ignores_right_click(qapp):
+    """A right-click used to open the project, because the card acted on press and
+    never looked at which button it was."""
+    from PySide6.QtCore import Qt
+    card = _card()
+    received = []
+    card.opened.connect(received.append)
+    _click(card, Qt.RightButton)
+    assert received == []
+
+
+def test_project_card_opens_on_keyboard(qapp):
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QKeyEvent
+    card = _card()
+    received = []
+    card.opened.connect(received.append)
+    card.keyPressEvent(QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Return, Qt.NoModifier))
     assert received == ["/x/y.alpha"]

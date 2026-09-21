@@ -5,11 +5,12 @@ progress operations in core.work, never a pattern mutation."""
 from __future__ import annotations
 
 import numpy as np
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QKeySequence, QShortcut
+from PySide6.QtCore import QEvent, Qt
+from PySide6.QtGui import QAction, QColor, QKeySequence, QPalette, QShortcut
 from PySide6.QtWidgets import (
-    QDialog, QDialogButtonBox, QFileDialog, QHBoxLayout, QLabel, QMainWindow, QMessageBox,
-    QProgressBar, QPushButton, QScrollArea, QSpinBox, QVBoxLayout, QWidget,
+    QApplication, QDialog, QDialogButtonBox, QFileDialog, QFrame, QHBoxLayout, QLabel,
+    QMainWindow, QMessageBox, QProgressBar, QPushButton, QScrollArea, QSpinBox,
+    QVBoxLayout, QWidget,
 )
 
 from ...core import io, work
@@ -17,20 +18,40 @@ from ...core.model import Project
 from ...core.readout import (
     encode_row, export_all_rows_text, format_row_text, row_direction, working_number,
 )
+from .. import theme
 from .chart_view import WorkChartView
 from .chips import ChipsBar
 
-_HC_STYLE = """
-QMainWindow, QWidget { background:#111; color:#eee; }
-QLabel { color:#eee; }
-QPushButton { background:#2a2a2a; color:#fff; border:1px solid #555; padding:8px 14px; border-radius:8px; }
-QPushButton:default { background:#0a7d33; border-color:#0a7d33; }
+# Only the buttons need a stylesheet: backgrounds and text come from the palette set by
+# _high_contrast_palette(). A blanket `QWidget { background: ... }` rule here used to
+# paint an opaque box behind every QLabel — including the ones inside the run chips.
+_HC_STYLE = f"""
+QLabel {{ color:{theme.HC_FG}; }}
+QPushButton {{ background:{theme.HC_BUTTON}; color:#fff; border:1px solid {theme.HC_BORDER};
+               padding:8px 14px; border-radius:{theme.RADIUS_MD}px; }}
+QPushButton:default {{ background:{theme.HC_DEFAULT}; border-color:{theme.HC_DEFAULT}; }}
 """
+
+
+def _high_contrast_palette() -> QPalette:
+    """A real dark QPalette to accompany _HC_STYLE.
+
+    The stylesheet alone is not enough: QSS does not change palette() values, so the
+    hand-painted views (WorkChartView) and any `palette(base)` rule would keep drawing on
+    a light background inside a black window."""
+    pal = QPalette(QApplication.palette())
+    dark, light = QColor(theme.HC_BG), QColor(theme.HC_FG)
+    for role in (QPalette.Window, QPalette.Base, QPalette.Button, QPalette.AlternateBase):
+        pal.setColor(role, dark)
+    for role in (QPalette.WindowText, QPalette.Text, QPalette.ButtonText,
+                 QPalette.BrightText):
+        pal.setColor(role, light)
+    return pal
 
 
 class WorkWindow(QMainWindow):
     def __init__(self, project: Project, path: str | None = None,
-                 source_img: np.ndarray | None = None):
+                 source_img: np.ndarray | None = None, geometry=None):
         super().__init__()
         self.project = project
         self.source_img = source_img
@@ -41,7 +62,12 @@ class WorkWindow(QMainWindow):
         self._focus_mode = False
 
         self.setWindowTitle(f"Working — {project.pattern.name}")
-        self.resize(940, 860)
+        # Inherit the previous stage's frame when we were opened from one, so the window
+        # doesn't jump and resize on every transition.
+        if geometry is not None:
+            self.setGeometry(geometry)
+        else:
+            self.resize(940, 860)
         self._build_ui()
         self._build_menu()
         # Arrow keys are otherwise eaten by Qt's widget focus-navigation before they reach
@@ -65,12 +91,13 @@ class WorkWindow(QMainWindow):
         self.row_label = QLabel()
         # Size via stylesheet so the widget keeps its real inherited font family. Passing
         # an empty family to QFont() substitutes a fallback that spaces digits out oddly
-        # on macOS ("791/4096" -> "7 9 1 / 4 0 9 6").
-        self.row_label.setStyleSheet("font-size:22px; font-weight:700;")
+        # on macOS ("791/4096" -> "7 9 1 / 4 0 9 6"). theme.font_css also makes the size
+        # follow the OS text-size setting.
+        self.row_label.setStyleSheet(theme.font_css(22, 700))
         header.addWidget(self.row_label)
         header.addStretch(1)
         self.remaining_label = QLabel()
-        self.remaining_label.setStyleSheet("font-size:16px; font-weight:600;")
+        self.remaining_label.setStyleSheet(theme.font_css(16, 600))
         header.addWidget(self.remaining_label)
         root.addLayout(header)
 
@@ -94,7 +121,7 @@ class WorkWindow(QMainWindow):
         left.addWidget(chips_scroll, 1)
         self.next_label = QLabel()
         self.next_label.setWordWrap(True)
-        self.next_label.setStyleSheet("color:#888; font-size:12px;")
+        self.next_label.setStyleSheet(theme.muted_css(self) + theme.font_css(12))
         left.addWidget(self.next_label)
         body.addLayout(left)
 
@@ -103,7 +130,17 @@ class WorkWindow(QMainWindow):
         body.addWidget(self.chart, 1)
 
         buttons = QHBoxLayout()
+        # Stage navigation, kept clear of the row controls by a rule — two buttons both
+        # starting with "←" next to each other would be easy to mis-hit.
+        self.library_btn = QPushButton("← Library")
+        self.library_btn.setToolTip("Save and go back to your projects  (⌘⇧L)")
+        self.library_btn.clicked.connect(self._open_library)
+        buttons.addWidget(self.library_btn)
+        rule = QFrame(); rule.setFrameShape(QFrame.VLine); rule.setFrameShadow(QFrame.Sunken)
+        buttons.addWidget(rule)
+        buttons.addSpacing(8)
         self.back_btn = QPushButton("← Previous row")
+        self.back_btn.setToolTip("Reopen the previous row  (←)")
         self.back_btn.clicked.connect(self._previous_row)
         buttons.addWidget(self.back_btn)
         self.save_btn = QPushButton("Save")
@@ -113,10 +150,19 @@ class WorkWindow(QMainWindow):
         self.complete_btn = QPushButton("Row complete →")
         self.complete_btn.setDefault(True)
         self.complete_btn.setMinimumHeight(48)
-        self.complete_btn.setStyleSheet("font-size:15px; font-weight:700;")
+        self.complete_btn.setToolTip("Finish this row and move up  (Space or →)")
+        self.complete_btn.setStyleSheet(theme.font_css(15, 700))
         self.complete_btn.clicked.connect(self._complete_row)
         buttons.addWidget(self.complete_btn)
         root.addLayout(buttons)
+
+        # The keyboard and the tappable chips were previously documented only in the
+        # README, so nothing in the app told you they existed.
+        self.hint_label = QLabel(
+            "Space or → completes a row   ·   ← goes back   ·   "
+            "tap a colour to record part of a row")
+        self.hint_label.setStyleSheet(theme.muted_css(self) + theme.font_css(12))
+        root.addWidget(self.hint_label)
 
     def _build_menu(self):
         bar = self.menuBar()
@@ -130,6 +176,9 @@ class WorkWindow(QMainWindow):
         to_design = QAction("Back to Design", self)
         to_design.triggered.connect(self._open_design)
         m.addAction(to_design)
+        library = QAction("← Library", self, shortcut="Ctrl+Shift+L")
+        library.triggered.connect(self._open_library)
+        m.addAction(library)
         m.addSeparator()
         close = QAction("Close", self, shortcut=QKeySequence.Close)
         close.triggered.connect(self.close)
@@ -173,10 +222,12 @@ class WorkWindow(QMainWindow):
 
         self.progress_bar.setMaximum(max(1, p.rows))
         self.progress_bar.setValue(work.completed_count(p, pr))
-        self.progress_bar.setFormat("Row %v of %m done")
+        # Just the percentage: the header directly above already owns the row number, and
+        # two near-identical "Row N of M" readouts side by side only invite a misread.
+        self.progress_bar.setFormat("%p%")
         total = p.rows * p.cols
         stitches_done = total - work.remaining_stitches(p, pr)
-        self.remaining_label.setText(f"{stitches_done}/{total}")
+        self.remaining_label.setText(f"{stitches_done} / {total} stitches")
         self.remaining_label.setToolTip("stitches done / total")
 
         if done:
@@ -248,7 +299,8 @@ class WorkWindow(QMainWindow):
                 f"deleting rows may shift your place.")
         self._save()
         from ..design.design_window import DesignWindow
-        self._design = DesignWindow(self.project, path=self.path, source_img=self.source_img)
+        self._design = DesignWindow(self.project, path=self.path, source_img=self.source_img,
+                                    geometry=self.geometry())
         self._design.show()
         self.close()
 
@@ -258,7 +310,11 @@ class WorkWindow(QMainWindow):
         self.refresh()
 
     def _set_high_contrast(self, on: bool):
+        # Set a real palette alongside the stylesheet: the chart view paints with
+        # palette().base(), so a QSS-only theme left a white chart inside a black window.
+        self.setPalette(_high_contrast_palette() if on else QApplication.palette())
         self.setStyleSheet(_HC_STYLE if on else "")
+        self._apply_theme()
 
     def _set_start_right(self, on: bool):
         """Choose which side row 1 starts from (conventions vary, §4.4). Completed rows
@@ -266,6 +322,28 @@ class WorkWindow(QMainWindow):
         self.project.pattern.start_direction = "RTL" if on else "LTR"
         self._dirty = True
         self.refresh()
+
+    def _open_library(self):
+        self._save()
+        from ..library.library_window import show_library
+        self._library = show_library(geometry=self.geometry())
+        self.close()
+
+    # --- theming -------------------------------------------------------------
+    def _apply_theme(self):
+        """Re-derive the palette-dependent stylesheets (secondary text) after a theme
+        change; the chips rebuild themselves on the next refresh anyway."""
+        if not hasattr(self, "hint_label"):
+            return                      # a palette event arriving before _build_ui ran
+        muted = theme.muted_css(self)
+        self.next_label.setStyleSheet(muted + theme.font_css(12))
+        self.hint_label.setStyleSheet(muted + theme.font_css(12))
+        self.refresh()
+
+    def changeEvent(self, e):
+        if e.type() == QEvent.PaletteChange:
+            self._apply_theme()
+        super().changeEvent(e)
 
     # --- keyboard / close ----------------------------------------------------
     def keyPressEvent(self, e):
@@ -308,7 +386,8 @@ class SegmentDialog(QDialog):
         head = QHBoxLayout()
         if entry is not None:
             sw = QLabel(); sw.setFixedSize(24, 24)
-            sw.setStyleSheet(f"background:{entry.hex}; border:1px solid #888; border-radius:4px;")
+            sw.setStyleSheet(f"background:{entry.hex}; border:1px solid {theme.border_hex(sw)}; "
+                             f"border-radius:{theme.RADIUS_SM}px;")
             head.addWidget(sw)
             head.addWidget(QLabel(f"<b>{count} {entry.name}</b>"))
         head.addStretch(1)

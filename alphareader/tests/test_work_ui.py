@@ -143,8 +143,8 @@ def test_stitch_counter_format_and_not_falsely_finished(qapp):
     from ..ui.work.work_window import WorkWindow
     win = WorkWindow(proj)
     win._complete_row()                              # one row done
-    assert "/" in win.remaining_label.text() and "stitches" not in win.remaining_label.text()
-    assert win.remaining_label.text() == "12/48"     # 12 of 48 done
+    # done/total, not "remaining" — with the unit spelled out rather than left to a tooltip.
+    assert win.remaining_label.text() == "12 / 48 stitches"
     assert "Finished" not in win.row_label.text()    # not done yet
     assert win.complete_btn.isEnabled()
 

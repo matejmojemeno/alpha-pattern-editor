@@ -6,9 +6,9 @@ import os
 
 import numpy as np
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QGuiApplication, QKeySequence, QPixmap, QShortcut
+from PySide6.QtGui import QAction, QColor, QGuiApplication, QKeySequence, QPixmap
 from PySide6.QtWidgets import (
-    QCheckBox, QFileDialog, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
+    QCheckBox, QFileDialog, QFrame, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
     QMainWindow, QMessageBox, QPushButton, QSlider,
     QSpinBox, QSplitter, QVBoxLayout, QWidget,
 )
@@ -17,14 +17,20 @@ from ...core import io
 from ...core.confirm import ConfirmState, pattern_from_preview
 from ...core.detect import detect_pattern
 from ...core.model import DetectionError, Project
+from ...core.readout import format_stats
+from .. import theme
 from ..canvas import PixmapView, reconstruction_pixmap, source_pixmap_with_overlay
 from .source_view import SourceView
 
+# Plain-English first: the user is looking at their chart, not at the detector's
+# vocabulary. The error code still appears, but as small print.
 _FAILURE_HINTS = {
-    "NO_GRIDLINES": "Couldn't find gridlines. Crop tightly to just the grid and retry.",
-    "LOW_RESOLUTION": "Image resolution is too low (need ~6+ px per square).",
-    "ROTATED": "The image looks rotated. Straighten it and re-import.",
-    "TOO_SMALL": "The image is too small to contain a grid.",
+    "NO_GRIDLINES": "I couldn't find the grid in this image.\n\n"
+                    "Turn on Crop, drag a box around just the squares, and let go.",
+    "LOW_RESOLUTION": "This image is too small to read reliably.\n\n"
+                      "Each square needs about 6 pixels or more — try a larger copy.",
+    "ROTATED": "The chart looks tilted.\n\nStraighten the image and import it again.",
+    "TOO_SMALL": "This image is too small to contain a chart.",
 }
 
 
@@ -42,6 +48,7 @@ class ConfirmWindow(QMainWindow):
         self._saved = False               # committed to the library since last change?
 
         self._build_ui()
+        self._build_menu()
         self._show_placeholder()
 
     # --- UI construction -----------------------------------------------------
@@ -50,13 +57,15 @@ class ConfirmWindow(QMainWindow):
         self.setCentralWidget(central)
         root = QVBoxLayout(central)
 
-        # Top controls
+        # Top controls, in three groups separated by rules: where the image comes from,
+        # what the grid is, and how colours are merged. Previously one flat run of eight
+        # controls with nothing to say which belonged together.
         controls = QHBoxLayout()
         self.open_btn = QPushButton("Open image…")
         self.open_btn.clicked.connect(self._open_dialog)
         controls.addWidget(self.open_btn)
+        controls.addWidget(_separator())
 
-        controls.addSpacing(16)
         controls.addWidget(QLabel("Rows"))
         self.rows_spin = QSpinBox(); self.rows_spin.setRange(1, 999)
         self.rows_spin.valueChanged.connect(self._on_dims_changed)
@@ -65,24 +74,32 @@ class ConfirmWindow(QMainWindow):
         self.cols_spin = QSpinBox(); self.cols_spin.setRange(1, 999)
         self.cols_spin.valueChanged.connect(self._on_dims_changed)
         controls.addWidget(self.cols_spin)
-
-        controls.addSpacing(16)
-        controls.addWidget(QLabel("Colour ΔE"))
-        self.dE_slider = QSlider(Qt.Horizontal)
-        self.dE_slider.setRange(2, 15); self.dE_slider.setFixedWidth(140)
-        self.dE_slider.valueChanged.connect(self._on_delta_e_changed)
-        controls.addWidget(self.dE_slider)
-        self.dE_label = QLabel("6")
-        controls.addWidget(self.dE_label)
-
-        controls.addSpacing(16)
         self.crop_btn = QPushButton("Crop"); self.crop_btn.setCheckable(True)
+        self.crop_btn.setToolTip("Drag a box around just the grid, then release")
         self.crop_btn.toggled.connect(self._on_crop_toggled)
         controls.addWidget(self.crop_btn)
         self.reset_btn = QPushButton("Re-detect")
         self.reset_btn.clicked.connect(lambda: self._run_detection())
         controls.addWidget(self.reset_btn)
-        self.lowconf_check = QCheckBox("Flag low-confidence"); self.lowconf_check.setChecked(True)
+        controls.addWidget(_separator())
+
+        # "ΔE" is the detector's unit, not something a crocheter should have to learn:
+        # what the slider actually does is decide how many colours you end up with.
+        controls.addWidget(QLabel("Colour detail"))
+        fewer = QLabel("fewer"); fewer.setStyleSheet(theme.muted_css(self) + theme.font_css(11))
+        controls.addWidget(fewer)
+        self.dE_slider = QSlider(Qt.Horizontal)
+        self.dE_slider.setRange(2, 15); self.dE_slider.setFixedWidth(140)
+        self.dE_slider.setInvertedAppearance(True)   # right = pickier = more colours
+        self.dE_slider.valueChanged.connect(self._on_delta_e_changed)
+        controls.addWidget(self.dE_slider)
+        more = QLabel("more"); more.setStyleSheet(theme.muted_css(self) + theme.font_css(11))
+        controls.addWidget(more)
+        self.dE_label = QLabel("6")
+        self.dE_label.hide()          # kept for the tooltip / tests, not shown as a number
+        controls.addWidget(self.dE_label)
+        self.lowconf_check = QCheckBox("Flag unsure cells"); self.lowconf_check.setChecked(True)
+        self.lowconf_check.setToolTip("Cross out cells the detector isn't confident about")
         self.lowconf_check.toggled.connect(self._refresh_views)
         controls.addWidget(self.lowconf_check)
         controls.addStretch(1)
@@ -109,7 +126,11 @@ class ConfirmWindow(QMainWindow):
         self.palette_list = QListWidget()
         pal_layout.addWidget(self.palette_list)
         splitter.addWidget(pal_container)
-        splitter.setSizes([500, 460, 220])
+        # The reconstruction is what the user is here to check, so give it the most room
+        # and let it absorb any resize.
+        splitter.setSizes([420, 540, 220])
+        for i, stretch in enumerate((2, 3, 1)):
+            splitter.setStretchFactor(i, stretch)
         root.addWidget(splitter, 1)
 
         # Bottom: status, warnings, commit
@@ -117,19 +138,36 @@ class ConfirmWindow(QMainWindow):
         root.addWidget(self.status_label)
         self.warn_label = QLabel("")
         self.warn_label.setWordWrap(True)
-        self.warn_label.setStyleSheet("color: #b26a00;")
+        self.warn_label.setStyleSheet(f"color: {theme.WARN};")
         root.addWidget(self.warn_label)
 
+        # Both destinations are real buttons. Saving used to pop a modal asking the same
+        # three-way question the bottom bar could just answer directly.
         bottom = QHBoxLayout(); bottom.addStretch(1)
         self.cancel_btn = QPushButton("Close"); self.cancel_btn.clicked.connect(self.close)
         bottom.addWidget(self.cancel_btn)
-        self.commit_btn = QPushButton("Save to library →")
+        # "&&" so Qt renders a literal ampersand instead of eating it as a mnemonic.
+        self.commit_design_btn = QPushButton("Save && edit")
+        self.commit_design_btn.clicked.connect(lambda: self._commit(then="design"))
+        bottom.addWidget(self.commit_design_btn)
+        self.commit_btn = QPushButton("Save && start working →")
         self.commit_btn.setDefault(True)
-        self.commit_btn.clicked.connect(self._commit)
+        self.commit_btn.clicked.connect(lambda: self._commit(then="work"))
         bottom.addWidget(self.commit_btn)
         root.addLayout(bottom)
 
-        QShortcut(QKeySequence.Paste, self, activated=self._paste)
+    def _build_menu(self):
+        m = self.menuBar().addMenu("Project")
+        open_act = QAction("Open image…", self, shortcut=QKeySequence.Open)
+        open_act.triggered.connect(self._open_dialog)
+        m.addAction(open_act)
+        paste = QAction("Paste image", self, shortcut=QKeySequence.Paste)
+        paste.triggered.connect(self._paste)
+        m.addAction(paste)
+        m.addSeparator()
+        close = QAction("Close", self, shortcut=QKeySequence.Close)
+        close.triggered.connect(self.close)
+        m.addAction(close)
 
     # --- loading -------------------------------------------------------------
     def _show_placeholder(self) -> None:
@@ -143,7 +181,8 @@ class ConfirmWindow(QMainWindow):
 
     def _set_controls_enabled(self, on: bool) -> None:
         for w in (self.rows_spin, self.cols_spin, self.dE_slider, self.crop_btn,
-                  self.reset_btn, self.lowconf_check, self.commit_btn):
+                  self.reset_btn, self.lowconf_check, self.commit_btn,
+                  self.commit_design_btn):
             w.setEnabled(on)
 
     def _open_dialog(self) -> None:
@@ -223,16 +262,17 @@ class ConfirmWindow(QMainWindow):
 
         self.palette_list.clear()
         for entry in preview.palette:
-            item = QListWidgetItem(f"  {entry.count:>5}  {entry.name}  ({entry.hex})")
+            # No hex in the label: the row is already painted in that colour, and the code
+            # only pushed the name out of the pane.
+            item = QListWidgetItem(f"  {entry.count:>5}  {entry.name}")
+            item.setToolTip(f"{entry.name} — {entry.hex} — {entry.count} stitches")
             item.setForeground(QColor(Qt.black) if _is_light(entry.hex) else QColor(Qt.white))
             item.setBackground(QColor(entry.hex))
             self.palette_list.addItem(item)
 
-        strings = preview.cols + 1
+        self.status_label.setStyleSheet("")     # clear the small print left by a failure
         self.status_label.setText(
-            f"{preview.cols} cols × {preview.rows} rows   ·   "
-            f"{preview.rows * preview.cols} stitches   ·   {len(preview.palette)} colours   ·   "
-            f"{strings} strings needed")
+            format_stats(preview.cols, preview.rows, len(preview.palette)))
         frac = preview.low_confidence_fraction
         self.warn_label.setText(
             f"⚠ {frac*100:.1f}% of cells are low-confidence — check the crossed cells before committing."
@@ -247,6 +287,7 @@ class ConfirmWindow(QMainWindow):
 
     def _on_delta_e_changed(self, value: int) -> None:
         self.dE_label.setText(str(value))
+        self.dE_slider.setToolTip(f"Lower = more separate colours (ΔE {value})")
         if self.state is None:
             return
         self._saved = False
@@ -264,16 +305,19 @@ class ConfirmWindow(QMainWindow):
         hint = _FAILURE_HINTS.get(err.code, str(err))
         self.recon_view.set_pixmap(QPixmap())
         self.recon_view.hide()
-        self.recon_message.setText(f"Detection failed: {err.code}\n\n{hint}")
+        self.recon_message.setText(hint)
         self.recon_message.show()
-        self.status_label.setText("")
-        self.warn_label.setText("Tip: toggle Crop, drag a box tightly around just the grid, and release.")
+        # The code is for a bug report, not for the person holding the yarn.
+        self.status_label.setText(f"Detection failed ({err.code})")
+        self.status_label.setStyleSheet(theme.muted_css(self) + theme.font_css(11))
+        self.warn_label.setText("")
         # Keep the source image visible so the user can crop and retry.
         if self.img is not None:
             self.source_view.set_pixmap(QPixmap.fromImage(_qimage(self.img)))
         self.crop_btn.setEnabled(True)
         self.reset_btn.setEnabled(True)
         self.commit_btn.setEnabled(False)
+        self.commit_design_btn.setEnabled(False)
 
     # --- commit / save -------------------------------------------------------
     def _save_to_library(self) -> tuple[Project, str] | None:
@@ -291,36 +335,29 @@ class ConfirmWindow(QMainWindow):
         self._saved = True
         return project, path
 
-    def _commit(self) -> None:
+    def _commit(self, then: str = "work") -> None:
+        """Save to the library and go straight where the clicked button said."""
         result = self._save_to_library()
         if result is None:
             return
         project, path = result
-        box = QMessageBox(self)
-        box.setWindowTitle("Saved")
-        box.setText(f"Saved {project.pattern.cols}×{project.pattern.rows} pattern with "
-                    f"{len(project.pattern.palette)} colours to your library.\n\n"
-                    f"Open it now?")
-        design = box.addButton("Edit in Design", QMessageBox.AcceptRole)
-        work = box.addButton("Start working →", QMessageBox.AcceptRole)
-        box.addButton("Not yet", QMessageBox.RejectRole)
-        box.exec()
-        clicked = box.clickedButton()
-        if clicked is design:
+        if then == "design":
             self._open_design(project, path)
-        elif clicked is work:
+        else:
             self._open_work(project, path)
 
     def _open_work(self, project: Project, path: str) -> None:
         from ..work.work_window import WorkWindow
-        self._work = WorkWindow(project, path=path, source_img=self.img)
+        self._work = WorkWindow(project, path=path, source_img=self.img,
+                                geometry=self.geometry())
         self._work._save()          # persist stage=work so it reopens in the Work stage
         self._work.show()
         self.close()
 
     def _open_design(self, project: Project, path: str) -> None:
         from ..design.design_window import DesignWindow
-        self._design = DesignWindow(project, path=path, source_img=self.img)
+        self._design = DesignWindow(project, path=path, source_img=self.img,
+                                    geometry=self.geometry())
         self._design.show()
         self.close()
 
@@ -371,6 +408,14 @@ class ConfirmWindow(QMainWindow):
         arr = np.frombuffer(buf, np.uint8).reshape(h, bpl)[:, : w * 3].reshape(h, w, 3)
         self.source_name = "pasted"
         self.load_array(np.array(arr, dtype=np.uint8))     # np.array => guaranteed copy
+
+
+def _separator() -> QFrame:
+    """A thin vertical rule between groups in the control strip."""
+    line = QFrame()
+    line.setFrameShape(QFrame.VLine)
+    line.setFrameShadow(QFrame.Sunken)
+    return line
 
 
 def _is_light(hex_str: str) -> bool:
