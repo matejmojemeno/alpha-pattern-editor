@@ -1,0 +1,10 @@
+{
+  "name": "alphareader-parity",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Pyodide-vs-desktop detection parity harness (see README.md)",
+  "dependencies": {
+    "pyodide": "314.0.7"
+  }
+}
