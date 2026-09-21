@@ -1,4 +1,4 @@
-"""Palette recovery via CIELAB agglomerative clustering (§5 step 8). Pure NumPy + scipy."""
+"""Palette recovery via CIELAB agglomerative clustering (§5 step 8). Pure NumPy."""
 from __future__ import annotations
 
 import json
@@ -7,7 +7,7 @@ from functools import lru_cache
 from importlib import resources
 
 import numpy as np
-from scipy.cluster.hierarchy import fcluster, linkage
+from ._nd import complete_linkage_labels
 
 from ..model import PaletteEntry
 
@@ -125,8 +125,7 @@ def build_palette(
     if len(uniq) == 1:
         labels = np.zeros(1, dtype=int)
     else:
-        Z = linkage(uniq_lab, method="complete", metric="euclidean")
-        labels = fcluster(Z, t=delta_e_threshold, criterion="distance")
+        labels = complete_linkage_labels(uniq_lab, delta_e_threshold)
 
     # Merge clusters whose centroids fall within delta_e (complete linkage over-splits a
     # single color once intra-color noise stretches it past the cut). Final entries end
@@ -147,7 +146,11 @@ def build_palette(
     nearest = np.argmin(d, axis=1)
 
     counts = np.bincount(nearest, minlength=len(cluster_ids))
-    order = np.argsort(-counts)
+    # Order by descending cell count, breaking ties on the centroid colour. Without the
+    # tie-break, two colours with the same count are ordered by whatever internal
+    # numbering the clustering produced — so the palette order, and therefore every cell
+    # index, depended on an implementation detail of the clustering library.
+    order = np.lexsort((centroids[:, 2], centroids[:, 1], centroids[:, 0], -counts))
     remap = np.zeros(len(cluster_ids), dtype=np.uint16)
     for new_idx, old_idx in enumerate(order):
         remap[old_idx] = new_idx

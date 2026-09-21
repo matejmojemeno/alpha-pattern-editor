@@ -21,10 +21,17 @@ const py = await loadPyodide({ stdout: () => {}, stderr: () => {} });
 timing.boot_ms = +(performance.now() - t0).toFixed(1);
 
 t0 = performance.now();
-// scipy is only loaded if the tree still imports it; see scripts/parity/README.md.
+// Load scipy only if the tree still imports it, so the harness keeps working either way
+// (and so a stray re-import shows up as a load failure rather than passing silently).
+const detectDir = path.join(repoRoot, "alphareader/core/detect");
 const needsScipy = fs
-  .readFileSync(path.join(repoRoot, "alphareader/core/detect/palette.py"), "utf8")
-  .includes("scipy");
+  .readdirSync(detectDir)
+  .filter((f) => f.endsWith(".py"))
+  .some((f) =>
+    /^\s*(import scipy|from scipy)/m.test(
+      fs.readFileSync(path.join(detectDir, f), "utf8"),
+    ),
+  );
 await py.loadPackage(needsScipy ? ["numpy", "scipy"] : ["numpy"]);
 timing.load_pkgs_ms = +(performance.now() - t0).toFixed(1);
 timing.scipy_loaded = needsScipy;

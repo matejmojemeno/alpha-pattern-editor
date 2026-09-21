@@ -32,6 +32,7 @@ alphareader/
       sample.py         # per-cell median sampling
       palette.py        # sRGB->Lab, clustering, confidence, DMC naming
       pipeline.py       # detect_pattern() orchestration
+      _nd.py            # NumPy replacements for the SciPy routines detection used
       dmc.json          # DMC floss colour table for naming
   ui/
     theme.py            # colour tokens, palette-derived helpers, OS-relative font sizes

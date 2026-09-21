@@ -1,5 +1,10 @@
 numpy==2.5.1
 pillow==12.3.0
 PySide6==6.11.1
-scipy==1.18.0
 shiboken6==6.11.1
+
+# Test-only. The app no longer imports SciPy — core/detect/_nd.py replaces the five
+# routines detection used, which keeps ~14MB out of the browser build. SciPy is still
+# installed here so alphareader/tests/test_nd.py can check those shims against the real
+# thing; without it those tests skip and scripts/parity/check.py is the only backstop.
+scipy==1.18.0
