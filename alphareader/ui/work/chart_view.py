@@ -5,13 +5,14 @@ aid counting, dims/strikes completed rows and outlines the current one. Read-onl
 construction — there is no cell-editing path here (§6.1)."""
 from __future__ import annotations
 
-from PySide6.QtCore import QRect, Qt
+from PySide6.QtCore import QEvent, QRect, Qt
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
 from ...core.detect.palette import hex_to_rgb
 from ...core.model import Pattern
 from ...core.readout import working_number
+from .. import theme
 
 
 class WorkChartView(QWidget):
@@ -34,6 +35,13 @@ class WorkChartView(QWidget):
     def set_focus(self, focus):
         self._focus = focus
         self.update()
+
+    def changeEvent(self, e):
+        # Every colour below is derived from the palette, so a light/dark switch (or the
+        # High contrast toggle) has to trigger a repaint or the chart keeps stale colours.
+        if e.type() == QEvent.PaletteChange:
+            self.update()
+        super().changeEvent(e)
 
     def _visible_rows(self) -> range:
         if self._pattern is None:
@@ -71,7 +79,10 @@ class WorkChartView(QWidget):
         font.setPixelSize(fs)
         painter.setFont(font)
 
-        black = QPen(QColor(0, 0, 0), 1)
+        grid = QPen(theme.grid_color(self), 1)
+        wash = theme.done_wash(self)
+        strike = QPen(theme.done_strike(self), 2)
+        axis = theme.axis_color(self)
         for draw_i, r in enumerate(vis):
             y = oy + draw_i * cell
             done = r in self._completed
@@ -81,25 +92,25 @@ class WorkChartView(QWidget):
                 color = self._pal[idx] if idx < len(self._pal) else QColor(200, 200, 200)
                 rect = QRect(int(x), int(y), int(cell) + 1, int(cell) + 1)
                 painter.fillRect(rect, color)
-                painter.setPen(black)
+                painter.setPen(grid)
                 painter.drawRect(int(x), int(y), int(cell), int(cell))
             if done:
-                painter.fillRect(int(ox), int(y), int(gw), int(cell), QColor(255, 255, 255, 140))
-                painter.setPen(QPen(QColor(70, 70, 70), 2))
+                painter.fillRect(int(ox), int(y), int(gw), int(cell), wash)
+                painter.setPen(strike)
                 painter.drawLine(int(ox), int(y + cell / 2), int(ox + gw), int(y + cell / 2))
             # Row number (working order) on the left.
             num = working_number(p, r)
             if num % show_every_r == 0 or num == 1 or r == self._current:
-                painter.setPen(QColor(90, 90, 90))
+                painter.setPen(axis)
                 painter.drawText(QRect(0, int(y), left - 4, int(cell)),
                                  Qt.AlignRight | Qt.AlignVCenter, str(num))
             if r == self._current:
-                painter.setPen(QPen(QColor(240, 168, 0), 3))
+                painter.setPen(QPen(theme.ACCENT_COLOR, 3))
                 painter.drawRect(int(ox) + 1, int(y) + 1, int(gw) - 2, int(cell) - 2)
 
         # Column numbers along the top, centred over each labelled column with a rect
         # wide enough that two digits never clip (labels are >=5 cells apart).
-        painter.setPen(QColor(90, 90, 90))
+        painter.setPen(axis)
         for c in range(p.cols):
             if (c + 1) % show_every_c == 0 or c == 0:
                 cx = ox + c * cell + cell / 2

@@ -5,6 +5,8 @@ from PySide6.QtCore import QPoint, QRect, Qt, Signal
 from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QWidget
 
+from .. import theme
+
 
 class SourceView(QWidget):
     """Displays a pixmap scaled to fit (letterboxed), preserving aspect ratio. In crop
@@ -54,11 +56,11 @@ class SourceView(QWidget):
     # --- painting ------------------------------------------------------------
     def paintEvent(self, _e) -> None:
         p = QPainter(self)
-        p.fillRect(self.rect(), QColor(30, 30, 30))
+        p.fillRect(self.rect(), theme.LETTERBOX)
         if self._pixmap is not None:
             p.drawPixmap(self._draw_rect(), self._pixmap)
         if self._crop_mode and self._drag_start and self._drag_now:
-            p.setPen(QPen(QColor(255, 220, 0), 2, Qt.DashLine))
+            p.setPen(QPen(theme.ACCENT_COLOR, 2, Qt.DashLine))
             p.drawRect(QRect(self._drag_start, self._drag_now).normalized())
         p.end()
 

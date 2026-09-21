@@ -4,20 +4,29 @@ Emits cell-level mouse events; the window interprets them per the active tool. D
 black gridlines and optional row/column numbers (image order — 1 at the top)."""
 from __future__ import annotations
 
-from PySide6.QtCore import QRect, QSize, Qt, Signal
+from PySide6.QtCore import QEvent, QRect, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
 from ...core.detect.palette import hex_to_rgb
 from ...core.model import Pattern
+from .. import theme
 
 MARGIN = 26
+
+# Cursor per tool: a crosshair where you're placing cells precisely, a hand where you're
+# picking something that already exists.
+_CURSORS = {"paint": Qt.CrossCursor, "rect": Qt.CrossCursor,
+            "row": Qt.CrossCursor, "col": Qt.CrossCursor,
+            "fill": Qt.PointingHandCursor, "eyedropper": Qt.PointingHandCursor}
 
 
 class DesignCanvas(QWidget):
     pressed = Signal(int, int)      # (row, col)
     dragged = Signal(int, int)
     released = Signal(int, int)
+    cancelled = Signal()            # Escape during a drag
+    zoomed = Signal(int)            # wheel zoom: the new cell size
 
     def __init__(self, cell: int = 22):
         super().__init__()
@@ -27,6 +36,11 @@ class DesignCanvas(QWidget):
         self._dragging = False
         self._preview_rect: tuple[int, int, int, int] | None = None
         self.setMouseTracking(False)
+        self.setFocusPolicy(Qt.StrongFocus)     # so Escape reaches keyPressEvent
+        self.set_tool_cursor("paint")
+
+    def set_tool_cursor(self, tool: str):
+        self.setCursor(_CURSORS.get(tool, Qt.ArrowCursor))
 
     def set_pattern(self, pattern: Pattern):
         self._pattern = pattern
@@ -79,6 +93,25 @@ class DesignCanvas(QWidget):
             if rc is not None:
                 self.released.emit(*rc)
 
+    def wheelEvent(self, e):
+        """Ctrl/⌘ + wheel zooms; a bare wheel scrolls the surrounding scroll area."""
+        if e.modifiers() & (Qt.ControlModifier | Qt.MetaModifier):
+            step = 1 if e.angleDelta().y() > 0 else -1
+            self.set_cell_size(self.cell + step * 2)
+            self.zoomed.emit(self.cell)
+            e.accept()
+        else:
+            e.ignore()
+
+    def keyPressEvent(self, e):
+        """Escape abandons an in-progress drag (a rectangle you don't want to commit)."""
+        if e.key() == Qt.Key_Escape:
+            self._dragging = False
+            self.set_preview_rect(None)
+            self.cancelled.emit()
+        else:
+            super().keyPressEvent(e)
+
     # --- paint ---------------------------------------------------------------
     def paintEvent(self, _e):
         if self._pattern is None:
@@ -87,20 +120,20 @@ class DesignCanvas(QWidget):
         painter = QPainter(self)
         painter.fillRect(self.rect(), self.palette().base())
         cell = self.cell
-        black = QPen(QColor(0, 0, 0), 1)
+        grid = QPen(theme.grid_color(self), 1)
         for r in range(p.rows):
             for c in range(p.cols):
                 x, y = MARGIN + c * cell, MARGIN + r * cell
                 idx = int(p.cells[r, c])
                 painter.fillRect(x, y, cell, cell,
                                  self._pal[idx] if idx < len(self._pal) else QColor(200, 200, 200))
-                painter.setPen(black)
+                painter.setPen(grid)
                 painter.drawRect(x, y, cell, cell)
 
         # Axis numbers (every 5 on large charts, every 1 on small).
         step_c = 1 if p.cols <= 20 else 5
         step_r = 1 if p.rows <= 20 else 5
-        painter.setPen(QColor(120, 120, 120))
+        painter.setPen(theme.axis_color(self))
         for c in range(p.cols):
             if (c + 1) % step_c == 0 or c == 0:
                 cx = MARGIN + c * cell + cell / 2
@@ -115,7 +148,14 @@ class DesignCanvas(QWidget):
         if self._preview_rect is not None:
             r0, c0, r1, c1 = self._preview_rect
             y0, y1 = sorted((r0, r1)); x0, x1 = sorted((c0, c1))
-            painter.setPen(QPen(QColor(240, 168, 0), 2, Qt.DashLine))
+            painter.setPen(QPen(theme.ACCENT_COLOR, 2, Qt.DashLine))
             painter.drawRect(MARGIN + x0 * cell, MARGIN + y0 * cell,
                              (x1 - x0 + 1) * cell, (y1 - y0 + 1) * cell)
         painter.end()
+
+    def changeEvent(self, e):
+        # Gridlines and axis numbers come from the palette, so a theme switch needs a
+        # repaint or they keep the old theme's colours.
+        if e.type() == QEvent.PaletteChange:
+            self.update()
+        super().changeEvent(e)

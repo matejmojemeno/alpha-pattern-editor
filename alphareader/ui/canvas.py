@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QWidget
 
 from ..core.confirm import Preview
 from ..core.detect.palette import hex_to_rgb
+from . import theme
 
 
 def ndarray_to_qimage(rgb: np.ndarray) -> QImage:
@@ -35,13 +36,13 @@ def source_pixmap_with_overlay(img: np.ndarray, preview: Preview,
     p.setRenderHint(QPainter.Antialiasing, False)
     ext = preview.extent
     # Gridlines (thin, semi-transparent red).
-    p.setPen(QPen(QColor(255, 40, 40, 130), 1))
+    p.setPen(QPen(theme.OVERLAY_GRID, 1))
     for x in preview.col_lines:
         p.drawLine(int(round(x)), int(round(ext.y0)), int(round(x)), int(round(ext.y1)))
     for y in preview.row_lines:
         p.drawLine(int(round(ext.x0)), int(round(y)), int(round(ext.x1)), int(round(y)))
     # Extent box (cyan).
-    p.setPen(QPen(QColor(0, 180, 255), 2))
+    p.setPen(QPen(theme.OVERLAY_EXTENT, 2))
     p.drawRect(int(ext.x0), int(ext.y0),
                int(ext.x1 - ext.x0), int(ext.y1 - ext.y0))
     p.end()
@@ -65,7 +66,7 @@ def reconstruction_pixmap(preview: Preview, cell: int = 18,
             p.setPen(grid_pen)
             p.drawRect(c * cell, r * cell, cell, cell)
             if flag_low_conf and preview.confidence[r, c] < 0.6:
-                p.setPen(QPen(QColor(255, 0, 0), 2))
+                p.setPen(QPen(theme.OVERLAY_LOW_CONF, 2))
                 p.drawLine(c * cell, r * cell, (c + 1) * cell, (r + 1) * cell)
                 p.drawLine((c + 1) * cell, r * cell, c * cell, (r + 1) * cell)
     p.end()

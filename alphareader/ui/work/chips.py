@@ -12,6 +12,7 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from ...core.detect.palette import hex_to_rgb
 from ...core.model import PaletteEntry
 from ...core.readout import Run
+from .. import theme
 
 
 class RunChip(QFrame):
@@ -19,29 +20,41 @@ class RunChip(QFrame):
 
     clicked = Signal(int)
 
-    _STYLES = {
-        "done":    "#runChip { background:palette(window); border:1px solid #666; border-radius:10px; }",
-        "current": "#runChip { background:palette(base); border:2px solid #f0a800; border-radius:10px; }",
-        "pending": "#runChip { background:palette(base); border:1px solid #999; border-radius:10px; }",
-    }
+    def _style(self, state: str, src) -> str:
+        """Colours are resolved to literals against `src` (the window), not left as QSS
+        `palette(...)` functions: chips live inside a scroll area whose viewport carries
+        its own palette, so `palette(base)` there ignores a palette set on the window and
+        the chips stayed light in High contrast mode."""
+        r = theme.RADIUS_LG
+        if state == "current":
+            return (f"#runChip {{ background:{theme.base_hex(src)}; "
+                    f"border:2px solid {theme.ACCENT}; border-radius:{r}px; }}")
+        bg = theme.raised_hex(src) if state == "done" else theme.base_hex(src)
+        return (f"#runChip {{ background:{bg}; border:1px solid {theme.border_hex(src)}; "
+                f"border-radius:{r}px; }}")
 
     def __init__(self, index: int, entry: PaletteEntry, count: int, state: str,
-                 done_stitches: int = 0):
-        super().__init__()
+                 done_stitches: int = 0, parent=None):
+        # Parented at construction so the chip inherits the window's palette (which the
+        # High contrast toggle replaces) before its stylesheet is derived from it.
+        super().__init__(parent)
         self.index = index
+        src = self.window()
         self.setObjectName("runChip")
         self.setCursor(Qt.PointingHandCursor)
         self.setToolTip("Tap to record how much of this colour you've done")
-        self.setStyleSheet(self._STYLES.get(state, self._STYLES["pending"]))
+        self.setStyleSheet(self._style(state, src))
         lay = QHBoxLayout(self)
-        lay.setContentsMargins(12, 8, 14, 8)
+        lay.setContentsMargins(*theme.CHIP_PAD)
         lay.setSpacing(10)
 
         r, g, b = (int(v) for v in hex_to_rgb(entry.hex))
         swatch = QLabel()
         swatch.setFixedSize(28, 28)
+        # Outline the swatch against the chip: dark border for pale yarns, pale for dark.
         border = "#888" if (r + g + b) > 180 else "#ccc"
-        swatch.setStyleSheet(f"background:{entry.hex}; border:1px solid {border}; border-radius:4px;")
+        swatch.setStyleSheet(f"background:{entry.hex}; border:1px solid {border}; "
+                             f"border-radius:{theme.RADIUS_SM}px;")
         lay.addWidget(swatch)
 
         # "23 Baby Blue", with a ✓ when done or "· 12/23" when partway through.
@@ -50,9 +63,10 @@ class RunChip(QFrame):
             label += "  ✓"
         elif state == "current" and 0 < done_stitches < count:
             label += f"   · {done_stitches}/{count}"
-        faded = "color:#aaa;" if state == "done" else ""
         text = QLabel(label)
-        text.setStyleSheet(f"font-size:18px; font-weight:600; {faded}")
+        colour = (theme.muted_css(src) if state == "done"
+                  else f"color:{src.palette().text().color().name()};")
+        text.setStyleSheet(theme.font_css(18, 600) + colour)
         lay.addWidget(text)
         lay.addStretch(1)
 
@@ -92,6 +106,6 @@ class ChipsBar(QWidget):
                 state, done = "pending", 0
             entry = palette[run.palette_index] if run.palette_index < len(palette) else \
                 PaletteEntry(id="?", hex="#dddddd", name="skip")
-            chip = RunChip(i, entry, run.count, state, done)
+            chip = RunChip(i, entry, run.count, state, done, parent=self)
             chip.clicked.connect(self.chipClicked)
             self._layout.insertWidget(self._layout.count() - 1, chip)
