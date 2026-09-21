@@ -6,10 +6,15 @@ the detector on them.
 Screenshots from Pinterest, friendship-bracelets.net, etc. are exactly the target. For
 best results the chart should:
 
-- have **uniform (non-staggered) rows** and **visible black gridlines**,
+- have **uniform (non-staggered) rows** and **visible gridlines** — any colour, lighter or
+  darker than the cells, is fine,
 - be roughly axis-aligned (rotation beyond ~1.5° is rejected on purpose),
 - have at least **~6 pixels per cell** (very small thumbnails are rejected rather than
   guessed at).
+
+Very narrow charts (under ~6 columns) whose edge numbering is about as wide as the grid
+itself can come out one column short — nudge it with the extent handles on the
+confirmation screen.
 
 Row/column numbers, watermarks, captions and page margins around the grid are fine —
 they're filtered out automatically.

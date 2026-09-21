@@ -24,29 +24,35 @@ def sample_cells(
     inset_x = max(1, round(0.22 * pitch_x))
     inset_y = max(1, round(0.22 * pitch_y))
 
-    colors = np.zeros((rows, cols, 3), dtype=np.uint8)
-    spread = np.zeros((rows, cols), dtype=np.float32)
+    ry0 = np.rint(row_lines[:-1]).astype(np.intp) + inset_y
+    ry1 = np.rint(row_lines[1:]).astype(np.intp) - inset_y
+    cx0 = np.rint(col_lines[:-1]).astype(np.intp) + inset_x
+    cx1 = np.rint(col_lines[1:]).astype(np.intp) - inset_x
+    if (ry1 - ry0).min() < 2 or (cx1 - cx0).min() < 2:
+        raise DetectionError(
+            "LOW_RESOLUTION",
+            "Image resolution too low — cell interiors are too small to sample.",
+        )
 
+    H, W = img.shape[:2]
     rgb = img[..., :3]
-    for r in range(rows):
-        y0 = int(round(row_lines[r])) + inset_y
-        y1 = int(round(row_lines[r + 1])) - inset_y
-        if y1 - y0 < 2:
-            raise DetectionError(
-                "LOW_RESOLUTION",
-                "Image resolution too low — cell interiors are too small to sample.",
-            )
-        for c in range(cols):
-            x0 = int(round(col_lines[c])) + inset_x
-            x1 = int(round(col_lines[c + 1])) - inset_x
-            if x1 - x0 < 2:
-                raise DetectionError(
-                    "LOW_RESOLUTION",
-                    "Image resolution too low — cell interiors are too small to sample.",
-                )
-            patch = rgb[y0:y1, x0:x1].reshape(-1, 3).astype(np.float32)
-            colors[r, c] = np.median(patch, axis=0).astype(np.uint8)
-            q75, q25 = np.percentile(patch, [75, 25], axis=0)
-            spread[r, c] = float(np.mean(q75 - q25))
+    # Sample a fixed grid of points inside each cell rather than looping over cells: the
+    # detector now routinely resolves grids of 10k+ cells, where a per-cell median call
+    # dominates the whole detection. Points are spread across the inset interior, so the
+    # median and IQR still describe the cell body and ignore the gridlines.
+    ny = int(min(7, (ry1 - ry0).min()))
+    nx = int(min(7, (cx1 - cx0).min()))
+    fy = (np.arange(ny) + 0.5) / ny
+    fx = (np.arange(nx) + 0.5) / nx
+    ys = np.clip((ry0[:, None] + fy * (ry1 - ry0)[:, None]).astype(np.intp), 0, H - 1)
+    xs = np.clip((cx0[:, None] + fx * (cx1 - cx0)[:, None]).astype(np.intp), 0, W - 1)
+
+    # (rows, cols, ny, nx, 3)
+    patches = rgb[ys[:, None, :, None], xs[None, :, None, :]].astype(np.float32)
+    flat = patches.reshape(rows, cols, ny * nx, 3)
+
+    colors = np.median(flat, axis=2).astype(np.uint8)
+    q25, q75 = np.percentile(flat, [25, 75], axis=2)
+    spread = (q75 - q25).mean(axis=2).astype(np.float32)
 
     return colors, spread

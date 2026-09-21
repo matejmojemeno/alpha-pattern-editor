@@ -34,6 +34,7 @@ alphareader/
       pipeline.py       # detect_pattern() orchestration
       dmc.json          # DMC floss colour table for naming
   ui/
+    theme.py            # colour tokens, palette-derived helpers, OS-relative font sizes
     canvas.py           # numpy<->Qt, overlay + reconstruction rendering
     importer/           # confirmation window + croppable source view
     work/               # Work-stage window, run chips, read-only chart view
@@ -62,12 +63,13 @@ Load a chart (button / drag-drop / Ctrl+V), then on the confirmation screen:
 
 - the **source** shows the fitted grid and detected extent;
 - **Rows / Cols** spinners re-derive the lattice over the same region;
-- the **ΔE slider** merges/splits similar colours with a live palette preview;
+- the **Colour detail** slider merges/splits similar colours with a live palette preview
+  (fewer ↔ more colours; it's the detector's ΔE threshold under the hood);
 - **Crop** lets you drag a box around just the grid and re-detect (the escape hatch for
   numbering inside border cells, etc.);
-- low-confidence cells are crossed out in the reconstruction;
-- **Commit** writes a `.alpha` project (round-trippable, embeds the source image), then
-  offers to start working on it.
+- cells the detector is unsure about are crossed out in the reconstruction;
+- **Save & edit** / **Save & start working →** write a `.alpha` project (round-trippable,
+  embeds the source image) and open it in that stage.
 
 ## Work stage
 
@@ -90,7 +92,7 @@ The chart fits fully on screen (no scrolling), with **black gridlines**
 and **row/column numbers** to help counting; completed rows are dimmed and struck through,
 the current one outlined. **Save** writes to `saved/`, and closing prompts to save. Focus
 mode / high-contrast are in the View menu; Project → Export readout writes the pattern as
-text.
+text, and Project → **← Library** goes back to the project list from any stage.
 
 ## Setup
 
@@ -145,8 +147,10 @@ numbers). Right: the palette and a structure panel:
   interpolation, no new colours.
 - **Mirror / Flip / Rotate 180° / Trim uniform edges.**
 
-Full undo/redo (Ctrl+Z / Ctrl+Shift+Z, a paint stroke is one step), Save to `saved/`, and
-Export PNG.
+Tools have single-key shortcuts (**B** paint, **F** fill, **R** rectangle, **I** pick,
+**H**/**V** fill row/column); Escape abandons an in-progress rectangle, and ⌘/Ctrl+scroll
+zooms the canvas. Full undo/redo (Ctrl+Z / Ctrl+Shift+Z, a paint stroke is one step),
+Save to `saved/`, and Export PNG.
 
 ## Not yet built
 
