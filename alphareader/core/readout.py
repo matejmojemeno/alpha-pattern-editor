@@ -71,6 +71,15 @@ def _initial(name: str) -> str:
     return name[0].upper() if name else "?"
 
 
+def format_stats(cols: int, rows: int, palette_len: int) -> str:
+    """The one-line size summary shown on the import and design screens.
+
+    'strings' is the number of vertical strands an alpha pattern needs — one more than
+    the stitch count across."""
+    return (f"{cols} cols × {rows} rows   ·   {rows * cols} stitches   ·   "
+            f"{palette_len} colours   ·   {cols + 1} strings needed")
+
+
 def format_row_text(p: Pattern, r: int) -> str:
     """e.g. '1 Brown, 3 White, 5 Brown, 1 White'."""
     return ", ".join(f"{run.count} {_label(p, run.palette_index)}" for run in encode_row(p, r))
