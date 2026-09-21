@@ -1,4 +1,4 @@
-"""detect_pattern() orchestration (§5). Pure NumPy/scipy, no UI imports.
+"""detect_pattern() orchestration (§5). Pure NumPy, no UI imports.
 
 The lattice is fitted up to three ways and the cleanest result wins:
 
@@ -20,7 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 import numpy as np
-from scipy.ndimage import binary_closing
+from ._nd import binary_closing
 
 from ..model import (
     DebugLayers,

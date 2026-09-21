@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import numpy as np
-from scipy.ndimage import binary_closing
+from ._nd import binary_closing
 
 _LUMA = np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
 
