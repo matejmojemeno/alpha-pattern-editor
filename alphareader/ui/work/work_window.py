@@ -225,7 +225,8 @@ class WorkWindow(QMainWindow):
 
     def _save(self):
         try:
-            io.save_project(self.project, self.path, source_img=self.source_img)
+            self.project = io.save_project(self.project, self.path,
+                                           source_img=self.source_img)
             self._dirty = False
         except Exception as e:  # noqa: BLE001
             QMessageBox.critical(self, "Save failed", str(e))

@@ -98,6 +98,36 @@ def test_alpha_roundtrip(tmp_path):
     assert src is not None and src.shape == img.shape
 
 
+def test_save_project_does_not_mutate_its_argument(tmp_path):
+    """Saving stamps a new `updated_at` on a copy, never on the caller's object.
+
+    Everything else in core/ returns new objects; save_project used to be the one
+    exception, rewriting `project.pattern.updated_at` in place. That is invisible to a
+    caller rendering from the object it passed in."""
+    img, pattern = _sample_project()
+    project = Project(pattern=pattern, progress=Progress(), stage="design")
+    before = pattern.updated_at
+
+    saved = io.save_project(project, str(tmp_path / "p.alpha"), source_img=img,
+                            now=before + 1000.0)
+
+    assert pattern.updated_at == before, "caller's Pattern was mutated"
+    assert project.pattern is pattern, "caller's Project was rebound"
+    assert saved.pattern.updated_at == before + 1000.0
+    assert saved.pattern is not pattern
+    # The copy must still share the unchanged payload rather than duplicating it.
+    assert saved.pattern.cells is pattern.cells
+    assert saved.stage == project.stage
+    assert saved.progress is project.progress
+
+
+def test_saved_updated_at_is_what_lands_on_disk(tmp_path):
+    img, pattern = _sample_project()
+    path = str(tmp_path / "p.alpha")
+    saved = io.save_project(Project(pattern=pattern), path, source_img=img)
+    assert io.load_project(path).pattern.updated_at == saved.pattern.updated_at
+
+
 def test_alpha_rejects_newer_major(tmp_path):
     import json, zipfile
     path = str(tmp_path / "future.alpha")

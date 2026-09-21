@@ -12,6 +12,7 @@ import io as _io
 import json
 import os
 import re
+import time
 import zipfile
 from dataclasses import dataclass
 
@@ -91,10 +92,19 @@ def _progress_from_json(d: dict) -> Progress:
     )
 
 
-def save_project(project: Project, path: str, source_img: np.ndarray | None = None) -> None:
-    import time
-    p = project.pattern
-    p.updated_at = time.time()
+def save_project(project: Project, path: str, source_img: np.ndarray | None = None,
+                 *, now: float | None = None) -> Project:
+    """Write `project` to `path` and return an updated Project — mutating nothing.
+
+    Saving stamps a fresh `updated_at`, but it does so on a *copy*: silently rewriting a
+    field on the caller's object is the one place in `core/` that broke the
+    "operations return new objects" rule the rest of the package keeps, and it is exactly
+    the kind of hidden mutation a UI can't see (a view re-renders from an object whose
+    contents changed underneath it). Callers should rebind: `proj = save_project(proj, …)`.
+    """
+    p = dataclasses.replace(project.pattern,
+                            updated_at=time.time() if now is None else now)
+    project = dataclasses.replace(project, pattern=p)
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("meta.json", json.dumps({"format_version": FORMAT_VERSION,
@@ -108,6 +118,7 @@ def save_project(project: Project, path: str, source_img: np.ndarray | None = No
             ibuf = _io.BytesIO()
             Image.fromarray(source_img).save(ibuf, format="PNG")
             z.writestr("source.png", ibuf.getvalue())
+    return project
 
 
 def delete_project(path: str) -> None:

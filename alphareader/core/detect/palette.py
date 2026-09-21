@@ -2,15 +2,14 @@
 from __future__ import annotations
 
 import json
-import os
 import uuid
+from functools import lru_cache
+from importlib import resources
 
 import numpy as np
 from scipy.cluster.hierarchy import fcluster, linkage
 
 from ..model import PaletteEntry
-
-_DMC_PATH = os.path.join(os.path.dirname(__file__), "dmc.json")
 
 
 def hex_to_rgb(hex_str: str) -> np.ndarray:
@@ -58,11 +57,27 @@ def srgb_to_lab(rgb: np.ndarray) -> np.ndarray:
     return lab
 
 
+@lru_cache(maxsize=1)
 def _load_dmc() -> tuple[np.ndarray, list[dict]]:
-    with open(_DMC_PATH) as fh:
+    """The DMC floss table, loaded and Lab-converted once per process.
+
+    Read as a package *resource* rather than relative to `__file__`: that is what keeps it
+    resolvable once the package is installed as a wheel (as it will be for the browser
+    build) instead of run from a checkout.
+
+    The cache is a tidy-up, not a speed fix — `build_palette` calls this on every
+    detection and every confirm-screen resample, but the table is only 119 entries and an
+    uncached load measures ~0.15 ms, so the saving is negligible on desktop. It is kept
+    because it costs nothing and removes a repeated virtual-filesystem read under Pyodide.
+    """
+    with resources.files(__package__).joinpath("dmc.json").open() as fh:
         entries = json.load(fh)
     rgb = np.array([e["rgb"] for e in entries], dtype=np.float64)
-    return srgb_to_lab(rgb), entries
+    lab = srgb_to_lab(rgb)
+    # The cached arrays are handed to every caller; freeze them so a stray in-place write
+    # can't poison the cache for the rest of the process.
+    lab.setflags(write=False)
+    return lab, entries
 
 
 def _nearest_dmc(lab: np.ndarray, dmc_lab: np.ndarray, dmc_entries: list[dict]) -> dict:
