@@ -30,7 +30,7 @@ from ..model import (
 )
 from .lattice import fit_axis, line_coverage, walk_extent
 from .mask import dark_mask, extent_mask, line_response, luminance, run_profiles
-from .palette import build_palette, compute_confidence
+from .palette import build_palette, compute_confidence, count_unmatched
 from .periodic import (edge_maps, evidence_from_maps, extent_from_peaks,
                        fit_periodic_axis, profiles_from_maps)
 from .sample import sample_cells
@@ -266,6 +266,17 @@ def _finish(img: np.ndarray, fit: _Fit, delta_e_threshold: float,
     if frac > 0.02:
         warns.append(f"{flagged}/{total} cells ({100*frac:.1f}%) have low confidence — "
                      f"review before committing.")
+
+    # A proportional threshold cannot protect a chart that is overwhelmingly one colour:
+    # if 99% of cells are background, the few cells carrying every other colour can all be
+    # wrong and still not move the fraction. Those cells are the content, so count them
+    # absolutely. A cell sitting far from the entry it was assigned means the palette is
+    # missing a colour, which is precisely the failure the confirmation gate exists to
+    # catch (§13.8).
+    unmatched = count_unmatched(colors, cells, palette, delta_e_threshold)
+    if unmatched:
+        warns.append(f"{unmatched} cell(s) don't closely match any detected colour — a "
+                     f"colour may be missing; check them before committing.")
 
     lattice = Lattice(x0=fit.x0, pitch_x=fit.pitch_x, y0=fit.y0, pitch_y=fit.pitch_y,
                       col_lines=fit.col_lines, row_lines=fit.row_lines)
