@@ -111,6 +111,8 @@ def build_palette(
         reliable = spread.reshape(-1) <= spread_thr
         if reliable.sum() < max(4, 0.5 * reliable.size):
             reliable = np.ones(flat.shape[0], dtype=bool)
+        else:
+            reliable = _keep_unexplained(flat, reliable, delta_e_threshold)
     else:
         reliable = np.ones(flat.shape[0], dtype=bool)
 
@@ -171,6 +173,94 @@ def build_palette(
         ))
 
     return index_grid, palette
+
+
+def count_unmatched(colors: np.ndarray, cells: np.ndarray, palette: list[PaletteEntry],
+                    delta_e_threshold: float) -> int:
+    """Cells whose sampled colour no palette entry explains.
+
+    Every cell is assigned to its *nearest* centroid, so a cell is never unassigned — but
+    if the palette collapsed two real colours into one, the cells of the losing colour end
+    up a long way from the entry they were given. That distance is the signature of a
+    missing colour, and unlike a low-confidence count it does not wash out on a chart that
+    is overwhelmingly one colour (where the handful of rare cells *are* the content).
+    """
+    if not palette:
+        return 0
+    entries = srgb_to_lab(np.array([hex_to_rgb(e.hex) for e in palette]))
+    rows, cols, _ = colors.shape
+    cell_lab = srgb_to_lab(colors.reshape(-1, 3)).reshape(rows, cols, 3)
+    dE = np.linalg.norm(cell_lab - entries[cells], axis=2)
+    return int(np.count_nonzero(dE > 2 * delta_e_threshold))
+
+
+def _provisional_centroids(subset: np.ndarray, delta_e: float) -> np.ndarray:
+    """Lab centroids of `subset` under the same clustering the palette itself uses."""
+    uniq = np.unique(subset, axis=0)
+    if uniq.shape[0] == 0:
+        return np.zeros((0, 3))
+    lab = srgb_to_lab(uniq)
+    if uniq.shape[0] == 1:
+        return lab
+    weight = np.ones(uniq.shape[0], dtype=np.float64)
+    labels = _merge_close_centroids(complete_linkage_labels(lab, delta_e), uniq, weight,
+                                    delta_e)
+    return srgb_to_lab(np.array([uniq[labels == cid].mean(axis=0)
+                                 for cid in np.unique(labels)]))
+
+
+def _segment_distance(p: np.ndarray, a: np.ndarray, b: np.ndarray) -> float:
+    """Distance from `p` to the line segment ab — how blend-like a colour is."""
+    ab = b - a
+    denom = float(ab @ ab)
+    if denom < 1e-12:
+        return float(np.linalg.norm(p - a))
+    t = float(np.clip(((p - a) @ ab) / denom, 0.0, 1.0))
+    return float(np.linalg.norm(p - (a + t * ab)))
+
+
+def _keep_unexplained(flat: np.ndarray, reliable: np.ndarray, delta_e: float) -> np.ndarray:
+    """Re-admit excluded cells whose colour the reliable cells cannot account for.
+
+    The spread filter exists to stop a cell that straddled a gridline from minting a
+    phantom colour out of its mixed median. But it is a blunt instrument: on a chart that
+    is almost entirely one colour, the handful of cells carrying every *other* colour are
+    also the noisiest — small isolated blocks ring badly under JPEG — so the filter can
+    discard a real colour wholesale and the palette silently collapses.
+
+    So rather than trusting spread alone, ask what the excluded colour *is*. A cell that
+    merely straddled a gridline is a blend, and a blend lies close to the line between the
+    two colours it mixes. A genuinely missing colour sits off on its own, far from every
+    centroid and far from any line between them — and that is worth re-admitting.
+    """
+    excluded = ~reliable
+    if not excluded.any():
+        return reliable
+
+    centroids = _provisional_centroids(flat[reliable], delta_e)
+    if centroids.shape[0] == 0:
+        return np.ones(flat.shape[0], dtype=bool)
+
+    uniq, inverse = np.unique(flat[excluded], axis=0, return_inverse=True)
+    lab = srgb_to_lab(uniq)
+    d = np.linalg.norm(lab[:, None, :] - centroids[None, :, :], axis=2)
+    nearest = np.argsort(d, axis=1)
+
+    # Well inside delta_e of a known colour: ordinary noise, leave it excluded.
+    far = d[np.arange(len(uniq)), nearest[:, 0]] > 2 * delta_e
+    keep_uniq = np.zeros(len(uniq), dtype=bool)
+    for i in np.flatnonzero(far):
+        if centroids.shape[0] < 2:
+            keep_uniq[i] = True
+            continue
+        a, b = centroids[nearest[i, 0]], centroids[nearest[i, 1]]
+        keep_uniq[i] = _segment_distance(lab[i], a, b) > 2 * delta_e
+
+    if not keep_uniq.any():
+        return reliable
+    out = reliable.copy()
+    out[np.flatnonzero(excluded)[keep_uniq[inverse]]] = True
+    return out
 
 
 def _merge_close_centroids(labels: np.ndarray, uniq: np.ndarray, uniq_weight: np.ndarray,
