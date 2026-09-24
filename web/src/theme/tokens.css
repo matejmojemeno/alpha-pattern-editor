@@ -1,0 +1,97 @@
+/*
+ * The app's visual language: a port of alphareader/ui/theme.py.
+ *
+ * Two rules carry over from the desktop:
+ *
+ * 1. Anything painted *on the page* (borders, muted text, axis numbers, raised surfaces)
+ *    is derived from the text and background colours, so it reads in light and dark
+ *    mode. theme.py mixes the Qt palette by hand; color-mix() does the same job here.
+ *    Anything painted *on the pattern* (gridlines, the done-wash, the strike line) is
+ *    fixed, because it sits on yarn colours, which don't change with the theme.
+ * 2. Type follows the user's text-size setting. theme.font_css() scales design-time
+ *    pixels against the OS font (13 pt on macOS); here the design px are divided by 13
+ *    and emitted as rem, so the same ratios hold against the browser's default size.
+ *    Layout sizes (cards, radii, gaps) are px / 16, the browser default, in rem.
+ *
+ * High contrast is the same properties overridden under [data-contrast="high"] on
+ * <html>, set from the app's settings (src/settings/).
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* --- fixed tokens (theme.py) --------------------------------------------------- */
+  /* The one "you are here" colour: current row, current chip, card hover, focus. */
+  --accent: #f0a800;
+  --warn: #b26a00;
+  --danger: #d33;
+
+  /* Drawn over the pattern, so deliberately not theme-derived (theme.py:71-99). */
+  --grid: #000;
+  --done-wash: rgb(128 128 128 / 0.588); /* QColor(128, 128, 128, 150) */
+  --done-strike: rgb(60 60 60);
+
+  /* Importer overlays (Phase 2). Semantic: red = lattice, cyan = extent. */
+  --overlay-grid: rgb(255 40 40 / 0.51);
+  --overlay-extent: rgb(0 180 255);
+  --overlay-low-conf: rgb(255 0 0);
+  --letterbox: rgb(30 30 30);
+
+  /* --- the two base colours (the Qt palette's base() and text()) ------------------- */
+  --bg: #ffffff;
+  --text: #1d1d1f;
+
+  /* --- palette-derived (theme.py helpers; t = share of the background) ------------ */
+  --axis: color-mix(in srgb, var(--text), var(--bg) 42%); /* axis_color */
+  --muted: color-mix(in srgb, var(--text), var(--bg) 45%); /* muted_hex */
+  --border: color-mix(in srgb, var(--text), var(--bg) 68%); /* border_hex */
+  --raised: color-mix(in srgb, var(--bg), var(--text) 10%); /* raised_hex */
+
+  /* Buttons. The desktop left these to the OS; high contrast set them explicitly. */
+  --button-bg: var(--raised);
+  --button-fg: var(--text);
+  --primary-bg: var(--accent);
+  --primary-fg: #000; /* contrastOn('#f0a800') */
+
+  /* --- shape (theme.py RADIUS_*, CARD_*) ------------------------------------------- */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --card-w: 15rem;
+  --card-pad: 0.625rem;
+  --card-thumb-h: 9.375rem;
+  --focus-ring: 0 0 0 3px var(--bg), 0 0 0 5px var(--accent);
+  /* Minimum tap target (WCAG 2.5.5 / Apple HIG: 44 CSS px). */
+  --tap: 2.75rem;
+
+  /* --- type (font_css px / 13) ----------------------------------------------------- */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --text-sm: 0.923rem; /* 12 px */
+  --text-md: 1rem; /* 13 px, the base */
+  --text-name: 1.077rem; /* 14 px, card names */
+  --text-lg: 1.385rem; /* 18 px, chips */
+  --text-xl: 1.538rem; /* 20 px, window titles */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1e1e;
+    --text: #ececec;
+  }
+}
+
+/* theme.py HC_*: the Work stage's View → High contrast, now app-wide. */
+:root[data-contrast='high'] {
+  color-scheme: dark;
+  --bg: #111111;
+  --text: #eeeeee;
+  --border: #555555;
+  --muted: #cccccc;
+  --axis: #cccccc;
+  --raised: #2a2a2a;
+  --button-bg: #2a2a2a;
+  --button-fg: #eeeeee;
+  --primary-bg: #0a7d33;
+  --primary-fg: #ffffff; /* contrastOn('#0a7d33') */
+}
