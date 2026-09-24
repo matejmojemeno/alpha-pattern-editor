@@ -50,6 +50,7 @@ export function useAlphaImport(repo: ProjectRepo | null, onImported?: (ids: stri
       setBusy(true)
       const out: Notice[] = []
       const imported: string[] = []
+      const added: string[] = [] // names of projects that are new to the Library
       for (const file of list) {
         if (!/\.alpha$/i.test(file.name)) {
           out.push({
@@ -82,15 +83,26 @@ export function useAlphaImport(repo: ProjectRepo | null, onImported?: (ids: stri
           }
           await repo.importFile(bytes)
           imported.push(id)
-          out.push({
-            tone: 'ok',
-            text: existing
-              ? `“${name}” was already in your library. Replaced it with the imported copy (${pct(progressPct(project.pattern, project.progress))} done).`
-              : `Imported “${name}”.`,
-          })
+          if (existing) {
+            out.push({
+              tone: 'ok',
+              text: `“${name}” was already in your library. Replaced it with the imported copy (${pct(progressPct(project.pattern, project.progress))} done).`,
+            })
+          } else {
+            added.push(name)
+          }
         } catch (e) {
           out.push({ tone: 'error', text: describeError(file.name, e) })
         }
+      }
+      if (added.length) {
+        out.unshift({
+          tone: 'ok',
+          text:
+            added.length === 1
+              ? `Imported “${added[0]}”.`
+              : `Imported ${added.length} projects: ${added.map((n) => `“${n}”`).join(', ')}.`,
+        })
       }
       setNotices(out)
       setBusy(false)
