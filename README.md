@@ -3,6 +3,10 @@
 Turn an image of an existing alpha / tapestry-crochet chart into an editable, trackable
 pattern. See [`plan.md`](plan.md) for the full product spec.
 
+The desktop app is being ported to a hosted web app. See
+[`docs/web-port-plan.md`](docs/web-port-plan.md) for the plan, its current status, and
+the rules anyone working on it needs to follow.
+
 ## Status
 
 - **M0 — detection pipeline (the "reader"):** done. A pure-NumPy pipeline that recovers
