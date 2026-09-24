@@ -858,3 +858,29 @@ code {
 .segment__complete {
   width: 100%;
 }
+
+.work__saved {
+  flex: none;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.work__saved--error {
+  color: var(--danger);
+  white-space: normal;
+}
+
+:root[data-contrast='high'] .work__saved--error {
+  color: var(--text);
+}
+
+.linklike {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

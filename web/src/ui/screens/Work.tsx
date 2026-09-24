@@ -7,9 +7,11 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
+import { AutoSaver, type SaveStatus } from '../../app/autosave.ts'
 import { useRepo, useSettings } from '../../app/context.ts'
 import { downloadBlob } from '../../app/download.ts'
 import { href, paths } from '../../app/router.ts'
+import { keepScreenAwake } from '../../app/wakeLock.ts'
 import { encodeRow, exportAllRowsText, formatRowText, rowDirection, workingNumber } from '../../logic/readout.ts'
 import {
   completeCurrentRow,
@@ -24,7 +26,7 @@ import {
 } from '../../logic/work.ts'
 import type { Project } from '../../model/types.ts'
 import { progressPct } from '../../storage/alpha.ts'
-import { ProjectNotFoundError } from '../../storage/repo.ts'
+import { ProjectNotFoundError, type ProjectRepo } from '../../storage/repo.ts'
 import { ProgressBar, TopBar } from '../components.tsx'
 import { useDocumentTitle } from '../hooks.ts'
 import { ChartView } from '../work/ChartView.tsx'
@@ -88,7 +90,7 @@ export function Work({ id }: { id: string }) {
       </Message>
     )
   }
-  return <WorkStage initial={load.project} />
+  return <WorkStage repo={repo} initial={load.project} />
 }
 
 function Message({ title, children }: { title: string; children: ReactNode }) {
@@ -113,7 +115,7 @@ function ownsKeys(target: EventTarget | null): boolean {
 const activates = (target: EventTarget | null) =>
   target instanceof HTMLElement && target.closest('button, a[href], summary, [role="button"]') !== null
 
-function WorkStage({ initial }: { initial: Project }) {
+function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
   const [settings, setSettings] = useSettings()
   const [project, setProject] = useState<Project>(() => ({
     ...initial,
@@ -123,11 +125,35 @@ function WorkStage({ initial }: { initial: Project }) {
   const [segment, setSegment] = useState<number | null>(null)
   useDocumentTitle(project.pattern.name)
 
-  const change = useCallback((next: (p: Project) => Project) => {
-    const updated = next(latest.current)
-    latest.current = updated
-    setProject(updated)
-  }, [])
+  // Saved automatically, ~300 ms after the last change, and at once when the page is
+  // hidden or left. Saving from here puts the project in the Work stage, as on the
+  // desktop; the stored source image is kept (repo.save's default).
+  const [status, setStatus] = useState<SaveStatus>('saved')
+  const [saver] = useState(() => new AutoSaver<Project>((x) => repo.save({ ...x, stage: 'work' }), setStatus))
+
+  const change = useCallback(
+    (next: (p: Project) => Project) => {
+      const updated = next(latest.current)
+      latest.current = updated
+      setProject(updated)
+      saver.schedule(updated)
+    },
+    [saver],
+  )
+
+  useEffect(() => {
+    const flush = () => void saver.flush()
+    const onVisibility = () => document.visibilityState === 'hidden' && flush()
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', flush)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', flush)
+      flush() // leaving the Work stage
+    }
+  }, [saver])
+
+  useEffect(() => keepScreenAwake(), [])
 
   const { pattern: p, progress: pr } = project
   const done = isComplete(p, pr)
@@ -157,6 +183,12 @@ function WorkStage({ initial }: { initial: Project }) {
   // has the keys, and never on auto-repeat: holding a key must not race through rows.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Cmd/Ctrl+S saves now. It's never needed, but it's what hands expect to work.
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        void saver.flush()
+        return
+      }
       if (e.defaultPrevented || segment !== null || ownsKeys(e.target)) return
       if (document.querySelector('[aria-modal="true"]')) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
@@ -170,7 +202,7 @@ function WorkStage({ initial }: { initial: Project }) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [segment, completeRow, previousRow])
+  }, [segment, completeRow, previousRow, saver])
 
   const setStartRight = (right: boolean) =>
     change((x) => ({ ...x, pattern: { ...x.pattern, start_direction: right ? 'RTL' : 'LTR' } }))
@@ -190,6 +222,7 @@ function WorkStage({ initial }: { initial: Project }) {
         <h1 tabIndex={-1} className="work__name">
           {p.name}
         </h1>
+        <SaveIndicator status={status} onRetry={() => void saver.flush()} />
         <details className="work__options">
           <summary className="button button--small">Options</summary>
           <div className="work__menu">
@@ -311,5 +344,23 @@ function WorkStage({ initial }: { initial: Project }) {
         />
       )}
     </main>
+  )
+}
+
+function SaveIndicator({ status, onRetry }: { status: SaveStatus; onRetry: () => void }) {
+  if (status === 'error') {
+    return (
+      <span className="work__saved work__saved--error" role="alert">
+        Not saved.{' '}
+        <button type="button" className="linklike" onClick={onRetry}>
+          Try again
+        </button>
+      </span>
+    )
+  }
+  return (
+    <span className="work__saved" data-status={status}>
+      {status === 'saved' ? 'Saved' : 'Saving…'}
+    </span>
   )
 }
