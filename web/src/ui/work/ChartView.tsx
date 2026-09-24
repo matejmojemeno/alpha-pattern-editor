@@ -128,12 +128,12 @@ export function ChartView({ pattern, completed, current, emphasise, focus, theme
 
   const schedule = () => {
     if (frame.current) return
-    frame.current = requestAnimationFrame(() => {
+    frame.current = (globalThis.requestAnimationFrame ?? setTimeout)(() => {
       frame.current = 0
       draw.current()
     })
   }
-  useEffect(() => () => cancelAnimationFrame(frame.current), [])
+  useEffect(() => () => (globalThis.cancelAnimationFrame ?? clearTimeout)(frame.current), [])
 
   // Size the canvas backing store for the device.
   useLayoutEffect(() => {

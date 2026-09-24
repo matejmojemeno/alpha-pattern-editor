@@ -80,6 +80,8 @@ beforeEach(() => {
   URL.createObjectURL = vi.fn(() => `blob:test/${++seq}`)
   URL.revokeObjectURL = vi.fn()
   window.scrollTo = vi.fn() as unknown as typeof window.scrollTo
+  // jsdom has no canvas; without this it logs "not implemented" for every chart.
+  HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext']
 })
 
 afterEach(() => {
