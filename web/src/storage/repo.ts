@@ -8,6 +8,7 @@
 import type { Project } from '../model/types.ts'
 import { alphaFileName, progressPct, readAlpha, writeAlpha, type AlphaContents } from './alpha.ts'
 import * as db from './db.ts'
+import { makeThumbnail, type Downscaler } from './thumbnail.ts'
 
 export type { ProjectSummary } from './db.ts'
 
@@ -16,12 +17,29 @@ export type Clock = () => number
 
 const ALPHA_MIME = 'application/zip'
 
+export interface RepoOptions {
+  /** How to shrink a large source.png for its thumbnail. Defaults to a canvas. */
+  downscale?: Downscaler
+  /** Called after every successful save or import, e.g. to ask the browser to keep
+   *  this site's storage (navigator.storage.persist). Errors from it are ignored. */
+  onStored?: () => void
+}
+
 async function bytesOf(data: Blob | Uint8Array): Promise<Uint8Array> {
   return data instanceof Uint8Array ? data : new Uint8Array(await data.arrayBuffer())
 }
 
-function summarize(contents: AlphaContents): db.ProjectSummary {
+/** A project's Library summary. Pass `thumbnail` to reuse one already made. */
+async function summarize(
+  contents: AlphaContents,
+  downscale: Downscaler | undefined,
+  thumbnail?: Pick<db.ProjectSummary, 'thumbnail' | 'thumbnail_kind'>,
+): Promise<db.ProjectSummary> {
   const { pattern, progress } = contents.project
+  if (!thumbnail) {
+    const t = await makeThumbnail(pattern, contents.sourcePng, downscale)
+    thumbnail = { thumbnail: t.blob, thumbnail_kind: t.kind }
+  }
   return {
     id: pattern.id,
     name: pattern.name,
@@ -29,7 +47,8 @@ function summarize(contents: AlphaContents): db.ProjectSummary {
     cols: pattern.cols,
     progress_pct: progressPct(pattern, progress),
     updated_at: pattern.updated_at,
-    thumbnail: contents.sourcePng ? new Blob([contents.sourcePng as Uint8Array<ArrayBuffer>], { type: 'image/png' }) : null,
+    thumbnail: thumbnail.thumbnail,
+    thumbnail_kind: thumbnail.thumbnail_kind,
   }
 }
 
@@ -43,14 +62,44 @@ export class ProjectNotFoundError extends Error {
 export class ProjectRepo {
   private readonly db: db.AlphaDatabase
   private readonly clock: Clock
+  private readonly opts: RepoOptions
 
-  constructor(database: db.AlphaDatabase, clock: Clock = () => Date.now() / 1000) {
+  constructor(database: db.AlphaDatabase, clock: Clock = () => Date.now() / 1000, opts: RepoOptions = {}) {
     this.db = database
     this.clock = clock
+    this.opts = opts
   }
 
-  static async open(name?: string, clock?: Clock): Promise<ProjectRepo> {
-    return new ProjectRepo(await db.openAlphaDb(name), clock)
+  /** Open the database, rebuilding any missing summaries (see db.ts). */
+  static async open(name?: string, clock?: Clock, opts?: RepoOptions): Promise<ProjectRepo> {
+    const repo = new ProjectRepo(await db.openAlphaDb(name), clock, opts)
+    await repo.rebuildMissingSummaries()
+    return repo
+  }
+
+  /** Recreate the summary of every archive that lacks one. Returns how many. An archive
+   *  that no longer parses is left alone rather than deleted: it is still exportable. */
+  async rebuildMissingSummaries(): Promise<number> {
+    let rebuilt = 0
+    for (const id of await db.idsMissingSummaries(this.db)) {
+      const blob = await db.getArchive(this.db, id)
+      if (blob === undefined) continue
+      try {
+        await db.putSummary(this.db, await summarize(readAlpha(await bytesOf(blob)), this.opts.downscale))
+        rebuilt++
+      } catch {
+        // Unreadable archive: nothing sensible to show for it.
+      }
+    }
+    return rebuilt
+  }
+
+  private stored(): void {
+    try {
+      this.opts.onStored?.()
+    } catch {
+      // Best effort only.
+    }
   }
 
   close(): void {
@@ -75,16 +124,22 @@ export class ProjectRepo {
    */
   async save(project: Project, opts: { sourcePng?: Uint8Array | null } = {}): Promise<Project> {
     let sourcePng = opts.sourcePng
+    // A kept photo keeps its thumbnail: re-decoding the photo on every save would be
+    // wasted work. A cells thumbnail is cheap, and the cells may have changed.
+    let thumbnail: db.ProjectSummary | undefined
     if (sourcePng === undefined) {
       const existing = await db.getArchive(this.db, project.pattern.id)
       sourcePng = existing ? readAlpha(await bytesOf(existing)).sourcePng : null
+      const summary = await db.getSummary(this.db, project.pattern.id)
+      if (sourcePng && summary?.thumbnail_kind === 'photo') thumbnail = summary
     }
     const { bytes, project: saved } = writeAlpha(project, { sourcePng, now: this.clock() })
     await db.putProject(
       this.db,
       new Blob([bytes as Uint8Array<ArrayBuffer>], { type: ALPHA_MIME }),
-      summarize({ project: saved, sourcePng }),
+      await summarize({ project: saved, sourcePng }, this.opts.downscale, thumbnail),
     )
+    this.stored()
     return saved
   }
 
@@ -97,8 +152,10 @@ export class ProjectRepo {
   async importFile(file: Blob | Uint8Array): Promise<AlphaContents & { replaced: boolean }> {
     const bytes = await bytesOf(file)
     const contents = readAlpha(bytes)
+    const summary = await summarize(contents, this.opts.downscale)
     const replaced = (await db.getSummary(this.db, contents.project.pattern.id)) !== undefined
-    await db.putProject(this.db, new Blob([bytes as Uint8Array<ArrayBuffer>], { type: ALPHA_MIME }), summarize(contents))
+    await db.putProject(this.db, new Blob([bytes as Uint8Array<ArrayBuffer>], { type: ALPHA_MIME }), summary)
+    this.stored()
     return { ...contents, replaced }
   }
 
@@ -107,6 +164,11 @@ export class ProjectRepo {
     const [blob, summary] = await Promise.all([db.getArchive(this.db, id), db.getSummary(this.db, id)])
     if (blob === undefined || summary === undefined) throw new ProjectNotFoundError(id)
     return { blob, filename: alphaFileName(summary) }
+  }
+
+  /** The Library summary for one project, or undefined if there is no such project. */
+  summary(id: string): Promise<db.ProjectSummary | undefined> {
+    return db.getSummary(this.db, id)
   }
 
   delete(id: string): Promise<void> {

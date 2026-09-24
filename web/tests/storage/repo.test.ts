@@ -54,7 +54,8 @@ describe('db', () => {
       cols: 1,
       progress_pct: 0,
       updated_at,
-      thumbnail: null,
+      thumbnail: new Blob(),
+      thumbnail_kind: 'cells',
     })
     await db.putProject(d, new Blob(['a']), s('old', 1))
     await db.putProject(d, new Blob(['c']), s('new', 3))
@@ -101,7 +102,7 @@ describe('ProjectRepo', () => {
       cols: 2,
       progress_pct: 50,
       updated_at: 5,
-      thumbnail: null,
+      thumbnail_kind: 'cells', // no source image: the pattern's own cells
     })
   })
 
@@ -113,7 +114,7 @@ describe('ProjectRepo', () => {
     expect((await repo.open('fox')).sourcePng).toEqual(png)
     await repo.save(saved, { sourcePng: null })
     expect((await repo.open('fox')).sourcePng).toBeNull()
-    expect((await repo.list())[0]!.thumbnail).toBeNull()
+    expect((await repo.list())[0]!.thumbnail_kind).toBe('cells')
   })
 
   it('imports a desktop .alpha file as-is and exports the same bytes', async () => {
@@ -126,7 +127,9 @@ describe('ProjectRepo', () => {
     expect(summary).toMatchObject({ id: p.pattern.id, name: 'with-source', rows: 6, cols: 8 })
     expect(summary!.progress_pct).toBeCloseTo((100 * 2) / 6)
     expect(summary!.updated_at).toBe(p.pattern.updated_at) // importing isn't an edit
-    expect(await blobBytes(summary!.thumbnail!)).toEqual(sourcePng)
+    // A source already under THUMB_MAX_EDGE is its own thumbnail, byte for byte.
+    expect(summary!.thumbnail_kind).toBe('photo')
+    expect(await blobBytes(summary!.thumbnail)).toEqual(sourcePng)
 
     const { blob, filename } = await repo.exportFile(p.pattern.id)
     expect(await blobBytes(blob)).toEqual(bytes)
