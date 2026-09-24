@@ -126,7 +126,8 @@ export function drawChart(ctx: CanvasRenderingContext2D, d: DrawInput): void {
   // --- the grid: cells, lines, done rows, current row ----------------------------------
   ctx.save()
   ctx.beginPath()
-  ctx.rect(AXIS_LEFT, AXIS_TOP, areaW, areaH)
+  // A little past the grid's top-left, for a current-row outline drawn outside the row.
+  ctx.rect(AXIS_LEFT - 3, AXIS_TOP - 3, areaW + 3, areaH + 3)
   ctx.clip()
 
   ctx.imageSmoothingEnabled = false
@@ -154,15 +155,21 @@ export function drawChart(ctx: CanvasRenderingContext2D, d: DrawInput): void {
     const h = l.heights[i]!
     ctx.fillStyle = DONE_WASH
     ctx.fillRect(ox, y, gw, h)
+    // 2 px as on the desktop, but thinner on short rows, where 2 px would black them out.
+    const sw = h >= 8 ? 2 : 1 / dpr
     ctx.fillStyle = DONE_STRIKE
-    ctx.fillRect(ox, px(y + h / 2 - 1, dpr), gw, 2)
+    ctx.fillRect(ox, px(y + h / 2 - sw / 2, dpr), gw, sw)
   }
 
   const cur = l.current === null ? -1 : l.current - first
   if (cur >= from && cur < to) {
+    // 3 px, inside the row as on the desktop when there's room; around it on short rows,
+    // where an inside outline would cover the very colours it points at.
+    const h = l.heights[cur]!
+    const inset = h >= 16 ? 1.5 : -1.5
     ctx.strokeStyle = colors.accent
     ctx.lineWidth = 3
-    ctx.strokeRect(ox + 1.5, oy + l.offsets[cur]! + 1.5, gw - 3, l.heights[cur]! - 3)
+    ctx.strokeRect(ox + inset, oy + l.offsets[cur]! + inset, gw - 2 * inset, h - 2 * inset)
   }
   ctx.restore()
 
