@@ -502,41 +502,359 @@ code {
   font-size: var(--text-sm);
 }
 
-/* --- work placeholder ------------------------------------------------------------------------ */
+/* --- work ------------------------------------------------------------------------------ */
 
-.facts {
+/* The whole stage fits the viewport, so the Row complete button never scrolls away; the
+   chart and the chips scroll inside it. */
+.screen.work {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 2rem;
-  margin: 0 0 0.5rem;
+  flex-direction: column;
+  gap: 0.6rem;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  max-width: 90rem;
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  overflow: hidden;
 }
 
-.facts dt {
-  font-size: var(--text-sm);
-  color: var(--muted);
+.work__top {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  flex: none;
 }
 
-.facts dd {
-  margin: 0;
+.work__name {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: var(--text-lg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.work__options {
+  position: relative;
+  flex: none;
+}
+
+.work__options > summary {
+  list-style: none;
+}
+
+.work__options > summary::-webkit-details-marker {
+  display: none;
+}
+
+.work__menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 5;
+  display: grid;
+  gap: 0.25rem;
+  width: max-content;
+  max-width: min(20rem, calc(100vw - 2rem));
+  padding: 0.6rem 0.75rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.2);
+}
+
+.work__menu .button {
+  margin-top: 0.35rem;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: var(--tap);
+  cursor: pointer;
+}
+
+.check input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.work__status {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 0 1rem;
+  flex: none;
+}
+
+.work__status p {
+  margin: 0;
+}
+
+.work__row {
+  font-size: 1.692rem; /* 22 px */
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.work__arrow {
+  color: var(--accent);
+}
+
+:root[data-contrast='high'] .work__arrow {
+  color: inherit;
+}
+
+.work__stitches {
+  font-size: 1.231rem; /* 16 px */
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
-.work-placeholder .progress {
-  max-width: 28rem;
-  margin-bottom: 1rem;
+.work__status .progress {
+  grid-column: 1 / -1;
+  margin-top: 0.15rem;
 }
 
-.readout {
-  margin: 0.75rem 0 0;
-  padding: 1rem;
+/* Phones: chart on top, the row's colours underneath. */
+.work__body {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.75rem;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.work__body .chart {
+  flex: 1 1 50%;
+  min-height: 10rem;
+}
+
+.work__chips {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 50%;
+  min-height: 6rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.work__body--focus .chart {
+  flex-basis: 35%;
+}
+
+.work__label {
+  margin: 0 0 0.4rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.work__next {
+  margin: 0.6rem 0 0;
+  font-size: var(--text-sm);
+}
+
+/* Wider: the chips in a column beside the chart, as on the desktop. */
+@media (min-width: 700px) {
+  .work__body {
+    flex-direction: row;
+  }
+
+  .work__chips {
+    flex: 0 0 20rem;
+  }
+
+  .work__body .chart,
+  .work__body--focus .chart {
+    flex: 1 1 auto;
+  }
+}
+
+.chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.5rem 0.9rem 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+}
+
+.chip--done {
+  background: var(--raised);
+  color: var(--muted);
+}
+
+/* 2 px accent border without shifting the content: 1 px border + 1 px inset shadow. */
+.chip--current {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.chip__text {
+  overflow-wrap: anywhere;
+}
+
+.chip__mark {
+  margin-left: auto;
+  padding-left: 0.5rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.swatch {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid;
+  border-radius: var(--radius-sm);
+}
+
+.swatch--lg {
+  width: 3rem;
+  height: 3rem;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.chart {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+
+.chart__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.chart__scroller {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.work__bar {
+  display: flex;
+  gap: 0.75rem;
+  flex: none;
+}
+
+.work__prev {
+  flex: 0 1 auto;
+}
+
+.work__complete {
+  flex: 1 1 auto;
+  min-height: 3.5rem;
+  font-size: 1.154rem; /* 15 px */
+  font-weight: 700;
+}
+
+@media (min-width: 700px) {
+  .work__bar {
+    justify-content: space-between;
+  }
+
+  .work__complete {
+    flex: 0 1 18rem;
+  }
+}
+
+.work__hint {
+  flex: none;
+  margin: -0.25rem 0 0;
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+/* Touch screens have no keyboard to hint at. */
+@media (pointer: coarse) {
+  .work__hint {
+    display: none;
+  }
+}
+
+.segment__head {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  font-size: var(--text-lg);
+}
+
+.segment__stitches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 1rem 0;
+}
+
+.segment__stitches label {
+  font-weight: 600;
+}
+
+.stepper {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.stepper .button {
+  width: var(--tap);
+  padding: 0;
+  font-size: var(--text-lg);
+}
+
+.stepper input {
+  width: 4.5rem;
+  min-height: var(--tap);
+  padding: 0 0.5rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--raised);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  line-height: 1.6;
-  overflow-x: auto;
-  white-space: pre;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-lg);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.segment__complete {
+  width: 100%;
 }

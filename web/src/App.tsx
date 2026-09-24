@@ -9,7 +9,7 @@ import { useDocumentTitle } from './ui/hooks.ts'
 import { Landing } from './ui/screens/Landing.tsx'
 import { Library } from './ui/screens/Library.tsx'
 import { Settings } from './ui/screens/Settings.tsx'
-import { WorkPlaceholder } from './ui/screens/WorkPlaceholder.tsx'
+import { Work } from './ui/screens/Work.tsx'
 
 /** `repo` and `settings` default to the real ones; tests pass their own. */
 export default function App({
@@ -83,7 +83,7 @@ function Screen({ route }: { route: Route }) {
     case 'settings':
       return <Settings />
     case 'work':
-      return <WorkPlaceholder id={route.id} />
+      return <Work id={route.id} />
     case 'notFound':
       return <NotFound />
   }

@@ -1,5 +1,5 @@
 /** Small building blocks shared by the screens. */
-import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 
 import { href, paths } from '../app/router.ts'
 import type { ThumbnailKind } from '../storage/thumbnail.ts'
@@ -103,10 +103,84 @@ export function DropOverlay({ show }: { show: boolean }) {
 
 // --- dialogs ------------------------------------------------------------------------------
 
+const FOCUSABLE = 'button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])'
+
 /**
- * A modal yes/no question. Focus starts on Cancel (the safe answer), Tab stays inside
- * the dialog, Escape cancels, and focus goes back where it was when the dialog closes.
+ * A modal dialog. Focus starts on `initialFocus` (or the first control), Tab stays inside
+ * the dialog, Escape closes it, and focus goes back where it was when it closes.
  */
+export function Modal({
+  title,
+  role = 'dialog',
+  onClose,
+  initialFocus,
+  className,
+  buttons,
+  children,
+}: {
+  title: ReactNode
+  role?: 'dialog' | 'alertdialog'
+  onClose: () => void
+  initialFocus?: RefObject<HTMLElement | null>
+  className?: string
+  /** The dialog's buttons, kept out of its description. */
+  buttons?: ReactNode
+  children: ReactNode
+}) {
+  const id = useId()
+  const box = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null
+    ;(initialFocus?.current ?? box.current?.querySelector<HTMLElement>(FOCUSABLE))?.focus()
+    return () => {
+      if (previous?.isConnected) previous.focus()
+    }
+    // Focus is placed once, when the dialog opens.
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      onClose()
+    } else if (e.key === 'Tab') {
+      const items = [...(box.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])].filter(
+        (el) => !(el as HTMLButtonElement).disabled,
+      )
+      const first = items[0]
+      const last = items[items.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last?.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first?.focus()
+      }
+    }
+  }
+
+  return (
+    <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div
+        ref={box}
+        className={className ? `dialog ${className}` : 'dialog'}
+        role={role}
+        aria-modal="true"
+        aria-labelledby={`${id}-title`}
+        aria-describedby={`${id}-body`}
+        onKeyDown={onKeyDown}
+      >
+        <h2 id={`${id}-title`}>{title}</h2>
+        <div id={`${id}-body`} className="dialog__body">
+          {children}
+        </div>
+        {buttons && <div className="dialog__buttons">{buttons}</div>}
+      </div>
+    </div>
+  )
+}
+
+/** A modal yes/no question. Focus starts on Cancel, the safe answer. */
 export function ConfirmDialog({
   title,
   children,
@@ -122,65 +196,26 @@ export function ConfirmDialog({
   onConfirm: () => void
   onCancel: () => void
 }) {
-  const id = useId()
-  const box = useRef<HTMLDivElement>(null)
   const cancel = useRef<HTMLButtonElement>(null)
-
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null
-    cancel.current?.focus()
-    return () => {
-      if (previous?.isConnected) previous.focus()
-    }
-  }, [])
-
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      e.preventDefault()
-      onCancel()
-    } else if (e.key === 'Tab') {
-      const buttons = [...(box.current?.querySelectorAll('button') ?? [])]
-      const first = buttons[0]
-      const last = buttons[buttons.length - 1]
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault()
-        last?.focus()
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault()
-        first?.focus()
-      }
-    }
-  }
-
   return (
-    <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onCancel()}>
-      <div
-        ref={box}
-        className="dialog"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby={`${id}-title`}
-        aria-describedby={`${id}-body`}
-        onKeyDown={onKeyDown}
-      >
-        <h2 id={`${id}-title`}>{title}</h2>
-        <div id={`${id}-body`} className="dialog__body">
-          {children}
-        </div>
-        <div className="dialog__buttons">
+    <Modal
+      title={title}
+      role="alertdialog"
+      onClose={onCancel}
+      initialFocus={cancel}
+      buttons={
+        <>
           <button ref={cancel} type="button" className="button" onClick={onCancel}>
             Cancel
           </button>
-          <button
-            type="button"
-            className={danger ? 'button button--danger' : 'button button--primary'}
-            onClick={onConfirm}
-          >
+          <button type="button" className={danger ? 'button button--danger' : 'button button--primary'} onClick={onConfirm}>
             {confirmLabel}
           </button>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    >
+      {children}
+    </Modal>
   )
 }
 
