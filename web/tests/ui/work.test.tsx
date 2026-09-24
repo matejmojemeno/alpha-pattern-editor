@@ -286,3 +286,85 @@ describe('options', () => {
     spy.mockRestore()
   })
 })
+
+describe('saving', () => {
+  const settle = () => new Promise((r) => setTimeout(r, 400))
+
+  it('saves every progress change on its own, as a Work-stage project', async () => {
+    const { repo, project } = await openWork('basic.alpha')
+    const user = userEvent.setup()
+    expect(screen.getByText('Saved')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Row complete →' }))
+    expect(screen.getByText('Saving…')).toBeTruthy()
+    await waitFor(() => expect(screen.getByText('Saved')).toBeTruthy(), { timeout: 2000 })
+
+    const { project: saved } = await repo.open(project.pattern.id)
+    expect(saved.stage).toBe('work')
+    expect(saved.progress.completed_row_ids.size).toBe(1)
+    expect(saved.progress.current_row_id).toBe(work.completeCurrentRow(project.pattern, project.progress).current_row_id)
+    expect((await repo.summary(project.pattern.id))!.progress_pct).toBe(20)
+  })
+
+  it('saves at once when the page is hidden', async () => {
+    const { repo, project } = await openWork('basic.alpha')
+    const save = vi.spyOn(repo, 'save')
+    await userEvent.click(screen.getByRole('button', { name: 'Row complete →' }))
+    expect(save).not.toHaveBeenCalled()
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+    delete (document as { visibilityState?: unknown }).visibilityState
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1))
+    await waitFor(async () => expect((await repo.open(project.pattern.id)).project.progress.completed_row_ids.size).toBe(1))
+  })
+
+  it('saves at once on pagehide and on Cmd/Ctrl+S', async () => {
+    const { repo } = await openWork('basic.alpha')
+    const save = vi.spyOn(repo, 'save')
+    await userEvent.click(screen.getByRole('button', { name: 'Row complete →' }))
+    window.dispatchEvent(new Event('pagehide'))
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1))
+    await userEvent.click(screen.getByRole('button', { name: 'Row complete →' }))
+    fireEvent.keyDown(document.body, { key: 's', ctrlKey: true })
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(2))
+    // Ctrl+S is not "complete the row".
+    expect(work.completeCurrentRow).toHaveBeenCalledTimes(2)
+  })
+
+  it('saves pending progress when leaving for the Library', async () => {
+    const { repo, project } = await openWork('basic.alpha')
+    const save = vi.spyOn(repo, 'save')
+    await userEvent.click(screen.getByRole('button', { name: 'Row complete →' }))
+    await userEvent.click(screen.getByRole('link', { name: /Library/ }))
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1))
+    await waitFor(async () => expect((await repo.summary(project.pattern.id))!.progress_pct).toBe(20))
+  })
+
+  it('keeps the stored source image', async () => {
+    const { repo, project } = await openWork('with-source.alpha')
+    const before = (await repo.open(project.pattern.id)).sourcePng
+    expect(before).not.toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Row complete →' }))
+    await settle()
+    const after = await repo.open(project.pattern.id)
+    expect(after.project.progress.completed_row_ids.size).toBe(project.progress.completed_row_ids.size + 1)
+    expect(after.sourcePng).toEqual(before)
+  })
+
+  it('saves "Start rows from the right" with the pattern, leaving progress as it was', async () => {
+    const { repo, project } = await openWork('partial-row.alpha')
+    await userEvent.click(screen.getByLabelText('Start rows from the right'))
+    await settle()
+    const saved = (await repo.open(project.pattern.id)).project
+    expect(saved.pattern.start_direction).toBe('RTL')
+    expect(saved.progress.current_row_id).toBe(project.progress.current_row_id)
+    expect(saved.progress.current_run_index).toBe(project.progress.current_run_index)
+    expect(saved.progress.current_run_stitches).toBe(project.progress.current_run_stitches)
+    expect([...saved.progress.completed_row_ids].sort()).toEqual([...project.progress.completed_row_ids].sort())
+  })
+
+  it('does not save just for opening a project', async () => {
+    const { repo, project } = await openWork('basic.alpha')
+    await settle()
+    expect((await repo.open(project.pattern.id)).project.stage).toBe('design')
+  })
+})
