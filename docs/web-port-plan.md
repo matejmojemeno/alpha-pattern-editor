@@ -9,11 +9,31 @@ root. This document covers *how* the app moves to the web, not *what* it does.
 | Phase | State |
 |---|---|
 | 0 — core preparation | **done** |
-| 1 — Library + Work + storage | not started |
+| 1 — Library + Work + storage | **in progress**: storage, logic, app shell and Library done; Work stage next |
 | 2 — Import wizard + Pyodide | not started |
 | 3 — Design stage | not started |
 
-No web code exists yet. What Phase 0 delivered, and what later phases build on:
+What Phase 1 has delivered so far (`web/`):
+
+- **Storage and logic** (PR #6): `.alpha` read/write compatible with the desktop in both
+  directions, IndexedDB via `ProjectRepo`, and `readout.ts`/`work.ts` replaying the golden
+  fixtures.
+- **App shell, Landing, Library, Settings** (this step):
+  - Hash routing (`#/library`, `#/work/<id>`), so deep links survive a refresh on any
+    static host without an SPA fallback rule.
+  - `theme/tokens.css` (the port of `theme.py`) and `contrastOn()`.
+  - The settings decision is made: **app-wide display preferences in `localStorage`**
+    (`src/settings/store.ts`: row emphasis, high contrast, focus mode). Anything that
+    changes how a pattern is read stays on the pattern.
+  - Library card grid with Export, delete, keyboard opening, and `.alpha` import by picker
+    or drop. Thumbnails are downscaled at save time (DB version 2), and
+    `navigator.storage.persist()` is requested after the first save or import.
+  - `/work/:id` is a **placeholder**: name, size, progress and the full readout text.
+  - Playwright (`npm run test:e2e`) proves persistence across a real reload.
+- **Next:** the Work stage (chips, chart with `render/layout.ts`, keyboard, wake lock),
+  which replaces the placeholder and consumes the settings above.
+
+What Phase 0 delivered, and what later phases build on:
 
 - **`scripts/parity/`** — proves `core/detect` gives byte-identical results under Pyodide
   and desktop CPython. 89/89 charts identical, even though the desktop runs numpy 2.5.1
@@ -31,9 +51,9 @@ Tasks that can safely run in parallel, in dependency order:
    - **Storage layer**, `web/src/storage/`. Self-contained: it's specified entirely by the
      `.alpha` format and can be tested against a file written by the desktop app.
    - **Readout/work port**, `web/src/logic/`. Must replay `fixtures/logic_golden.json`.
-2. **Landing screen, Library and Work UI.** Needs both of the above. **Before building
-   any setting, decide whether settings are per-app or per-project** (see Landing screen
-   in Phase 1). The taller-row toggle depends on that decision.
+2. **Landing screen, Library and Work UI.** Landing, Library and Settings are done, and
+   the settings question is decided (app-wide, in `localStorage`). The Work stage is
+   next.
 3. **Phase 2.** Everything in it depends on the worker boundary, so build that first and
    only then split the rest of Phase 2 across tasks.
 
@@ -184,7 +204,7 @@ Also landed in this phase:
 - **One item dropped.** The import-time `__file__` in `io.py` was left alone: it only
   computes a string, and `io.py` never ships to the browser.
 
-## Phase 1 — Library + Work, no Pyodide (~2.5 weeks)
+## Phase 1 — Library + Work, no Pyodide (~3 weeks)
 
 Build this before Import, even though Import comes first for a user. It needs no WASM,
 so it's demoable within days. It can be tested with `.alpha` files from the desktop app,
