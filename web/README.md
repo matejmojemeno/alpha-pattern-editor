@@ -1,32 +1,25 @@
-# React + TypeScript + Vite
+# Alpha Pattern Editor: web app
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The browser version of the desktop app. The plan, and the rules for working on it, are
+in [`docs/web-port-plan.md`](../docs/web-port-plan.md).
 
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm test            # Vitest: golden-fixture replay, storage, import boundary
+npx tsc --noEmit    # strict type check of src/, tests/ and scripts/
+npm run gen:alpha   # rewrite ../fixtures/alpha/from-ts/ after changing src/storage
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Layout so far
+
+- `src/model/`: TypeScript mirrors of `alphareader/core/model.py` (and readout's `Run`),
+  plus the JSON documents inside a `.alpha` archive. Fields stay snake_case, to match the
+  Python and the files on disk.
+- `src/logic/`: `readout.ts` and `work.ts`, ports of `readout.py` and `work.py`.
+  The Python is the spec. `tests/golden.test.ts` replays `../fixtures/logic_golden.json`.
+- `src/storage/`: `.alpha` archives (`alpha.ts`, `npy.ts`, `pyjson.ts`), IndexedDB
+  (`db.ts`) and the repository the UI will use (`repo.ts`). Compatibility with the
+  desktop format is tested in both directions; see `../fixtures/alpha/README.md`.
+
+Nothing in `src/logic/` or `src/storage/` may reach Pyodide, and `tests/boundary.test.ts`
+enforces it. The React entry point is still the Vite template; the UI comes next.
