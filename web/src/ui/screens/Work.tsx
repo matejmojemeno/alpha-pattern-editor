@@ -25,6 +25,7 @@ import {
   workSequence,
 } from '../../logic/work.ts'
 import type { Project } from '../../model/types.ts'
+import type { RowPlace } from '../../render/layout.ts'
 import { progressPct } from '../../storage/alpha.ts'
 import { ProjectNotFoundError, type ProjectRepo } from '../../storage/repo.ts'
 import { ProgressBar, RenameForm, TopBar } from '../components.tsx'
@@ -186,6 +187,21 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
   const done = isComplete(p, pr)
   const cur = done ? null : rowIndex(p, pr.current_row_id)
   const runs = useMemo(() => (cur === null ? [] : encodeRow(p, cur)), [p, cur])
+  // Your place in the row, for the chart to follow across. Rebuilt on every progress
+  // change (`pr` is new each time), even one that leaves it where it was, so the next
+  // change after a scroll by hand always brings it back.
+  const place = useMemo<RowPlace | null>(
+    () =>
+      cur === null
+        ? null
+        : {
+            runs,
+            runIndex: pr.current_run_index,
+            stitches: pr.current_run_stitches,
+            direction: rowDirection(p, cur),
+          },
+    [p, cur, runs, pr],
+  )
   const completed = useMemo(() => {
     const s = new Set<number>()
     p.row_ids.forEach((rid, i) => pr.completed_row_ids.has(rid) && s.add(i))
@@ -365,6 +381,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
           emphasise={settings.emphasiseRows}
           focus={settings.focusMode}
           themeKey={settings.highContrast ? 'high' : 'normal'}
+          place={place}
           label={`Chart, ${p.cols} by ${p.rows}${cur === null ? '' : `, row ${workingNumber(p, cur)} outlined`}`}
         />
       </div>

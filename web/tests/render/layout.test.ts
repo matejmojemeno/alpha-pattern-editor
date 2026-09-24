@@ -8,7 +8,10 @@ import {
   PAD,
   computeLayout,
   followCurrent,
+  followCurrentX,
+  followMargin,
   nearRows,
+  placeColumn,
   rowHeight,
   rowInView,
   rowSpan,
@@ -17,8 +20,12 @@ import {
   showAxisNumber,
   visibleRows,
   yOffsets,
+  type ChartLayout,
   type LayoutInput,
+  type RowPlace,
 } from '../../src/render/layout.ts'
+import { encodeRow } from '../../src/logic/readout.ts'
+import type { Direction, Pattern } from '../../src/model/types.ts'
 
 /** A chart area whose grid viewport is exactly `w` × `h`. */
 const area = (w: number, h: number) => ({ width: w + AXIS_LEFT + PAD, height: h + AXIS_TOP + PAD })
@@ -239,5 +246,160 @@ describe('axis numbers', () => {
   it('label every 5th plus the first on larger charts', () => {
     const shown = Array.from({ length: 16 }, (_, i) => i + 1).filter((n) => showAxisNumber(n, 16))
     expect(shown).toEqual([1, 5, 10, 15])
+  })
+})
+
+describe('your place in the row stays in view across', () => {
+  // 100 × 20 in a 400 × 200 view: 10 px cells, a 1000 px grid, scrolling 0..600 across,
+  // and a 30 px margin (three cells).
+  const wide = () => layout({ rows: 20, cols: 100, current: 5, ...area(400, 200) })
+  /** Ten segments of ten stitches, in working order. */
+  const tens = Array.from({ length: 10 }, (_, i) => ({ start_col: i * 10, count: 10 }))
+  const at = (runIndex: number, stitches: number, direction: Direction, runs = tens): RowPlace => ({
+    runs,
+    runIndex,
+    stitches,
+    direction,
+  })
+
+  /** Every stitch of a row in turn: the scroll offsets it passes through, checking your
+   *  place is in view at each one. */
+  function workRow(l: ChartLayout, direction: Direction, runs = tens): number[] {
+    let x = followCurrentX(l, at(0, 0, direction, runs), direction === 'LTR' ? l.maxScrollX : 0)
+    const stops = [x]
+    runs.forEach((run, i) => {
+      for (let s = 0; s < run.count; s++) {
+        const place = at(i, s, direction, runs)
+        x = followCurrentX(l, place, x)
+        const left = placeColumn(l.cols, place)! * l.cell
+        expect(left).toBeGreaterThanOrEqual(x)
+        expect(left + l.cell).toBeLessThanOrEqual(x + l.viewWidth)
+        if (x !== stops[stops.length - 1]) stops.push(x)
+      }
+    })
+    return stops
+  }
+
+  it('is laid out as the tests assume', () => {
+    const l = wide()
+    expect(l.cell).toBe(10)
+    expect(l.maxScrollX).toBe(600)
+    expect(followMargin(l)).toBe(30)
+  })
+
+  it('maps working order to image columns, mirrored on right-to-left rows', () => {
+    expect(placeColumn(100, at(1, 0, 'LTR'))).toBe(10)
+    expect(placeColumn(100, at(1, 0, 'RTL'))).toBe(89)
+    expect(placeColumn(100, at(1, 3, 'LTR'))).toBe(13)
+    expect(placeColumn(100, at(1, 3, 'RTL'))).toBe(86)
+    // Out of range clamps: the last segment's last stitch, the first segment's first.
+    expect(placeColumn(100, at(99, 99, 'LTR'))).toBe(99)
+    expect(placeColumn(100, at(-1, -1, 'RTL'))).toBe(99)
+    expect(placeColumn(100, at(0, 0, 'LTR', []))).toBeNull()
+  })
+
+  it('lands on the segment’s own colour, straight from encodeRow', () => {
+    const cells = Uint16Array.from([0, 0, 1, 1, 1, 2])
+    for (const start_direction of ['LTR', 'RTL'] as const) {
+      const p = { rows: 1, cols: 6, cells, start_direction, alternate_direction: true, bottom_up: true } as Pattern
+      const runs = encodeRow(p, 0)
+      expect(runs.map((r) => r.palette_index)).toEqual(start_direction === 'LTR' ? [0, 1, 2] : [2, 1, 0])
+      runs.forEach((run, i) => {
+        for (let s = 0; s < run.count; s++) {
+          const col = placeColumn(6, { runs, runIndex: i, stitches: s, direction: start_direction })!
+          expect(cells[col]).toBe(run.palette_index)
+        }
+      })
+    }
+  })
+
+  it('starts a left-to-right row at the left edge', () => {
+    expect(followCurrentX(wide(), at(0, 0, 'LTR'), 600)).toBe(0)
+    expect(followCurrentX(wide(), at(0, 0, 'LTR'), 5)).toBe(0)
+  })
+
+  it('starts a right-to-left row at the right edge', () => {
+    expect(followCurrentX(wide(), at(0, 0, 'RTL'), 0)).toBe(600)
+    expect(followCurrentX(wide(), at(0, 0, 'RTL'), 590)).toBe(600)
+  })
+
+  it('stays put while your place is comfortably in view', () => {
+    const l = wide()
+    expect(followCurrentX(l, at(3, 0, 'LTR'), 0)).toBe(0) // x 300..310
+    expect(followCurrentX(l, at(3, 5, 'LTR'), 0)).toBe(0)
+    expect(followCurrentX(l, at(5, 0, 'LTR'), 340)).toBe(340)
+    expect(followCurrentX(l, at(3, 0, 'RTL'), 600)).toBe(600) // col 69, x 690..700
+    expect(followCurrentX(l, at(5, 0, 'RTL'), 250)).toBe(250) // col 49, x 490..500
+  })
+
+  it('works a left-to-right row a view at a time, ending at the right edge', () => {
+    // Your place nears the right (col 37 at x 370), so it goes a margin in from the left;
+    // then the last move stops at the right edge. Two moves in 100 stitches.
+    expect(workRow(wide(), 'LTR')).toEqual([0, 340, 600])
+  })
+
+  it('works a right-to-left row a view at a time, ending at the left edge', () => {
+    // Mirrored: col 62 at x 620..630 nears the left of 600, so it goes a margin in from
+    // the right (630 + 30 - 400 = 260); then the left edge.
+    expect(workRow(wide(), 'RTL')).toEqual([600, 260, 0])
+  })
+
+  it('moves by partial stitches, not only by segments', () => {
+    const l = wide()
+    // Segment 3 starts at x 300, in view; 9 stitches in, x 390..400 is past the margin.
+    expect(followCurrentX(l, at(3, 6, 'LTR'), 0)).toBe(0)
+    expect(followCurrentX(l, at(3, 9, 'LTR'), 0)).toBe(390 - 30)
+    // Right to left, segment 3 starts at col 69 and its stitches go left: 6 in is col 63,
+    // x 630, just clear of the margin; 7 in is col 62, x 620..630, not.
+    expect(followCurrentX(l, at(3, 6, 'RTL'), 600)).toBe(600)
+    expect(followCurrentX(l, at(3, 7, 'RTL'), 600)).toBe(630 + 30 - 400)
+  })
+
+  it('shows where the rest of a segment wider than the view starts', () => {
+    const l = wide()
+    const runs = [
+      { start_col: 0, count: 5 },
+      { start_col: 5, count: 80 },
+      { start_col: 85, count: 15 },
+    ]
+    // Left to right, 50 into the long segment: col 55, a margin in from the left.
+    expect(followCurrentX(l, at(1, 50, 'LTR', runs), 0)).toBe(550 - 30)
+    // Right to left: col 99 - 55 = 44, x 440..450, a margin in from the right.
+    expect(followCurrentX(l, at(1, 50, 'RTL', runs), 600)).toBe(450 + 30 - 400)
+    // Its first stitch, just past the short first segment, is still in view.
+    expect(followCurrentX(l, at(1, 0, 'LTR', runs), 0)).toBe(0)
+    expect(followCurrentX(l, at(1, 0, 'RTL', runs), 600)).toBe(600)
+    // And every stitch of the row stays in view.
+    expect(workRow(l, 'LTR', runs)).toEqual([0, 340, 600])
+    expect(workRow(l, 'RTL', runs)).toEqual([600, 260, 0])
+  })
+
+  it('brings your place back after a scroll by hand', () => {
+    const l = wide()
+    // Scrolled to the far side of where you are.
+    expect(followCurrentX(l, at(2, 0, 'LTR'), 600)).toBe(200 - 30)
+    expect(followCurrentX(l, at(2, 0, 'RTL'), 0)).toBe(800 + 30 - 400) // col 79
+    // Scrolled out of range: clamped first.
+    expect(followCurrentX(l, at(3, 0, 'LTR'), -50)).toBe(0)
+  })
+
+  it('never moves a chart that fits across', () => {
+    const fits = layout({ rows: 40, cols: 40 })
+    const tall = layout({ rows: 200, cols: 40 }) // scrolls down, not across
+    const row = [{ start_col: 0, count: 40 }]
+    for (const l of [fits, tall]) {
+      expect(l.maxScrollX).toBe(0)
+      for (const d of ['LTR', 'RTL'] as const) {
+        expect(followCurrentX(l, at(0, 0, d, row), 0)).toBe(0)
+        expect(followCurrentX(l, at(0, 30, d, row), 0)).toBe(0)
+      }
+    }
+  })
+
+  it('only clamps without a current row or a place', () => {
+    expect(followCurrentX(wide(), null, 250)).toBe(250)
+    expect(followCurrentX(wide(), null, 900)).toBe(600)
+    const finished = layout({ rows: 20, cols: 100, current: null, ...area(400, 200) })
+    expect(followCurrentX(finished, at(5, 0, 'LTR'), 250)).toBe(250)
   })
 })

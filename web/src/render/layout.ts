@@ -12,9 +12,13 @@
  * (`nearRows`). Emphasis draws them taller; focus mode draws only them
  * (chart_view.py:46-52).
  *
+ * Across, a chart wider than its view follows your place in the row, the next stitch to
+ * work (`followCurrentX`).
+ *
  * Coordinates are CSS pixels. The grid sits inside the axis margins; `scrollX`/`scrollY`
  * are offsets of the grid within its viewport, and the axis numbers stay put.
  */
+import type { Direction, Run } from '../model/types.ts'
 
 /** Room for the row numbers on the left and the column numbers on top (chart_view.py). */
 export const AXIS_LEFT = 34
@@ -183,6 +187,64 @@ export function followCurrent(layout: ChartLayout, scrollY: number): number {
   if (span === null) return clampScroll(scrollY, layout.maxScrollY)
   const middle = (span.top + span.bottom) / 2
   return clampScroll(middle - layout.viewHeight / 2, layout.maxScrollY)
+}
+
+/** Where you are in the current row: its runs in working order (readout.ts `encodeRow`),
+ *  the segment being worked, the stitches done in it, and the row's direction. */
+export interface RowPlace {
+  readonly runs: readonly Pick<Run, 'start_col' | 'count'>[]
+  readonly runIndex: number
+  readonly stitches: number
+  readonly direction: Direction
+}
+
+/** The image column of the next stitch to work, or null when the row has none. Out-of-
+ *  range indices clamp. `start_col` counts in working order, so on a right-to-left row
+ *  it is mirrored, and the stitches move leftwards. */
+export function placeColumn(cols: number, place: RowPlace): number | null {
+  const { runs } = place
+  if (cols <= 0 || runs.length === 0) return null
+  const run = runs[Math.max(0, Math.min(runs.length - 1, place.runIndex))]!
+  const done = Math.max(0, Math.min(run.count - 1, place.stitches))
+  const position = Math.max(0, Math.min(cols - 1, run.start_col + done))
+  return place.direction === 'RTL' ? cols - 1 - position : position
+}
+
+/** Space kept between your place and the side of the view: three cells, at least 24 px,
+ *  and never more than a quarter of the view. */
+export const followMargin = (layout: ChartLayout) => Math.min(layout.viewWidth / 4, Math.max(3 * layout.cell, 24))
+
+/**
+ * The horizontal scroll offset that keeps your place in the current row in view.
+ *
+ * - At the start of a row (first segment, no stitches): the side the row starts from,
+ *   the left edge for a left-to-right row and the right edge for a right-to-left one.
+ * - Otherwise `scrollX` is kept while your place is at least `followMargin` inside the
+ *   view, so the chart doesn't move on every stitch. Once it isn't, the view jumps to put
+ *   your place a margin in from the side it's working away from, showing as much of the
+ *   rest of the row as fits. On a segment wider than the view, that's where its
+ *   remaining part starts.
+ *
+ * A chart that fits across (`maxScrollX` 0) always gets 0. Without a current row or a
+ * place, `scrollX` is only clamped.
+ */
+export function followCurrentX(layout: ChartLayout, place: RowPlace | null, scrollX: number): number {
+  const max = layout.maxScrollX
+  if (max <= 0) return 0
+  const col = layout.current === null || place === null ? null : placeColumn(layout.cols, place)
+  if (place === null || col === null) return clampScroll(scrollX, max)
+  const ltr = place.direction === 'LTR'
+  if (place.runIndex <= 0 && place.stitches <= 0) return ltr ? 0 : max
+
+  const left = col * layout.cell
+  const right = left + layout.cell
+  const margin = followMargin(layout)
+  const from = clampScroll(scrollX, max)
+  // At the ends of the chart the scroll stops, so the margin there can't be kept.
+  const clearLeft = from <= 0 || left >= from + margin - 1e-6
+  const clearRight = from >= max || right <= from + layout.viewWidth - margin + 1e-6
+  if (clearLeft && clearRight) return from
+  return clampScroll(ltr ? left - margin : right + margin - layout.viewWidth, max)
 }
 
 /** Whether all of row `r` is inside the viewport at `scrollY`. */
