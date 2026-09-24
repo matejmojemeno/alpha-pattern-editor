@@ -362,6 +362,28 @@ describe('saving', () => {
     expect([...saved.progress.completed_row_ids].sort()).toEqual([...project.progress.completed_row_ids].sort())
   })
 
+  it('renames the project, and the rename field keeps the keys to itself', async () => {
+    const { repo, project } = await openWork('basic.alpha')
+    const user = userEvent.setup()
+    await user.click(screen.getByText('Options'))
+    await user.click(screen.getByRole('button', { name: 'Rename “basic”' }))
+    const input = screen.getByLabelText('Project name')
+    await user.clear(input)
+    // Typing a space or an arrow in the field completes no rows.
+    await user.type(input, 'Scarf row{ArrowLeft}{ArrowRight}s')
+    expect(work.completeCurrentRow).not.toHaveBeenCalled()
+    expect(work.goPreviousRow).not.toHaveBeenCalled()
+    await user.keyboard('{Enter}')
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Scarf rows' })).toBeTruthy()
+    expect(document.title).toBe('Scarf rows · Alpha Pattern Editor')
+    expect(document.activeElement).toBe(screen.getByText('Options'))
+    await settle()
+    const saved = await repo.open(project.pattern.id)
+    expect(saved.project.pattern.name).toBe('Scarf rows')
+    expect(saved.project.pattern.cells).toEqual(project.pattern.cells)
+  })
+
   it('does not save just for opening a project', async () => {
     const { repo, project } = await openWork('basic.alpha')
     await settle()

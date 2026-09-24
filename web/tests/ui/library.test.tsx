@@ -167,6 +167,37 @@ describe('Library', () => {
     await waitFor(() => expect(cards()).toHaveLength(2))
   })
 
+  it('renames a project from its card', async () => {
+    const { repo } = await withProjects('with-source.alpha')
+    const user = userEvent.setup()
+    const before = await repo.open(idOf('with-source.alpha'))
+    const renameButton = screen.getByRole('button', { name: 'Rename “with-source”' })
+    await user.click(renameButton)
+    const input = screen.getByLabelText<HTMLInputElement>('Project name')
+    expect(document.activeElement).toBe(input)
+    expect(input.value).toBe('with-source')
+
+    // Escape leaves it alone.
+    await user.keyboard('{Escape}')
+    expect(screen.queryByLabelText('Project name')).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Rename “with-source”' }))
+    await user.clear(screen.getByLabelText('Project name'))
+    // An empty name can't be saved.
+    expect(screen.getByRole('button', { name: 'Save' })).toHaveProperty('disabled', true)
+    await user.type(screen.getByLabelText('Project name'), '  Blanket   for Ema {Enter}')
+    await waitFor(() => expect(card('Blanket for Ema')).toBeTruthy())
+    expect(screen.getByRole('status').textContent).toMatch(/Renamed “with-source” to “Blanket for Ema”/)
+
+    const after = await repo.open(idOf('with-source.alpha'))
+    expect(after.project.pattern.name).toBe('Blanket for Ema')
+    // Only the name changed: progress, stage and the source image are as they were.
+    expect(after.project.stage).toBe(before.project.stage)
+    expect(after.project.progress).toEqual(before.project.progress)
+    expect(after.sourcePng).toEqual(before.sourcePng)
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Rename “Blanket for Ema”' }))
+  })
+
   it('refuses a file from a newer version without storing anything', async () => {
     const { repo } = await renderApp('#/library')
     await userEvent.upload(screen.getByLabelText('Choose .alpha files to import'), alphaFile('newer-format.alpha'))
