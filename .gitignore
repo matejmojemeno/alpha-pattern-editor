@@ -7,3 +7,5 @@ __pycache__/
 saved/
 node_modules/
 package-lock.json
+# The web app pins its dependency tree.
+!web/package-lock.json
