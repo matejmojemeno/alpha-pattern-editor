@@ -9,7 +9,7 @@ root. This document covers *how* the app moves to the web, not *what* it does.
 | Phase | State |
 |---|---|
 | 0 — core preparation | **done** |
-| 1 — Library + Work + storage | **in progress**: storage, logic, app shell and Library done; Work stage next |
+| 1 — Library + Work + storage | **in progress**: storage, logic, app shell, Library and Work stage done; `newPattern` and the design-from-blank dialog remain |
 | 2 — Import wizard + Pyodide | not started |
 | 3 — Design stage | not started |
 
@@ -18,7 +18,7 @@ What Phase 1 has delivered so far (`web/`):
 - **Storage and logic** (PR #6): `.alpha` read/write compatible with the desktop in both
   directions, IndexedDB via `ProjectRepo`, and `readout.ts`/`work.ts` replaying the golden
   fixtures.
-- **App shell, Landing, Library, Settings** (this step):
+- **App shell, Landing, Library, Settings** (PR #7):
   - Hash routing (`#/library`, `#/work/<id>`), so deep links survive a refresh on any
     static host without an SPA fallback rule.
   - `theme/tokens.css` (the port of `theme.py`) and `contrastOn()`.
@@ -28,10 +28,28 @@ What Phase 1 has delivered so far (`web/`):
   - Library card grid with Export, delete, keyboard opening, and `.alpha` import by picker
     or drop. Thumbnails are downscaled at save time (DB version 2), and
     `navigator.storage.persist()` is requested after the first save or import.
-  - `/work/:id` is a **placeholder**: name, size, progress and the full readout text.
   - Playwright (`npm run test:e2e`) proves persistence across a real reload.
-- **Next:** the Work stage (chips, chart with `render/layout.ts`, keyboard, wake lock),
-  which replaces the placeholder and consumes the settings above.
+- **Work stage** (this step), at `#/work/<id>`:
+  - `render/layout.ts`: per-row heights, `yOffsets`, and a viewport that keeps the
+    current row centred. Charts past 2:1 are sized to their short axis and scroll along
+    the long one. Row emphasis and focus mode share one "rows around the current one"
+    range (`nearRows`, current ± 2).
+  - `render/chart.ts`: the cells are drawn once, a pixel per cell, into an offscreen
+    image; each frame scales it onto a viewport-sized canvas in a few bands and draws
+    the gridlines, done-wash, strike line, outline and axis numbers over it. An 88×194
+    chart scrolls within one frame per step at 4× CPU throttling.
+  - Header, chips, segment dialog, next-row preview, Previous row / Row complete, the
+    keyboard, "Start rows from the right" (on the pattern), Export readout, and rename
+    (also on each Library card).
+  - Saving is automatic (`app/autosave.ts`): debounced ~300 ms, flushed on
+    `visibilitychange`/`pagehide`/leaving, and stamps `stage: "work"`. There is no Save
+    button.
+  - A Screen Wake Lock is held while the Work stage shows (`app/wakeLock.ts`).
+  - `ProjectRepo.subscribe`: the Library and the landing count re-list after every save,
+    import and delete, which fixes the Library showing part of a list after a
+    slow import.
+- **Next:** `newPattern(cols, rows, hex)` with its size-and-colour dialog (the Design
+  entry stays disabled until Phase 3), then Phase 2.
 
 What Phase 0 delivered, and what later phases build on:
 
@@ -51,9 +69,8 @@ Tasks that can safely run in parallel, in dependency order:
    - **Storage layer**, `web/src/storage/`. Self-contained: it's specified entirely by the
      `.alpha` format and can be tested against a file written by the desktop app.
    - **Readout/work port**, `web/src/logic/`. Must replay `fixtures/logic_golden.json`.
-2. **Landing screen, Library and Work UI.** Landing, Library and Settings are done, and
-   the settings question is decided (app-wide, in `localStorage`). The Work stage is
-   next.
+2. **Landing screen, Library and Work UI.** Done. The settings question is decided
+   (app-wide, in `localStorage`).
 3. **Phase 2.** Everything in it depends on the worker boundary, so build that first and
    only then split the rest of Phase 2 across tasks.
 
