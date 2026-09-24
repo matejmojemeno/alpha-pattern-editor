@@ -31,7 +31,9 @@ Tasks that can safely run in parallel, in dependency order:
    - **Storage layer**, `web/src/storage/`. Self-contained: it's specified entirely by the
      `.alpha` format and can be tested against a file written by the desktop app.
    - **Readout/work port**, `web/src/logic/`. Must replay `fixtures/logic_golden.json`.
-2. **Library and Work UI.** Needs both of the above.
+2. **Landing screen, Library and Work UI.** Needs both of the above. **Before building
+   any setting, decide whether settings are per-app or per-project** (see Landing screen
+   in Phase 1). The taller-row toggle depends on that decision.
 3. **Phase 2.** Everything in it depends on the worker boundary, so build that first and
    only then split the rest of Phase 2 across tasks.
 
@@ -59,6 +61,9 @@ break without noticing.
   exactly as SciPy does. Complete linkage uses a nearest-neighbour cache because the
   obvious version is O(n³) (23 s against SciPy's 1 s on a noisy chart). Both are
   load-bearing.
+- **The Work chart lays out rows with per-row heights, never a single cell size.**
+  Scrolling long charts and the taller current row both depend on it (see Phase 1), and
+  retrofitting it later means redoing the layout.
 - **The Work stage makes zero Pyodide requests.** Keeping Pyodide out of the Work stage is
   what makes the app usable on a phone. Treat any regression here as a bug.
 - **The Python suite has one known failure,** `test_edge_numbers_all_sides`: a 44×5 chart
@@ -223,8 +228,9 @@ bar, colour-segment chips, chart, bottom bar. Behaviours to reproduce:
   - "Start rows from the right".
 - **Export the readout as `.txt`** (`export_all_rows_text`).
 
-**Chart rendering (`render/chart.ts`).** `chart_view.py:54-119` maps 1:1 onto Canvas 2D.
-Port it faithfully, including these deliberate choices:
+**Chart rendering (`render/chart.ts`).** The drawing in `chart_view.py:54-119` maps 1:1
+onto Canvas 2D. Its *layout* does not, because of the next section. Port the drawing
+faithfully, including these deliberate choices:
 - **Gridlines are near-black on purpose.** They sit on yarn colours, not on the page
   (`theme.py:71-77`).
 - **The done-wash is neutral grey,** `rgba(128,128,128,150)`, chosen to look faded over
@@ -234,15 +240,65 @@ Port it faithfully, including these deliberate choices:
   working order.
 
 Draw into an offscreen canvas when state changes and copy it to the screen, rather than
-calling `fillRect` per cell on every frame. The desktop chart has no zoom or pan and
-recomputes `cell = max(3, min(avail_w/cols, avail_h/rows))` on every paint, so it's
-already responsive.
+calling `fillRect` per cell on every frame.
+
+**Chart layout: per-row heights, not one cell size.** The desktop sizes every row with
+one number, `cell = max(3, min(avail_w/cols, avail_h/rows))` (`chart_view.py:69`). Two
+wanted behaviours break that, and **both must be designed in from the start**. Building
+the single-number version first and retrofitting means doing the layout twice.
+
+- **Scroll long charts instead of shrinking them.** Beyond an aspect ratio of roughly
+  2:1, size cells to the chart's *shorter* axis and scroll along the longer one. Today a
+  40×200 chart (common for blankets and scarves) renders at near-unusable cell sizes.
+  **Automatically keeping the current row in view is non-negotiable**, so you never
+  lose your place. This matches `plan.md` §6.3, which already asks for the chart to be
+  "scrolled to keep the current row centred". It's the README's "fits fully on screen
+  (no scrolling)" that describes the current implementation, and that sentence changes
+  when this ships.
+- **Taller current row.** The row being worked, and the few either side of it, render
+  taller than the rest, so the colours are easier to read and your place is easier to
+  find again after looking away. It can be switched off in Settings.
+
+Both are handled by the same layout:
+
+```
+rowHeight(r)  -> emphasised height if |r - current| <= radius, else base height
+yOffsets      -> running sum of rowHeight
+viewport      -> scroll offset into yOffsets, following `current`
+```
+
+Everything drawn from `y` then works unchanged: fills, gridlines, strike-through, row
+numbers, the current-row outline. Put this in `render/layout.ts` as pure functions and
+unit-test them. That's where the bugs will be, not in the canvas calls.
+
+The emphasis radius is related to focus mode, which already narrows drawing to the
+current row ± 2 (`_visible_rows`, `chart_view.py:46`). Treat them as one concept, "rows
+around the current one", rather than two overlapping settings.
 
 **Mobile.** Work is the stage that most needs to work on a phone:
 - Single-column layout under ~700 px: chart on top, chips underneath.
 - Large tap targets.
 - Screen Wake Lock, so the screen doesn't sleep mid-row.
 - Generous default type size.
+
+**Landing screen.** The first screen offers four entry points instead of opening straight
+onto the project grid: **Import pattern**, **Design pattern** (start from blank),
+**Library** and **Settings**. On the desktop, the Library *is* the landing screen, with
+only "Import new chart…" and "Refresh". The web app gets this from the start rather than
+porting that. Two parts need real work:
+- **Designing from blank has no code path yet.** Every `Project` today comes from loading
+  a `.alpha` file or from detection. Add `newPattern(cols, rows, hex)` to `web/src/logic/`.
+  It returns a pattern with a one-entry palette and fresh `row_ids`, and needs a small
+  size-and-colour dialog in front of it. It belongs with the other pure logic, so it's
+  cheap. (If a Python `new_pattern` lands on the desktop first, port it and add it to the
+  golden fixtures.) "Design pattern" opens the Design stage, which arrives in Phase 3.
+  Until then, hide the entry or show it disabled.
+- **Settings need a store, and a decision first.** Nothing in the desktop app persists
+  preferences. Each toggle is either per-window and forgotten on close (focus mode, high
+  contrast) or saved on the pattern (`start_direction`). **Decide per-app versus
+  per-project before building any setting.** The taller-row switch below depends on it.
+  Recommended: app-wide display preferences in `localStorage`, and anything that changes
+  how a pattern is read (like `start_direction`) stays on the pattern, as today.
 
 **Library.** A card grid: thumbnail, name, `{cols}×{rows}`, progress bar, and delete
 with a confirmation. Cards can be opened from the keyboard. The desktop's file watcher
@@ -332,6 +388,15 @@ Then build the Design stage:
   `H`, fill column `V`.
 - Palette editing: add, recolour, delete.
 - The structural panel: pad, scale, mirror, flip, rotate 180°, trim uniform edges.
+- **Pad to size with positioning.** Padding currently always centres the pattern
+  (`left, top = dc // 2, dr // 2` at `edit.py:304`). Let it be offset instead, so 10
+  added rows can land as 2 at the top and 8 at the bottom. The model already supports
+  this: `add_border` takes independent top, bottom, left and right amounts and keeps
+  `row_ids`, so Work-stage progress survives. `padToSize` just takes optional
+  `offsetTop`/`offsetLeft`, validated as `0 ≤ offset ≤ added`, defaulting to centred.
+  Ship numeric offset fields first; they cost almost nothing and cover the need.
+  Dragging the pattern on a live preview is a nice extra. If the Python change lands on
+  the desktop first, the `edit.py` fixtures will pick it up.
 - Undo/redo on `Cmd+Z` / `Cmd+Shift+Z`.
 
 Two things to reconsider rather than copy:
@@ -366,6 +431,11 @@ Cloudflare Pages can set the headers through `_headers` if that changes.
   `core/detect`. It must report 89/89 bit-identical.
 - **TS/Python logic parity:** `logic/readout.ts` and `logic/work.ts` replay
   `fixtures/logic_golden.json` in Vitest. Compare `completed_row_ids` as a set.
+- **Chart layout:** unit-test `render/layout.ts`:
+  - row heights, with emphasis on and off
+  - the y-offset table
+  - the switch from fitting to scrolling at the aspect-ratio threshold
+  - that the current row stays in view as it moves
 - **Format compatibility:** take a `.alpha` file written by the desktop app, load and save
   it through the web storage layer, and check the desktop app still opens the result.
   Include a `format_version: 999` archive to confirm it's still rejected.
@@ -384,9 +454,9 @@ Cloudflare Pages can set the headers through `_headers` if that changes.
 | Phase | Estimate |
 |---|---|
 | 0 — core prep | done |
-| 1 — Library + Work + storage | ~2.5 weeks |
+| 1 — Library + Work + storage | ~3 weeks (includes the landing screen, settings and chart layout) |
 | 2 — Import + Pyodide | ~2.5 weeks |
-| **First release** | **~5 weeks from here** |
+| **First release** | **~5.5 weeks from here** |
 | 3 — Design | ~3.5 weeks |
 
 ## Risks
