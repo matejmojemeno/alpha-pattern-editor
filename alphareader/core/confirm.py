@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from .detect.palette import build_palette, compute_confidence
+from .detect.palette import build_palette, compute_confidence, count_unmatched
 from .detect.sample import sample_cells
 from .model import DetectionResult, Pattern, PaletteEntry
 
@@ -44,6 +44,9 @@ class Preview:
     confidence: np.ndarray          # (rows, cols) float32
     extent: Extent
     delta_e: float
+    # Cells no palette entry explains: the "a colour may be missing" warning. It follows the
+    # preview, since the ΔE slider and the dimensions both change it.
+    unmatched: int = 0
 
     @property
     def low_confidence_fraction(self) -> float:
@@ -104,7 +107,8 @@ def resample(img: np.ndarray, extent: Extent, rows: int, cols: int, delta_e: flo
     cells, palette = build_palette(colors, delta_e, spread=spread)
     conf = compute_confidence(colors, cells, palette, spread, delta_e)
     return Preview(rows=rows, cols=cols, row_lines=row_lines, col_lines=col_lines,
-                   cells=cells, palette=palette, confidence=conf, extent=ext, delta_e=delta_e)
+                   cells=cells, palette=palette, confidence=conf, extent=ext, delta_e=delta_e,
+                   unmatched=count_unmatched(colors, cells, palette, delta_e))
 
 
 def pattern_from_preview(preview: Preview, name: str) -> Pattern:
