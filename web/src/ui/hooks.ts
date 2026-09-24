@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type RefObject } from 'react'
 
+import type { ProjectRepo, ProjectSummary } from '../storage/repo.ts'
+
 /**
  * Show a Blob in an <img>: returns a ref for the image. The object URL is set on the
  * element directly and revoked when the Blob changes or the image unmounts.
@@ -62,4 +64,32 @@ export function useDocumentTitle(title: string): void {
   useEffect(() => {
     document.title = title ? `${title} · Alpha Pattern Editor` : 'Alpha Pattern Editor'
   }, [title])
+}
+
+/**
+ * The Library listing, kept current: listed when `repo` is ready, and again after every
+ * save, import or delete, from whichever screen made it. A slow listing that finishes
+ * after a newer one is ignored. null until the first listing arrives.
+ */
+export function useProjects(repo: ProjectRepo | null): ProjectSummary[] | null {
+  const [projects, setProjects] = useState<ProjectSummary[] | null>(null)
+  useEffect(() => {
+    if (!repo) return
+    let live = true
+    let latest = 0
+    const relist = () => {
+      const seq = ++latest
+      repo.list().then(
+        (l) => live && seq === latest && setProjects(l),
+        () => {},
+      )
+    }
+    const unsubscribe = repo.subscribe(relist)
+    relist()
+    return () => {
+      live = false
+      unsubscribe()
+    }
+  }, [repo])
+  return projects
 }

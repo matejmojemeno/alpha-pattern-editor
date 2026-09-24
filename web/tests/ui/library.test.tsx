@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -141,6 +141,30 @@ describe('Library', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Replace' }))
     await waitFor(() => expect(screen.getByRole('status').textContent).toMatch(/was already in your library\. Replaced/))
     expect(await repo.list()).toHaveLength(1)
+  })
+
+  it('re-lists when projects change after it opened', async () => {
+    // Seen in review: an import started on the landing page finished after the Library
+    // had opened, and the Library showed only the first project until a reload.
+    const { repo } = await withProjects('basic.alpha')
+    expect(cards()).toHaveLength(1)
+    await act(async () => {
+      await repo.importFile(fixture('with-source.alpha'))
+      await repo.importFile(fixture('unicode.alpha'))
+    })
+    await waitFor(() => expect(cards()).toHaveLength(3))
+
+    // A save made elsewhere (the Work stage flushing as you leave it) shows too.
+    const { project } = await repo.open(idOf('basic.alpha'))
+    await act(async () => {
+      await repo.save({ ...project, progress: { ...project.progress, completed_row_ids: new Set([project.pattern.row_ids[0]!]) } })
+    })
+    await waitFor(() => expect(within(card('basic')).getByText('20% done')).toBeTruthy())
+
+    await act(async () => {
+      await repo.delete(idOf('unicode.alpha'))
+    })
+    await waitFor(() => expect(cards()).toHaveLength(2))
   })
 
   it('refuses a file from a newer version without storing anything', async () => {

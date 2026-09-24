@@ -63,6 +63,7 @@ export class ProjectRepo {
   private readonly db: db.AlphaDatabase
   private readonly clock: Clock
   private readonly opts: RepoOptions
+  private readonly listeners = new Set<() => void>()
 
   constructor(database: db.AlphaDatabase, clock: Clock = () => Date.now() / 1000, opts: RepoOptions = {}) {
     this.db = database
@@ -99,6 +100,26 @@ export class ProjectRepo {
       this.opts.onStored?.()
     } catch {
       // Best effort only.
+    }
+    this.changed()
+  }
+
+  /**
+   * Be told after every save, import and delete, wherever it came from, so a screen that
+   * lists projects can re-list. Returns the unsubscribe function.
+   */
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener)
+    return () => void this.listeners.delete(listener)
+  }
+
+  private changed(): void {
+    for (const l of [...this.listeners]) {
+      try {
+        l()
+      } catch {
+        // One listener's failure is not the repository's.
+      }
     }
   }
 
@@ -171,7 +192,8 @@ export class ProjectRepo {
     return db.getSummary(this.db, id)
   }
 
-  delete(id: string): Promise<void> {
-    return db.deleteProject(this.db, id)
+  async delete(id: string): Promise<void> {
+    await db.deleteProject(this.db, id)
+    this.changed()
   }
 }

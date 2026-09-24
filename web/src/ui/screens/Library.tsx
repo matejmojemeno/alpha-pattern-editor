@@ -1,18 +1,18 @@
 /**
  * The project grid: a port of alphareader/ui/library/library_window.py.
  *
- * Dropped from the desktop: the file watcher and Refresh (the grid reloads itself after
- * every change made here), and single-window bookkeeping (a route replaces it).
+ * Dropped from the desktop: the file watcher and Refresh (the grid re-lists itself after
+ * every change to the repository), and single-window bookkeeping (a route replaces it).
  * Added: Export per card, since an exported `.alpha` file is the only backup.
  */
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useRef, useState, type KeyboardEvent } from 'react'
 
 import { useRepo } from '../../app/context.ts'
 import { downloadBlob } from '../../app/download.ts'
 import { href, navigate, paths } from '../../app/router.ts'
 import type { ProjectSummary } from '../../storage/repo.ts'
 import { ConfirmDialog, DropOverlay, ImportButton, Notices, ProgressBar, ReplaceDialog, Thumb, TopBar } from '../components.tsx'
-import { useDocumentTitle, useFileDrop } from '../hooks.ts'
+import { useDocumentTitle, useFileDrop, useProjects } from '../hooks.ts'
 import { useAlphaImport, type Notice } from '../useAlphaImport.ts'
 import { StorageUnavailable } from './Landing.tsx'
 
@@ -20,24 +20,14 @@ export function Library() {
   useDocumentTitle('Library')
   const state = useRepo()
   const repo = state.status === 'ready' ? state.repo : null
-  const [projects, setProjects] = useState<ProjectSummary[] | null>(null)
+  const projects = useProjects(repo)
   const [deleting, setDeleting] = useState<ProjectSummary | null>(null)
   const [actionNotice, setActionNotice] = useState<Notice | null>(null)
   const heading = useRef<HTMLDivElement>(null)
 
-  const reload = useCallback(async () => {
-    if (repo) setProjects(await repo.list())
-  }, [repo])
-
-  useEffect(() => {
-    let live = true
-    repo?.list().then((l) => live && setProjects(l))
-    return () => {
-      live = false
-    }
-  }, [repo])
-
-  const { importFiles, notices, setNotices, busy, question } = useAlphaImport(repo, reload)
+  // The grid re-lists itself after every change (useProjects), including ones made on
+  // another screen, such as an import that finishes after this one opened.
+  const { importFiles, notices, setNotices, busy, question } = useAlphaImport(repo)
   const drop = useFileDrop((files) => {
     setActionNotice(null)
     void importFiles(files)
@@ -64,7 +54,6 @@ export function Library() {
     } catch (e) {
       setActionNotice({ tone: 'error', text: `Couldn't delete “${s.name}”: ${String(e)}` })
     }
-    await reload()
     // The card that had focus is gone; put focus somewhere predictable.
     heading.current?.querySelector('h1')?.focus()
   }
