@@ -55,7 +55,8 @@ export function Settings() {
       </form>
       <p className="muted settings__note">
         These are saved in this browser and apply to every project. Row emphasis and focus mode take effect in the
-        Work stage, which is being built next. Which side a row starts from is saved with each pattern instead.
+        Work stage, where they can also be changed from Options. Which side a row starts from is saved with each
+        pattern instead.
       </p>
     </main>
   )

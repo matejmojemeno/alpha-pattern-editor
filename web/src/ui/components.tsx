@@ -1,5 +1,5 @@
 /** Small building blocks shared by the screens. */
-import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 
 import { href, paths } from '../app/router.ts'
 import type { ThumbnailKind } from '../storage/thumbnail.ts'
@@ -233,6 +233,79 @@ export function ReplaceDialog({ question: q }: { question: ReplaceQuestion }) {
         {formatPct(q.incomingPct)} done?
       </p>
     </ConfirmDialog>
+  )
+}
+
+// --- renaming -------------------------------------------------------------------------------
+
+export const MAX_NAME_LENGTH = 120
+
+/** A project name as typed, or null if there's nothing left once trimmed. */
+function cleanName(raw: string): string | null {
+  const name = raw.replace(/\s+/g, ' ').trim().slice(0, MAX_NAME_LENGTH)
+  return name ? name : null
+}
+
+/**
+ * An inline "rename" field: Enter or Save renames, Escape or Cancel leaves the name as it
+ * was. An empty name isn't accepted.
+ */
+export function RenameForm({
+  name,
+  onRename,
+  onCancel,
+  className = 'rename',
+}: {
+  name: string
+  onRename: (name: string) => void
+  onCancel: () => void
+  className?: string
+}) {
+  const id = useId()
+  const [value, setValue] = useState(name)
+  const input = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    input.current?.focus()
+    input.current?.select()
+  }, [])
+  const clean = cleanName(value)
+  return (
+    <form
+      className={className}
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (clean === null) return
+        if (clean === name) onCancel()
+        else onRename(clean)
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          e.stopPropagation()
+          onCancel()
+        }
+      }}
+    >
+      <label htmlFor={`${id}-name`} className="visually-hidden">
+        Project name
+      </label>
+      <input
+        ref={input}
+        id={`${id}-name`}
+        className="rename__input"
+        value={value}
+        maxLength={MAX_NAME_LENGTH}
+        autoComplete="off"
+        enterKeyHint="done"
+        onChange={(e) => setValue(e.target.value)}
+      />
+      <button type="submit" className="button button--small button--primary" disabled={clean === null}>
+        Save
+      </button>
+      <button type="button" className="button button--small" onClick={onCancel}>
+        Cancel
+      </button>
+    </form>
   )
 }
 

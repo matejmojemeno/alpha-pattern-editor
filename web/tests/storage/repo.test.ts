@@ -203,3 +203,19 @@ describe('change events', () => {
     expect(called).toBe(0)
   })
 })
+
+describe('rename', () => {
+  it('saves the new name and keeps the rest', async () => {
+    const saved = await repo.save({ ...project('a', 'Old'), stage: 'design' })
+    now = 2000
+    const renamed = await repo.rename('a', 'New')
+    expect(renamed.pattern.name).toBe('New')
+    expect(renamed.stage).toBe('design')
+    expect(renamed.pattern.updated_at).toBe(2000)
+    const { project: reopened } = await repo.open('a')
+    expect(reopened.pattern.name).toBe('New')
+    expect(reopened.pattern.row_ids).toEqual(saved.pattern.row_ids)
+    expect((await repo.summary('a'))!.name).toBe('New')
+    await expect(repo.rename('nope', 'x')).rejects.toThrow(ProjectNotFoundError)
+  })
+})

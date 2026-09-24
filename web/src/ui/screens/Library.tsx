@@ -5,13 +5,23 @@
  * every change to the repository), and single-window bookkeeping (a route replaces it).
  * Added: Export per card, since an exported `.alpha` file is the only backup.
  */
-import { useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 
 import { useRepo } from '../../app/context.ts'
 import { downloadBlob } from '../../app/download.ts'
 import { href, navigate, paths } from '../../app/router.ts'
 import type { ProjectSummary } from '../../storage/repo.ts'
-import { ConfirmDialog, DropOverlay, ImportButton, Notices, ProgressBar, ReplaceDialog, Thumb, TopBar } from '../components.tsx'
+import {
+  ConfirmDialog,
+  DropOverlay,
+  ImportButton,
+  Notices,
+  ProgressBar,
+  RenameForm,
+  ReplaceDialog,
+  Thumb,
+  TopBar,
+} from '../components.tsx'
 import { useDocumentTitle, useFileDrop, useProjects } from '../hooks.ts'
 import { useAlphaImport, type Notice } from '../useAlphaImport.ts'
 import { StorageUnavailable } from './Landing.tsx'
@@ -32,6 +42,17 @@ export function Library() {
     setActionNotice(null)
     void importFiles(files)
   })
+
+  const onRename = async (s: ProjectSummary, name: string) => {
+    if (!repo) return
+    try {
+      await repo.rename(s.id, name)
+      setNotices([])
+      setActionNotice({ tone: 'ok', text: `Renamed “${s.name}” to “${name}”.` })
+    } catch (e) {
+      setActionNotice({ tone: 'error', text: `Couldn't rename “${s.name}”: ${String(e)}` })
+    }
+  }
 
   const onExport = async (s: ProjectSummary) => {
     if (!repo) return
@@ -89,7 +110,13 @@ export function Library() {
       ) : (
         <ul className="cards" aria-label="Projects">
           {projects.map((s) => (
-            <ProjectCard key={s.id} summary={s} onExport={() => void onExport(s)} onDelete={() => setDeleting(s)} />
+            <ProjectCard
+              key={s.id}
+              summary={s}
+              onExport={() => void onExport(s)}
+              onDelete={() => setDeleting(s)}
+              onRename={(name) => onRename(s, name)}
+            />
           ))}
         </ul>
       )}
@@ -124,11 +151,22 @@ function ProjectCard({
   summary: s,
   onExport,
   onDelete,
+  onRename,
 }: {
   summary: ProjectSummary
   onExport: () => void
   onDelete: () => void
+  onRename: (name: string) => Promise<void>
 }) {
+  const [renaming, setRenaming] = useState(false)
+  const renameButton = useRef<HTMLButtonElement>(null)
+  const wasRenaming = useRef(false)
+  // Back from the rename field, focus returns to the Rename button.
+  useEffect(() => {
+    if (wasRenaming.current && !renaming) renameButton.current?.focus()
+    wasRenaming.current = renaming
+  }, [renaming])
+  const stopRenaming = () => setRenaming(false)
   // A link already opens on Enter; Space is added so the card behaves like the desktop
   // card, which opened on Return, Enter or Space.
   const onKeyDown = (e: KeyboardEvent<HTMLAnchorElement>) => {
@@ -147,19 +185,37 @@ function ProjectCard({
         </span>
         <ProgressBar pct={s.progress_pct} />
       </a>
-      <div className="card__actions">
-        <button type="button" className="button button--small" onClick={onExport} aria-label={`Export “${s.name}”`}>
-          Export
-        </button>
-        <button
-          type="button"
-          className="button button--small button--danger-quiet"
-          onClick={onDelete}
-          aria-label={`Delete “${s.name}”`}
-        >
-          Delete
-        </button>
-      </div>
+      {renaming ? (
+        <RenameForm
+          className="rename card__rename"
+          name={s.name}
+          onCancel={stopRenaming}
+          onRename={(name) => void onRename(name).then(stopRenaming)}
+        />
+      ) : (
+        <div className="card__actions">
+          <button
+            ref={renameButton}
+            type="button"
+            className="button button--small"
+            onClick={() => setRenaming(true)}
+            aria-label={`Rename “${s.name}”`}
+          >
+            Rename
+          </button>
+          <button type="button" className="button button--small" onClick={onExport} aria-label={`Export “${s.name}”`}>
+            Export
+          </button>
+          <button
+            type="button"
+            className="button button--small button--danger-quiet"
+            onClick={onDelete}
+            aria-label={`Delete “${s.name}”`}
+          >
+            Delete
+          </button>
+        </div>
+      )}
     </li>
   )
 }

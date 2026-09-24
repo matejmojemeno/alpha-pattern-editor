@@ -164,6 +164,13 @@ export class ProjectRepo {
     return saved
   }
 
+  /** Rename a stored project, keeping everything else about it (progress, stage, source
+   *  image). Returns the saved copy. */
+  async rename(id: string, name: string): Promise<Project> {
+    const { project } = await this.open(id)
+    return this.save({ ...project, pattern: { ...project.pattern, name } })
+  }
+
   /**
    * Import an `.alpha` file (from a file picker or drop). It is validated by parsing it
    * first; a file the desktop would reject, such as a newer format, throws

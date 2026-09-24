@@ -27,7 +27,7 @@ import {
 import type { Project } from '../../model/types.ts'
 import { progressPct } from '../../storage/alpha.ts'
 import { ProjectNotFoundError, type ProjectRepo } from '../../storage/repo.ts'
-import { ProgressBar, TopBar } from '../components.tsx'
+import { ProgressBar, RenameForm, TopBar } from '../components.tsx'
 import { useDocumentTitle } from '../hooks.ts'
 import { ChartView } from '../work/ChartView.tsx'
 import { Chips } from '../work/Chips.tsx'
@@ -123,6 +123,14 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
   }))
   const latest = useRef(project)
   const [segment, setSegment] = useState<number | null>(null)
+  const [renaming, setRenaming] = useState(false)
+  const optionsButton = useRef<HTMLElement>(null)
+  const wasRenaming = useRef(false)
+  useEffect(() => {
+    // Back from the rename field, focus returns to the (closed) Options menu.
+    if (wasRenaming.current && !renaming) optionsButton.current?.focus()
+    wasRenaming.current = renaming
+  }, [renaming])
   useDocumentTitle(project.pattern.name)
 
   // Saved automatically, ~300 ms after the last change, and at once when the page is
@@ -154,6 +162,25 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
   }, [saver])
 
   useEffect(() => keepScreenAwake(), [])
+
+  // The Options menu closes on a tap outside it, or on Escape.
+  const options = useRef<HTMLDetailsElement>(null)
+  useEffect(() => {
+    const close = (e: Event) => {
+      const menu = options.current
+      if (!menu?.open) return
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !menu.contains(e.target as Node)) {
+        menu.open = false
+        if (e instanceof KeyboardEvent) optionsButton.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', close)
+    document.addEventListener('keydown', close)
+    return () => {
+      document.removeEventListener('pointerdown', close)
+      document.removeEventListener('keydown', close)
+    }
+  }, [])
 
   const { pattern: p, progress: pr } = project
   const done = isComplete(p, pr)
@@ -219,13 +246,40 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
         <a className="topbar__home" href={href(paths.library)}>
           <span aria-hidden="true">←</span> Library
         </a>
-        <h1 tabIndex={-1} className="work__name">
-          {p.name}
-        </h1>
+        {renaming ? (
+          <RenameForm
+            className="rename work__rename"
+            name={p.name}
+            onCancel={() => setRenaming(false)}
+            onRename={(name) => {
+              setRenaming(false)
+              change((x) => ({ ...x, pattern: { ...x.pattern, name } }))
+            }}
+          />
+        ) : (
+          <>
+            <h1 tabIndex={-1} className="work__name">
+              {p.name}
+            </h1>
+          </>
+        )}
         <SaveIndicator status={status} onRetry={() => void saver.flush()} />
-        <details className="work__options">
-          <summary className="button button--small">Options</summary>
+        <details ref={options} className="work__options">
+          <summary ref={optionsButton} className="button button--small">
+            Options
+          </summary>
           <div className="work__menu">
+            <button
+              type="button"
+              className="button button--small"
+              aria-label={`Rename “${p.name}”`}
+              onClick={(e) => {
+                e.currentTarget.closest('details')?.removeAttribute('open')
+                setRenaming(true)
+              }}
+            >
+              Rename…
+            </button>
             <label className="check">
               <input
                 type="checkbox"
