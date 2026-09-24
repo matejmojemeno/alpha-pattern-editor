@@ -38,18 +38,18 @@ test('import, reload, open, export, delete, re-import', async ({ page }, testInf
     .poll(() => card.locator('.thumb img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth))
     .toBe(basic.cols)
 
-  // 4. Open it and see its readout.
+  // 4. Open it in the Work stage.
   await card.getByRole('link').click()
   await expect(page).toHaveURL(new RegExp(`#/work/${basic.id}$`))
   await expect(page.getByRole('heading', { level: 1, name: basic.name })).toBeVisible()
-  const readout = page.getByLabel('Rows')
-  await expect(readout).toContainText(/^Row 1 [←→] /)
-  const readoutBefore = await readout.textContent()
-  expect(readoutBefore!.split('\n')).toHaveLength(basic.rows)
+  const row = page.locator('.work__row')
+  await expect(row).toHaveText(new RegExp(`^Row 1 of ${basic.rows} [←→]$`))
+  const chipsBefore = await page.getByRole('list', { name: 'Colours in this row' }).textContent()
 
   // The deep link to the project survives a reload too.
   await page.reload()
-  await expect(page.getByLabel('Rows')).toHaveText(readoutBefore!)
+  await expect(row).toHaveText(new RegExp(`^Row 1 of ${basic.rows}`))
+  await expect(page.getByRole('list', { name: 'Colours in this row' })).toHaveText(chipsBefore!)
 
   // 5. Export it...
   await page.getByRole('link', { name: 'Library' }).click()
@@ -75,5 +75,5 @@ test('import, reload, open, export, delete, re-import', async ({ page }, testInf
   await expect(card).toBeVisible()
   await card.getByRole('link').click()
   await expect(page.getByRole('heading', { level: 1, name: basic.name })).toBeVisible()
-  await expect(page.getByLabel('Rows')).toHaveText(readoutBefore!)
+  await expect(page.getByRole('list', { name: 'Colours in this row' })).toHaveText(chipsBefore!)
 })

@@ -93,7 +93,8 @@ arrow**. **Row complete** (or Spacebar / →) finishes the whole current row and
 ← goes back a row. To stop **mid-row**, tap a colour segment chip: mark that segment done
 (which also marks every earlier segment in the row done) or enter how many of its stitches
 you've finished — the chip then shows a ✓ or `n/count`, and it all saves with the project.
-The chart fits fully on screen (no scrolling), with **black gridlines**
+The desktop chart fits fully on screen (no scrolling); the web app instead scrolls charts
+longer than about 2:1 and keeps the current row centred. Both have **black gridlines**
 and **row/column numbers** to help counting; completed rows are dimmed and struck through,
 the current one outlined. **Save** writes to `saved/`, and closing prompts to save. Focus
 mode / high-contrast are in the View menu; Project → Export readout writes the pattern as
