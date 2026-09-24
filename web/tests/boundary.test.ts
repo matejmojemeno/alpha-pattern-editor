@@ -50,3 +50,31 @@ it('src/logic and src/storage never reach Pyodide', () => {
   expect(problems).toEqual([])
   expect(seen.size).toBeGreaterThanOrEqual(8)
 })
+
+it('the app shell (landing, Library, settings, /work) never reaches Pyodide', () => {
+  // Everything main.tsx loads eagerly. When Phase 2 adds the importer, it must be a lazy
+  // import() behind the Import screen, and this list of packages must not grow Pyodide.
+  const allowed = new Set([...ALLOWED_PACKAGES, 'react', 'react-dom/client'])
+  const seen = new Set<string>()
+  const problems: string[] = []
+  const queue = [join(SRC, 'main.tsx')]
+  while (queue.length) {
+    const file = queue.pop()!
+    if (seen.has(file)) continue
+    seen.add(file)
+    if (file.endsWith('.css')) continue
+    for (const spec of importsOf(file)) {
+      const where = `${relative(SRC, file)} imports '${spec}'`
+      if (/pyodide/i.test(spec)) problems.push(where)
+      if (spec.startsWith('.')) {
+        const target = resolve(dirname(file), spec)
+        if (relative(SRC, target).startsWith('detect')) problems.push(where)
+        queue.push(target)
+      } else if (!allowed.has(spec)) {
+        problems.push(`${where} (not an allowed package)`)
+      }
+    }
+  }
+  expect(problems).toEqual([])
+  expect([...seen].some((f) => f.endsWith('Library.tsx'))).toBe(true)
+})
