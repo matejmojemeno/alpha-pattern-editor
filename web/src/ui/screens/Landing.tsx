@@ -2,27 +2,19 @@
  * The first screen: four ways in. The desktop opened straight onto the Library; the web
  * app starts here instead (docs/web-port-plan.md, "Landing screen").
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 
 import { useRepo } from '../../app/context.ts'
 import { href, navigate, paths } from '../../app/router.ts'
 import { CellsIcon, DropOverlay, ImportButton, Notices, ReplaceDialog } from '../components.tsx'
-import { useDocumentTitle, useFileDrop } from '../hooks.ts'
+import { useDocumentTitle, useFileDrop, useProjects } from '../hooks.ts'
 import { useAlphaImport } from '../useAlphaImport.ts'
 
 export function Landing() {
   useDocumentTitle('')
   const state = useRepo()
   const repo = state.status === 'ready' ? state.repo : null
-  const [count, setCount] = useState<number | null>(null)
-
-  useEffect(() => {
-    let live = true
-    repo?.list().then((l) => live && setCount(l.length), () => {})
-    return () => {
-      live = false
-    }
-  }, [repo])
+  const count = useProjects(repo)?.length ?? null
 
   // One project imported: open it. Several: show them in the Library.
   const onImported = useCallback(

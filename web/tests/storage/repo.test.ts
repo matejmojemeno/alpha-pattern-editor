@@ -166,3 +166,40 @@ describe('ProjectRepo', () => {
     await expect(repo.exportFile('fox')).rejects.toThrow(ProjectNotFoundError)
   })
 })
+
+describe('change events', () => {
+  it('announce every save, import and delete, after it is stored', async () => {
+    const seen: string[][] = []
+    const off = repo.subscribe(() => void repo.list().then((l) => seen.push(l.map((s) => s.id))))
+    await repo.save(project('a'))
+    await repo.importFile(readArchives(DESKTOP_DIR)['basic.alpha']!)
+    await repo.delete('a')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(seen).toHaveLength(3)
+    expect(seen[0]).toEqual(['a'])
+    expect(seen[1]).toHaveLength(2)
+    expect(seen[2]).not.toContain('a')
+
+    off()
+    await repo.save(project('b'))
+    await new Promise((r) => setTimeout(r, 0))
+    expect(seen).toHaveLength(3)
+  })
+
+  it('keep going when a listener throws', async () => {
+    let called = 0
+    repo.subscribe(() => {
+      throw new Error('boom')
+    })
+    repo.subscribe(() => void called++)
+    await expect(repo.save(project('a'))).resolves.toBeTruthy()
+    expect(called).toBe(1)
+  })
+
+  it('are not sent for a failed import', async () => {
+    let called = 0
+    repo.subscribe(() => void called++)
+    await expect(repo.importFile(new Uint8Array([1, 2, 3]))).rejects.toThrow()
+    expect(called).toBe(0)
+  })
+})

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
@@ -38,6 +38,21 @@ describe('Landing screen', () => {
     // Re-render from scratch, as returning to the screen would.
     await renderApp('#/', { repo })
     expect(screen.getAllByRole('link', { name: /Library/ }).at(-1)!.textContent).toMatch(/1 project saved/)
+  })
+
+  it('updates the count when projects change while it is showing', async () => {
+    const { repo } = await renderApp('#/')
+    const tile = () => screen.getByRole('link', { name: /Library/ }).textContent
+    expect(tile()).toMatch(/No projects yet/)
+    await act(async () => {
+      await repo.importFile(fixture('basic.alpha'))
+      await repo.importFile(fixture('unicode.alpha'))
+    })
+    await waitFor(() => expect(tile()).toMatch(/2 projects saved/))
+    await act(async () => {
+      await repo.delete(basicId())
+    })
+    await waitFor(() => expect(tile()).toMatch(/1 project saved/))
   })
 
   it('imports a .alpha file through the picker and opens it', async () => {
