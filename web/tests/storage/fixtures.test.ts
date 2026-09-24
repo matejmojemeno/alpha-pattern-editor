@@ -28,7 +28,11 @@ type LoadedRecord = ReturnType<typeof record>
 /** toEqual on a whole record, but with the cells checked first and cheaply: on failure,
  *  Vitest's diff of a 120×150 nested array takes minutes, so report the first bad cell. */
 function expectRecord(actual: LoadedRecord, want: unknown, name: string) {
-  const w = want as LoadedRecord
+  // expected.json's bookkeeping keys aren't part of what is read back.
+  const { pristine: _p, roundtrip_of: _r, ...w } = want as LoadedRecord & {
+    pristine?: boolean
+    roundtrip_of?: string
+  }
   const a = actual.pattern.cells.flat()
   const b = w.pattern.cells.flat()
   const bad = a.findIndex((v, i) => v !== b[i])
@@ -69,9 +73,7 @@ describe('desktop-written archives', () => {
         }
         return
       }
-      const { pristine, roundtrip_of, ...rest } = want
-      void pristine, void roundtrip_of
-      expectRecord(record(readAlpha(bytes)), rest, name)
+      expectRecord(record(readAlpha(bytes)), want, name)
     })
   }
 
@@ -142,9 +144,7 @@ describe('TS-written archives (fixtures/alpha/from-ts)', () => {
         expect(() => readAlpha(bytes), name).toThrow(want.rejected)
         continue
       }
-      const { roundtrip_of, pristine, ...rest } = want
-      void roundtrip_of, void pristine
-      expectRecord(record(readAlpha(bytes)), rest, name)
+      expectRecord(record(readAlpha(bytes)), want, name)
     }
   })
 })
