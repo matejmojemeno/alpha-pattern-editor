@@ -336,6 +336,27 @@ The emphasis radius is related to focus mode, which already narrows drawing to t
 current row ± 2 (`_visible_rows`, `chart_view.py:46`). Treat them as one concept, "rows
 around the current one", rather than two overlapping settings.
 
+**Following your place across.** A chart wider than its view (a scarf worked sideways,
+say 98 columns on a phone) also follows *horizontally*: `followCurrentX` keeps the next
+stitch to work in view, from the current segment and its partial stitches. `Run.start_col`
+counts in working order, so on a right-to-left row it's mirrored (`cols - 1 - position`).
+A new row starts at the side it's worked from. The chart only moves when your place
+nears the edge of the view, a view at a time, never on every stitch. A scroll by hand is
+left alone until the next progress change. Charts that fit across never scroll sideways.
+
+**Planned, not built yet: pinch-zoom on the Work chart.** The owner wants pinch-to-zoom
+(and a matching zoom on desktop) so a small chart can be blown up, or a large one read in
+more detail, on a phone. It must work *with* the row and column following, not around it:
+
+- Zoom scales the base cell size that `computeLayout` picks, so per-row heights, emphasis
+  and focus mode keep working, and `followCurrent`/`followCurrentX` keep doing the
+  scrolling. It must not become a CSS transform over the canvas, which would blur it and
+  put the scroll offsets out of step with the layout.
+- Zooming keeps the point under the fingers still, then the next progress change follows
+  your place as usual, like a scroll by hand does.
+- A chart that fits across at 1× may scroll across once zoomed in; following then applies.
+- Pinch must not fight native touch scrolling or trigger the browser's page zoom.
+
 **Mobile.** Work is the stage that most needs to work on a phone:
 - Single-column layout under ~700 px: chart on top, chips underneath.
 - Large tap targets.
@@ -497,6 +518,7 @@ Cloudflare Pages can set the headers through `_headers` if that changes.
   - the y-offset table
   - the switch from fitting to scrolling at the aspect-ratio threshold
   - that the current row stays in view as it moves
+  - that your place in the row stays in view across, on rows worked either way
 - **Format compatibility:** take a `.alpha` file written by the desktop app, load and save
   it through the web storage layer, and check the desktop app still opens the result.
   Include a `format_version: 999` archive to confirm it's still rejected.

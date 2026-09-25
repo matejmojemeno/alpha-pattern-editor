@@ -6,12 +6,21 @@
  * the whole chart, so touch momentum and scrollbars behave as usual, and each scroll
  * event redraws the canvas from the new offset on the next animation frame. Whenever the
  * layout changes (the current row moves, the window resizes, a setting changes), the
- * scroller is moved to keep the current row in view.
+ * scroller is moved to keep the current row in view; and whenever your place in the row
+ * changes, it's moved across to keep that in view on a chart wider than the screen.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { buildCellImage, drawChart, type ChartColors } from '../../render/chart.ts'
-import { AXIS_LEFT, AXIS_TOP, PAD, computeLayout, followCurrent } from '../../render/layout.ts'
+import {
+  AXIS_LEFT,
+  AXIS_TOP,
+  PAD,
+  computeLayout,
+  followCurrent,
+  followCurrentX,
+  type RowPlace,
+} from '../../render/layout.ts'
 import type { Pattern } from '../../model/types.ts'
 
 export interface ChartViewProps {
@@ -25,6 +34,9 @@ export interface ChartViewProps {
   /** Changes when the theme does, so the colours are read again. */
   themeKey: string
   label: string
+  /** Your place in the current row, followed across. A new object on every progress
+   *  change, so a scroll by hand is undone by the next one. */
+  place?: RowPlace | null
 }
 
 const MAX_DPR = 2
@@ -53,7 +65,16 @@ function useDarkScheme(): boolean {
   return dark
 }
 
-export function ChartView({ pattern, completed, current, emphasise, focus, themeKey, label }: ChartViewProps) {
+export function ChartView({
+  pattern,
+  completed,
+  current,
+  emphasise,
+  focus,
+  themeKey,
+  label,
+  place = null,
+}: ChartViewProps) {
   const wrap = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
@@ -148,24 +169,34 @@ export function ChartView({ pattern, completed, current, emphasise, focus, theme
   }, [themeKey, dark])
 
   // Follow the current row whenever the layout changes (and only then, so a scroll to look
-  // ahead is left alone until the next row). The first placement is instant; later moves
-  // glide, unless the user asked for less motion.
+  // ahead is left alone until the next row), and your place in it across whenever that
+  // changes too: every progress change is a new `place`. A scroll by hand stays until the
+  // next one. The first placement is instant; later moves glide, unless the user asked
+  // for less motion.
   const placed = useRef(false)
+  const followed = useRef<typeof layout | null>(null)
   useLayoutEffect(() => {
     const sc = scroller.current
     if (!sc || size.width === 0) return
-    const top = followCurrent(layout, sc.scrollTop)
-    const left = Math.min(sc.scrollLeft, layout.maxScrollX)
+    // Only the axes that move, so a glide already under way on the other one carries on.
+    const to: { top?: number; left?: number } = {}
+    if (followed.current !== layout) {
+      const top = followCurrent(layout, sc.scrollTop)
+      if (Math.abs(top - sc.scrollTop) > 0.5) to.top = top
+    }
+    followed.current = layout
+    const left = followCurrentX(layout, place, sc.scrollLeft)
+    if (Math.abs(left - sc.scrollLeft) > 0.5) to.left = left
     const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (Math.abs(top - sc.scrollTop) > 0.5 || left !== sc.scrollLeft) {
-      if (placed.current && !reduce && typeof sc.scrollTo === 'function') sc.scrollTo({ top, left, behavior: 'smooth' })
+    if (to.top !== undefined || to.left !== undefined) {
+      if (placed.current && !reduce && typeof sc.scrollTo === 'function') sc.scrollTo({ ...to, behavior: 'smooth' })
       else {
-        sc.scrollTop = top
-        sc.scrollLeft = left
+        if (to.top !== undefined) sc.scrollTop = to.top
+        if (to.left !== undefined) sc.scrollLeft = to.left
       }
     }
     placed.current = true
-  }, [layout, size.width])
+  }, [layout, place, size.width])
 
   // Anything drawn changed.
   useLayoutEffect(() => draw.current(), [layout, image, pattern, completed, dpr, themeKey, dark])
