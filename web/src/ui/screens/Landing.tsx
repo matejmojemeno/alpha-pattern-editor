@@ -5,10 +5,14 @@
 import { useCallback } from 'react'
 
 import { useRepo } from '../../app/context.ts'
+import { preloadDetection } from '../../app/detection.ts'
+import { PASTED_NAME } from '../../app/pendingImage.ts'
 import { href, navigate, paths } from '../../app/router.ts'
 import { CellsIcon, DropOverlay, ImportButton, Notices, ReplaceDialog } from '../components.tsx'
-import { useDocumentTitle, useFileDrop, useProjects } from '../hooks.ts'
-import { useAlphaImport } from '../useAlphaImport.ts'
+import { useDocumentTitle, useFileDrop, usePastedImage, useProjects } from '../hooks.ts'
+import { openImageImport, useAlphaImport } from '../useAlphaImport.ts'
+
+const openPasted = (file: File) => openImageImport({ file, name: PASTED_NAME })
 
 export function Landing() {
   useDocumentTitle('')
@@ -23,6 +27,7 @@ export function Landing() {
   )
   const { importFiles, notices, busy, question } = useAlphaImport(repo, onImported)
   const drop = useFileDrop((files) => void importFiles(files))
+  usePastedImage(openPasted)
 
   return (
     <main className="screen landing" {...drop.handlers}>
@@ -34,13 +39,18 @@ export function Landing() {
 
       <ul className="tiles">
         <li>
-          <ImportButton className="tile" onFiles={(f) => void importFiles(f)} disabled={!repo || busy}>
+          <ImportButton
+            className="tile"
+            onFiles={(f) => void importFiles(f)}
+            onPreload={preloadDetection}
+            disabled={!repo || busy}
+          >
             <CellsIcon filled={[[0, 1], [1, 0], [1, 1], [1, 2], [2, 1]]} />
             <span className="tile__title">Import pattern</span>
             <span className="tile__text">
-              Open a <code>.alpha</code> file, or drop one anywhere on this page.
+              From a photo or screenshot of a chart (PNG, JPEG or WebP), or a <code>.alpha</code> file. You can also
+              drop or paste one on this page.
             </span>
-            <span className="tile__text muted">Importing from a photo of a chart arrives in a later version.</span>
           </ImportButton>
         </li>
         <li>

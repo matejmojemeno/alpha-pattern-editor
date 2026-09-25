@@ -20,7 +20,7 @@ const chips = (page: Page) => page.getByRole('list', { name: 'Colours in this ro
 /** Import `file` from the Library and open it. */
 async function importAndOpen(page: Page, file: string, name: string) {
   await page.goto('/#/library')
-  await page.getByLabel('Choose .alpha files to import').setInputFiles(file)
+  await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(file)
   const card = page.getByRole('listitem').filter({ hasText: name })
   await card.getByRole('link').click()
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
@@ -105,7 +105,7 @@ test('work through rows, reload, export and re-import', async ({ page }, testInf
   await card.getByRole('button', { name: `Delete “${basic.name}”` }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click()
   await expect(page.getByText('No saved projects yet.')).toBeVisible()
-  await page.getByLabel('Choose .alpha files to import').setInputFiles(exported)
+  await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(exported)
   await card.getByRole('link').click()
   await expect(rowLabel(page)).toHaveText('Row 4 of 5 →')
   expect(await progressOnScreen(page)).toEqual(before)

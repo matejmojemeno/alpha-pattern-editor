@@ -9,12 +9,22 @@ import { Blob as NodeBlob, File as NodeFile } from 'node:buffer'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, vi } from 'vitest'
 
 import App from '../../src/App.tsx'
+import { clearPendingImage } from '../../src/app/pendingImage.ts'
 import { createSettingsStore, type SettingsStore } from '../../src/settings/store.ts'
 import { ProjectRepo } from '../../src/storage/repo.ts'
+
+// No Worker or Pyodide in jsdom: detection is the real client on a fake worker, and image
+// decoding (createImageBitmap) is faked too. Tests reach both through fakeDetection.ts.
+vi.mock('../../src/app/detection.ts', async () => (await import('./fakeDetection.ts')).fakeDetectionModule)
+vi.mock('../../src/importer/decode.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/importer/decode.ts')>()),
+  decodeImage: vi.fn(async () => ({ rgba: new Uint8Array(40 * 30 * 4), width: 40, height: 30 })),
+  sourcePng: vi.fn(async (file: Blob) => new Uint8Array(await file.arrayBuffer())),
+}))
 
 // fake-indexeddb stores values with Node's structuredClone, which turns jsdom's Blob into
 // an empty object. Browsers clone Blobs natively, so use Node's Blob and File here.
@@ -73,7 +83,7 @@ export async function hashChanged() {
   })
 }
 
-export { screen }
+export { screen } from '@testing-library/react'
 
 beforeEach(() => {
   // jsdom has no object URLs.
@@ -90,4 +100,5 @@ afterEach(() => {
   opened = []
   delete document.documentElement.dataset.contrast
   window.location.hash = ''
+  clearPendingImage()
 })

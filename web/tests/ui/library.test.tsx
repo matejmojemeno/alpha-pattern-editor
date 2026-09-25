@@ -3,7 +3,9 @@ import { act, fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
+import { pendingImage } from '../../src/app/pendingImage.ts'
 import { readAlpha } from '../../src/storage/alpha.ts'
+import { detection } from './fakeDetection.ts'
 import { alphaFile, fixture, freshRepo, renderApp, screen } from './helpers.tsx'
 
 const idOf = (name: string) => readAlpha(fixture(name)).project.pattern.id
@@ -108,10 +110,21 @@ describe('Library', () => {
 
   it('imports through its own picker and stays on the Library', async () => {
     await renderApp('#/library')
-    await userEvent.upload(screen.getByLabelText('Choose .alpha files to import'), alphaFile('basic.alpha'))
+    await userEvent.upload(screen.getByLabelText('Choose a pattern file or chart image to import'), alphaFile('basic.alpha'))
     await waitFor(() => expect(cards()).toHaveLength(1))
     expect(screen.getByRole('status').textContent).toMatch(/Imported “basic”/)
     expect(window.location.hash).toBe('#/library')
+  })
+
+  it('sends a chart image to the import screen, and preloads detection on hover', async () => {
+    await renderApp('#/library')
+    const button = screen.getByRole('button', { name: 'Import pattern…' })
+    fireEvent.pointerEnter(button)
+    expect(detection.preload).toHaveBeenCalled()
+    const photo = new File([new Uint8Array([1])], 'rose.jpeg', { type: 'image/jpeg' })
+    await userEvent.upload(screen.getByLabelText('Choose a pattern file or chart image to import'), photo)
+    await waitFor(() => expect(window.location.hash).toBe('#/import'))
+    expect(pendingImage()).toMatchObject({ file: photo, name: 'rose' })
   })
 
   it('imports dropped files', async () => {
@@ -128,7 +141,7 @@ describe('Library', () => {
   it('says so when an imported project is already there, and asks before replacing it', async () => {
     const { repo } = await withProjects('basic.alpha')
     const user = userEvent.setup()
-    const input = screen.getByLabelText('Choose .alpha files to import')
+    const input = screen.getByLabelText('Choose a pattern file or chart image to import')
 
     await user.upload(input, alphaFile('basic.alpha', 'copy of basic.alpha'))
     let dialog = await screen.findByRole('alertdialog', { name: 'Already in your library' })
@@ -200,7 +213,7 @@ describe('Library', () => {
 
   it('refuses a file from a newer version without storing anything', async () => {
     const { repo } = await renderApp('#/library')
-    await userEvent.upload(screen.getByLabelText('Choose .alpha files to import'), alphaFile('newer-format.alpha'))
+    await userEvent.upload(screen.getByLabelText('Choose a pattern file or chart image to import'), alphaFile('newer-format.alpha'))
     await waitFor(() => expect(screen.getByRole('status').textContent).toMatch(/newer version/))
     expect(await repo.list()).toEqual([])
   })
