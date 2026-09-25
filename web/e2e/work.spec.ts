@@ -36,7 +36,7 @@ async function progressOnScreen(page: Page) {
 
 test('work through rows, reload, export and re-import', async ({ page }, testInfo) => {
   const pyodide: string[] = []
-  page.on('request', (r) => /pyodide/i.test(r.url()) && pyodide.push(r.url()))
+  page.on('request', (r) => /pyodide|alphareader-core/i.test(r.url()) && pyodide.push(r.url()))
 
   // 1. Import basic.alpha and open it.
   await importAndOpen(page, BASIC, basic.name)
