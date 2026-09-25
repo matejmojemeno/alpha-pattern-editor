@@ -128,10 +128,15 @@ export function computeLayout(input: LayoutInput): ChartLayout {
   const near = emphasise ? nearRows(rows, cur) : { start: 0, end: 0 }
   const n = range.end - range.start
 
-  // How many base heights the drawn rows add up to.
-  let emphasised = 0
-  for (let r = Math.max(range.start, near.start); r < Math.min(range.end, near.end); r++) emphasised++
-  const weight = n - emphasised + emphasised * EMPHASIS_SCALE
+  // How many base heights the rows add up to, for sizing. Near the first and last rows the
+  // band around the current one is clipped, so fewer rows are drawn, or drawn tall; sizing
+  // by those would grow the cells and zoom the chart as you reach either end. So the cells
+  // are sized as if the whole band were there (as many rows as the chart has, at most), in
+  // focus mode and for emphasis alike, and stay the same size from row to row.
+  const band = cur === null ? 0 : Math.min(2 * NEAR_RADIUS + 1, rows)
+  const sized = focus && cur !== null ? band : n
+  const emphasised = emphasise ? Math.min(band, sized) : 0
+  const weight = sized - emphasised + emphasised * EMPHASIS_SCALE
 
   // Focus mode shows a handful of rows, so it always fits, as on the desktop. Otherwise
   // a long chart is sized to its short axis and scrolls along the long one.

@@ -100,6 +100,46 @@ describe('row heights', () => {
   })
 })
 
+describe('the cell size stays put as the current row moves', () => {
+  // Near either end the band around the current row is clipped; the cells must not grow
+  // to fill the space it leaves, or the chart zooms as you reach the start or the end. A
+  // short, wide area, so the rows' height is what sizes the cells.
+  const shapes: [string, number, number][] = [
+    ['30 rows, fitted', 30, 20],
+    ['30 rows, scrolling across', 30, 80],
+    ['3 rows, fitted', 3, 4],
+    ['3 rows, scrolling across', 3, 20],
+  ]
+  for (const [name, rows, cols] of shapes) {
+    for (const emphasise of [false, true]) {
+      for (const focus of [false, true]) {
+        it(`${name}, emphasis ${emphasise ? 'on' : 'off'}, focus ${focus ? 'on' : 'off'}`, () => {
+          const bases = new Set<number>()
+          for (let current = 0; current < rows; current++) {
+            bases.add(computeLayout({ rows, cols, current, emphasise, focus, width: 2000, height: 300, dpr: 2 }).cell)
+          }
+          expect([...bases]).toHaveLength(1)
+        })
+      }
+    }
+  }
+
+  it('sizes the rows as the whole band would fill them', () => {
+    // 660 px for 30 rows, 5 of them 1.6× as tall, is 660 / 33 = 20 px a row at every
+    // current row, though at row 0 only 3 are tall (660 / 31.8 would be 20.5 at 2×).
+    const at = (current: number, over: Partial<LayoutInput> = {}) =>
+      layout({ rows: 30, cols: 20, current, emphasise: true, dpr: 2, ...area(2000, 660), ...over })
+    expect(at(0).cell).toBe(20)
+    expect(at(15).cell).toBe(20)
+    expect(at(29).cell).toBe(20)
+    // In focus mode, as if five rows were shown when only three are: 300 / 5.
+    const focused = (current: number) => at(current, { cols: 4, emphasise: false, focus: true, ...area(2000, 300) })
+    expect(focused(0).heights).toHaveLength(3)
+    expect(focused(0).cell).toBe(60)
+    expect(focused(15).cell).toBe(60)
+  })
+})
+
 describe('y offsets', () => {
   it('are the running sum of the heights', () => {
     expect(yOffsets([])).toEqual([0])
