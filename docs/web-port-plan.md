@@ -10,11 +10,33 @@ root. This document covers *how* the app moves to the web, not *what* it does.
 |---|---|
 | 0 — core preparation | **done** |
 | 1 — Library + Work + storage | **in progress**: storage, logic, app shell, Library and Work stage done; `newPattern` and the design-from-blank dialog remain |
-| 2 — Import wizard + Pyodide | **in progress**: part 1 done (the worker boundary and a minimal photo import, end to end); part 2, the correction controls, remains |
+| 2 — Import wizard + Pyodide | **done**: part 1 (the worker boundary and a minimal photo import, end to end) and part 2 (the correction controls, the shrink rule, the watchdog) |
 | 3 — Design stage | not started |
 
-What Phase 2 has delivered so far:
+What Phase 2 delivered:
 
+- **Part 2: the correction controls** (`web/src/ui/import/`, `web/src/importer/`).
+  - The desktop confirm screen: rows and cols (1–999, typed or −/+), the inverted
+    "Colour detail" slider (ΔE 2–15), "Flag unsure cells" (a red X below 0.6
+    confidence), Crop (a pointer-event rubber band mapped through the letterboxed fit,
+    `letterbox.ts`), Re-detect, the gridline and extent overlay, the palette on its own
+    colours, and the warnings, recomputed with every preview.
+  - Only Crop and Re-detect detect again; everything else resamples. Changes made while
+    one is in flight are folded into one request, stale answers are dropped, and the
+    last preview stays up, dimmed after 200 ms. Saving waits for a change still on its
+    way (`DetectSession.idle`).
+  - Under 900 px the image, pattern and colours are tabs and the save bar sticks to the
+    bottom; wider, three panes.
+  - **Shrink rule:** the smallest whole factor that brings the image to **4 MP** or
+    fewer (`bridge.shrink_factor`), replacing part 1's ceil(long edge / 1600). A quiet
+    notice says when a photo was shrunk. Evidence in Risk 2.
+  - **Watchdog:** a detection (open or redetect) that runs past 20 s terminates the
+    worker; the screen says so and offers Crop (which starts over on just the crop,
+    `open_session(crop=)`) or Try again.
+  - Parity: `web/e2e/corrections.spec.ts` makes each correction in Chromium with real
+    Pyodide and compares the saved pattern cell for cell with the desktop making the
+    same corrections (`scripts/desktop_import.py detect IMAGE rows=… cols=… de=… crop=…
+    redetect`).
 - **Part 1: detection in the browser.**
   - `alphareader/core/bridge.py`, the only Python aware of JavaScript. A `ConfirmState`
     per session; `open_session`/`redetect` detect, `set_params`/`preview` only resample,
@@ -32,8 +54,8 @@ What Phase 2 has delivered so far:
     and the Library; real download progress (~9.3 MB gzipped the first time); the
     result; save with the source PNG and open the Work stage; the desktop's failure
     hints. Hovering "Import pattern" preloads; any other screen terminates the worker.
-  - Images with a long edge over 1600 px are shrunk by a whole-number factor before
-    detection (Risk 2, measured below); the saved source stays full size.
+  - Large images are shrunk by a whole-number factor before detection (Risk 2); the
+    saved source stays full size. (Part 2 changed the rule.)
   - Parity through the UI: `dachshund.png` saves exactly the desktop's cells. All five
     test JPEGs currently match exactly too (reported, not enforced).
 
@@ -560,19 +582,46 @@ Ranked by what could still go wrong.
 2. **Detection speed and memory on phones.** WASM runs detection ~2× slower than native
    (1.6–2.9× measured), and phone CPUs are slower again. A 4000×3000 phone photo through
    `edge_maps()` could plausibly use 300–500 MB of memory. Mitigations:
-   - Shrink the image so its long edge is ~1600 px before detection, then scale the
-     lattice back up. Detection only needs to resolve a pitch of ≥6 px
-     (`periodic.MIN_PITCH`). Measure this against the test corpus rather than guessing.
+   - Shrink large images before detection, then map the lattice back to the image's
+     own pixels. Detection only needs to resolve a pitch of ≥6 px (`periodic.MIN_PITCH`).
    - Terminate the worker when the user leaves `/import`, to free the memory.
+   - A watchdog terminates a detection that runs past 20 s (Phase 2, part 2).
 
-   **Measured (Phase 2, part 1)**, desktop Chromium, WASM memory peak after detection:
-   a 4000×3000 chart took 2.1 s and 528 MB at full size, 1.1 s and 142 MB shrunk to
-   ≤1600 px; a 4000×3820 one 2.4 s / 663 MB vs 1.2 s / 164 MB. At phone-photo size the
-   synthetic corpus grades *better* shrunk (exact 85.4% → 88.6%, recoverable 93.8% →
-   97.2%, no more silent-bad results), so the shrink is on
-   (`scripts/downscale_study.py`, `web/e2e/large-photo.bench.spec.ts`). Still open: a
-   chart that no fitter reads cleanly (`garment.png` upscaled) takes 16 s and ~2 GB even
-   shrunk, and nothing has been timed on a real phone yet.
+   **The rule (Phase 2, part 2):** the smallest whole factor that brings the image to
+   4 MP or fewer (`bridge.shrink_factor`). Part 1 used ceil(long edge / 1600), which
+   halved the owner's 1145×2497 chart to ~6.5 px per cell: 87×191 against the desktop's
+   88×192. A pixel budget leaves that chart whole, because memory follows the pixel
+   count, not the long edge. A fractional area-average was tried and rejected: it beats
+   against thin gridlines (that chart came out 88×115 at 2000 px).
+
+   `scripts/downscale_study.py`, each chart upscaled (Lanczos) to 2000, 3000 and 4000 px:
+
+   | rule | same size as full size | true size |
+   |---|---|---|
+   | synthetic, 600 images | | full size: 543 |
+   | part 1, ceil(edge / 1600) | 547 | 557 |
+   | **4 MP, whole factor** | **576** | 546 |
+   | real (8 test charts + the owner's 23 saved charts), 93 images | | full size: 53 |
+   | part 1 | 63 | 55 |
+   | **4 MP, whole factor** | **75** | 56 |
+
+   Shrinking hard slightly helps crisp synthetic renders; on real charts keeping
+   resolution matters more. The real corpus's "true size" is what the owner saved.
+
+   `web/e2e/large-photo.bench.spec.ts`, desktop Chromium, peak WASM memory:
+
+   | image | full size | part 1 | 4 MP rule |
+   |---|---|---|---|
+   | dachshund 4000×3000 | 2.2 s, 528 MB | 1.1 s, 142 MB (1333×1000) | 1.6 s, 185 MB (2000×1500) |
+   | monkeys 4000×3820 | 2.5 s, 663 MB, 47×47 | 1.3 s, 164 MB, **47×48** | 1.7 s, 226 MB, 47×47 |
+   | cats 4000×1801 | 2.0 s, 398 MB | 1.2 s, 92 MB | 1.5 s, 126 MB |
+   | monkeys 2046×1954 (the most left whole) | 1.0 s, 200 MB | 0.7 s, 91 MB, **47×48** | same as full size |
+   | garment 2974×4000 | 38 s, 3.5 GB, wrong | 17 s, 2.0 GB, wrong (106×166) | 1.5 s, 221 MB, refused (LOW_RESOLUTION, as the desktop refuses the original) |
+
+   Still open: nothing has been timed on a real phone (DevTools CPU throttling doesn't
+   reach workers). The watchdog bounds time, not memory: a chart as pathological as
+   garment but readable at 4 MP could still need a lot, until `_nd.complete_linkage_labels`
+   stops building an n×n×3 float64 difference array (a separate fix to `core/detect`).
 3. **Data loss in general.** See risk 1. Ship `.alpha` export in the first build.
 4. **Two implementations of the readout/work logic.** The fixture corpus guards against
    drift, but maintaining two copies is an ongoing cost. That's why `edit.py` should also

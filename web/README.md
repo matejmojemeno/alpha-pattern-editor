@@ -42,7 +42,9 @@ reference.
   import screen) and shared components.
 - `src/detect/`: the Pyodide boundary. `worker.ts` runs `alphareader/core/bridge.py` in
   a module worker; `client.ts` is the app's side of it; `protocol.ts` the messages.
-- `src/importer/`: decoding images and the failure hints, for the import screen.
+- `src/importer/`: the import screen's logic: decoding images, the failure hints, the
+  letterboxed crop mapping (`letterbox.ts`) and the controls' ranges (`controls.ts`).
+  Its components are in `src/ui/import/`.
 
 Routing uses the URL hash (`#/library`, `#/work/<id>`): the part after `#` never reaches
 the server, so deep links survive a refresh on any static host with no fallback rule.
