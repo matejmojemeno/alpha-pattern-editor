@@ -292,6 +292,7 @@ export default function ImportScreen() {
     if (!repo || !s || !image || saving || state.phase !== 'result' || redetecting) return
     setSaving(true)
     try {
+      await s.idle() // a change still on its way is part of what's saved
       const committed = await s.commit(cleanName(name) ?? image.name)
       if (!committed.ok) throw new Error(committed.message)
       const png = await sourcePng(image.file)

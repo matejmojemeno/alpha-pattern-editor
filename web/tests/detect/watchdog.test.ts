@@ -133,3 +133,21 @@ describe('the watchdog', () => {
     expect(worker.terminated).toBe(true)
   })
 })
+
+describe('idle', () => {
+  it('waits for the change in flight and the one folded behind it', async () => {
+    const { session, worker } = await opened()
+    await session.idle() // nothing outstanding
+    void session.update({ rows: 5 })
+    void session.update({ rows: 6 })
+    let idle = false
+    void session.idle().then(() => (idle = true))
+    worker.reply(worker.of('update')[0]!.id, makePreview(7, 5, 4))
+    await flush()
+    expect(idle).toBe(false) // the folded change has only now been sent
+    worker.reply(worker.of('update')[1]!.id, makePreview(7, 6, 4))
+    await flush()
+    expect(idle).toBe(true)
+    expect(session.latest?.rows).toBe(6)
+  })
+})
