@@ -8,6 +8,11 @@
  * layout changes (the current row moves, the window resizes, a setting changes), the
  * scroller is moved to keep the current row in view; and whenever your place in the row
  * changes, it's moved across to keep that in view on a chart wider than the screen.
+ *
+ * The chart is laid out in the scroller's content box, which leaves out a classic
+ * (non-overlay) scrollbar, so nothing sits under one. The axis a chart scrolls along
+ * always shows its scrollbar, so whether there is one never depends on the size measured
+ * with it, and can't flip back and forth.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
@@ -84,13 +89,15 @@ export function ChartView({
   const [dpr, setDpr] = useState(() => Math.min(MAX_DPR, globalThis.devicePixelRatio || 1))
   const dark = useDarkScheme()
 
-  // The chart area's size, kept current by a ResizeObserver.
+  // The chart area's size, kept current by a ResizeObserver: the scroller's content box,
+  // which a scrollbar appearing or going changes too.
   useLayoutEffect(() => {
-    const el = wrap.current
+    const el = scroller.current
     if (!el) return
     const measure = () => {
-      const r = el.getBoundingClientRect()
-      setSize((s) => (s.width === r.width && s.height === r.height ? s : { width: r.width, height: r.height }))
+      const width = el.clientWidth
+      const height = el.clientHeight
+      setSize((s) => (s.width === width && s.height === height ? s : { width, height }))
       setDpr(Math.min(MAX_DPR, globalThis.devicePixelRatio || 1))
     }
     measure()
@@ -100,6 +107,7 @@ export function ChartView({
     }
     const ro = new ResizeObserver(measure)
     ro.observe(el)
+    ro.observe(wrap.current!)
     return () => ro.disconnect()
   }, [])
 
@@ -201,10 +209,23 @@ export function ChartView({
   // Anything drawn changed.
   useLayoutEffect(() => draw.current(), [layout, image, pattern, completed, dpr, themeKey, dark])
 
+  // A tall chart scrolls down and a wide one across (layout.ts, shouldScroll).
+  const scrolls = layout.mode === 'scroll' ? (pattern.rows > pattern.cols ? 'y' : 'x') : null
   return (
     <div ref={wrap} className="chart" role="img" aria-label={label}>
-      <canvas ref={canvas} className="chart__canvas" aria-hidden="true" />
-      <div ref={scroller} className="chart__scroller" onScroll={schedule} data-testid="chart-scroller">
+      <canvas
+        ref={canvas}
+        className="chart__canvas"
+        aria-hidden="true"
+        style={{ width: size.width, height: size.height }}
+      />
+      <div
+        ref={scroller}
+        className="chart__scroller"
+        style={scrolls === 'y' ? { overflowY: 'scroll' } : scrolls === 'x' ? { overflowX: 'scroll' } : undefined}
+        onScroll={schedule}
+        data-testid="chart-scroller"
+      >
         <div
           style={{
             width: AXIS_LEFT + layout.gridWidth + PAD,

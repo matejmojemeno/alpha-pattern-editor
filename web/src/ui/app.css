@@ -765,11 +765,11 @@ code {
   background: var(--bg);
 }
 
+/* Sized by ChartView to the scroller's content box, which leaves out its scrollbars. */
 .chart__canvas {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  top: 0;
+  left: 0;
   pointer-events: none;
 }
 
