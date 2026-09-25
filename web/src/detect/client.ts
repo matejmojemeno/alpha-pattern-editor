@@ -241,7 +241,8 @@ export class DetectSession {
   /** The newest preview this session has shown, if any. */
   latest: Preview | null
   private newestView = 0
-  private updating = false
+  /** The update in flight, if any. */
+  private updating: Promise<unknown> | null = null
   private pending: PendingUpdate | null = null
   private closed = false
 
@@ -279,16 +280,22 @@ export class DetectSession {
   }
 
   private sendUpdate(params: Params): Promise<Outcome<Preview>> {
-    this.updating = true
     const p = this.view({ type: 'update', session: this.id, params })
+    this.updating = p
     void p.then(() => {
-      this.updating = false
+      this.updating = null
       const next = this.pending
       if (!next) return
       this.pending = null
       void this.sendUpdate(next.params).then(next.resolve)
     })
     return p
+  }
+
+  /** Resolves once every change made so far has been sent and answered, so what the
+   *  worker holds is what the screen shows: commit after this. */
+  async idle(): Promise<void> {
+    while (this.updating || this.pending) await (this.pending?.promise ?? this.updating)
   }
 
   preview(): Promise<Outcome<Preview>> {
