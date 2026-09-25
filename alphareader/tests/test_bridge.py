@@ -330,18 +330,47 @@ def test_shrink_is_a_rounded_box_average():
     expect = np.floor(img[:4, :6].reshape(2, 2, 3, 2, 3).mean(axis=(1, 3)) + 0.5)
     assert np.array_equal(out, expect.astype(np.uint8))
     assert bridge.shrink(img, 1) is not img and np.array_equal(bridge.shrink(img, 1), img)
-    assert [bridge.shrink_factor(w, h, 1600) for w, h in
-            ((1600, 900), (1601, 900), (3000, 2000), (3000, 4000), (800, 3300))] == [1, 2, 2, 3, 3]
+
+
+def test_shrink_factor_is_the_smallest_whole_factor_within_the_pixel_budget():
+    budget = 4_000_000
+    cases = {
+        (2000, 2000): 1,          # exactly on budget
+        (2001, 2000): 2,
+        (4000, 3000): 2,          # 12 MP → 2000×1500, not 1333×1000
+        (1145, 2497): 1,          # the owner's tall chart: 2.9 MP, kept whole
+        (4032, 3024): 2,          # an iPhone photo
+        (8000, 6000): 4,          # 48 MP: ÷3 is 5.3 MP, over budget
+        (6000, 4000): 3,          # ÷2 is 6 MP; ÷3 is 2000×1333
+        (100, 60_000): 2,         # a long strip: the pixel count decides, not the edge
+    }
+    for (w, h), k in cases.items():
+        assert bridge.shrink_factor(w, h, budget) == k, (w, h)
+        assert (w // k) * (h // k) <= budget
+        if k > 1:                 # and no smaller factor would do
+            assert (w // (k - 1)) * (h // (k - 1)) > budget
     assert bridge.shrink_factor(4000, 3000, None) == 1
+    assert bridge.shrink_factor(4000, 3000, 0) == 1
+
+
+def test_shrunk_pixels_are_identical_on_every_run():
+    rng = np.random.default_rng(3)
+    rgba = rng.integers(0, 256, (901, 1203, 4), dtype=np.uint8)
+    runs = [bridge._rgb_from_rgba(rgba.tobytes(), 1203, 901, k=3) for _ in range(3)]
+    assert runs[0].shape == (300, 401, 3) and runs[0].dtype == np.uint8
+    assert all(np.array_equal(runs[0], r) for r in runs[1:])
+    # The same pixels as an exact rounded mean, computed independently.
+    blocks = rgba[:900, :1203, :3].astype(np.int64).reshape(300, 3, 401, 3, 3).sum(axis=(1, 3))
+    assert np.array_equal(runs[0], ((blocks * 2 + 9) // 18).astype(np.uint8))
 
 
 def test_a_shrunk_image_reports_whole_image_coordinates():
     small = _chart(rows=14, cols=20)
     big = np.repeat(np.repeat(small, 3, axis=0), 3, axis=1)     # exactly 3× each way
     ref = _open(small)
-    p = _open(big, max_edge=max(small.shape[:2]))
-    assert p["scale"] == 3
+    p = _open(big, max_pixels=small.shape[0] * small.shape[1])
     assert (p["imageWidth"], p["imageHeight"]) == (big.shape[1], big.shape[0])
+    assert (p["detectedWidth"], p["detectedHeight"]) == (small.shape[1], small.shape[0])
     assert (p["rows"], p["cols"]) == (14, 20)
     assert np.array_equal(p["cells"], ref["cells"])
     for k in ("x0", "y0", "x1", "y1"):
@@ -358,5 +387,30 @@ def test_a_shrunk_image_reports_whole_image_coordinates():
 
 def test_no_shrink_below_the_limit():
     img = _chart()
-    p = _open(img, max_edge=max(img.shape[:2]))
-    assert p["scale"] == 1
+    p = _open(img, max_pixels=img.shape[0] * img.shape[1])
+    assert (p["detectedWidth"], p["detectedHeight"]) == (p["imageWidth"], p["imageHeight"])
+
+
+def test_open_can_detect_just_a_crop():
+    small = _chart(rows=14, cols=20)
+    big = np.repeat(np.repeat(small, 3, axis=0), 3, axis=1)
+    ref = _open(big)
+    e = ref["extent"]
+    crop = (int(e["x0"]) - 9, int(e["y0"]) - 9, int(e["x1"]) + 9, int(e["y1"]) + 9)
+    # Straight from open (a retry after a timeout), shrunk or not, as redetect would.
+    for kw in ({}, {"max_pixels": small.shape[0] * small.shape[1]}):
+        p = _open(big, crop=crop, **kw)
+        again = bridge.redetect(_open(big, **kw)["session"], crop=crop)
+        assert (p["rows"], p["cols"]) == (again["rows"], again["cols"]) == (14, 20)
+        assert np.array_equal(p["cells"], again["cells"])
+        assert p["extent"] == pytest.approx(again["extent"])
+
+
+def test_redetect_can_set_the_colour_detail_first():
+    img = _chart()
+    sid = _open(img)["session"]
+    p = bridge.redetect(sid, delta_e=11.0)
+    assert p["deltaE"] == 11.0
+    want = ConfirmState.from_detection(img, detect_pattern(img, delta_e_threshold=11.0), delta_e=11.0).preview()
+    assert np.array_equal(p["cells"], want.cells.ravel())
+    assert bridge.redetect(sid)["deltaE"] == 11.0          # and it stays

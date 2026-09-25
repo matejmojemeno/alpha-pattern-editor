@@ -171,14 +171,22 @@ async function handle(req: Request): Promise<Outcome<Answers[Request['type']]>> 
       case 'boot':
         return { ok: true }
       case 'open':
+        stall(req.delayMs)
         return plain(
           b.open_session.callKwargs(req.rgba, req.width, req.height, {
             delta_e: req.deltaE ?? 6.0,
-            max_edge: req.maxEdge ?? null,
+            max_pixels: req.maxPixels ?? null,
+            crop: req.crop ? toPy(req.crop) : null,
           }),
         ) as never
       case 'redetect':
-        return plain(b.redetect(req.session, req.crop ? toPy(req.crop) : null)) as never
+        stall(req.delayMs)
+        return plain(
+          b.redetect.callKwargs(req.session, {
+            crop: req.crop ? toPy(req.crop) : null,
+            delta_e: req.deltaE ?? null,
+          }),
+        ) as never
       case 'update': {
         const { rows, cols, deltaE, extent } = req.params
         const kwargs: Record<string, unknown> = {}
@@ -201,6 +209,16 @@ async function handle(req: Request): Promise<Outcome<Answers[Request['type']]>> 
         return { ok: true, wasmMemoryBytes: heap?.byteLength ?? 0 }
       }
     }
+  }
+}
+
+/** The test hook behind `delayMs` (client.ts, DetectTestHooks): hold the thread without
+ *  yielding, as a long-running detection does, so only terminating the worker ends it. */
+function stall(ms: number | undefined) {
+  if (!ms) return
+  const until = performance.now() + ms
+  while (performance.now() < until) {
+    // busy
   }
 }
 

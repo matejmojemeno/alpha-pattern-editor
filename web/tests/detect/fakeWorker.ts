@@ -69,7 +69,8 @@ export function makePreview(session: number, rows = 3, cols = 4, over: Partial<P
     deltaE: 6,
     imageWidth: cols * 10,
     imageHeight: rows * 10,
-    scale: 1,
+    detectedWidth: cols * 10,
+    detectedHeight: rows * 10,
     ...over,
   }
 }

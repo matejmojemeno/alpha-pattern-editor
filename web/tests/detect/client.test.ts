@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_MAX_EDGE, DetectClient, DetectSession } from '../../src/detect/client.ts'
+import { DEFAULT_MAX_PIXELS, DetectClient, DetectSession } from '../../src/detect/client.ts'
 import type { Outcome, Preview } from '../../src/detect/protocol.ts'
 import { FakeWorker, makePreview } from './fakeWorker.ts'
 
@@ -64,10 +64,10 @@ describe('DetectClient', () => {
     const img = image()
     void client.open(img)
     const { msg, transfer } = worker.sent[0]!
-    expect(msg).toMatchObject({ type: 'open', width: 4, height: 3, maxEdge: DEFAULT_MAX_EDGE })
+    expect(msg).toMatchObject({ type: 'open', width: 4, height: 3, maxPixels: DEFAULT_MAX_PIXELS })
     expect(transfer).toEqual([img.rgba.buffer])
-    void client.open(image(), { maxEdge: 0, deltaE: 9 })
-    expect(worker.sent[1]!.msg).not.toHaveProperty('maxEdge')
+    void client.open(image(), { maxPixels: 0, deltaE: 9 })
+    expect(worker.sent[1]!.msg).not.toHaveProperty('maxPixels')
     expect(worker.sent[1]!.msg).toMatchObject({ deltaE: 9 })
   })
 

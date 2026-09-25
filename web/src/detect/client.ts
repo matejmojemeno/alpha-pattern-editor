@@ -11,6 +11,10 @@
  *   folded into one pending request, so a slider drag costs two or three resamples and
  *   the preview still moves on the first tick (docs/web-port-plan.md, "Cancellation").
  * - Pixels are transferred to the worker, not copied.
+ * - Detection (`open`, `redetect`) runs under a watchdog. A photo no fitter reads cleanly
+ *   can keep Python busy for a long time, and Pyodide can't be interrupted without
+ *   SharedArrayBuffer, so past the budget the worker is simply terminated: everything
+ *   outstanding answers TIMEOUT, and the next `detector()` starts a fresh worker.
  *
  * Only reached through a dynamic import (app/detection.ts), so no screen but the import
  * screen ever loads it.
@@ -18,6 +22,7 @@
 import type {
   Answers,
   BootProgress,
+  Crop,
   Failure,
   Outcome,
   Params,
@@ -46,19 +51,38 @@ export interface RgbaImage {
 }
 
 /**
- * Images with a longer edge than this are shrunk by a whole-number factor before
- * detection (bridge.shrink). A 4000 × 3000 phone photo takes seconds, sometimes minutes,
- * and hundreds of megabytes to detect at full size, and grading the synthetic corpus at
- * photo size showed shrinking loses no accuracy overall (see the PR that added this, and
- * scripts/downscale_study.py). The saved source image stays full size.
+ * Images with more pixels than this are shrunk by a whole-number factor before detection
+ * (bridge.shrink_factor), just enough to fit. Detection's memory grows with the pixel
+ * count, and a 4000 × 3000 phone photo needs over 500 MB of WebAssembly memory at full
+ * size. Shrinking by the smallest whole factor keeps as much resolution as memory allows;
+ * see scripts/downscale_study.py for why it's a pixel budget and a whole factor. The saved
+ * source image stays full size.
  */
-export const DEFAULT_MAX_EDGE = 1600
+export const DEFAULT_MAX_PIXELS = 4_000_000
+
+/** How long one detection may take before the worker is terminated. Real charts take
+ *  0.1–6 s in Chromium on a laptop; a phone is a few times slower. */
+export const DETECT_BUDGET_MS = 20_000
 
 export interface OpenOptions {
   deltaE?: number
-  /** Shrink an image whose long edge is longer than this before detecting it; 0 never
-   *  shrinks. */
-  maxEdge?: number
+  /** Shrink an image with more pixels than this before detecting it; 0 never shrinks. */
+  maxPixels?: number
+  /** Detect only this part of the image (image pixels), as a crop does. */
+  crop?: Crop
+}
+
+/**
+ * Test hooks (e2e/corrections.spec.ts sets them with an init script; the app never does):
+ * make every detection take `delayMs` longer, and change the watchdog's budget.
+ */
+export interface DetectTestHooks {
+  delayMs?: number
+  budgetMs?: number
+}
+
+function testHooks(): DetectTestHooks {
+  return (globalThis as { __alphaDetectTest?: DetectTestHooks }).__alphaDetectTest ?? {}
 }
 
 const failure = (code: Failure['code'], message: string, session?: number): Failure =>
@@ -76,9 +100,12 @@ export class DetectClient {
   progress: BootProgress | null = null
 
   private readonly createWorker: () => WorkerLike
+  private readonly budgetMs: number
 
-  constructor(createWorker: () => WorkerLike) {
+  /** `budgetMs`: how long a detection may run before the worker is terminated. */
+  constructor(createWorker: () => WorkerLike, { budgetMs }: { budgetMs?: number } = {}) {
     this.createWorker = createWorker
+    this.budgetMs = budgetMs ?? testHooks().budgetMs ?? DETECT_BUDGET_MS
   }
 
   private ensureWorker(): WorkerLike | null {
@@ -107,15 +134,28 @@ export class DetectClient {
     resolve(msg.result)
   }
 
-  /** Send one request. Returns its id and its answer. */
-  send<B extends Body>(body: B, transfer: Transferable[] = []): { id: number; answer: Promise<Outcome<Answers[B['type']]>> } {
+  /** Send one request. Returns its id and its answer. A `watched` request (a detection)
+   *  must be answered within the budget, or the worker is terminated. */
+  send<B extends Body>(
+    body: B,
+    transfer: Transferable[] = [],
+    { watched = false }: { watched?: boolean } = {},
+  ): { id: number; answer: Promise<Outcome<Answers[B['type']]>> } {
     const id = this.nextId++
     const worker = this.ensureWorker()
     if (!worker) return { id, answer: Promise.resolve(failure('WORKER_GONE', 'The detection worker has been closed.')) }
-    const answer = new Promise<Outcome<Answers[B['type']]>>((resolve) => {
+    let answer = new Promise<Outcome<Answers[B['type']]>>((resolve) => {
       this.waiting.set(id, resolve as (r: Outcome<Answers[RequestType]>) => void)
     })
-    worker.postMessage({ ...body, id } as Request, transfer)
+    let message = { ...body, id } as Request
+    if (watched) {
+      const { delayMs } = testHooks()
+      if (delayMs) message = { ...message, delayMs } as Request
+      const seconds = Math.round(this.budgetMs / 1000)
+      const timer = setTimeout(() => this.dispose(`Detection took longer than ${seconds} s and was stopped.`, 'TIMEOUT'), this.budgetMs)
+      answer = answer.finally(() => clearTimeout(timer))
+    }
+    worker.postMessage(message, transfer)
     return { id, answer }
   }
 
@@ -149,7 +189,7 @@ export class DetectClient {
    * `open` superseded this one).
    */
   async open(image: RgbaImage, opts: OpenOptions = {}): Promise<{ session: DetectSession | null; result: Outcome<Preview> }> {
-    const { deltaE, maxEdge = DEFAULT_MAX_EDGE } = opts
+    const { deltaE, maxPixels = DEFAULT_MAX_PIXELS, crop } = opts
     const { id, answer } = this.send<BodyOf<'open'>>(
       {
         type: 'open',
@@ -157,9 +197,11 @@ export class DetectClient {
         width: image.width,
         height: image.height,
         ...(deltaE === undefined ? {} : { deltaE }),
-        ...(maxEdge > 0 ? { maxEdge } : {}),
+        ...(maxPixels > 0 ? { maxPixels } : {}),
+        ...(crop ? { crop } : {}),
       },
       [image.rgba.buffer],
+      { watched: true },
     )
     this.newestOpen = id
     const result = await answer
@@ -172,14 +214,14 @@ export class DetectClient {
   }
 
   /** Terminate the worker, freeing Pyodide's memory. Outstanding requests are answered
-   *  with WORKER_GONE; the client can't be used again. */
-  dispose(message = 'The detection worker has been closed.'): void {
+   *  with `code` (TIMEOUT when the watchdog did it); the client can't be used again. */
+  dispose(message = 'The detection worker has been closed.', code: 'WORKER_GONE' | 'TIMEOUT' = 'WORKER_GONE'): void {
     this.dead = true
     this.worker?.terminate()
     this.worker = null
     const waiting = [...this.waiting.values()]
     this.waiting.clear()
-    for (const resolve of waiting) resolve(failure('WORKER_GONE', message))
+    for (const resolve of waiting) resolve(failure(code, message))
     this.progressListeners.clear()
   }
 
@@ -214,7 +256,7 @@ export class DetectSession {
 
   /** Send a request whose answer replaces the preview; drop it if a newer one was sent. */
   private async view(body: BodyOf<'update' | 'preview' | 'redetect'>): Promise<Outcome<Preview>> {
-    const { id, answer } = this.client.send(body)
+    const { id, answer } = this.client.send(body, [], { watched: body.type === 'redetect' })
     this.newestView = id
     const result = await answer
     if (id !== this.newestView) return failure('STALE', 'A newer preview was requested.')
@@ -253,13 +295,19 @@ export class DetectSession {
     return this.view({ type: 'preview', session: this.id })
   }
 
-  /** Full detection again, on the whole image or a crop (image pixels). Any pending
-   *  update is dropped: detection resets the grid it would have changed. */
-  redetect(crop?: [number, number, number, number]): Promise<Outcome<Preview>> {
+  /** Full detection again, on the whole image or a crop (image pixels), at `deltaE` if
+   *  given. Any pending update is dropped: detection resets the grid it would have
+   *  changed, and the colour detail travels with this request instead. */
+  redetect(crop?: Crop, { deltaE }: { deltaE?: number } = {}): Promise<Outcome<Preview>> {
     const dropped = this.pending
     this.pending = null
     dropped?.resolve(failure('STALE', 'Superseded by a new detection.'))
-    return this.view(crop ? { type: 'redetect', session: this.id, crop } : { type: 'redetect', session: this.id })
+    return this.view({
+      type: 'redetect',
+      session: this.id,
+      ...(crop ? { crop } : {}),
+      ...(deltaE === undefined ? {} : { deltaE }),
+    })
   }
 
   commit(name: string): Promise<Outcome<Answers['commit']>> {
