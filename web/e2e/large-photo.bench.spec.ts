@@ -3,12 +3,14 @@
  * images (docs/web-port-plan.md, Risks #2). Not part of the suite; run it on purpose:
  *
  *   BENCH=1 npx playwright test e2e/large-photo.bench.spec.ts
- *   BENCH=1 CPU_THROTTLE=4 npx playwright test e2e/large-photo.bench.spec.ts
  *
  * Each image from test_images/ is upscaled in the page (canvas, high-quality smoothing)
  * and detected by the real worker twice, in fresh workers: at full size and shrunk as the
  * import screen does (DEFAULT_MAX_EDGE). WebAssembly memory only grows, so its size after
  * detection is the peak Pyodide needed.
+ *
+ * DevTools' CPU throttling (Emulation.setCPUThrottlingRate) doesn't slow dedicated
+ * workers, so this can't stand in for a phone; measure on one.
  */
 import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -47,11 +49,6 @@ test('detection time and memory for phone-sized photos', async ({ page }) => {
     route.fulfill({ body: readFileSync(resolve(IMAGES, route.request().url().split('/bench/')[1]!)), contentType: 'image/png' }),
   )
   await page.goto('/')
-  const throttle = Number(process.env.CPU_THROTTLE ?? 1)
-  if (throttle > 1) {
-    const cdp = await page.context().newCDPSession(page)
-    await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle })
-  }
 
   const rows: string[] = []
   for (const [file, width, height] of CASES) {
