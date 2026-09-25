@@ -21,7 +21,7 @@ test('import, reload, open, export, delete, re-import', async ({ page }, testInf
   await page.getByRole('link', { name: /Library/ }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Your projects' })).toBeVisible()
   await expect(page.getByText('No saved projects yet.')).toBeVisible()
-  await page.getByLabel('Choose .alpha files to import').setInputFiles(FIXTURE)
+  await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(FIXTURE)
 
   // 2. It is in the Library.
   const card = page.getByRole('listitem').filter({ hasText: basic.name })
@@ -71,7 +71,7 @@ test('import, reload, open, export, delete, re-import', async ({ page }, testInf
   await expect(page.getByText('No saved projects yet.')).toBeVisible()
 
   // ...re-import the export, and check it matches.
-  await page.getByLabel('Choose .alpha files to import').setInputFiles(exported)
+  await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(exported)
   await expect(card).toBeVisible()
   await card.getByRole('link').click()
   await expect(page.getByRole('heading', { level: 1, name: basic.name })).toBeVisible()

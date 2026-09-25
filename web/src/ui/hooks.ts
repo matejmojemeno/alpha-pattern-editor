@@ -59,6 +59,25 @@ export function useFileDrop(onFiles: (files: File[]) => void) {
   return { over, handlers: { onDragEnter, onDragOver, onDragLeave, onDrop } }
 }
 
+/**
+ * An image pasted anywhere on the screen, as a File. Pastes into a text field are left
+ * alone, as are pastes with no image in them.
+ */
+export function usePastedImage(onImage: (file: File) => void): void {
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const target = e.target instanceof Element ? e.target : null
+      if (target?.closest('input, textarea, [contenteditable]:not([contenteditable="false"])')) return
+      const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'))
+      if (!file) return
+      e.preventDefault()
+      onImage(file)
+    }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+  }, [onImage])
+}
+
 /** Set the document title for as long as a screen is shown. */
 export function useDocumentTitle(title: string): void {
   useEffect(() => {

@@ -15,6 +15,7 @@ export type Route =
   | { name: 'landing' }
   | { name: 'library' }
   | { name: 'settings' }
+  | { name: 'import' }
   | { name: 'work'; id: string }
   | { name: 'notFound' }
 
@@ -22,6 +23,7 @@ export const paths = {
   landing: '/',
   library: '/library',
   settings: '/settings',
+  importImage: '/import',
   work: (id: string) => `/work/${encodeURIComponent(id)}`,
 } as const
 
@@ -30,6 +32,7 @@ export function parseHash(hash: string): Route {
   if (path === '/') return { name: 'landing' }
   if (path === paths.library) return { name: 'library' }
   if (path === paths.settings) return { name: 'settings' }
+  if (path === paths.importImage) return { name: 'import' }
   const work = /^\/work\/([^/]+)$/.exec(path)
   if (work) {
     try {

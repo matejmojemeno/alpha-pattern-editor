@@ -4,7 +4,8 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode,
 import { href, paths } from '../app/router.ts'
 import type { ThumbnailKind } from '../storage/thumbnail.ts'
 import { useBlobImage } from './hooks.ts'
-import { formatPct, type Notice, type ReplaceQuestion } from './useAlphaImport.ts'
+import { cleanName, MAX_NAME_LENGTH } from './names.ts'
+import { formatPct, IMPORT_ACCEPT, type Notice, type ReplaceQuestion } from './useAlphaImport.ts'
 
 // --- layout -----------------------------------------------------------------------------
 
@@ -57,31 +58,50 @@ export function Thumb({ blob, kind }: { blob: Blob; kind: ThumbnailKind }) {
 
 // --- importing --------------------------------------------------------------------------
 
-/** A button that opens a file picker for `.alpha` files. */
+/**
+ * A button that opens a file picker: by default for `.alpha` files and chart images.
+ * `onPreload` runs when the pointer or focus reaches it, to start loading whatever
+ * handling the files will need.
+ */
 export function ImportButton({
   onFiles,
+  onPreload,
   disabled,
   className = 'button button--primary',
+  accept = IMPORT_ACCEPT,
+  multiple = true,
+  label = 'Choose a pattern file or chart image to import',
   children,
 }: {
   onFiles: (files: File[]) => void
+  onPreload?: () => void
   disabled?: boolean
   className?: string
+  accept?: string
+  multiple?: boolean
+  label?: string
   children: ReactNode
 }) {
   const input = useRef<HTMLInputElement>(null)
   return (
     <>
-      <button type="button" className={className} disabled={disabled} onClick={() => input.current?.click()}>
+      <button
+        type="button"
+        className={className}
+        disabled={disabled}
+        onClick={() => input.current?.click()}
+        onPointerEnter={onPreload}
+        onFocus={onPreload}
+      >
         {children}
       </button>
       <input
         ref={input}
         type="file"
-        accept=".alpha"
-        multiple
+        accept={accept}
+        multiple={multiple}
         hidden
-        aria-label="Choose .alpha files to import"
+        aria-label={label}
         onChange={(e) => {
           const files = [...(e.target.files ?? [])]
           e.target.value = '' // so choosing the same file again still fires
@@ -92,11 +112,11 @@ export function ImportButton({
   )
 }
 
-export function DropOverlay({ show }: { show: boolean }) {
+export function DropOverlay({ show, text = 'Drop a chart image or .alpha files to import them' }: { show: boolean; text?: string }) {
   if (!show) return null
   return (
     <div className="drop-overlay" aria-hidden="true">
-      <p>Drop .alpha files to import them</p>
+      <p>{text}</p>
     </div>
   )
 }
@@ -237,14 +257,6 @@ export function ReplaceDialog({ question: q }: { question: ReplaceQuestion }) {
 }
 
 // --- renaming -------------------------------------------------------------------------------
-
-export const MAX_NAME_LENGTH = 120
-
-/** A project name as typed, or null if there's nothing left once trimmed. */
-function cleanName(raw: string): string | null {
-  const name = raw.replace(/\s+/g, ' ').trim().slice(0, MAX_NAME_LENGTH)
-  return name ? name : null
-}
 
 /**
  * An inline "rename" field: Enter or Save renames, Escape or Cancel leaves the name as it
