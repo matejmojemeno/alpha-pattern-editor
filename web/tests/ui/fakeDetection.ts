@@ -25,7 +25,11 @@ detection.reset()
 export const fakeDetectionModule = {
   loadDetection: () =>
     Promise.resolve({
-      detector: () => detection.client!,
+      // As the real detector(): a fresh client once the last was disposed (the watchdog).
+      detector: () => {
+        if (!detection.client || detection.client.disposed) detection.client = new DetectClient(() => detection.worker)
+        return detection.client
+      },
       preload: () => {},
       release: () => {},
     }),

@@ -50,7 +50,7 @@ describe('Import screen', () => {
     await act(async () => worker.reply(worker.of('boot')[0]!.id, { ok: true }))
     expect(await screen.findByText('Finding the grid…')).toBeTruthy()
     const open = worker.of('open')[0]!
-    expect(open).toMatchObject({ width: 40, height: 30, maxEdge: 1600 })
+    expect(open).toMatchObject({ width: 40, height: 30, maxPixels: 4_000_000 })
     await act(async () => worker.reply(open.id, makePreview(1, 3, 4, { warnings: ['5/12 cells have low confidence'] })))
     expect(await saveButton()).toBeTruthy()
   })
@@ -66,7 +66,7 @@ describe('Import screen', () => {
     expect(screen.getByRole('img', { name: 'The detected pattern: 4 columns by 3 rows' })).toBeTruthy()
     expect(screen.getByText('4 cols × 3 rows · 12 stitches · 2 colours · 5 strings needed')).toBeTruthy()
     const colours = within(screen.getByRole('list', { name: 'Colours' })).getAllByRole('listitem')
-    expect(colours.map((c) => c.textContent)).toEqual(['White6 stitches', 'Brown6 stitches'])
+    expect(colours.map((c) => c.textContent)).toEqual(['6 White stitches', '6 Brown stitches'])
     expect(within(screen.getByRole('list', { name: 'Warnings' })).getByText('Check the dimensions.')).toBeTruthy()
     expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('dog')
   })
@@ -99,8 +99,12 @@ describe('Import screen', () => {
     expect(within(alert).getByText(hint.title)).toBeTruthy()
     expect(within(alert).getByText(`Detection failed (${code})`)).toBeTruthy()
     expect(within(alert).getByRole('button', { name: 'Try another image' })).toBeTruthy()
-    if (code === 'NO_GRIDLINES') expect(alert.textContent).not.toMatch(/Turn on Crop/) // not built yet
-    expect(screen.queryByRole('button', { name: 'Save & start working' })).toBeNull()
+    if (code === 'NO_GRIDLINES') {
+      // Crop is here now, so the hint points to it, with a button to start.
+      expect(alert.textContent).toMatch(/Turn on Crop/)
+      expect(within(alert).getByRole('button', { name: 'Crop' })).toBeTruthy()
+    }
+    expect((await saveButton()).hasAttribute('disabled')).toBe(true)
     // The image stays on screen.
     expect(screen.getByRole('img', { name: 'The image being imported' })).toBeTruthy()
   })
@@ -111,7 +115,7 @@ describe('Import screen', () => {
     await screen.findByText(FAILURE_HINTS.ROTATED.title)
     const ok = detectingWorker()
     detection.worker.auto = ok.auto
-    await userEvent.upload(screen.getByLabelText('Choose a chart image'), photo('straight.png'))
+    await userEvent.upload(screen.getAllByLabelText('Choose a chart image')[0]!, photo('straight.png'))
     expect(await saveButton()).toBeTruthy()
     expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('straight')
     expect(detection.worker.of('open')).toHaveLength(2)

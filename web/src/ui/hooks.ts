@@ -112,3 +112,52 @@ export function useProjects(repo: ProjectRepo | null): ProjectSummary[] | null {
   }, [repo])
   return projects
 }
+
+/** An element's content size, kept current by a ResizeObserver. Zero until measured
+ *  (and in jsdom, which lays nothing out). */
+export function useElementSize<T extends HTMLElement>(): [RefObject<T | null>, { width: number; height: number }] {
+  const ref = useRef<T>(null)
+  const [size, setSize] = useState({ width: 0, height: 0 })
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const measure = () =>
+      setSize((s) => (s.width === el.clientWidth && s.height === el.clientHeight ? s : { width: el.clientWidth, height: el.clientHeight }))
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  return [ref, size]
+}
+
+/** Whether a media query matches, kept current. `fallback` where matchMedia is missing. */
+export function useMediaQuery(query: string, fallback = false): boolean {
+  const get = () => (typeof matchMedia === 'function' ? matchMedia(query).matches : fallback)
+  const [matches, setMatches] = useState(get)
+  useEffect(() => {
+    if (typeof matchMedia !== 'function') return
+    const mq = matchMedia(query)
+    const change = () => setMatches(mq.matches)
+    change()
+    mq.addEventListener('change', change)
+    return () => mq.removeEventListener('change', change)
+  }, [query])
+  return matches
+}
+
+/** True once `active` has stayed true for `ms`; false again as soon as it isn't. For
+ *  dimming a result only when an update is slow enough to notice. */
+export function useDelayedFlag(active: boolean, ms: number): boolean {
+  const [on, setOn] = useState(false)
+  useEffect(() => {
+    if (!active) return
+    const t = setTimeout(() => setOn(true), ms)
+    return () => {
+      clearTimeout(t)
+      setOn(false)
+    }
+  }, [active, ms])
+  return on && active
+}

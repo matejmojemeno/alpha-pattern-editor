@@ -170,21 +170,23 @@ async function handle(req: Request): Promise<Outcome<Answers[Request['type']]>> 
     switch (req.type) {
       case 'boot':
         return { ok: true }
+      // Only the arguments that are set: JavaScript's null arrives in Python as JsNull,
+      // not None, so an absent value must be left out rather than passed as null.
       case 'open':
         stall(req.delayMs)
         return plain(
           b.open_session.callKwargs(req.rgba, req.width, req.height, {
             delta_e: req.deltaE ?? 6.0,
-            max_pixels: req.maxPixels ?? null,
-            crop: req.crop ? toPy(req.crop) : null,
+            ...(req.maxPixels ? { max_pixels: req.maxPixels } : {}),
+            ...(req.crop ? { crop: toPy(req.crop) } : {}),
           }),
         ) as never
       case 'redetect':
         stall(req.delayMs)
         return plain(
           b.redetect.callKwargs(req.session, {
-            crop: req.crop ? toPy(req.crop) : null,
-            delta_e: req.deltaE ?? null,
+            ...(req.crop ? { crop: toPy(req.crop) } : {}),
+            ...(req.deltaE === undefined ? {} : { delta_e: req.deltaE }),
           }),
         ) as never
       case 'update': {
