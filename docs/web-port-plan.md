@@ -13,6 +13,24 @@ root. This document covers *how* the app moves to the web, not *what* it does.
 | 2 — Import wizard + Pyodide | **done**: part 1 (the worker boundary and a minimal photo import, end to end) and part 2 (the correction controls, the shrink rule, the watchdog) |
 | 3 — Design stage | not started |
 
+**Hardening before hosting** (after Phase 2, one PR):
+
+- **Detection memory.** Complete linkage (`_nd.py`) fills one n×n float64 matrix in bands
+  of 64 rows, in place and bit-identical, instead of an (n, n, 3) broadcast and copies.
+  garment.png at 4000 px saved as a JPEG and shrunk to 4 MP (n = 6,254 colours): the
+  clustering peaked at 2,190 MB, now 332 MB (tracemalloc).
+- **Running out of memory** ends on a friendly screen: `bridge.py` answers MemoryError as
+  `OUT_OF_MEMORY`; the worker marks Pyodide's fatal errors (a nearly full heap can trap
+  as "memory access out of bounds") and always answers; the client terminates the worker
+  on either, which gives the memory back; the import screen offers Crop, which starts
+  over in a fresh worker. `e2e/corrections.spec.ts` fills the worker's memory with a
+  test hook and lets the real detection run out.
+- **Work chart:** laid out in the scroller's content box, so a classic scrollbar hides
+  none of it (`e2e/scrollbar.spec.ts`); and the cells are sized as if the whole band
+  around the current row were there, so the chart no longer zooms ~10% as the current
+  row reaches the first or last rows.
+- The flaky `repo.test.ts` change-events test awaits each listing.
+
 What Phase 2 delivered:
 
 - **Part 2: the correction controls** (`web/src/ui/import/`, `web/src/importer/`).
@@ -142,8 +160,9 @@ break without noticing.
   megabytes per message.
 - **Don't "simplify" `_nd.py`.** `find_peaks` applies `distance` *before* `prominence`,
   exactly as SciPy does. Complete linkage uses a nearest-neighbour cache because the
-  obvious version is O(n³) (23 s against SciPy's 1 s on a noisy chart). Both are
-  load-bearing.
+  obvious version is O(n³) (23 s against SciPy's 1 s on a noisy chart), and fills its
+  one n×n matrix in bands because the obvious broadcast peaks at ~2.2 GB on a JPEG with
+  ~6,300 colours, which kills a phone tab. All three are load-bearing.
 - **The Work chart lays out rows with per-row heights, never a single cell size.**
   Scrolling long charts and the taller current row both depend on it (see Phase 1), and
   retrofitting it later means redoing the layout.
