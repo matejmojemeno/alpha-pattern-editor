@@ -5,9 +5,11 @@
  *   BENCH=1 npx playwright test e2e/large-photo.bench.spec.ts
  *
  * Each image from test_images/ is upscaled in the page (canvas, high-quality smoothing)
- * and detected by the real worker twice, in fresh workers: at full size and shrunk as the
- * import screen does (DEFAULT_MAX_EDGE). WebAssembly memory only grows, so its size after
- * detection is the peak Pyodide needed.
+ * and detected by the real worker, in a fresh worker each time: at full size, shrunk as
+ * Phase 2 part 1 did (the whole factor ceil(long edge / 1600), reproduced here as a pixel
+ * budget), and shrunk as the import screen does now (DEFAULT_MAX_PIXELS, 4 MP). WebAssembly
+ * memory only grows, so its size after detection is the peak Pyodide needed. The
+ * watchdog's budget is raised, since full size is meant to be slow.
  *
  * DevTools' CPU throttling (Emulation.setCPUThrottlingRate) doesn't slow dedicated
  * workers, so this can't stand in for a phone; measure on one.
@@ -25,6 +27,8 @@ const CASES: [file: string, width: number, height: number][] = [
   ['dachshund.png', 4000, 2400],
   ['monkeys.png', 4000, 3820],
   ['cats.png', 4000, 1801],
+  // The most a 4 MP budget leaves whole: the biggest detection the import screen runs.
+  ['monkeys.png', 2046, 1954],
   // Doesn't detect at its own size (LOW_RESOLUTION); upscaled, no fitter comes back
   // clean, so all three run: the slow path.
   ['garment.png', 2974, 4000],
@@ -34,7 +38,7 @@ interface Run {
   bootMs: number
   detectMs: number
   result: string
-  scale: number
+  detected: string
   wasmAfterBootMB: number
   wasmPeakMB: number
 }
@@ -48,13 +52,18 @@ test('detection time and memory for phone-sized photos', async ({ page }) => {
   await page.route('**/bench/*', (route) =>
     route.fulfill({ body: readFileSync(resolve(IMAGES, route.request().url().split('/bench/')[1]!)), contentType: 'image/png' }),
   )
+  await page.addInitScript(() => {
+    ;(globalThis as { __alphaDetectTest?: unknown }).__alphaDetectTest = { budgetMs: 30 * 60_000 }
+  })
   await page.goto('/')
 
   const rows: string[] = []
   for (const [file, width, height] of CASES) {
-    for (const maxEdge of [0, 1600]) {
+    const k = Math.ceil(Math.max(width, height) / 1600) // part 1's rule
+    const before = Math.floor(width / k) * Math.floor(height / k)
+    for (const [label, maxPixels] of [['full size', 0], ['part 1 (÷' + k + ')', before], ['now (4 MP)', 4_000_000]] as const) {
       const run: Run = await page.evaluate(
-        async ({ clientUrl, src, width, height, maxEdge }) => {
+        async ({ clientUrl, src, width, height, maxPixels }) => {
           const m = await import(/* @vite-ignore */ clientUrl)
           const bitmap = await createImageBitmap(await (await fetch(src)).blob())
           const canvas = new OffscreenCanvas(width, height)
@@ -71,7 +80,7 @@ test('detection time and memory for phone-sized photos', async ({ page }) => {
           const bootMs = performance.now() - t
           const afterBoot = await c.request({ type: 'stats' })
           t = performance.now()
-          const { result } = await c.open({ rgba: new Uint8Array(data.data.buffer), width, height }, { maxEdge })
+          const { result } = await c.open({ rgba: new Uint8Array(data.data.buffer), width, height }, { maxPixels })
           const detectMs = performance.now() - t
           const peak = await c.request({ type: 'stats' })
           m.release()
@@ -79,16 +88,16 @@ test('detection time and memory for phone-sized photos', async ({ page }) => {
             bootMs,
             detectMs,
             result: result.ok ? `${result.cols}×${result.rows}` : result.code,
-            scale: result.ok ? result.scale : 0,
+            detected: result.ok ? `${result.detectedWidth}×${result.detectedHeight}` : '-',
             wasmAfterBootMB: mb(afterBoot.wasmMemoryBytes),
             wasmPeakMB: mb(peak.wasmMemoryBytes),
           }
         },
-        { clientUrl: `/assets/${client}`, src: `/bench/${file}`, width, height, maxEdge },
+        { clientUrl: `/assets/${client}`, src: `/bench/${file}`, width, height, maxPixels },
       )
       const line = [
         `${file} ${width}×${height}`,
-        maxEdge ? `shrunk ÷${run.scale}` : 'full size',
+        maxPixels ? `${label} → ${run.detected}` : label,
         `${(run.detectMs / 1000).toFixed(2)} s`,
         run.result,
         `wasm ${run.wasmAfterBootMB} → ${run.wasmPeakMB} MB`,
