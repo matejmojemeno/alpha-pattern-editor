@@ -103,7 +103,7 @@ test('the chart follows your place across a wide chart', async ({ page }, testIn
   const file = testInfo.outputPath('wide-scarf.alpha')
   writeFileSync(file, writeAlpha(project).bytes)
   await page.goto('/#/library')
-  await page.getByLabel('Choose .alpha files to import').setInputFiles(file)
+  await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(file)
   await page.getByRole('listitem').filter({ hasText: p.name }).getByRole('link').click()
   await expect(rowLabel(page)).toHaveText(`Row 1 of ${ROWS} →`)
 
@@ -168,7 +168,7 @@ test('the chart follows your place across a wide chart', async ({ page }, testIn
 
 test('a chart that fits across never scrolls sideways', async ({ page }) => {
   await page.goto('/#/library')
-  await page.getByLabel('Choose .alpha files to import').setInputFiles(BASIC)
+  await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(BASIC)
   await page.getByRole('listitem').first().getByRole('link').click()
   await expect(rowLabel(page)).toHaveText('Row 1 of 5 ←')
   for (const key of ['ArrowRight', 'ArrowRight', 'ArrowLeft']) {
