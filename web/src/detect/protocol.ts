@@ -24,6 +24,8 @@ export type FailureCode =
   | 'INTERNAL'
   /** The worker died or was terminated with this request outstanding. */
   | 'WORKER_GONE'
+  /** Detection ran past its time budget, so the worker was terminated (client.ts). */
+  | 'TIMEOUT'
   /** A newer request was sent before this one was answered (client.ts). */
   | 'STALE'
 
@@ -73,8 +75,10 @@ export interface Preview {
   deltaE: number
   imageWidth: number
   imageHeight: number
-  /** How much the image was shrunk before detection (1 = not at all). */
-  scale: number
+  /** The size detection actually saw: the image's own, or smaller if it was shrunk
+   *  (bridge.shrink_size). */
+  detectedWidth: number
+  detectedHeight: number
 }
 
 export type Outcome<T> = T | Failure
@@ -89,10 +93,21 @@ export interface Params {
 
 // --- messages -------------------------------------------------------------------------------
 
+/** (x0, y0, x1, y1) in image pixels. */
+export type Crop = [number, number, number, number]
+
+/** A test hook, never set by the app: the worker busy-waits this long before detecting,
+ *  as a photo no fitter reads cleanly would (e2e/corrections.spec.ts). */
+interface Delay {
+  delayMs?: number
+}
+
 export type Request =
   | { id: number; type: 'boot' }
-  | { id: number; type: 'open'; rgba: Uint8Array; width: number; height: number; deltaE?: number; maxEdge?: number }
-  | { id: number; type: 'redetect'; session: number; crop?: [number, number, number, number] }
+  | ({ id: number; type: 'open'; rgba: Uint8Array; width: number; height: number; deltaE?: number; maxPixels?: number; crop?: Crop } & Delay)
+  /** Detect again. `deltaE`, if given, is set first, so a colour-detail change still
+   *  waiting to be sent isn't lost. */
+  | ({ id: number; type: 'redetect'; session: number; crop?: Crop; deltaE?: number } & Delay)
   /** bridge.set_params then bridge.preview, in one round trip. */
   | { id: number; type: 'update'; session: number; params: Params }
   | { id: number; type: 'preview'; session: number }

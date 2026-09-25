@@ -9,3 +9,5 @@ node_modules/
 package-lock.json
 # The web app pins its dependency tree.
 !web/package-lock.json
+# scripts/downscale_study.py extracts saved/ sources here.
+scripts/.downscale_study/

@@ -51,7 +51,7 @@ class _Session:
                                     # shrunk by `scale`
     width: int                      # the image as the browser has it, before shrinking
     height: int
-    scale: int                      # whole-number shrink factor; 1 = none
+    scale: int                      # whole-number shrink factor (shrink_factor); 1 = none
     delta_e: float
     state: ConfirmState | None      # None while the last detection failed
     lattice_warnings: list[str]
@@ -75,11 +75,23 @@ def _error(code: str, message: str, **extra) -> dict:
     return {"ok": False, "code": code, "message": message, **extra}
 
 
-def shrink_factor(width: int, height: int, max_edge: int | None) -> int:
-    """The whole-number factor that brings the long edge to `max_edge` or under (1 = none)."""
-    if not max_edge or max(width, height) <= max_edge:
+def shrink_factor(width: int, height: int, max_pixels: int | None) -> int:
+    """The smallest whole-number factor that brings the image to `max_pixels` or fewer
+    (1 = no shrinking).
+
+    Whole numbers, because a k×k block average is exact integer arithmetic, so the desktop
+    and every browser get the same pixels, and because a fractional resample beats against
+    thin gridlines: scripts/downscale_study.py found it turning a correct 88×192 chart
+    into 88×115. The smallest factor, to keep as much resolution as memory allows: a
+    budget in pixels rather than a long edge, since detection's memory grows with the pixel
+    count, and a tall narrow chart shouldn't be halved because one edge is long.
+    """
+    if not max_pixels:
         return 1
-    return -(-max(width, height) // int(max_edge))
+    k = 1
+    while (width // k) * (height // k) > max_pixels:
+        k += 1
+    return k
 
 
 def shrink(img: np.ndarray, k: int) -> np.ndarray:
@@ -148,7 +160,8 @@ def _preview_payload(session_id: int, session: _Session) -> dict:
         "deltaE": float(p.delta_e),
         "imageWidth": session.width,
         "imageHeight": session.height,
-        "scale": session.scale,
+        "detectedWidth": int(session.img.shape[1]),
+        "detectedHeight": int(session.img.shape[0]),
     }
 
 
@@ -189,13 +202,14 @@ def _session(session_id) -> _Session | dict:
 # --- the API the worker calls --------------------------------------------------------------
 
 def open_session(rgba, width: int, height: int, delta_e: float = DEFAULT_DELTA_E,
-                 max_edge: int | None = None) -> dict:
-    """Start a session on an image and detect it. The session stays open when detection
-    fails, so the user can crop and `redetect`; the failure carries its id.
+                 max_pixels: int | None = None, crop=None) -> dict:
+    """Start a session on an image and detect it, or only `crop` = (x0, y0, x1, y1) of it
+    (image pixels). The session stays open when detection fails, so the user can crop and
+    `redetect`; the failure carries its id.
 
-    With `max_edge`, an image whose long edge is longer is shrunk by a whole-number factor
-    first (see `shrink`); coordinates in and out stay in the image's own pixels."""
-    k = shrink_factor(int(width), int(height), max_edge)
+    With `max_pixels`, a bigger image is shrunk by a whole-number factor first
+    (`shrink_factor`, `shrink`); coordinates in and out stay in the image's own pixels."""
+    k = shrink_factor(int(width), int(height), max_pixels)
     try:
         img = _rgb_from_rgba(rgba, width, height, k)
     except ValueError as err:
@@ -204,15 +218,18 @@ def open_session(rgba, width: int, height: int, delta_e: float = DEFAULT_DELTA_E
     session = _Session(img=img, width=int(width), height=int(height), scale=k,
                        delta_e=float(delta_e), state=None, lattice_warnings=[])
     _sessions[session_id] = session
-    return _detect(session_id, session)
+    return _detect(session_id, session, crop=None if crop is None else tuple(crop))
 
 
-def redetect(session: int, crop=None) -> dict:
+def redetect(session: int, crop=None, delta_e: float | None = None) -> dict:
     """Full detection again, on the whole image or on `crop` = (x0, y0, x1, y1) in image
-    pixels. Resets rows, cols and extent to what is found; keeps the colour detail."""
+    pixels. Resets rows, cols and extent to what is found; keeps the colour detail, or
+    sets it to `delta_e` first."""
     s = _session(session)
     if isinstance(s, dict):
         return s
+    if delta_e is not None:
+        s.delta_e = float(delta_e)
     return _detect(int(session), s, crop=None if crop is None else tuple(crop))
 
 
