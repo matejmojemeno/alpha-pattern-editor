@@ -169,21 +169,24 @@ describe('ProjectRepo', () => {
 
 describe('change events', () => {
   it('announce every save, import and delete, after it is stored', async () => {
-    const seen: string[][] = []
-    const off = repo.subscribe(() => void repo.list().then((l) => seen.push(l.map((s) => s.id))))
+    // Each announcement starts a listing at once, as the Library does. The listings are
+    // recorded synchronously and each awaited on its own, so their callbacks landing late
+    // or out of order can't matter.
+    const listings: Promise<string[]>[] = []
+    const off = repo.subscribe(() => listings.push(repo.list().then((l) => l.map((s) => s.id))))
     await repo.save(project('a'))
+    expect(listings).toHaveLength(1)
+    expect(await listings[0]).toEqual(['a'])
     await repo.importFile(readArchives(DESKTOP_DIR)['basic.alpha']!)
+    expect(listings).toHaveLength(2)
+    expect(await listings[1]).toHaveLength(2)
     await repo.delete('a')
-    await new Promise((r) => setTimeout(r, 0))
-    expect(seen).toHaveLength(3)
-    expect(seen[0]).toEqual(['a'])
-    expect(seen[1]).toHaveLength(2)
-    expect(seen[2]).not.toContain('a')
+    expect(listings).toHaveLength(3)
+    expect(await listings[2]).not.toContain('a')
 
     off()
     await repo.save(project('b'))
-    await new Promise((r) => setTimeout(r, 0))
-    expect(seen).toHaveLength(3)
+    expect(listings).toHaveLength(3)
   })
 
   it('keep going when a listener throws', async () => {
