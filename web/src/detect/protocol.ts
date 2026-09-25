@@ -22,6 +22,9 @@ export type FailureCode =
   | 'BOOT_FAILED'
   /** Python raised something unexpected. A bug. */
   | 'INTERNAL'
+  /** Pyodide's memory ran out (bridge.py's MemoryError, or a fatal WebAssembly error).
+   *  The client terminates the worker, which frees the memory. */
+  | 'OUT_OF_MEMORY'
   /** The worker died or was terminated with this request outstanding. */
   | 'WORKER_GONE'
   /** Detection ran past its time budget, so the worker was terminated (client.ts). */
@@ -35,6 +38,9 @@ export interface Failure {
   message: string
   /** Set when an open's detection failed: the session is still open for a retry. */
   session?: number
+  /** Pyodide suffered a fatal error and can't run anything again: the client terminates
+   *  the worker. */
+  fatal?: true
 }
 
 export const DETECTION_ERROR_CODES: readonly DetectionErrorCode[] = [
@@ -96,10 +102,13 @@ export interface Params {
 /** (x0, y0, x1, y1) in image pixels. */
 export type Crop = [number, number, number, number]
 
-/** A test hook, never set by the app: the worker busy-waits this long before detecting,
- *  as a photo no fitter reads cleanly would (e2e/corrections.spec.ts). */
+/** Test hooks, never set by the app (e2e/corrections.spec.ts). The worker busy-waits
+ *  `delayMs` before detecting, as a photo no fitter reads cleanly would; with
+ *  `fillMemory`, it first fills Pyodide's memory, so detection runs out of it as a big
+ *  photo on a phone would. */
 interface Delay {
   delayMs?: number
+  fillMemory?: boolean
 }
 
 export type Request =
