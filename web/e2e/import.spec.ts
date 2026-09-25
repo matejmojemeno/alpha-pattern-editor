@@ -4,64 +4,20 @@
  * (scripts/desktop_import.py): detect_pattern → ConfirmState.from_detection → preview →
  * pattern_from_preview.
  *
- * Needs the repo's Python (.venv, or $PYTHON) with numpy and Pillow for the reference.
+ * Needs the repo's Python (.venv, or $PYTHON) with numpy and Pillow for the reference
+ * (desktop.ts).
  */
-import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { expect, test, type Page, type TestInfo } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
 import { readAlpha } from '../src/storage/alpha.ts'
 import { encodePngRgba } from '../src/storage/thumbnail.ts'
+import { desktopDetect, desktopLoad, ROOT } from './desktop.ts'
+import { DETECT_TIMEOUT, exportFromLibrary, importImage, saveAs } from './importing.ts'
 
-const ROOT = resolve(import.meta.dirname, '../..')
 const IMAGES = resolve(ROOT, 'test_images')
-const PYTHON = process.env.PYTHON ?? (existsSync(resolve(ROOT, '.venv/bin/python')) ? resolve(ROOT, '.venv/bin/python') : 'python3')
-const PICKER = 'Choose a pattern file or chart image to import'
-/** Booting Pyodide the first time, then detecting: generous, for slow machines. */
-const DETECT_TIMEOUT = 180_000
-
-interface Desktop {
-  ok: boolean
-  code?: string
-  rows: number
-  cols: number
-  cells: number[]
-  palette: [hex: string, name: string, count: number][]
-}
-
-function desktop(mode: 'detect' | 'load', file: string): Desktop & { name?: string; stage?: string; source?: number[] | null } {
-  return JSON.parse(execFileSync(PYTHON, [resolve(ROOT, 'scripts/desktop_import.py'), mode, file], { encoding: 'utf-8' }))
-}
-
-/** Choose an image from the landing screen and wait for the import screen's verdict. */
-async function importImage(page: Page, file: string) {
-  await page.goto('/')
-  await page.getByLabel(PICKER).setInputFiles(file)
-  await expect(page.getByRole('heading', { level: 1, name: 'Import pattern' })).toBeVisible()
-  const save = page.getByRole('button', { name: 'Save & start working' })
-  const alert = page.getByRole('alert')
-  await expect(save.or(alert)).toBeVisible({ timeout: DETECT_TIMEOUT })
-  return { save, alert }
-}
-
-/** Save the detected pattern under `name`; lands on the Work stage. */
-async function saveAs(page: Page, name: string) {
-  await page.getByLabel('Name').fill(name)
-  await page.getByRole('button', { name: 'Save & start working' }).click()
-  await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
-}
-
-/** Export `name` from the Library; returns the file's path. */
-async function exportFromLibrary(page: Page, testInfo: TestInfo, name: string): Promise<string> {
-  await page.goto('/#/library')
-  const card = page.getByRole('listitem').filter({ hasText: name })
-  const [download] = await Promise.all([page.waitForEvent('download'), card.getByRole('button', { name: `Export “${name}”` }).click()])
-  const path = testInfo.outputPath(download.suggestedFilename())
-  await download.saveAs(path)
-  return path
-}
 
 const summary = (d: { rows: number; cols: number; palette: unknown[] }) => `${d.cols}×${d.rows}, ${d.palette.length} colours`
 
@@ -69,7 +25,7 @@ test.describe.configure({ timeout: 5 * 60_000 })
 
 test('PNG: the saved pattern is exactly what the desktop makes of the same file', async ({ page }, testInfo) => {
   const file = resolve(IMAGES, 'dachshund.png')
-  const want = desktop('detect', file)
+  const want = desktopDetect(file)
   expect(want.ok).toBe(true)
 
   const { save } = await importImage(page, file)
@@ -88,7 +44,7 @@ test('JPEG: browser and desktop decoders may differ, so report rather than fail'
   const report: string[] = []
   for (const [i, jpeg] of jpegs.entries()) {
     const file = resolve(IMAGES, jpeg)
-    const want = desktop('detect', file)
+    const want = desktopDetect(file)
     const { save, alert } = await importImage(page, file)
     let line: string
     if (await alert.isVisible()) {
@@ -118,7 +74,7 @@ test('JPEG: browser and desktop decoders may differ, so report rather than fail'
 
 test('the whole flow: import, save, Row 1, reload, export, and the desktop reads it', async ({ page }, testInfo) => {
   const file = resolve(IMAGES, 'cats.png')
-  const want = desktop('detect', file)
+  const want = desktopDetect(file)
   const { save } = await importImage(page, file)
   await expect(save).toBeVisible()
   await expect(page.getByLabel('Name')).toHaveValue('cats')
@@ -142,7 +98,7 @@ test('the whole flow: import, save, Row 1, reload, export, and the desktop reads
   expect(requests).toEqual([])
 
   // The desktop's own loader opens it: the pattern, the progress, and the full-size source.
-  const got = desktop('load', exported)
+  const got = desktopLoad(exported)
   expect(got).toMatchObject({ name: 'Cats', stage: 'work', completed: 1, rows: want.rows, cols: want.cols })
   expect(got.cells).toEqual(want.cells)
   const { width, height } = await page.evaluate(
@@ -162,7 +118,7 @@ test('a JPEG is kept as a full-size PNG the desktop can read', async ({ page }, 
   const { save } = await importImage(page, file)
   await expect(save).toBeVisible()
   await saveAs(page, 'Bug')
-  const got = desktop('load', await exportFromLibrary(page, testInfo, 'Bug'))
+  const got = desktopLoad(await exportFromLibrary(page, testInfo, 'Bug'))
   expect(got.source).toEqual([716, 430, 3])
 })
 
