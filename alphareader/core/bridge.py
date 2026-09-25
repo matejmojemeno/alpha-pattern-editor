@@ -47,10 +47,22 @@ _SAMPLED_WARNING = re.compile(r"have low confidence|don't closely match any dete
 
 @dataclass
 class _Session:
-    img: np.ndarray                 # (H, W, 3) uint8, the whole image even after a crop
+    img: np.ndarray                 # (H, W, 3) uint8: the whole image even after a crop,
+                                    # shrunk by `scale`
+    width: int                      # the image as the browser has it, before shrinking
+    height: int
+    scale: int                      # whole-number shrink factor; 1 = none
     delta_e: float
     state: ConfirmState | None      # None while the last detection failed
     lattice_warnings: list[str]
+
+    # Everything that crosses the boundary is in the browser's image pixels; `img` is
+    # smaller by `scale`. A shrunk pixel i covers image pixels [i*k, (i+1)*k).
+    def to_image(self, v):
+        return v * self.scale + (self.scale - 1) / 2
+
+    def to_work(self, v):
+        return (v - (self.scale - 1) / 2) / self.scale
 
 
 _sessions: dict[int, _Session] = {}
@@ -63,8 +75,29 @@ def _error(code: str, message: str, **extra) -> dict:
     return {"ok": False, "code": code, "message": message, **extra}
 
 
-def _rgb_from_rgba(rgba, width: int, height: int) -> np.ndarray:
-    """An owned (H, W, 3) uint8 array from RGBA bytes, as canvas getImageData gives them.
+def shrink_factor(width: int, height: int, max_edge: int | None) -> int:
+    """The whole-number factor that brings the long edge to `max_edge` or under (1 = none)."""
+    if not max_edge or max(width, height) <= max_edge:
+        return 1
+    return -(-max(width, height) // int(max_edge))
+
+
+def shrink(img: np.ndarray, k: int) -> np.ndarray:
+    """Average each k×k block into one pixel (a box filter), dropping the last partial
+    block on each axis. Deterministic, so the desktop and every browser see the same
+    pixels. Works on a strided view, such as the RGB channels of an RGBA array. Always
+    returns a new array, so nothing keeps the caller's buffer alive."""
+    if k == 1:
+        return np.array(img, order="C")
+    h, w = (img.shape[0] // k) * k, (img.shape[1] // k) * k
+    blocks = img[:h, :w].reshape(h // k, k, w // k, k, img.shape[2])
+    total = blocks.sum(axis=(1, 3), dtype=np.uint32)
+    return ((total + (k * k) // 2) // (k * k)).astype(np.uint8)
+
+
+def _rgb_from_rgba(rgba, width: int, height: int, k: int = 1) -> np.ndarray:
+    """An owned (H, W, 3) uint8 array from RGBA bytes, as canvas getImageData gives them,
+    shrunk by `k`.
 
     Alpha is dropped rather than composited, which is what Pillow's convert("RGB") does on
     the desktop."""
@@ -74,7 +107,7 @@ def _rgb_from_rgba(rgba, width: int, height: int) -> np.ndarray:
     flat = np.frombuffer(rgba, dtype=np.uint8)
     if width <= 0 or height <= 0 or flat.size != width * height * 4:
         raise ValueError(f"expected {width}×{height} RGBA pixels, got {flat.size} bytes")
-    return np.ascontiguousarray(flat.reshape(height, width, 4)[:, :, :3])
+    return shrink(flat.reshape(height, width, 4)[:, :, :3], k)
 
 
 def _warnings(session: _Session, preview: Preview) -> list[str]:
@@ -96,6 +129,7 @@ def _warnings(session: _Session, preview: Preview) -> list[str]:
 def _preview_payload(session_id: int, session: _Session) -> dict:
     p = session.state.preview()
     e = p.extent
+    img = session.to_image
     return {
         "ok": True,
         "session": session_id,
@@ -107,12 +141,14 @@ def _preview_payload(session_id: int, session: _Session) -> dict:
                      "count": int(en.count)} for en in p.palette],
         "warnings": _warnings(session, p),
         "lowConfidenceFraction": float(p.low_confidence_fraction),
-        "extent": {"x0": float(e.x0), "y0": float(e.y0), "x1": float(e.x1), "y1": float(e.y1)},
-        "rowLines": np.asarray(p.row_lines, dtype=np.float64).ravel(),
-        "colLines": np.asarray(p.col_lines, dtype=np.float64).ravel(),
+        "extent": {"x0": img(float(e.x0)), "y0": img(float(e.y0)),
+                   "x1": img(float(e.x1)), "y1": img(float(e.y1))},
+        "rowLines": img(np.asarray(p.row_lines, dtype=np.float64).ravel()),
+        "colLines": img(np.asarray(p.col_lines, dtype=np.float64).ravel()),
         "deltaE": float(p.delta_e),
-        "imageWidth": int(session.img.shape[1]),
-        "imageHeight": int(session.img.shape[0]),
+        "imageWidth": session.width,
+        "imageHeight": session.height,
+        "scale": session.scale,
     }
 
 
@@ -121,7 +157,9 @@ def _detect(session_id: int, session: _Session, crop=None) -> dict:
     session.state = None
     session.lattice_warnings = []
     if crop is not None:
-        x0, y0, x1, y1 = (int(round(v)) for v in crop)
+        k = session.scale
+        x0, y0 = (int(np.floor(float(v) / k)) for v in crop[:2])
+        x1, y1 = (int(np.ceil(float(v) / k)) for v in crop[2:])
         h, w = session.img.shape[:2]
         x0, x1 = sorted((max(0, min(w, x0)), max(0, min(w, x1))))
         y0, y1 = sorted((max(0, min(h, y0)), max(0, min(h, y1))))
@@ -150,15 +188,21 @@ def _session(session_id) -> _Session | dict:
 
 # --- the API the worker calls --------------------------------------------------------------
 
-def open_session(rgba, width: int, height: int, delta_e: float = DEFAULT_DELTA_E) -> dict:
+def open_session(rgba, width: int, height: int, delta_e: float = DEFAULT_DELTA_E,
+                 max_edge: int | None = None) -> dict:
     """Start a session on an image and detect it. The session stays open when detection
-    fails, so the user can crop and `redetect`; the failure carries its id."""
+    fails, so the user can crop and `redetect`; the failure carries its id.
+
+    With `max_edge`, an image whose long edge is longer is shrunk by a whole-number factor
+    first (see `shrink`); coordinates in and out stay in the image's own pixels."""
+    k = shrink_factor(int(width), int(height), max_edge)
     try:
-        img = _rgb_from_rgba(rgba, width, height)
+        img = _rgb_from_rgba(rgba, width, height, k)
     except ValueError as err:
         return _error("BAD_IMAGE", str(err))
     session_id = next(_ids)
-    session = _Session(img=img, delta_e=float(delta_e), state=None, lattice_warnings=[])
+    session = _Session(img=img, width=int(width), height=int(height), scale=k,
+                       delta_e=float(delta_e), state=None, lattice_warnings=[])
     _sessions[session_id] = session
     return _detect(session_id, session)
 
@@ -190,8 +234,9 @@ def set_params(session: int, rows: int | None = None, cols: int | None = None,
     if delta_e is not None:
         s.state.set_delta_e(s.delta_e)
     if extent is not None:
-        s.state.set_extent(Extent(float(extent["x0"]), float(extent["y0"]),
-                                  float(extent["x1"]), float(extent["y1"])))
+        w = s.to_work
+        s.state.set_extent(Extent(w(float(extent["x0"])), w(float(extent["y0"])),
+                                  w(float(extent["x1"])), w(float(extent["y1"]))))
     return {"ok": True}
 
 

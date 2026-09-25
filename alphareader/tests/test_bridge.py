@@ -319,3 +319,44 @@ def test_no_detection_result_is_kept_with_its_debug_layers(count_detections):
     s = bridge._sessions[sid]
     held = [v for v in vars(s).values()] + [v for v in vars(s.state).values()]
     assert not any(type(v).__name__ in ("DebugLayers", "DetectionResult") for v in held)
+
+
+# --- shrinking large images ------------------------------------------------------------------
+
+def test_shrink_is_a_rounded_box_average():
+    img = np.arange(5 * 7 * 3, dtype=np.uint8).reshape(5, 7, 3)
+    out = bridge.shrink(img, 2)
+    assert out.shape == (2, 3, 3) and out.dtype == np.uint8
+    expect = np.floor(img[:4, :6].reshape(2, 2, 3, 2, 3).mean(axis=(1, 3)) + 0.5)
+    assert np.array_equal(out, expect.astype(np.uint8))
+    assert bridge.shrink(img, 1) is not img and np.array_equal(bridge.shrink(img, 1), img)
+    assert [bridge.shrink_factor(w, h, 1600) for w, h in
+            ((1600, 900), (1601, 900), (3000, 2000), (3000, 4000), (800, 3300))] == [1, 2, 2, 3, 3]
+    assert bridge.shrink_factor(4000, 3000, None) == 1
+
+
+def test_a_shrunk_image_reports_whole_image_coordinates():
+    small = _chart(rows=14, cols=20)
+    big = np.repeat(np.repeat(small, 3, axis=0), 3, axis=1)     # exactly 3× each way
+    ref = _open(small)
+    p = _open(big, max_edge=max(small.shape[:2]))
+    assert p["scale"] == 3
+    assert (p["imageWidth"], p["imageHeight"]) == (big.shape[1], big.shape[0])
+    assert (p["rows"], p["cols"]) == (14, 20)
+    assert np.array_equal(p["cells"], ref["cells"])
+    for k in ("x0", "y0", "x1", "y1"):
+        assert p["extent"][k] == pytest.approx(ref["extent"][k] * 3 + 1)
+    assert np.allclose(p["rowLines"], ref["rowLines"] * 3 + 1)
+    # A crop and an extent given in image pixels land where they should.
+    e = p["extent"]
+    cropped = bridge.redetect(p["session"], crop=(e["x0"] - 9, e["y0"] - 9, e["x1"] + 9, e["y1"] + 9))
+    assert (cropped["rows"], cropped["cols"]) == (14, 20)
+    assert np.array_equal(cropped["cells"], ref["cells"])
+    bridge.set_params(p["session"], extent=e)
+    assert bridge.preview(p["session"])["extent"] == pytest.approx(e)
+
+
+def test_no_shrink_below_the_limit():
+    img = _chart()
+    p = _open(img, max_edge=max(img.shape[:2]))
+    assert p["scale"] == 1
