@@ -108,15 +108,16 @@ describe('the watchdog', () => {
     expect(await redetecting).toMatchObject({ code: 'TIMEOUT' })
   })
 
-  it('takes its budget and a detection delay from the test hook', () => {
-    ;(globalThis as { __alphaDetectTest?: unknown }).__alphaDetectTest = { delayMs: 5000, budgetMs: 250 }
+  it('takes its budget, a detection delay and filling memory from the test hook', () => {
+    ;(globalThis as { __alphaDetectTest?: unknown }).__alphaDetectTest = { delayMs: 5000, budgetMs: 250, fillMemory: true }
     vi.useFakeTimers()
     const worker = new FakeWorker()
     const client = new DetectClient(() => worker)
     void client.open(image())
     void client.request({ type: 'boot' })
-    expect(worker.of('open')[0]).toMatchObject({ delayMs: 5000 })
+    expect(worker.of('open')[0]).toMatchObject({ delayMs: 5000, fillMemory: true })
     expect(worker.of('boot')[0]).not.toHaveProperty('delayMs')
+    expect(worker.of('boot')[0]).not.toHaveProperty('fillMemory')
     vi.advanceTimersByTime(250)
     expect(worker.terminated).toBe(true)
   })
@@ -131,6 +132,30 @@ describe('the watchdog', () => {
     expect(worker.terminated).toBe(false)
     await vi.advanceTimersByTimeAsync(1)
     expect(worker.terminated).toBe(true)
+  })
+})
+
+describe('running out of memory', () => {
+  it('terminates the worker, to give its memory back, and says so as data', async () => {
+    const worker = new FakeWorker()
+    const client = new DetectClient(() => worker)
+    const opening = client.open(image())
+    const other = client.request({ type: 'stats' })
+    worker.reply(worker.of('open')[0]!.id, { ok: false, code: 'OUT_OF_MEMORY', message: 'Ran out of memory: 1.7 GiB', session: 1 })
+    expect(await opening).toMatchObject({ result: { code: 'OUT_OF_MEMORY', message: expect.stringMatching(/1.7 GiB/) } })
+    expect(worker.terminated).toBe(true)
+    expect(client.disposed).toBe(true)
+    expect(await other).toMatchObject({ ok: false, code: 'OUT_OF_MEMORY' })
+  })
+
+  it('terminates a worker whose Pyodide suffered a fatal error, so a retry starts afresh', async () => {
+    const worker = new FakeWorker()
+    const client = new DetectClient(() => worker)
+    const opening = client.open(image())
+    worker.reply(worker.of('open')[0]!.id, { ok: false, code: 'INTERNAL', message: 'unreachable', fatal: true })
+    expect(await opening).toMatchObject({ result: { code: 'INTERNAL' } })
+    expect(worker.terminated).toBe(true)
+    expect(client.disposed).toBe(true)
   })
 })
 

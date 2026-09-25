@@ -197,6 +197,26 @@ def test_each_detection_error_is_returned_not_raised(monkeypatch, code):
     assert bridge.commit(out["session"], "x")["code"] == "NO_DETECTION"
 
 
+def test_running_out_of_memory_is_returned_not_raised(monkeypatch):
+    # What numpy raises when Pyodide's WebAssembly memory can't grow any further.
+    def exhausted(*args, **kw):
+        raise MemoryError("Unable to allocate 1.72 GiB for an array")
+
+    sid = _open(_chart())["session"]
+    monkeypatch.setattr(bridge, "detect_pattern", exhausted)
+    for out in (_open(_chart()), bridge.redetect(sid)):
+        assert out["ok"] is False and out["code"] == "OUT_OF_MEMORY"
+        assert "1.72 GiB" in out["message"]
+        _assert_plain(out)
+    # Resampling and saving allocate too.
+    monkeypatch.undo()
+    sid = _open(_chart())["session"]
+    monkeypatch.setattr(bridge, "_preview_payload", exhausted)
+    assert bridge.preview(sid)["code"] == "OUT_OF_MEMORY"
+    monkeypatch.setattr(bridge, "pattern_from_preview", exhausted)
+    assert bridge.commit(sid, "x")["code"] == "OUT_OF_MEMORY"
+
+
 def test_real_failures_come_back_as_data():
     tiny = _open(np.full((10, 10, 3), 200, np.uint8))
     assert (tiny["ok"], tiny["code"]) == (False, "TOO_SMALL")

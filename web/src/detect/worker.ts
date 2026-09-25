@@ -174,6 +174,7 @@ async function handle(req: Request): Promise<Outcome<Answers[Request['type']]>> 
       // not None, so an absent value must be left out rather than passed as null.
       case 'open':
         stall(req.delayMs)
+        if (req.fillMemory) fillMemory(py)
         return plain(
           b.open_session.callKwargs(req.rgba, req.width, req.height, {
             delta_e: req.deltaE ?? 6.0,
@@ -183,6 +184,7 @@ async function handle(req: Request): Promise<Outcome<Answers[Request['type']]>> 
         ) as never
       case 'redetect':
         stall(req.delayMs)
+        if (req.fillMemory) fillMemory(py)
         return plain(
           b.redetect.callKwargs(req.session, {
             ...(req.crop ? { crop: toPy(req.crop) } : {}),
@@ -224,6 +226,39 @@ function stall(ms: number | undefined) {
   }
 }
 
+/** Running out of memory outside the bridge's reach: a MemoryError while converting,
+ *  WebAssembly memory that can't grow, or an ArrayBuffer that can't be allocated. */
+const OUT_OF_MEMORY = /MemoryError|out of memory|Cannot enlarge memory|Maximum memory size|Array buffer allocation failed|Aborted\(OOM\)/i
+
+/** An exception the bridge didn't turn into data, as an answer: a bug, unless memory ran
+ *  out. After a fatal error (Pyodide marks those) the runtime is unusable, and the client
+ *  terminates the worker. With memory nearly full, C code that doesn't check its malloc
+ *  traps as "memory access out of bounds" rather than raising MemoryError (seen in
+ *  e2e/corrections.spec.ts); a fatal trap like that counts as running out too. */
+function failureOf(err: unknown): Failure {
+  const message = err instanceof Error ? err.message : String(err)
+  const fatal = (err as { pyodide_fatal_error?: boolean } | null)?.pyodide_fatal_error === true
+  const outOfMemory = OUT_OF_MEMORY.test(message) || (fatal && /memory access out of bounds/i.test(message))
+  const failure = fail(outOfMemory ? 'OUT_OF_MEMORY' : 'INTERNAL', message)
+  return fatal ? { ...failure, fatal: true } : failure
+}
+
+/** The test hook behind `fillMemory`: allocate until Pyodide's memory can't grow any
+ *  more, and keep it, so the detection that follows really runs out. np.empty never
+ *  touches its pages, so the browser needn't find the memory, only the address space. */
+function fillMemory(py: PyodideAPI) {
+  py.runPython(`
+import numpy as _np
+_ballast = globals().setdefault("_ballast", [])
+for _size in (1 << 24, 1 << 20):
+    while True:
+        try:
+            _ballast.append(_np.empty(_size, _np.uint8))
+        except MemoryError:
+            break
+`)
+}
+
 let queue: Promise<void> = Promise.resolve()
 
 scope.onmessage = (e) => {
@@ -233,9 +268,14 @@ scope.onmessage = (e) => {
     try {
       result = await handle(req)
     } catch (err) {
-      // A Python exception the bridge didn't turn into data: a bug, but still an answer.
-      result = fail('INTERNAL', err instanceof Error ? err.message : String(err))
+      result = failureOf(err)
     }
-    scope.postMessage({ id: req.id, type: 'response', result }, buffersOf(result))
+    try {
+      scope.postMessage({ id: req.id, type: 'response', result }, buffersOf(result))
+    } catch (err) {
+      // Every request must be answered, or its caller waits forever, and a rejection
+      // here would stop this queue for every request after it.
+      scope.postMessage({ id: req.id, type: 'response', result: failureOf(err) })
+    }
   })
 }

@@ -159,6 +159,11 @@ def find_peaks(x: np.ndarray, distance: float | None = None,
 
 # --- clustering -----------------------------------------------------------------
 
+# Rows per band when filling or re-scanning the n x n distance matrix in
+# complete_linkage_labels: bounds each temporary at _CHUNK_ROWS * n * 3 float64s.
+_CHUNK_ROWS = 64
+
+
 def complete_linkage_labels(points: np.ndarray, threshold: float) -> np.ndarray:
     """Complete-linkage agglomerative clustering, cut so no cluster spans > `threshold`.
 
@@ -177,13 +182,22 @@ def complete_linkage_labels(points: np.ndarray, threshold: float) -> np.ndarray:
     if n == 1:
         return np.ones(1, dtype=np.intp)
 
-    # Full pairwise distances; n is the number of *unique* cell colours, so this stays
-    # small even for large charts.
-    diff = points[:, None, :] - points[None, :, :]
-    dist = np.sqrt((diff * diff).sum(axis=-1))
-
-    # d[a, b] is the complete-linkage distance (max over members) between live clusters.
-    d = dist.copy()
+    # d[a, b] is the complete-linkage distance (max over members) between live clusters,
+    # starting as the plain pairwise distance. n is the number of *unique* cell colours,
+    # which a JPEG-noisy photo pushes to ~6,300, so d is the only n x n array allowed:
+    # it is filled a band of rows at a time, with the same per-element arithmetic as a
+    # whole-matrix broadcast (bit-identical), rather than through an (n, n, 3) temporary
+    # that peaked at ~2.2 GB and killed a phone tab.
+    # Squaring, summing and the root happen in place, so each band's only temporary is
+    # its (_CHUNK_ROWS, n, 3) difference.
+    d = np.empty((n, n), dtype=np.float64)
+    for lo in range(0, n, _CHUNK_ROWS):
+        band = d[lo:lo + _CHUNK_ROWS]
+        diff = points[lo:lo + _CHUNK_ROWS, None, :] - points[None, :, :]
+        np.multiply(diff, diff, out=diff)
+        diff.sum(axis=-1, out=band)
+        np.sqrt(band, out=band)
+    del diff
     np.fill_diagonal(d, np.inf)
     alive = np.ones(n, dtype=bool)
     members: list[list[int]] = [[i] for i in range(n)]
@@ -223,10 +237,12 @@ def complete_linkage_labels(points: np.ndarray, threshold: float) -> np.ndarray:
         # fresh scan; everything else keeps its cached neighbour.
         stale = np.flatnonzero(alive & ((nn_i == i) | (nn_i == j)))
         stale = stale[stale != i]
-        if stale.size:
-            sub = d[stale]
-            nn_d[stale] = sub.min(axis=1)
-            nn_i[stale] = sub.argmin(axis=1)
+        # In bands too: d[stale] is a copy, and stale can be most of the rows.
+        for lo in range(0, stale.size, _CHUNK_ROWS):
+            rows = stale[lo:lo + _CHUNK_ROWS]
+            sub = d[rows]
+            nn_d[rows] = sub.min(axis=1)
+            nn_i[rows] = sub.argmin(axis=1)
 
     labels = np.zeros(n, dtype=np.intp)
     for label, root in enumerate(np.flatnonzero(alive), start=1):

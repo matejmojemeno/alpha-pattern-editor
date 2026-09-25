@@ -15,7 +15,8 @@ throws rather than leak a PyProxy, and test_bridge.py walks every payload.
 
 A `DetectionError` comes back as `{"ok": False, "code", "message"}`, never as an
 exception. So do the bridge's own refusals, with codes of their own (`NO_SESSION`,
-`NO_DETECTION`, `BAD_IMAGE`).
+`NO_DETECTION`, `BAD_IMAGE`), and running out of memory (`OUT_OF_MEMORY`): Pyodide's
+WebAssembly memory stops at 4 GB, less on a phone, and numpy raises MemoryError there.
 
 The desktop's fast/slow split is kept (confirm_window.py): full detection runs only in
 `open_session` and `redetect`. `set_params` and `preview` only resample, through the
@@ -26,6 +27,7 @@ which mirrors model.Pattern field for field, as web/src/model/types.ts does.
 """
 from __future__ import annotations
 
+import functools
 import itertools
 import re
 from dataclasses import dataclass
@@ -122,6 +124,19 @@ def _rgb_from_rgba(rgba, width: int, height: int, k: int = 1) -> np.ndarray:
     return shrink(flat.reshape(height, width, 4)[:, :, :3], k)
 
 
+def _out_of_memory_as_data(fn):
+    """Answer a MemoryError as `OUT_OF_MEMORY` data. The arrays being built are freed as
+    the exception unwinds; the worker's client then terminates the worker anyway, since
+    WebAssembly memory never shrinks once grown."""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except MemoryError as err:
+            return _error("OUT_OF_MEMORY", f"Ran out of memory: {err}")
+    return wrapper
+
+
 def _warnings(session: _Session, preview: Preview) -> list[str]:
     """The lattice warnings from the last detection, then the ones this preview earns.
     Worded as in pipeline._finish."""
@@ -201,6 +216,7 @@ def _session(session_id) -> _Session | dict:
 
 # --- the API the worker calls --------------------------------------------------------------
 
+@_out_of_memory_as_data
 def open_session(rgba, width: int, height: int, delta_e: float = DEFAULT_DELTA_E,
                  max_pixels: int | None = None, crop=None) -> dict:
     """Start a session on an image and detect it, or only `crop` = (x0, y0, x1, y1) of it
@@ -221,6 +237,7 @@ def open_session(rgba, width: int, height: int, delta_e: float = DEFAULT_DELTA_E
     return _detect(session_id, session, crop=None if crop is None else tuple(crop))
 
 
+@_out_of_memory_as_data
 def redetect(session: int, crop=None, delta_e: float | None = None) -> dict:
     """Full detection again, on the whole image or on `crop` = (x0, y0, x1, y1) in image
     pixels. Resets rows, cols and extent to what is found; keeps the colour detail, or
@@ -233,6 +250,7 @@ def redetect(session: int, crop=None, delta_e: float | None = None) -> dict:
     return _detect(int(session), s, crop=None if crop is None else tuple(crop))
 
 
+@_out_of_memory_as_data
 def set_params(session: int, rows: int | None = None, cols: int | None = None,
                delta_e: float | None = None, extent=None) -> dict:
     """Change the settings. Nothing is detected or resampled until `preview`. `extent` is
@@ -257,6 +275,7 @@ def set_params(session: int, rows: int | None = None, cols: int | None = None,
     return {"ok": True}
 
 
+@_out_of_memory_as_data
 def preview(session: int) -> dict:
     """The current result: resampled if a setting changed, otherwise the cached one."""
     s = _session(session)
@@ -267,6 +286,7 @@ def preview(session: int) -> dict:
     return _preview_payload(int(session), s)
 
 
+@_out_of_memory_as_data
 def commit(session: int, name: str) -> dict:
     """The confirmed preview as a new Pattern (fresh id and row ids)."""
     s = _session(session)

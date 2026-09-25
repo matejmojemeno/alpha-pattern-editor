@@ -3,7 +3,8 @@
  * worker. Each test makes corrections, saves, exports, and checks the saved pattern cell
  * for cell against the desktop code making the same corrections
  * (scripts/desktop_import.py via desktop.ts). Also: the phone layout with every control
- * used, and the watchdog, with detection made slow by a test hook.
+ * used, the watchdog, with detection made slow by a test hook, and running out of memory,
+ * with the worker's memory filled by another.
  *
  * Needs the repo's Python (.venv, or $PYTHON) with numpy and Pillow for the reference.
  */
@@ -198,5 +199,28 @@ test.describe('the watchdog', () => {
     await expect(page.locator('.controls').getByRole('button', { name: 'Crop' })).toHaveAttribute('aria-pressed', 'true')
     const c = await crop(page, CATS, [0.25, 0.18, 0.75, 0.83])
     await expectDesktop(page, testInfo, 'Cats after a timeout', CATS, [`crop=${c.join(',')}`])
+  })
+})
+
+test.describe('running out of memory', () => {
+  test.beforeEach(async ({ page }) => {
+    // The test hook in detect/client.ts: the worker fills Pyodide's memory before each
+    // detection, so detection really runs out, as a big photo on a phone would.
+    await page.addInitScript(() => {
+      ;(globalThis as { __alphaDetectTest?: unknown }).__alphaDetectTest = { fillMemory: true }
+    })
+  })
+
+  test('ends on a friendly screen, and Crop recovers in a fresh worker', async ({ page }, testInfo) => {
+    const { alert } = await importImage(page, CATS)
+    await expect(alert).toContainText('This image is too big to read on this device.')
+    await expect(alert).toContainText('Detection stopped (OUT_OF_MEMORY)')
+    // The same image would run out the same way again, so that isn't offered.
+    await expect(alert.getByRole('button', { name: 'Try again' })).toHaveCount(0)
+    await expect(page.getByRole('img', { name: 'The image being imported' })).toBeVisible()
+    await page.evaluate(() => void ((globalThis as { __alphaDetectTest?: { fillMemory?: boolean } }).__alphaDetectTest!.fillMemory = false))
+    await alert.getByRole('button', { name: 'Crop' }).click()
+    const c = await crop(page, CATS, [0.25, 0.18, 0.75, 0.83])
+    await expectDesktop(page, testInfo, 'Cats after running out of memory', CATS, [`crop=${c.join(',')}`])
   })
 })

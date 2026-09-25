@@ -11,6 +11,9 @@
  *   folded into one pending request, so a slider drag costs two or three resamples and
  *   the preview still moves on the first tick (docs/web-port-plan.md, "Cancellation").
  * - Pixels are transferred to the worker, not copied.
+ * - An OUT_OF_MEMORY or fatal answer terminates the worker, as the watchdog does:
+ *   WebAssembly memory never shrinks once grown, and a fatal error leaves Pyodide unusable,
+ *   so only a fresh worker recovers.
  * - Detection (`open`, `redetect`) runs under a watchdog. A photo no fitter reads cleanly
  *   can keep Python busy for a long time, and Pyodide can't be interrupted without
  *   SharedArrayBuffer, so past the budget the worker is simply terminated: everything
@@ -74,11 +77,13 @@ export interface OpenOptions {
 
 /**
  * Test hooks (e2e/corrections.spec.ts sets them with an init script; the app never does):
- * make every detection take `delayMs` longer, and change the watchdog's budget.
+ * make every detection take `delayMs` longer, change the watchdog's budget, and fill the
+ * worker's memory before every detection (`fillMemory`).
  */
 export interface DetectTestHooks {
   delayMs?: number
   budgetMs?: number
+  fillMemory?: boolean
 }
 
 function testHooks(): DetectTestHooks {
@@ -132,6 +137,10 @@ export class DetectClient {
     if (!resolve) return // already settled (the client was disposed)
     this.waiting.delete(msg.id)
     resolve(msg.result)
+    const r = msg.result
+    if (!r.ok && (r.code === 'OUT_OF_MEMORY' || r.fatal)) {
+      this.dispose(r.message, r.code === 'OUT_OF_MEMORY' ? 'OUT_OF_MEMORY' : 'WORKER_GONE')
+    }
   }
 
   /** Send one request. Returns its id and its answer. A `watched` request (a detection)
@@ -149,8 +158,9 @@ export class DetectClient {
     })
     let message = { ...body, id } as Request
     if (watched) {
-      const { delayMs } = testHooks()
+      const { delayMs, fillMemory } = testHooks()
       if (delayMs) message = { ...message, delayMs } as Request
+      if (fillMemory) message = { ...message, fillMemory } as Request
       const seconds = Math.round(this.budgetMs / 1000)
       const timer = setTimeout(() => this.dispose(`Detection took longer than ${seconds} s and was stopped.`, 'TIMEOUT'), this.budgetMs)
       answer = answer.finally(() => clearTimeout(timer))
@@ -214,8 +224,12 @@ export class DetectClient {
   }
 
   /** Terminate the worker, freeing Pyodide's memory. Outstanding requests are answered
-   *  with `code` (TIMEOUT when the watchdog did it); the client can't be used again. */
-  dispose(message = 'The detection worker has been closed.', code: 'WORKER_GONE' | 'TIMEOUT' = 'WORKER_GONE'): void {
+   *  with `code` (TIMEOUT when the watchdog did it, OUT_OF_MEMORY after memory ran out);
+   *  the client can't be used again. */
+  dispose(
+    message = 'The detection worker has been closed.',
+    code: 'WORKER_GONE' | 'TIMEOUT' | 'OUT_OF_MEMORY' = 'WORKER_GONE',
+  ): void {
     this.dead = true
     this.worker?.terminate()
     this.worker = null

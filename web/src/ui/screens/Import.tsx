@@ -37,7 +37,7 @@ import {
 } from '../../detect/protocol.ts'
 import { clampDim, DEFAULT_DELTA_E, parseDim, shrinkNotice } from '../../importer/controls.ts'
 import { decodeImage, ImageDecodeError, sourcePng } from '../../importer/decode.ts'
-import { hintFor, TIMEOUT_HINT } from '../../importer/hints.ts'
+import { hintFor, OUT_OF_MEMORY_HINT, TIMEOUT_HINT } from '../../importer/hints.ts'
 import { formatStats } from '../../logic/readout.ts'
 import { emptyProgress } from '../../model/types.ts'
 import { DropOverlay, ImportButton, Notices, TopBar } from '../components.tsx'
@@ -58,7 +58,8 @@ export type ImportState =
   /** Detection found no chart; the session is open, so Crop and Re-detect can retry. */
   | { phase: 'failed'; code: DetectionErrorCode }
   /** Detection ran past its budget and the worker was terminated: no session. */
-  | { phase: 'timeout' }
+  /** The worker was terminated: the watchdog stopped it, or its memory ran out. */
+  | { phase: 'stopped'; code: 'TIMEOUT' | 'OUT_OF_MEMORY' }
   | { phase: 'error'; message: string }
 
 type Tab = 'image' | 'pattern' | 'colours'
@@ -160,10 +161,10 @@ export default function ImportScreen() {
     } else if (isDetectionError(result.code)) {
       setShown(null)
       setState({ phase: 'failed', code: result.code })
-    } else if (result.code === 'TIMEOUT') {
+    } else if (result.code === 'TIMEOUT' || result.code === 'OUT_OF_MEMORY') {
       session.current = null
       setShown(null)
-      setState({ phase: 'timeout' })
+      setState({ phase: 'stopped', code: result.code })
     } else if (result.code !== 'STALE') {
       setState({ phase: 'error', message: `Detection stopped unexpectedly. (${result.code}: ${result.message})` })
     }
@@ -234,7 +235,7 @@ export default function ImportScreen() {
       if (r.ok) {
         setShown(r)
         setState((st) => (st.phase === 'result' ? { phase: 'result', preview: r } : st))
-      } else if (r.code === 'TIMEOUT' || r.code === 'WORKER_GONE') detected(r)
+      } else if (r.code === 'TIMEOUT' || r.code === 'OUT_OF_MEMORY' || r.code === 'WORKER_GONE') detected(r)
       else if (r.code !== 'STALE') setNotices([{ tone: 'error', text: `Couldn't update the preview: ${r.message}` }])
     })
   }
@@ -265,8 +266,8 @@ export default function ImportScreen() {
     setCropping(false)
     const s = session.current
     if (!s) {
-      // Nothing to detect again in: the watchdog stopped the worker. Start over, with
-      // the crop if there is one.
+      // Nothing to detect again in: the worker was stopped (the watchdog, or memory ran
+      // out). Start over, with the crop if there is one.
       setRun((r) => ({ attempt: r.attempt + 1, ...(crop ? { crop } : {}) }))
       return
     }
@@ -527,23 +528,28 @@ export function Outcome({
         </div>
       )
     }
-    case 'timeout':
+    case 'stopped': {
+      const hint = state.code === 'TIMEOUT' ? TIMEOUT_HINT : OUT_OF_MEMORY_HINT
       return (
         <div className="import__failure" role="alert">
-          <p className="import__failure-title">{TIMEOUT_HINT.title}</p>
-          <p>{TIMEOUT_HINT.advice}</p>
+          <p className="import__failure-title">{hint.title}</p>
+          <p>{hint.advice}</p>
           <p className="import__actions">
             <button type="button" className="button button--primary" onClick={onCrop}>
               Crop
             </button>
-            <button type="button" className="button" onClick={onRetry}>
-              Try again
-            </button>
+            {/* The same image runs out of memory the same way again. */}
+            {state.code === 'TIMEOUT' && (
+              <button type="button" className="button" onClick={onRetry}>
+                Try again
+              </button>
+            )}
             {another('Try another image')}
           </p>
-          <p className="import__code muted">Detection stopped (TIMEOUT)</p>
+          <p className="import__code muted">Detection stopped ({state.code})</p>
         </div>
       )
+    }
     case 'error':
       return (
         <div className="import__failure" role="alert">

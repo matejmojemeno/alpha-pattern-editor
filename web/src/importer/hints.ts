@@ -38,6 +38,13 @@ export const TIMEOUT_HINT: Hint = {
   advice: 'Turn on Crop and drag a box around just the squares, or try again.',
 }
 
+/** When Pyodide ran out of memory (bridge.py's OUT_OF_MEMORY). Detection's memory grows
+ *  with the pixels it reads, and a crop reads fewer; trying again would fail the same way. */
+export const OUT_OF_MEMORY_HINT: Hint = {
+  title: 'This image is too big to read on this device.',
+  advice: 'Turn on Crop and drag a box around just the squares, or try a smaller copy of the image.',
+}
+
 /** Where the screen can't offer Crop, NO_GRIDLINES can't point to it. */
 const NO_GRIDLINES_WITHOUT_CROP = 'Try an image of just the squares: crop it close to the grid, then import it again.'
 
