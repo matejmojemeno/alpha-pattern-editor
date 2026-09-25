@@ -10,8 +10,32 @@ root. This document covers *how* the app moves to the web, not *what* it does.
 |---|---|
 | 0 — core preparation | **done** |
 | 1 — Library + Work + storage | **in progress**: storage, logic, app shell, Library and Work stage done; `newPattern` and the design-from-blank dialog remain |
-| 2 — Import wizard + Pyodide | not started |
+| 2 — Import wizard + Pyodide | **in progress**: part 1 done (the worker boundary and a minimal photo import, end to end); part 2, the correction controls, remains |
 | 3 — Design stage | not started |
+
+What Phase 2 has delivered so far:
+
+- **Part 1: detection in the browser.**
+  - `alphareader/core/bridge.py`, the only Python aware of JavaScript. A `ConfirmState`
+    per session; `open_session`/`redetect` detect, `set_params`/`preview` only resample,
+    `commit` returns a Pattern. Plain data and 1-D arrays only, no `DebugLayers`, and
+    `DetectionError` as `{ok: false, code, message}` (`test_bridge.py`).
+  - `scripts/build_core_bundle.py` zips `core/` without `io.py`. A Vite plugin
+    (`web/scripts/detectAssets.ts`) self-hosts it with Pyodide **314.0.7** and numpy's
+    wheel: no CDN at runtime, the build fails if the three version pins disagree or a
+    file passes 25 MiB.
+  - `web/src/detect/`: a module worker with boot progress by stage (runtime, numpy,
+    core); a client with request ids, stale answers dropped, updates folded while one
+    is in flight, and every failure as data. The `set_params`/`preview` path is built
+    and tested for part 2.
+  - `#/import`, loaded lazily: images by picker, drop or paste from the landing screen
+    and the Library; real download progress (~9.3 MB gzipped the first time); the
+    result; save with the source PNG and open the Work stage; the desktop's failure
+    hints. Hovering "Import pattern" preloads; any other screen terminates the worker.
+  - Images with a long edge over 1600 px are shrunk by a whole-number factor before
+    detection (Risk 2, measured below); the saved source stays full size.
+  - Parity through the UI: `dachshund.png` saves exactly the desktop's cells. All five
+    test JPEGs currently match exactly too (reported, not enforced).
 
 What Phase 1 has delivered so far (`web/`):
 
@@ -29,7 +53,7 @@ What Phase 1 has delivered so far (`web/`):
     or drop. Thumbnails are downscaled at save time (DB version 2), and
     `navigator.storage.persist()` is requested after the first save or import.
   - Playwright (`npm run test:e2e`) proves persistence across a real reload.
-- **Work stage** (this step), at `#/work/<id>`:
+- **Work stage** (PR #8), at `#/work/<id>`:
   - `render/layout.ts`: per-row heights, `yOffsets`, and a viewport that keeps the
     current row centred. Charts past 2:1 are sized to their short axis and scroll along
     the long one. Row emphasis and focus mode share one "rows around the current one"
@@ -540,6 +564,15 @@ Ranked by what could still go wrong.
      lattice back up. Detection only needs to resolve a pitch of ≥6 px
      (`periodic.MIN_PITCH`). Measure this against the test corpus rather than guessing.
    - Terminate the worker when the user leaves `/import`, to free the memory.
+
+   **Measured (Phase 2, part 1)**, desktop Chromium, WASM memory peak after detection:
+   a 4000×3000 chart took 2.1 s and 528 MB at full size, 1.1 s and 142 MB shrunk to
+   ≤1600 px; a 4000×3820 one 2.4 s / 663 MB vs 1.2 s / 164 MB. At phone-photo size the
+   synthetic corpus grades *better* shrunk (exact 85.4% → 88.6%, recoverable 93.8% →
+   97.2%, no more silent-bad results), so the shrink is on
+   (`scripts/downscale_study.py`, `web/e2e/large-photo.bench.spec.ts`). Still open: a
+   chart that no fitter reads cleanly (`garment.png` upscaled) takes 16 s and ~2 GB even
+   shrunk, and nothing has been timed on a real phone yet.
 3. **Data loss in general.** See risk 1. Ship `.alpha` export in the first build.
 4. **Two implementations of the readout/work logic.** The fixture corpus guards against
    drift, but maintaining two copies is an ongoing cost. That's why `edit.py` should also

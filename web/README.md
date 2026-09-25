@@ -13,7 +13,16 @@ npm run build       # production build in dist/
 npx playwright install chromium   # once
 npm run test:e2e    # Playwright in real Chromium, against the production build
 npm run gen:alpha   # rewrite ../fixtures/alpha/from-ts/ after changing src/storage
+BENCH=1 npx playwright test e2e/large-photo.bench.spec.ts   # detection time and memory, phone-sized photos
 ```
+
+`npm run dev` and `npm run build` also assemble what photo import downloads
+(`scripts/detectAssets.ts`): the Pyodide runtime from the pinned `pyodide` package,
+numpy's wheel (fetched once from Pyodide's release and checked against its sha256, then
+cached in `.cache/`), and `alphareader-core.<hash>.zip` from
+`../scripts/build_core_bundle.py`. That needs Python 3 on the path, or `../.venv`, or
+`$PYTHON`. The e2e tests also use that Python, with numpy and Pillow, as the desktop
+reference.
 
 ## Layout so far
 
@@ -29,11 +38,15 @@ npm run gen:alpha   # rewrite ../fixtures/alpha/from-ts/ after changing src/stor
 - `src/app/`: hash router, app-wide context (repository, settings), persistence request.
 - `src/settings/`: display preferences in `localStorage`, typed and fail-safe.
 - `src/theme/`: `tokens.css` (the port of `theme.py`) and `contrastOn()`.
-- `src/ui/`: the screens (landing, Library, Settings, the `/work/:id` placeholder) and
-  shared components.
+- `src/ui/`: the screens (landing, Library, Settings, Work, and the lazily loaded
+  import screen) and shared components.
+- `src/detect/`: the Pyodide boundary. `worker.ts` runs `alphareader/core/bridge.py` in
+  a module worker; `client.ts` is the app's side of it; `protocol.ts` the messages.
+- `src/importer/`: decoding images and the failure hints, for the import screen.
 
 Routing uses the URL hash (`#/library`, `#/work/<id>`): the part after `#` never reaches
 the server, so deep links survive a refresh on any static host with no fallback rule.
 
-Nothing in `src/logic/` or `src/storage/`, nor anything `src/main.tsx` loads, may reach
-Pyodide; `tests/boundary.test.ts` enforces it.
+Nothing in `src/logic/` or `src/storage/`, nor anything `src/main.tsx` loads statically,
+may reach Pyodide or `src/detect/`: the app shell gets there only by `import()`, through
+`src/app/detection.ts`. `tests/boundary.test.ts` and `e2e/bundle.spec.ts` enforce it.
