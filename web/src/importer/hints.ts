@@ -31,7 +31,14 @@ export const FAILURE_HINTS: Record<DetectionErrorCode, Hint> = {
   },
 }
 
-/** Until the import screen has Crop (Phase 2, part 2), NO_GRIDLINES can't point to it. */
+/** When detection ran past its time budget and was stopped (client.ts's watchdog). A
+ *  crop leaves the detector far less to consider, so it's the first suggestion. */
+export const TIMEOUT_HINT: Hint = {
+  title: 'This image is taking too long to read.',
+  advice: 'Turn on Crop and drag a box around just the squares, or try again.',
+}
+
+/** Where the screen can't offer Crop, NO_GRIDLINES can't point to it. */
 const NO_GRIDLINES_WITHOUT_CROP = 'Try an image of just the squares: crop it close to the grid, then import it again.'
 
 export function hintFor(code: DetectionErrorCode, { canCrop = false }: { canCrop?: boolean } = {}): Hint {

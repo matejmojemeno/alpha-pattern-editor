@@ -1,43 +1,324 @@
-/* The import screen (screens/Import.tsx). Loaded with it, so not part of the first download. */
+/* The import screen (screens/Import.tsx, ui/import/). Loaded with it, so not part of the
+   first download.
 
-.import__layout {
-  display: grid;
-  gap: 1.25rem;
-  margin-top: 1rem;
-}
-
-/* Side by side once there's room for both; stacked (image first) on a phone. */
-@media (min-width: 900px) {
-  .import__layout {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: start;
-  }
-}
-
-.import__pane {
-  margin: 0;
-  min-width: 0;
-}
-
-.import__pane figcaption,
-.import__caption {
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
-
-.import__image {
-  display: block;
-  max-width: 100%;
-  max-height: 60vh;
-  height: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--letterbox);
-}
+   Under 900 px: controls, summary, tabs (image / pattern / colours), one pane, and the
+   save bar stuck to the bottom of the screen. From 900 px: the desktop's three panes side
+   by side, the pattern widest. */
 
 .import__choose .button {
   margin-bottom: 0.75rem;
 }
+
+.confirm {
+  --pane-h: min(58vh, 40rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+/* --- controls ------------------------------------------------------------------------- */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+}
+
+.controls__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.controls__detect {
+  display: inline-flex;
+  gap: 0.5rem;
+}
+
+.dim {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.dim label {
+  min-width: 2.5rem;
+}
+
+.dim__step.button {
+  min-width: var(--tap);
+  padding-inline: 0;
+  font-size: var(--text-lg);
+  line-height: 1;
+}
+
+.dim__input {
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  width: 3.75rem;
+  min-height: var(--tap);
+  padding: 0.25rem 0.5rem;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.dim__input:disabled {
+  opacity: 0.55;
+}
+
+.controls .button[aria-pressed='true'] {
+  background: var(--accent);
+  color: #000;
+  border-color: var(--accent);
+}
+
+.controls__detail input[type='range'] {
+  width: 9rem;
+  min-height: var(--tap);
+  accent-color: var(--accent);
+}
+
+.controls__end {
+  font-size: var(--text-sm);
+}
+
+.controls__check {
+  min-height: var(--tap);
+  cursor: pointer;
+}
+
+.controls__check input {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--accent);
+}
+
+/* --- summary -------------------------------------------------------------------------- */
+
+.confirm__summary p,
+.confirm__summary ul {
+  margin: 0;
+}
+
+.confirm__stats {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.confirm__warnings {
+  list-style: none;
+  padding: 0;
+  color: var(--warn);
+}
+
+.confirm__warnings li {
+  margin-top: 0.25rem;
+}
+
+.confirm__notice {
+  margin-top: 0.25rem !important;
+  font-size: var(--text-sm);
+}
+
+/* --- tabs and panes ------------------------------------------------------------------- */
+
+.confirm__tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+
+.confirm__tab {
+  flex: 1;
+  min-height: var(--tap);
+  font: inherit;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+}
+
+.confirm__tab[aria-selected='true'] {
+  color: var(--text);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+}
+
+.confirm__panes {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.confirm__pane {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.confirm__pane[hidden] {
+  display: none;
+}
+
+.confirm__caption {
+  font-size: var(--text-md);
+  font-weight: 600;
+  margin: 0;
+}
+
+.confirm__hint {
+  margin: 0;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.confirm__busy {
+  margin: 0;
+  color: var(--muted);
+}
+
+@media (min-width: 900px) {
+  .confirm__panes {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) minmax(12rem, 1fr);
+    align-items: start;
+  }
+}
+
+/* The last good preview stays up while a newer one is on its way; dimmed only if that
+   takes long enough to notice (DIM_AFTER_MS). */
+.pattern,
+.palette,
+.source__overlay {
+  transition: opacity 120ms ease-out;
+}
+
+.confirm[data-dim] .pattern,
+.confirm[data-dim] .palette,
+.confirm[data-dim] .source__overlay {
+  opacity: 0.45;
+}
+
+/* --- source image --------------------------------------------------------------------- */
+
+/* The image's own shape (aspect-ratio is set inline), as big as the pane allows; a
+   letterbox appears only when the pane caps it. */
+.source {
+  position: relative;
+  width: 100%;
+  max-height: var(--pane-h);
+  margin-inline: auto;
+  background: var(--letterbox);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.source[data-cropping] {
+  cursor: crosshair;
+  /* The finger draws the box instead of scrolling the page. */
+  touch-action: none;
+  outline: 2px solid var(--accent);
+}
+
+.source__image,
+.source__overlay,
+.source__band {
+  position: absolute;
+}
+
+.source__image {
+  display: block;
+  -webkit-user-drag: none;
+}
+
+.source__overlay {
+  pointer-events: none;
+  overflow: visible;
+}
+
+.source__lines {
+  fill: none;
+  stroke: var(--overlay-grid);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.source__extent {
+  fill: none;
+  stroke: var(--overlay-extent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.source__band {
+  pointer-events: none;
+  border: 2px dashed var(--accent);
+  background: rgb(240 168 0 / 0.12);
+}
+
+/* --- pattern -------------------------------------------------------------------------- */
+
+.pattern {
+  width: 100%;
+  max-height: var(--pane-h);
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.pattern__canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+
+.confirm__outcome {
+  min-width: 0;
+}
+
+/* --- palette -------------------------------------------------------------------------- */
+
+.palette {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.25rem;
+  max-height: var(--pane-h);
+  overflow-y: auto;
+}
+
+.palette__entry {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.palette__count {
+  font-variant-numeric: tabular-nums;
+  min-width: 3.5ch;
+  text-align: right;
+}
+
+.palette__name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* --- status and failures -------------------------------------------------------------- */
 
 .import__status progress {
   display: block;
@@ -49,84 +330,6 @@
 
 .import__stage {
   font-variant-numeric: tabular-nums;
-}
-
-/* One canvas pixel per cell, scaled up without smoothing; never taller than the screen
-   leaves room for. --aspect is cols / rows. */
-.import__pattern {
-  display: block;
-  width: min(100%, calc(55vh * var(--aspect, 1)));
-  height: auto;
-  image-rendering: pixelated;
-  border: 1px solid var(--border);
-}
-
-.import__stats {
-  margin-top: 0.75rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.import__warnings {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 0.75rem;
-  color: var(--warn);
-}
-
-.import__warnings li + li {
-  margin-top: 0.25rem;
-}
-
-.import__heading {
-  font-size: var(--text-md);
-  margin: 1rem 0 0.5rem;
-}
-
-.import__palette {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 0.375rem;
-}
-
-.import__palette li {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.import__swatch {
-  flex: none;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-}
-
-.import__colour {
-  flex: 1;
-  min-width: 0;
-}
-
-.import__save {
-  margin-top: 1.5rem;
-  display: grid;
-  gap: 0.375rem;
-}
-
-.import__save label {
-  font-weight: 600;
-}
-
-.import__save input {
-  font: inherit;
-  min-height: var(--tap);
-  padding: 0.375rem 0.625rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-  color: var(--text);
 }
 
 .import__actions {
@@ -143,4 +346,63 @@
 
 .import__code {
   font-size: var(--text-sm);
+}
+
+/* --- save bar ------------------------------------------------------------------------- */
+
+.savebar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.savebar__label {
+  font-weight: 600;
+}
+
+.savebar__name {
+  flex: 1 1 10rem;
+  min-width: 0;
+  font: inherit;
+  min-height: var(--tap);
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* On a phone the bar sticks to the bottom of the screen, so saving is always in reach
+   however far the controls and pane scroll. */
+@media (max-width: 899.98px) {
+  .confirm {
+    --pane-h: min(52vh, 34rem);
+  }
+
+  .savebar {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding-bottom: max(0.625rem, env(safe-area-inset-bottom));
+  }
+
+  .savebar__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .savebar__save {
+    flex: 1 1 auto;
+  }
+
+  .savebar__another {
+    display: none;
+  }
 }
