@@ -210,11 +210,17 @@ def add_palette_entry(p: Pattern, hex_color: str, name: str = "New colour") -> P
     return _clone(p, palette=palette)
 
 
-def _remove_index(cells: np.ndarray, remove_idx: int, replace_idx: int) -> np.ndarray:
+def _remove_index(cells: np.ndarray, remove_idx: int, replace_idx: int,
+                  palette_len: int) -> np.ndarray:
+    """Repaint `remove_idx` cells as `replace_idx`, then shift the palette indices above
+    `remove_idx` down by one, as the entry goes.
+
+    Only indices that name a palette entry (below `palette_len`) move. SKIP_INDEX, and any
+    other index past the palette, names no entry, so it is left exactly as it was: a skip
+    cell stays a skip cell."""
     cells = cells.copy()
     cells[cells == remove_idx] = replace_idx
-    # Reindex: every index above the removed one shifts down by one.
-    above = cells > remove_idx
+    above = (cells > remove_idx) & (cells < palette_len)
     cells[above] -= 1
     return cells
 
@@ -231,7 +237,7 @@ def merge_palette_entries(p: Pattern, from_id: str, into_id: str) -> Pattern:
     fi, ti = _index_of(p, from_id), _index_of(p, into_id)
     if fi == ti:
         return _clone(p)
-    cells = _remove_index(p.cells, fi, ti)
+    cells = _remove_index(p.cells, fi, ti, len(p.palette))
     palette = [e for i, e in enumerate(p.palette) if i != fi]
     return _clone(p, cells=cells, palette=palette)
 
@@ -241,7 +247,7 @@ def delete_palette_entry(p: Pattern, entry_id: str, replacement_id: str) -> Patt
     di, ri = _index_of(p, entry_id), _index_of(p, replacement_id)
     if di == ri:
         raise ValueError("Replacement colour must differ from the deleted one.")
-    cells = _remove_index(p.cells, di, ri)
+    cells = _remove_index(p.cells, di, ri, len(p.palette))
     palette = [e for i, e in enumerate(p.palette) if i != di]
     return _clone(p, cells=cells, palette=palette)
 

@@ -255,9 +255,9 @@ def edit_patterns() -> dict[str, Pattern]:
         "uniform": _pattern("uniform", np.full((3, 4), 1), 2),
         # Two colours tie around the border: major_border_index takes the lower index.
         "border-tie": _pattern("border-tie", [[0, 1, 0], [1, 2, 1], [0, 1, 1], [0, 0, 1]], 3),
-        # SKIP_INDEX and an index past the palette: counts ignore both, and deleting or
-        # merging an entry shifts every index above it down by one, those included.
-        "odd-indices": _pattern("odd-indices", [[0, SKIP_INDEX, 1], [7, 2, 0]], 3),
+        # SKIP_INDEX and indices past the palette (3, just past it, and 7): counts ignore
+        # them, and deleting or merging an entry leaves them exactly as they are.
+        "odd-indices": _pattern("odd-indices", [[0, SKIP_INDEX, 1, 3], [7, 2, 0, 1]], 3),
         # Regions that touch only at corners: fill must stay 4-connected.
         "fill-maze": _pattern("fill-maze", [
             [0, 0, 1, 0, 0],
@@ -387,6 +387,8 @@ def edit_calls() -> list[tuple[str, str, list, dict]]:
     add("framed", "delete_palette_entry", "pal3", "pal3")          # ValueError
     add("framed", "delete_palette_entry", "pal0", "missing")       # KeyError
     add("odd-indices", "delete_palette_entry", "pal1", "pal0")
+    add("odd-indices", "delete_palette_entry", "pal2", "pal0")     # the last entry
+    add("odd-indices", "merge_palette_entries", "pal0", "pal1")
 
     for i in range(6):
         add("nearest", "nearest_entry_id", f"pal{i}")

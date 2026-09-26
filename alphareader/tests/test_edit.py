@@ -214,3 +214,26 @@ def test_trim_uniform_edges():
     p = _pattern([[0, 0, 0], [0, 1, 0], [0, 0, 0]])
     q = edit.trim_uniform_edges(p, top=True, bottom=True)
     assert q.rows == 1 and np.array_equal(q.cells, [[0, 1, 0]])
+
+
+def test_deleting_a_colour_keeps_skip_cells():
+    """SKIP_INDEX names no palette entry, so deleting or merging one leaves it alone
+    (it used to shift down to 65534 with every index above the deleted one)."""
+    from ..core.model import SKIP_INDEX
+    p = _pattern([[0, SKIP_INDEX, 1], [2, SKIP_INDEX, 0]])
+    for q in (edit.delete_palette_entry(p, "p0", "p2"),
+              edit.merge_palette_entries(p, "p1", "p0"),
+              edit.delete_palette_entry_nearest(p, "p1")):
+        assert q.cells[0, 1] == SKIP_INDEX and q.cells[1, 1] == SKIP_INDEX
+        assert q.cells[q.cells != SKIP_INDEX].max() < len(q.palette)
+
+
+def test_deleting_a_colour_leaves_indices_past_the_palette_alone():
+    """An index past the palette names no entry either: it keeps its value, and stays
+    past the (now shorter) palette, so it never turns into a real colour."""
+    p = _pattern([[0, 1, 2], [7, 3, 0]])          # 3 entries; 3 and 7 name none
+    q = edit.delete_palette_entry(p, "p0", "p1")
+    assert q.cells.tolist() == [[0, 0, 1], [7, 3, 0]]
+    q = edit.merge_palette_entries(p, "p2", "p1")
+    assert q.cells.tolist() == [[0, 1, 1], [7, 3, 0]]
+    assert sum(e.count for e in q.palette) == 4

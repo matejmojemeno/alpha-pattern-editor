@@ -109,9 +109,15 @@ Pattern = { id, name, created_at, rows, cols, row_ids[], cells[rows][cols],
   `row_ids` exactly is what keeps Work-stage progress valid (§4.5).
 - **Counts** are recomputed after every edit, as `_recount` does: cells whose index is
   `SKIP_INDEX` or past the end of the palette count towards no entry.
-- **Deleting or merging an entry** shifts every index above it down by one,
-  `SKIP_INDEX` and out-of-range indices included (the `odd-indices` pattern). That is
-  what the Python does today, so the port does it too.
+- **Deleting or merging an entry** shifts the palette indices above it down by one, and
+  **only those**: an index that names no entry is left exactly as it was (the
+  `odd-indices` pattern). So a `SKIP_INDEX` cell stays a skip cell. (Until Phase 3,
+  part 2, `edit.py` shifted every index above the deleted one, which turned skip cells
+  into 65534.) The same rule covers the other indices past the palette, which a file
+  can hold but the editor never paints: they keep their value, and since the palette
+  shrinks by one while they don't move, an index past the palette stays past it and
+  never turns into a real colour. Shifting them instead would also have kept them out of
+  range, but would change which "#N" the readout shows for them, for no reason.
 - **Row and column indices are always in range** here. `edit.py` doesn't clamp them
   (numpy wraps negative ones and raises `IndexError` past the end), and the Design stage
   never passes anything else, so the port is free to throw on them.
