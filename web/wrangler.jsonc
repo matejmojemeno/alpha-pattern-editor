@@ -9,5 +9,9 @@
   "assets": {
     // Routes are hash-based (#/library, #/work/<id>), so no SPA fallback is needed.
     "directory": "./dist"
-  }
+  },
+  // Pull requests get a preview through `npx wrangler preview` (the Git integration's
+  // preview command), which refuses to run without this block. Empty is enough: assets
+  // and compatibility settings stay at the top level and apply to previews too.
+  "previews": {}
 }
