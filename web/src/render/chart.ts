@@ -5,8 +5,8 @@
  * The cells are drawn once, one pixel per cell, into an offscreen image whenever the
  * pattern changes (`buildCellImage`). Each frame then scales bands of that image onto
  * the visible canvas with smoothing off, and draws the few things that depend on
- * progress and scroll position over it: gridlines, the done-wash and strike line, the
- * current-row outline and the axis numbers. Nothing fills cells one at a time per frame,
+ * progress and scroll position over it: gridlines, the done-wash and strike line (over
+ * done rows and the part of the current row already worked), the current-row outline and the axis numbers. Nothing fills cells one at a time per frame,
  * which is what keeps an 88×194 chart scrolling smoothly on a phone.
  *
  * The visible canvas is the size of the chart area, not of the chart: a scrolled chart
@@ -15,7 +15,7 @@
 import { workingNumber } from '../logic/readout.ts'
 import type { Pattern } from '../model/types.ts'
 import { hexToRgb } from '../theme/contrast.ts'
-import { AXIS_LEFT, AXIS_TOP, rowsInViewport, showAxisNumber, type ChartLayout } from './layout.ts'
+import { AXIS_LEFT, AXIS_TOP, placeDone, rowsInViewport, showAxisNumber, type ChartLayout, type RowPlace } from './layout.ts'
 
 // Drawn over the pattern's own colours, so fixed rather than themed (theme.py:71-99).
 /** Gridlines: near-black, to read against yarn rather than the page. */
@@ -82,6 +82,8 @@ export interface DrawInput {
   pattern: Pattern
   /** Image rows that are complete. */
   completed: ReadonlySet<number>
+  /** Your place in the current row: the stitches before it are washed as done. */
+  place?: RowPlace | null
   scrollX: number
   scrollY: number
   /** The canvas size in CSS pixels. */
@@ -149,19 +151,23 @@ export function drawChart(ctx: CanvasRenderingContext2D, d: DrawInput): void {
   for (let i = from; i <= to; i++) ctx.rect(ox, Math.min(oy + l.offsets[i]!, oy + l.gridHeight - lw), gw, lw)
   ctx.fill()
 
-  for (let i = from; i < to; i++) {
-    if (!d.completed.has(first + i)) continue
+  const markDone = (i: number, x: number, w: number) => {
     const y = oy + l.offsets[i]!
     const h = l.heights[i]!
     ctx.fillStyle = DONE_WASH
-    ctx.fillRect(ox, y, gw, h)
+    ctx.fillRect(x, y, w, h)
     // 2 px as on the desktop, but thinner on short rows, where 2 px would black them out.
     const sw = h >= 8 ? 2 : 1 / dpr
     ctx.fillStyle = DONE_STRIKE
-    ctx.fillRect(ox, px(y + h / 2 - sw / 2, dpr), gw, sw)
+    ctx.fillRect(x, px(y + h / 2 - sw / 2, dpr), w, sw)
   }
+  for (let i = from; i < to; i++) if (d.completed.has(first + i)) markDone(i, ox, gw)
 
   const cur = l.current === null ? -1 : l.current - first
+  // The stitches already worked in the current row, marked as a done row is.
+  const part = cur >= from && cur < to && d.place && !d.completed.has(l.current!) ? placeDone(l.cols, d.place) : null
+  if (part) markDone(cur, ox + part.from * l.cell, (part.to - part.from) * l.cell)
+
   if (cur >= from && cur < to) {
     // 3 px, inside the row as on the desktop when there's room; around it on short rows,
     // where an inside outline would cover the very colours it points at.

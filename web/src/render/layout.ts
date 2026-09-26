@@ -222,6 +222,22 @@ export function placeColumn(cols: number, place: RowPlace): number | null {
   return place.direction === 'RTL' ? cols - 1 - position : position
 }
 
+/** The image columns already worked in the current row, as a half-open span [from, to),
+ *  or null when none are: the segments before your place and the stitches done in it.
+ *  On a right-to-left row the span sits at the right-hand end. */
+export function placeDone(cols: number, place: RowPlace): { from: number; to: number } | null {
+  const { runs } = place
+  if (cols <= 0 || runs.length === 0) return null
+  const at = Math.max(0, place.runIndex)
+  const run = runs[Math.min(runs.length - 1, at)]!
+  const done =
+    at >= runs.length
+      ? cols
+      : Math.max(0, Math.min(cols, run.start_col + Math.max(0, Math.min(run.count, place.stitches))))
+  if (done === 0) return null
+  return place.direction === 'RTL' ? { from: cols - done, to: cols } : { from: 0, to: done }
+}
+
 /** Space kept between your place and the side of the view: three cells, at least 24 px,
  *  and never more than a quarter of the view. */
 export const followMargin = (layout: ChartLayout) => Math.min(layout.viewWidth / 4, Math.max(3 * layout.cell, 24))

@@ -12,6 +12,7 @@ import {
   followMargin,
   nearRows,
   placeColumn,
+  placeDone,
   rowHeight,
   rowInView,
   rowSpan,
@@ -336,6 +337,32 @@ describe('your place in the row stays in view across', () => {
     expect(placeColumn(100, at(99, 99, 'LTR'))).toBe(99)
     expect(placeColumn(100, at(-1, -1, 'RTL'))).toBe(99)
     expect(placeColumn(100, at(0, 0, 'LTR', []))).toBeNull()
+  })
+
+  it('spans the stitches already worked, from the row’s starting edge', () => {
+    expect(placeDone(100, at(0, 0, 'LTR'))).toBeNull()
+    expect(placeDone(100, at(0, 0, 'RTL'))).toBeNull()
+    expect(placeDone(100, at(0, 4, 'LTR'))).toEqual({ from: 0, to: 4 })
+    expect(placeDone(100, at(2, 3, 'LTR'))).toEqual({ from: 0, to: 23 })
+    expect(placeDone(100, at(2, 3, 'RTL'))).toEqual({ from: 77, to: 100 })
+    // Past the last segment, the whole row; before the first, none of it.
+    expect(placeDone(100, at(99, 0, 'LTR'))).toEqual({ from: 0, to: 100 })
+    expect(placeDone(100, at(-1, -1, 'RTL'))).toBeNull()
+    expect(placeDone(100, at(0, 0, 'LTR', []))).toBeNull()
+  })
+
+  it('ends where the next stitch to work begins', () => {
+    const cells = Uint16Array.from([0, 0, 1, 1, 1, 2])
+    for (const start_direction of ['LTR', 'RTL'] as const) {
+      const p = { rows: 1, cols: 6, cells, start_direction, alternate_direction: true, bottom_up: true } as Pattern
+      const runs = encodeRow(p, 0)
+      const place = { runs, runIndex: 1, stitches: 1, direction: start_direction }
+      const span = placeDone(6, place)!
+      const next = placeColumn(6, place)!
+      expect(next >= span.from && next < span.to).toBe(false)
+      expect(span.to - span.from).toBe(runs[0]!.count + 1)
+      expect(start_direction === 'LTR' ? span.to : span.from - 1).toBe(next)
+    }
   })
 
   it('lands on the segment’s own colour, straight from encodeRow', () => {
