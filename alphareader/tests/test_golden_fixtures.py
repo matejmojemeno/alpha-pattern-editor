@@ -1,7 +1,8 @@
-"""fixtures/logic_golden.json must match what readout.py and work.py do today.
+"""fixtures/logic_golden.json and fixtures/edit_golden.json must match what readout.py,
+work.py and edit.py do today.
 
-That file is the contract the TypeScript ports of the readout and progress logic are
-tested against. If the Python changes and the file isn't regenerated, the TS suite keeps
+Those files are the contract the TypeScript ports of the readout, progress and editing
+logic are tested against. If the Python changes and the file isn't regenerated, the TS suite keeps
 passing against the old behaviour, and the two implementations drift apart without
 anyone noticing. Failing here stops that at the source.
 """
@@ -23,18 +24,44 @@ def _generator():
 
 
 def test_committed_fixtures_match_the_python():
-    gen = _generator()
-    with open(gen.OUT, encoding="utf-8") as fh:
-        committed = fh.read()
-    assert committed == gen.render(gen.build()), (
-        "fixtures/logic_golden.json is stale: run `python scripts/gen_fixtures.py` and "
-        "commit it, then update the TypeScript port to match")
+    for path, text in _generator().outputs():
+        with open(path, encoding="utf-8") as fh:
+            committed = fh.read()
+        assert committed == text, (
+            f"{os.path.relpath(path, ROOT)} is stale: run `python scripts/gen_fixtures.py` "
+            "and commit it, then update the TypeScript port to match")
 
 
 def test_generation_is_deterministic():
-    """Two builds in one process must agree, or the staleness check above is noise."""
+    """Two builds in one process must agree, or the staleness check above is noise.
+    For edit.py that means the uuid4 ids it makes up are recorded as a marker."""
     gen = _generator()
-    assert gen.render(gen.build()) == gen.render(gen.build())
+    assert gen.outputs() == gen.outputs()
+
+
+def test_edit_fixtures_cover_every_public_function():
+    """Every public function in edit.py is recorded, and every ValueError it can raise."""
+    import inspect
+
+    from alphareader.core import edit
+    gen = _generator()
+    with open(gen.EDIT_OUT, encoding="utf-8") as fh:
+        data = json.load(fh)
+    public = {n for n, f in inspect.getmembers(edit, inspect.isfunction)
+              if not n.startswith("_") and f.__module__ == edit.__name__}
+    assert {c["fn"] for c in data["cases"]} == public
+    messages = {c.get("message") for c in data["cases"] if c.get("raises") == "ValueError"}
+    source = inspect.getsource(edit)
+    for msg in ("Border removal would leave an empty pattern.", "Cannot delete the last row.",
+                "Cannot delete the last column.", "Cannot remove the only colour.",
+                "Replacement colour must differ from the deleted one.",
+                "Scale factor must be a positive integer.",
+                "Target size must be at least the current size (this only pads)."):
+        assert msg in source and msg in messages, msg
+    assert source.count("raise ValueError") == 9, "a new ValueError path needs a fixture"
+    assert any(c.get("raises") == "KeyError" for c in data["cases"])
+    news = [c for c in data["cases"] if data["new_id"] in c.get("result", {}).get("row_ids", [])]
+    assert news, "fresh row ids are recorded"
 
 
 def test_fixtures_cover_the_awkward_states():

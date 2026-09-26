@@ -63,3 +63,60 @@ other ops take none.
   `stale-cursor` scenario, which starts from `123.0`).
 - **Labels:** an index past the end of the palette reads as `#N`, and a colour with
   an empty name gives `?` in the compact form (see the `labels` pattern).
+
+# Edit fixtures
+
+`edit_golden.json` records what `alphareader/core/edit.py` does: every public function
+(the §9 operations, insert/delete of rows and columns, `scale`, `pad_to_size` with and
+without offsets, `trim_uniform_edges`, the palette functions, `nearest_entry_id` and
+`major_border_index`), over small patterns chosen for their edge cases, including every
+`ValueError` path. `logic/edit.ts`, the Design stage's port, replays it. The same
+`gen_fixtures.py` writes it, and the same Python test fails when it's stale.
+
+## Schema
+
+```text
+{
+  format: 1,
+  new_id: "new",           # the marker for an id the edit made up (see below)
+  skip_index: 65535,
+  patterns: { <name>: Pattern },          # the inputs, with counts already correct
+  cases: [{
+    pattern: <name>,                      # the input, from `patterns`
+    fn: "pad_to_size",                    # the edit.py function
+    args: [...], kwargs: {...},           # as passed: fn(pattern, *args, **kwargs)
+    # exactly one of:
+    result: Pattern,                      # it returned a new Pattern
+    value: 2 | "pal4",                    # it returned something else
+    raises: "ValueError" | "KeyError",    # it raised; ValueErrors also have
+    message: "Cannot delete the last row."  # their message
+  }]
+}
+
+Pattern = { id, name, created_at, rows, cols, row_ids[], cells[rows][cols],
+            palette[{id, hex, name, dmc, count}],
+            start_direction, alternate_direction, bottom_up }
+```
+
+## Porting notes
+
+- **Made-up ids.** New rows (`add_border`, `insert_row`, `scale`, `pad_to_size`) and
+  new palette entries (`add_palette_entry`) get `uuid4().hex` ids, which can't be
+  recorded literally. So ids are recorded *structurally*: an id the input had stays its
+  literal value, and one it didn't becomes `"new"`. The port must produce an id that is
+  **fresh** (not among the input's ids) and **unique** (no two alike) wherever the
+  fixture says `"new"`, and exactly the recorded id everywhere else. Keeping existing
+  `row_ids` exactly is what keeps Work-stage progress valid (§4.5).
+- **Counts** are recomputed after every edit, as `_recount` does: cells whose index is
+  `SKIP_INDEX` or past the end of the palette count towards no entry.
+- **Deleting or merging an entry** shifts every index above it down by one,
+  `SKIP_INDEX` and out-of-range indices included (the `odd-indices` pattern). That is
+  what the Python does today, so the port does it too.
+- **Row and column indices are always in range** here. `edit.py` doesn't clamp them
+  (numpy wraps negative ones and raises `IndexError` past the end), and the Design stage
+  never passes anything else, so the port is free to throw on them.
+- **`updated_at` isn't recorded:** every edit stamps `time.time()` into it. The port may
+  leave it alone; saving stamps it anyway.
+- **Ties:** `major_border_index` takes the lowest index among the most common border
+  colours (`border-tie`), and `nearest_entry_id` the first of equally near entries
+  (`nearest`, whose last two entries share a hex).
