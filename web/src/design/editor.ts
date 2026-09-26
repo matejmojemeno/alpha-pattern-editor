@@ -19,6 +19,8 @@ import {
   fillRect,
   fillRow,
   floodFill,
+  insertColumn,
+  insertRow,
   nearestEntryId,
   recolorPaletteEntry,
   renamePaletteEntry,
@@ -28,20 +30,26 @@ import {
 import type { Pattern } from '../model/types.ts'
 import { emptyHistory, record, redo as redoHistory, undo as undoHistory, type History } from './history.ts'
 
-export type Tool = 'paint' | 'fill' | 'rect' | 'eyedropper' | 'row' | 'col'
+export type Tool = 'paint' | 'fill' | 'rect' | 'eyedropper' | 'row' | 'col' | 'addRow' | 'addCol'
 
-/** The tools in toolbar order, with their single-key shortcuts (design_window.py). */
-export const TOOLS: readonly { tool: Tool; label: string; key: string }[] = [
+/** The tools in toolbar order, with their single-key shortcuts (design_window.py). Adding
+ *  a row or a column is Shift with the key that fills one. */
+export const TOOLS: readonly { tool: Tool; label: string; key: string; shift?: boolean }[] = [
   { tool: 'paint', label: 'Paint', key: 'B' },
   { tool: 'fill', label: 'Fill', key: 'F' },
   { tool: 'rect', label: 'Rectangle', key: 'R' },
   { tool: 'eyedropper', label: 'Pick colour', key: 'I' },
   { tool: 'row', label: 'Fill row', key: 'H' },
   { tool: 'col', label: 'Fill column', key: 'V' },
+  { tool: 'addRow', label: 'Add row', key: 'H', shift: true },
+  { tool: 'addCol', label: 'Add column', key: 'V', shift: true },
 ]
 
-export function toolForKey(key: string): Tool | null {
-  return TOOLS.find((t) => t.key === key.toUpperCase())?.tool ?? null
+/** The tools that add a row or a column where the pointer is, rather than act on a cell. */
+export const ADD_TOOLS: Readonly<Partial<Record<Tool, 'row' | 'col'>>> = { addRow: 'row', addCol: 'col' }
+
+export function toolForKey(key: string, shift = false): Tool | null {
+  return TOOLS.find((t) => t.key === key.toUpperCase() && !!t.shift === shift)?.tool ?? null
 }
 
 export interface Cell {
@@ -156,6 +164,10 @@ export function pointerDown(s: EditorState, cell: Cell): EditorState {
       return commit({ ...s, drag: null }, fillRow(p, r, colour))
     case 'col':
       return commit({ ...s, drag: null }, fillColumn(p, c, colour))
+    case 'addRow':
+    case 'addCol':
+      // These act between cells, not on one: see `addLine`.
+      return s
   }
 }
 
@@ -201,6 +213,13 @@ export function abortDrag(s: EditorState): EditorState {
 export function structural(s: EditorState, fn: (p: Pattern) => Pattern): EditorState {
   const next = fn(s.pattern)
   return samePattern(s.pattern, next) ? s : commit({ ...s, drag: null }, next)
+}
+
+/** Add a row (before image row `at`) or a column (before column `at`) in the current
+ *  colour, as one undo step: what the Add row and Add column tools do. `at` may be the
+ *  row or column count, to add one at the end. */
+export function addLine(s: EditorState, kind: 'row' | 'col', at: number): EditorState {
+  return structural(s, (p) => (kind === 'row' ? insertRow(p, at, s.colour) : insertColumn(p, at, s.colour)))
 }
 
 // --- undo ----------------------------------------------------------------------------------

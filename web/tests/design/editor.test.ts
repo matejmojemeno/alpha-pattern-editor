@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   abortDrag,
   addColour,
+  addLine,
   cancelDrag,
   canRedo,
   canUndo,
@@ -158,10 +159,25 @@ describe('the other tools', () => {
     expect(drag(s, [at(3, 4)]).history).toBe(s.history)
   })
 
-  it('shortcuts name the tools', () => {
-    expect(['B', 'F', 'R', 'I', 'H', 'V', 'b', 'x'].map(toolForKey)).toEqual([
-      'paint', 'fill', 'rect', 'eyedropper', 'row', 'col', 'paint', null,
+  it('shortcuts name the tools; Shift with fill row or column adds one', () => {
+    expect(['B', 'F', 'R', 'I', 'H', 'V', 'b', 'h', 'x'].map((k) => toolForKey(k))).toEqual([
+      'paint', 'fill', 'rect', 'eyedropper', 'row', 'col', 'paint', 'row', null,
     ])
+    expect(['H', 'V', 'B'].map((k) => toolForKey(k, true))).toEqual(['addRow', 'addCol', null])
+  })
+
+  it('add row and add column: in the current colour, one undo step each; a press does nothing', () => {
+    const s0 = start('addRow')
+    expect(pointerDown(s0, at(1, 1))).toBe(s0)
+    let s = addLine(s0, 'row', 1)
+    expect(grid(s.pattern)).toEqual(['000000', '111111', '000000', '000000', '000000'])
+    s = addLine(selectColour(s, 2), 'row', 5) // at the end
+    s = addLine(s, 'col', 0)
+    s = addLine(s, 'col', 7) // at the end
+    expect(grid(s.pattern)).toEqual(['20000002', '21111112', '20000002', '20000002', '20000002', '22222222'])
+    expect(s.pattern.row_ids.slice(2, 5)).toEqual(s0.pattern.row_ids.slice(1))
+    expect(s.history.past).toHaveLength(4)
+    expect(grid(undo(s).pattern)[0]).toBe('2000000')
   })
 })
 

@@ -69,6 +69,26 @@ export function axisAt(
 }
 
 /**
+ * Where the Add row or Add column tool puts its row or column for a viewport point: the
+ * row (column) the point is on, which the new one goes before, so that on the preview the
+ * new one is under the pointer. Past the last, anywhere below (right of) the grid, it is
+ * the count: a row (column) added at the end. Across, the whole view counts, not only the
+ * grid. Null over the axis margins, where the numbers are.
+ *
+ * `v.rows` and `v.cols` are the pattern's size before the addition.
+ */
+export function insertAt(
+  kind: 'row' | 'col',
+  x: number,
+  y: number,
+  v: { cell: number; rows: number; cols: number; scrollX: number; scrollY: number },
+): number | null {
+  if (x < AXIS_LEFT || y < AXIS_TOP) return null
+  const i = kind === 'row' ? Math.floor((y - AXIS_TOP + v.scrollY) / v.cell) : Math.floor((x - AXIS_LEFT + v.scrollX) / v.cell)
+  return Math.max(0, Math.min(kind === 'row' ? v.rows : v.cols, i))
+}
+
+/**
  * The cell at a viewport point, or null over the margins or past the grid. With `clamp`,
  * the nearest cell instead: a drag that leaves the grid keeps to its edge.
  */

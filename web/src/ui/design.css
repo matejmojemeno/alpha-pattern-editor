@@ -578,31 +578,10 @@
   color: var(--warn);
 }
 
-.structure__apply,
-.structure__buttons {
+.structure__apply {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
-}
-
-.structure__line {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.structure__line .structure__field {
-  flex-direction: row;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.structure__line .structure__field span {
-  width: 3.75rem;
-}
-
-.structure__line input {
-  width: 5rem;
 }
 
 /* --- the preview note and the row/column menu --------------------------------------------------------- */

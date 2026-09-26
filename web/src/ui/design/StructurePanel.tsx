@@ -1,7 +1,8 @@
 /**
  * The Design stage's structural panel (§6.2, §9; design_window.py `_structural_panel`):
- * borders, pad to size, scale, mirror, flip, rotate a quarter turn either way, trim, and
- * inserting and deleting rows and columns.
+ * borders, pad to size, scale, mirror, flip, rotate a quarter turn either way, and trim.
+ * Rows and columns are added with the Add row and Add column tools, and deleted from the
+ * menu on their numbers (screens/Design.tsx).
  *
  * The form lives in the Design screen (design/structureForm.ts), because the border and padding
  * sections drive the canvas: while one is open with something to add or remove, the
@@ -12,7 +13,7 @@
 import { useId, type ReactNode } from 'react'
 
 import { SCALE_MAX, SCALE_MIN, scaledSize } from '../../design/structure.ts'
-import { parseWhole, rowForNumber, type Section, type StructureForm } from '../../design/structureForm.ts'
+import { parseWhole, type Section, type StructureForm } from '../../design/structureForm.ts'
 import { MAX_SIDE } from '../../logic/edit.ts'
 import type { Pattern } from '../../model/types.ts'
 
@@ -37,8 +38,6 @@ export interface StructurePanelProps {
   onPad: () => void
   onScale: () => void
   transforms: readonly TransformAction[]
-  onRow: (action: 'above' | 'below' | 'delete', row: number) => void
-  onCol: (action: 'left' | 'right' | 'delete', col: number) => void
 }
 
 const SIDES = ['top', 'right', 'bottom', 'left'] as const
@@ -123,10 +122,6 @@ export function StructurePanel(props: StructurePanelProps) {
       border: f.border.linked ? { ...f.border, top: v, right: v, bottom: v, left: v } : { ...f.border, [side]: v },
     }))
   const scaled = scaledSize(p, form.scale)
-  const rowN = parseWhole(form.row)
-  const colN = parseWhole(form.col)
-  const rowOk = rowN !== null && rowN >= 1 && rowN <= p.rows
-  const colOk = colN !== null && colN >= 1 && colN <= p.cols
 
   return (
     <section className="structure" aria-labelledby={`${id}-heading`}>
@@ -328,71 +323,6 @@ export function StructurePanel(props: StructurePanelProps) {
             Scale ×{form.scale}
           </button>
         </div>
-      </Disclosure>
-
-      <Disclosure section="rows" title="Rows and columns" form={form} onForm={onForm}>
-        <p className="structure__hint muted">Or press a row or column number on the chart.</p>
-        <div className="structure__line">
-          <label className="structure__field">
-            <span>Row</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={p.rows}
-              value={form.row}
-              aria-invalid={!rowOk}
-              onChange={(e) => onForm((f) => ({ ...f, row: e.target.value }))}
-            />
-          </label>
-          <div className="structure__buttons">
-            <button type="button" className="button button--small" disabled={!rowOk} onClick={() => props.onRow('above', rowForNumber(p, rowN!))}>
-              Insert above
-            </button>
-            <button type="button" className="button button--small" disabled={!rowOk} onClick={() => props.onRow('below', rowForNumber(p, rowN!))}>
-              Insert below
-            </button>
-            <button
-              type="button"
-              className="button button--small button--danger-quiet"
-              disabled={!rowOk}
-              onClick={() => props.onRow('delete', rowForNumber(p, rowN!))}
-            >
-              Delete row
-            </button>
-          </div>
-        </div>
-        <div className="structure__line">
-          <label className="structure__field">
-            <span>Column</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={p.cols}
-              value={form.col}
-              aria-invalid={!colOk}
-              onChange={(e) => onForm((f) => ({ ...f, col: e.target.value }))}
-            />
-          </label>
-          <div className="structure__buttons">
-            <button type="button" className="button button--small" disabled={!colOk} onClick={() => props.onCol('left', colN! - 1)}>
-              Insert left
-            </button>
-            <button type="button" className="button button--small" disabled={!colOk} onClick={() => props.onCol('right', colN! - 1)}>
-              Insert right
-            </button>
-            <button
-              type="button"
-              className="button button--small button--danger-quiet"
-              disabled={!colOk}
-              onClick={() => props.onCol('delete', colN! - 1)}
-            >
-              Delete column
-            </button>
-          </div>
-        </div>
-        <p className="structure__hint muted">New rows and columns are the colour you’re painting with.</p>
       </Disclosure>
     </section>
   )
