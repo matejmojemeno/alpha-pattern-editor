@@ -19,12 +19,15 @@ controls make it, then preview → pattern_from_preview. A correction is one of:
     remove=#rrggbb            a colour removed from the list (the web app only): after the
                               other corrections, in order, the entry nearest #rrggbb within
                               half the merge threshold is deleted as Design's Delete does
-                              (edit.delete_palette_entry_nearest); none that near, skipped
+                              (edit.delete_palette_entry_nearest); none that near, skipped.
+                              The colours left are then named again (detect/names.py),
+                              as the web's importer/removals.ts does
 
 Detection always runs at the slider's current ΔE, as the desktop's does.
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 import sys
 from pathlib import Path
@@ -37,6 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from alphareader.core import edit, io  # noqa: E402
 from alphareader.core.confirm import ConfirmState, Extent, pattern_from_preview  # noqa: E402
 from alphareader.core.detect import detect_pattern  # noqa: E402
+from alphareader.core.detect.names import simple_names  # noqa: E402
 from alphareader.core.detect.palette import DEFAULT_DELTA_E, hex_to_rgb, srgb_to_lab  # noqa: E402
 from alphareader.core.model import DetectionError  # noqa: E402
 
@@ -93,8 +97,12 @@ def detect(path: str, *corrections: str) -> dict:
     except DetectionError as e:
         return {"ok": False, "code": e.code}
     p = pattern_from_preview(state.preview(), "x")
+    before = len(p.palette)
     for hex_str in removals:
         p = _remove(p, hex_str, delta_e / 2)
+    if len(p.palette) < before:
+        names = simple_names([e.hex for e in p.palette])
+        p = dataclasses.replace(p, palette=[dataclasses.replace(e, name=n) for e, n in zip(p.palette, names)])
     return {"ok": True, **_pattern(p)}
 
 

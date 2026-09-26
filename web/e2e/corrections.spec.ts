@@ -155,21 +155,21 @@ test('a colour removed before the outline moves stays removed, and matches the d
   expect(await list.evaluate((el) => el.scrollWidth <= el.clientWidth && getComputedStyle(el).overflowX === 'visible')).toBe(true)
 
   // Pointing at a colour shows where it is used.
-  const beige = list.getByRole('button', { name: /^Dark Beige Grey, #[0-9a-f]{6}, 1129 stitches/ })
+  const beige = list.getByRole('button', { name: /^Beige, #[0-9a-f]{6}, 1129 stitches/ })
   await beige.hover()
-  await expect(page.getByRole('img', { name: /showing where Dark Beige Grey is used$/ })).toBeVisible()
+  await expect(page.getByRole('img', { name: /showing where Beige is used$/ })).toBeVisible()
   const hex = /#[0-9a-f]{6}/.exec((await beige.getAttribute('aria-label'))!)![0]
 
-  await page.getByRole('button', { name: 'Remove “Dark Beige Grey”' }).click()
+  await page.getByRole('button', { name: 'Remove “Beige”' }).click()
   await expect(page.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeVisible()
-  await expect(list.getByRole('button', { name: /^Ecru, #[0-9a-f]{6}, 2353 stitches/ })).toBeVisible()
+  await expect(list.getByRole('button', { name: /^Cream, #[0-9a-f]{6}, 2353 stitches/ })).toBeVisible()
 
   // The outline moves (a fresh palette, fresh ids), and the colour stays removed.
   await page.getByRole('slider', { name: 'Top edge of the grid' }).focus()
   await page.keyboard.press('ArrowDown')
   await showing(page, 100, 44)
   await expect(page.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Restore “Dark Beige Grey”' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Restore “Beige”' })).toBeVisible()
   const want = await expectDesktop(page, testInfo, 'Cats less beige', CATS, [`extent=${await extentShown(page)}`, 'rows=44', 'cols=100', `remove=${hex}`])
   expect(want.palette).toHaveLength(2)
 })
@@ -181,16 +181,16 @@ test.describe('on a phone', () => {
     await importImage(page, CATS)
     await showing(page, 100, 45)
     await page.getByRole('tab', { name: 'Colours, 3 colours' }).tap()
-    const ecru = page.getByRole('button', { name: /^Ecru,/ })
-    await ecru.tap()
-    await expect(ecru).toHaveAttribute('aria-pressed', 'true')
+    const cream = page.getByRole('button', { name: /^Cream,/ })
+    await cream.tap()
+    await expect(cream).toHaveAttribute('aria-pressed', 'true')
     await page.getByRole('tab', { name: 'Pattern' }).tap()
-    await expect(page.getByRole('img', { name: /showing where Ecru is used$/ })).toBeVisible()
+    await expect(page.getByRole('img', { name: /showing where Cream is used$/ })).toBeVisible()
     await page.getByRole('button', { name: 'Show all colours' }).tap()
     await expect(page.getByRole('img', { name: /^The detected pattern: 100 columns by 45 rows$/ })).toBeVisible()
 
     await page.getByRole('tab', { name: /^Colours/ }).tap()
-    const remove = page.getByRole('button', { name: 'Remove “Dark Beige Grey”' })
+    const remove = page.getByRole('button', { name: 'Remove “Beige”' })
     await expect(remove).toHaveCSS('opacity', '1') // no hover to reveal it on a phone
     await remove.tap()
     await expect(page.getByRole('tab', { name: 'Colours, 2 colours' })).toBeVisible()
