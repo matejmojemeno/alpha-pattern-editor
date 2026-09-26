@@ -237,3 +237,109 @@ def test_deleting_a_colour_leaves_indices_past_the_palette_alone():
     q = edit.merge_palette_entries(p, "p2", "p1")
     assert q.cells.tolist() == [[0, 1, 1], [7, 3, 0]]
     assert sum(e.count for e in q.palette) == 4
+
+
+# --- rotate_90 ---------------------------------------------------------------
+
+def _rot_pattern():
+    # 2 rows x 3 cols, every cell different, so any wrong mapping shows
+    return _pattern([[0, 1, 2], [3, 4, 5]], ncolors=6)
+
+
+def test_rotate_90_swaps_the_shape():
+    p = _rot_pattern()
+    for cw in (True, False):
+        q = edit.rotate_90(p, clockwise=cw)
+        assert (q.rows, q.cols) == (3, 2) and q.cells.shape == (3, 2)
+        assert len(q.row_ids) == 3
+
+
+def test_rotate_90_clockwise_cell_mapping():
+    """Seen with row 0 at the top: the top row becomes the right-hand column, top to
+    bottom; the bottom-left cell becomes the top-left one."""
+    q = edit.rotate_90(_rot_pattern(), clockwise=True)
+    assert q.cells.tolist() == [[3, 0], [4, 1], [5, 2]]
+
+
+def test_rotate_90_anticlockwise_cell_mapping():
+    """The top row becomes the left-hand column, bottom to top; the top-right cell
+    becomes the top-left one."""
+    q = edit.rotate_90(_rot_pattern(), clockwise=False)
+    assert q.cells.tolist() == [[2, 5], [1, 4], [0, 3]]
+
+
+def test_rotate_90_default_is_clockwise():
+    p = _rot_pattern()
+    assert np.array_equal(edit.rotate_90(p).cells, edit.rotate_90(p, clockwise=True).cells)
+
+
+def test_rotate_90_round_trips():
+    p = _rot_pattern()
+    q = p
+    for _ in range(4):
+        q = edit.rotate_90(q, clockwise=True)
+    assert np.array_equal(q.cells, p.cells)
+    back = edit.rotate_90(edit.rotate_90(p, clockwise=True), clockwise=False)
+    assert np.array_equal(back.cells, p.cells)
+    back = edit.rotate_90(edit.rotate_90(p, clockwise=False), clockwise=True)
+    assert np.array_equal(back.cells, p.cells)
+
+
+def test_rotate_90_twice_is_rotate_180():
+    p = _rot_pattern()
+    twice = edit.rotate_90(edit.rotate_90(p))
+    assert np.array_equal(twice.cells, edit.rotate_180(p).cells)
+    twice = edit.rotate_90(edit.rotate_90(p, clockwise=False), clockwise=False)
+    assert np.array_equal(twice.cells, edit.rotate_180(p).cells)
+
+
+def test_rotate_90_gives_fresh_unique_row_ids_and_keeps_the_rest():
+    p = _rot_pattern()
+    p.start_direction, p.alternate_direction, p.bottom_up = "LTR", False, False
+    q = edit.rotate_90(p)
+    assert len(set(q.row_ids)) == q.rows
+    assert not set(q.row_ids) & set(p.row_ids)
+    assert [e.id for e in q.palette] == [e.id for e in p.palette]
+    assert (q.id, q.name, q.created_at) == (p.id, p.name, p.created_at)
+    assert (q.start_direction, q.alternate_direction, q.bottom_up) == ("LTR", False, False)
+
+
+def test_rotate_90_keeps_counts():
+    p = _pattern([[0, 0, 1], [2, 0, 1]])
+    before = [e.count for e in edit.rotate_180(p).palette]
+    for cw in (True, False):
+        q = edit.rotate_90(p, clockwise=cw)
+        assert [e.count for e in q.palette] == before == [3, 2, 1]
+        assert len(q.palette) == len(p.palette)
+
+
+def test_rotate_90_single_row_and_column():
+    row = _pattern([[0, 1, 2]])
+    q = edit.rotate_90(row, clockwise=True)
+    assert q.cells.tolist() == [[0], [1], [2]] and (q.rows, q.cols) == (3, 1)
+    q = edit.rotate_90(row, clockwise=False)
+    assert q.cells.tolist() == [[2], [1], [0]]
+    col = _pattern([[0], [1], [2]])
+    q = edit.rotate_90(col, clockwise=True)
+    assert q.cells.tolist() == [[2, 1, 0]] and (q.rows, q.cols) == (1, 3)
+    assert len(q.row_ids) == 1
+    q = edit.rotate_90(col, clockwise=False)
+    assert q.cells.tolist() == [[0, 1, 2]]
+
+
+def test_rotate_90_carries_skip_and_out_of_range_indices():
+    from ..core.model import SKIP_INDEX
+    p = _pattern([[0, SKIP_INDEX, 7], [2, 1, 0]])
+    q = edit.rotate_90(p, clockwise=True)
+    assert q.cells.tolist() == [[2, 0], [1, SKIP_INDEX], [0, 7]]
+    q = edit.rotate_90(p, clockwise=False)
+    assert q.cells.tolist() == [[7, 0], [SKIP_INDEX, 1], [0, 2]]
+
+
+def test_rotate_90_does_not_mutate_its_input():
+    p = _rot_pattern()
+    cells, ids, counts = p.cells.copy(), list(p.row_ids), [e.count for e in p.palette]
+    edit.rotate_90(p)
+    edit.rotate_90(p, clockwise=False)
+    assert np.array_equal(p.cells, cells) and p.row_ids == ids
+    assert [e.count for e in p.palette] == counts and (p.rows, p.cols) == (2, 3)

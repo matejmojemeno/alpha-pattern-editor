@@ -367,6 +367,12 @@ def edit_calls() -> list[tuple[str, str, list, dict]]:
     for fn in ("mirror_h", "mirror_v", "rotate_180"):
         for name in ("framed", "random", "single-row", "single-column", "single-cell"):
             add(name, fn)
+    # Quarter turns: every row is new (NEW_ID), the shape swaps.
+    for name in ("framed", "random", "single-row", "single-column", "single-cell",
+                 "odd-indices"):
+        add(name, "rotate_90")                                     # clockwise by default
+        add(name, "rotate_90", clockwise=True)
+        add(name, "rotate_90", clockwise=False)
 
     add("framed", "recolor_palette_entry", "pal1", "#123456")
     add("framed", "recolor_palette_entry", "missing", "#123456")   # unknown id: a copy
