@@ -33,6 +33,19 @@ test('the main entry chunk has no Pyodide and is within budget', () => {
   // nor the Design stage, which a phone following a pattern never needs.
   expect(html).not.toMatch(/client-|worker-|Import-|Design-/)
   expect(assets().some((f) => /^Design-.*\.js$/.test(f))).toBe(true)
+  // Nor any colour library (src/yarn/data/): each is its own chunk, fetched when shown.
+  expect(html).not.toMatch(/dmc-|stylecraft-|paintbox-|scheepjes-/)
+  for (const [lib, shade] of [
+    ['dmc', 'Dark Coffee Brown'],
+    ['stylecraft-special-dk', 'Hint of Silver'],
+    ['paintbox-simply-dk', 'Elephant Grey'],
+    ['scheepjes-colour-crafter', 'Ommen'],
+  ] as const) {
+    expect(main, shade).not.toContain(shade)
+    const chunk = assets().find((f) => f.startsWith(`${lib}-`) && f.endsWith('.js'))
+    expect(chunk, lib).toBeTruthy()
+    expect(read(chunk!)).toContain(shade)
+  }
   const gz = gzipSync(readFileSync(join(DIST, 'assets', entry!))).length
   console.log(`main entry chunk: ${(gz / 1024).toFixed(1)} KB gzipped`)
   expect(gz).toBeLessThan(MAIN_BUDGET_GZIP)
