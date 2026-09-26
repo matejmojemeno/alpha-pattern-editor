@@ -27,17 +27,57 @@ describe('Landing screen', () => {
     for (const t of ['.alpha', '.png', '.jpg', '.webp', 'image/jpeg']) expect(accept).toContain(t)
 
     const design = screen.getByRole('button', { name: /Design pattern/ })
-    expect(design.getAttribute('aria-disabled')).toBe('true')
-    expect(design.textContent).toMatch(/Coming later/)
+    expect(design.textContent).toMatch(/blank grid/)
 
     expect(screen.getByRole('link', { name: /Library/ }).getAttribute('href')).toBe('#/library')
     expect(screen.getByRole('link', { name: /Settings/ }).getAttribute('href')).toBe('#/settings')
   })
 
-  it('does nothing when the disabled Design tile is pressed', async () => {
-    await renderApp('#/')
+  it('designs a new pattern: size and colour, saved, then opened in the Design stage', async () => {
+    const { repo } = await renderApp('#/')
+    const user = userEvent.setup()
+    await waitFor(() => expect((screen.getByRole('button', { name: /Design pattern/ }) as HTMLButtonElement).disabled).toBe(false))
+    await user.click(screen.getByRole('button', { name: /Design pattern/ }))
+    const dialog = screen.getByRole('dialog', { name: 'New pattern' })
+    expect(document.activeElement).toBe(within(dialog).getByLabelText('Name'))
+
+    // A size out of range can't be created.
+    const cols = within(dialog).getByLabelText('Columns')
+    await user.clear(cols)
+    await user.type(cols, '1000')
+    const create = within(dialog).getByRole('button', { name: 'Create' }) as HTMLButtonElement
+    expect(create.disabled).toBe(true)
+    expect(dialog.textContent).toMatch(/1 to 999/)
+
+    await user.clear(cols)
+    await user.type(cols, '12')
+    const rows = within(dialog).getByLabelText('Rows')
+    await user.clear(rows)
+    await user.type(rows, '7')
+    const name = within(dialog).getByLabelText('Name')
+    await user.clear(name)
+    await user.type(name, 'Bookmark')
+    fireEvent.input(within(dialog).getByLabelText('Colour'), { target: { value: '#336699' } })
+    expect(dialog.textContent).toMatch(/84 stitches, 13 strings needed/)
+    await user.click(create)
+
+    await waitFor(() => expect(window.location.hash).toMatch(/^#\/design\/[0-9a-f]{32}$/))
+    const id = window.location.hash.split('/').at(-1)!
+    const { project } = await repo.open(id)
+    expect(project.stage).toBe('design')
+    expect(project.pattern).toMatchObject({ name: 'Bookmark', cols: 12, rows: 7 })
+    expect(project.pattern.palette).toEqual([expect.objectContaining({ hex: '#336699', count: 84 })])
+    expect(new Set(project.pattern.row_ids).size).toBe(7)
+  })
+
+  it('cancels the new-pattern dialog without creating anything', async () => {
+    const { repo } = await renderApp('#/')
+    await waitFor(() => expect((screen.getByRole('button', { name: /Design pattern/ }) as HTMLButtonElement).disabled).toBe(false))
     await userEvent.click(screen.getByRole('button', { name: /Design pattern/ }))
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).toBeNull()
     expect(window.location.hash).toBe('#/')
+    expect(await repo.list()).toEqual([])
   })
 
   it('counts the projects in the Library', async () => {

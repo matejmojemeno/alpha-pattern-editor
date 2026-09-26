@@ -71,6 +71,12 @@ describe('Library', () => {
     await waitFor(() => expect(window.location.hash).toBe(`#/work/${idOf('basic.alpha')}`))
   })
 
+  it('offers designing a new pattern', async () => {
+    await withProjects('basic.alpha')
+    await userEvent.click(screen.getByRole('button', { name: 'Design pattern…' }))
+    expect(screen.getByRole('dialog', { name: 'New pattern' })).toBeTruthy()
+  })
+
   it('deletes only after confirmation', async () => {
     const { repo } = await withProjects('basic.alpha')
     const user = userEvent.setup()
