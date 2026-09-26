@@ -29,8 +29,12 @@ reference.
 - `src/model/`: TypeScript mirrors of `alphareader/core/model.py` (and readout's `Run`),
   plus the JSON documents inside a `.alpha` archive. Fields stay snake_case, to match the
   Python and the files on disk.
-- `src/logic/`: `readout.ts` and `work.ts`, ports of `readout.py` and `work.py`.
-  The Python is the spec. `tests/golden.test.ts` replays `../fixtures/logic_golden.json`.
+- `src/logic/`: `readout.ts`, `work.ts` and `edit.ts`, ports of `readout.py`, `work.py`
+  and `edit.py`. The Python is the spec. `tests/golden.test.ts` replays
+  `../fixtures/logic_golden.json`, and `tests/edit.golden.test.ts`
+  `../fixtures/edit_golden.json`.
+- `src/design/`: the Design stage's editing state as pure functions: the tools' pointer
+  logic and the current colour (`editor.ts`), and undo (`history.ts`).
 - `src/storage/`: `.alpha` archives (`alpha.ts`, `npy.ts`, `pyjson.ts`), IndexedDB
   (`db.ts`) and the repository the UI will use (`repo.ts`). Compatibility with the
   desktop format is tested in both directions; see `../fixtures/alpha/README.md`.
@@ -39,15 +43,17 @@ reference.
 - `src/settings/`: display preferences in `localStorage`, typed and fail-safe.
 - `src/theme/`: `tokens.css` (the port of `theme.py`) and `contrastOn()`.
 - `src/ui/`: the screens (landing, Library, Settings, Work, and the lazily loaded
-  import screen) and shared components.
+  import screen and Design stage) and shared components.
 - `src/detect/`: the Pyodide boundary. `worker.ts` runs `alphareader/core/bridge.py` in
   a module worker; `client.ts` is the app's side of it; `protocol.ts` the messages.
 - `src/importer/`: the import screen's logic: decoding images, the failure hints, the
   letterboxed crop mapping (`letterbox.ts`) and the controls' ranges (`controls.ts`).
   Its components are in `src/ui/import/`.
 
-Routing uses the URL hash (`#/library`, `#/work/<id>`): the part after `#` never reaches
-the server, so deep links survive a refresh on any static host with no fallback rule.
+Routing uses the URL hash (`#/library`, `#/work/<id>`, `#/design/<id>`): the part after
+`#` never reaches the server, so deep links survive a refresh on any static host with no
+fallback rule. Library cards link to `#/open/<id>`, which replaces itself with the stage
+the project opens in (§6.4: Work if there is progress, otherwise the stage it was last in).
 
 Nothing in `src/logic/` or `src/storage/`, nor anything `src/main.tsx` loads statically,
 may reach Pyodide or `src/detect/`: the app shell gets there only by `import()`, through

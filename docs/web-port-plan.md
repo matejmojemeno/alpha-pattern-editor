@@ -9,9 +9,48 @@ root. This document covers *how* the app moves to the web, not *what* it does.
 | Phase | State |
 |---|---|
 | 0 — core preparation | **done** |
-| 1 — Library + Work + storage | **in progress**: storage, logic, app shell, Library and Work stage done; `newPattern` and the design-from-blank dialog remain |
+| 1 — Library + Work + storage | **done** (`newPattern` and its dialog landed with Phase 3, part 1) |
 | 2 — Import wizard + Pyodide | **done**: part 1 (the worker boundary and a minimal photo import, end to end) and part 2 (the correction controls, the shrink rule, the watchdog) |
-| 3 — Design stage | not started |
+| 3 — Design stage | **in progress**: part 1 (the editing logic and the Design screen) done; part 2 (the structural panel, PNG export, the tablet layout) remains |
+
+What Phase 3, part 1 delivered:
+
+- **`edit.py` in TypeScript** (`web/src/logic/edit.ts`): pure and copy-on-write. Existing
+  `row_ids` are kept exactly and new rows get fresh ids, so Work-stage progress survives
+  edits; counts are recomputed as `_recount` does. `fixtures/edit_golden.json` records
+  every public function in `edit.py` (146 calls over 11 patterns, the `ValueError` paths
+  included), with made-up ids recorded as `"new"` and checked fresh and unique.
+  `pad_to_size` takes `offset_left`/`offset_top` (Python and TS), defaulting to today's
+  centring.
+- **Designing from blank:** `newPattern(cols, rows, hex)` and a size-and-colour dialog,
+  from the Landing screen's "Design pattern" and the Library.
+- **The Design stage** at `#/design/<id>`, loaded lazily, desktop-first:
+  - A Canvas 2D chart drawn from an offscreen image of the cells, blitting only what is
+    in view, with gridlines and row (working order) and column numbers. Zoom with
+    Ctrl/⌘ + wheel about the pointer, `+`/`−` or Fit, shown as px per cell. At 200×200
+    every frame stays at 16.7 ms while painting and scrolling, at 4× CPU throttling too.
+  - Paint `B`, fill `F`, rectangle `R` (previewed while dragged, Escape drops it),
+    eyedropper `I`, fill row `H`, fill column `V`, on pointer events. A fast drag paints a
+    joined-up line.
+  - Colours with name, hex and count: select, add, recolour, rename, and delete into the
+    nearest colour (never the last one).
+  - Undo/redo (`Cmd/Ctrl+Z`, `Cmd/Ctrl+Shift+Z`, `Ctrl+Y`, and buttons). A drag-paint
+    stroke is one step, taken the first time a cell changes, and any edit that changes
+    nothing records nothing (`design/editor.ts`).
+  - **Undo keeps whole-pattern snapshots,** as on the desktop, not diffs. Measured
+    (`web/scripts/undo-bench.ts`): a 200×200 snapshot is 78 KB, 50 of them 3.8 MB, and an
+    edit's copy ~0.1 ms. The stack stops at 50 steps or 32 MB, which only bites on huge
+    patterns (999×999: 1.9 MB each, 16 steps kept).
+  - A bottom bar with the size, stitches, colours and strings needed. Saved automatically,
+    as a Design-stage project, with progress carried through untouched.
+- **Moving between stages (§6.4):** "Start working →" in Design and "Edit pattern…" in the
+  Work stage's Options menu each save the new stage, then open it; the stage arriving waits
+  for that save (`app/saving.ts`). Design warns "You're N rows into this project…" when
+  there is progress. Library cards open Work if there's progress, otherwise the stage the
+  project was last in, so desktop files saved in Design with no progress now open there.
+- Tier A: the main entry chunk is 95.7 KB gzipped (92.9 KB before); the Design stage is a
+  lazy 6.5 KB (+1.2 KB CSS) chunk that the Work stage never loads. Neither stage makes a
+  Pyodide request (`e2e/design.spec.ts`).
 
 **Hardening before hosting** (after Phase 2, one PR):
 
@@ -146,10 +185,14 @@ break without noticing.
 - **After any change to `alphareader/core/detect`, run `python scripts/parity/check.py`.**
   It must report 89/89 bit-identical. It exits non-zero otherwise. Run `npm install` in
   `scripts/parity/` once first.
-- **The Python is the spec for readout and progress.** If `readout.ts`/`work.ts` disagree
-  with `fixtures/logic_golden.json`, the TypeScript is wrong. If you change `readout.py`
-  or `work.py`, run `python scripts/gen_fixtures.py` and commit the result;
-  `test_golden_fixtures.py` fails until you do.
+- **The Python is the spec for readout, progress and editing.** If `readout.ts`/`work.ts`
+  disagree with `fixtures/logic_golden.json`, or `edit.ts` with `fixtures/edit_golden.json`,
+  the TypeScript is wrong. If you change `readout.py`, `work.py` or `edit.py`, run
+  `python scripts/gen_fixtures.py` and commit the result; `test_golden_fixtures.py` fails
+  until you do.
+- **Edits never renumber rows.** `edit.ts` keeps every existing `row_id` exactly and gives
+  only new rows fresh ids; progress is a set of row ids, so that is what keeps the Work
+  stage's place across a trip to Design.
 - **Out-of-range indices clamp, they don't throw.** The fixtures pass negative and
   too-large indices on purpose.
 - **Do not "fix" the `start_direction` default asymmetry.** `io.py` defaults it to `"LTR"`
@@ -166,8 +209,9 @@ break without noticing.
 - **The Work chart lays out rows with per-row heights, never a single cell size.**
   Scrolling long charts and the taller current row both depend on it (see Phase 1), and
   retrofitting it later means redoing the layout.
-- **The Work stage makes zero Pyodide requests.** Keeping Pyodide out of the Work stage is
-  what makes the app usable on a phone. Treat any regression here as a bug.
+- **The Work and Design stages make zero Pyodide requests.** Keeping Pyodide out of the
+  Work stage is what makes the app usable on a phone, and Design has no use for it
+  either since `edit.py` moved to TypeScript. Treat any regression here as a bug.
 - **The Python suite has one known failure,** `test_edge_numbers_all_sides`: a 44×5 chart
   whose dimensions come out one column short. It's documented in `test_images/README.md`.
   Any other failure is new.
@@ -277,8 +321,8 @@ written.
    - Corpus accuracy is unchanged.
 4. **`scripts/gen_fixtures.py`** writes `fixtures/logic_golden.json`: 15 patterns and
    1,347 progress steps. It covers all 8 direction/numbering combinations, clamped
-   out-of-range indices, stale cursors and partial stitches. `edit.py` fixtures aren't
-   included yet; add them when Phase 3 starts.
+   out-of-range indices, stale cursors and partial stitches. Since Phase 3 it also writes
+   `fixtures/edit_golden.json` for `edit.py`.
 
 Also landed in this phase:
 - **Case-119 fix.** The palette used to silently drop rare colours on sparse charts. It
