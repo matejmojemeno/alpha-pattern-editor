@@ -193,7 +193,8 @@ describe('what the screen shows', () => {
   it('lists each colour on its own colour, in black or white', async () => {
     await openImport()
     const [white, brown] = within(screen.getByRole('list', { name: 'Colours' })).getAllByRole('listitem')
-    expect(white!.textContent).toBe('6 White stitches')
+    expect(white!.querySelector('.palette__name')!.textContent).toBe('White')
+    expect(white!.querySelector('.palette__count')!.textContent).toBe('6')
     expect(white!.style.color).toBe('rgb(0, 0, 0)')
     expect(brown!.style.color).toBe('rgb(255, 255, 255)')
   })
