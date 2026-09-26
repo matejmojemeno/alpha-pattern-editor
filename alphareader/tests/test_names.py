@@ -1,0 +1,83 @@
+"""Everyday colour names (core/detect/names.py): plain when a name is used once, told
+apart when it isn't, and never two the same."""
+from __future__ import annotations
+
+import json
+import os
+
+import numpy as np
+import pytest
+
+from alphareader.core.detect.names import ciede2000, simple_names
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def test_one_of_a_kind_keeps_the_plain_name():
+    assert simple_names(["#c6e3ee", "#ffffff"]) == ["Blue", "White"]
+    assert simple_names(["#610023"]) == ["Burgundy"]
+    assert simple_names(["#06c2ac", "#e50000", "#15b01a"]) == ["Turquoise", "Red", "Green"]
+
+
+def test_two_of_a_kind_are_dark_and_light():
+    assert simple_names(["#8ab8e8", "#1a2a80"]) == ["Light blue", "Dark blue"]
+
+
+def test_three_of_a_kind():
+    assert simple_names(["#232812", "#4b503a", "#333822"]) == ["Dark olive", "Light olive", "Olive"]
+
+
+def test_the_report_that_everything_was_dark_blue():
+    # The palette the owner saw named "Dark Blue" three times (820b in dmc.json).
+    names = simple_names(["#090389", "#d1309e", "#74b9e5", "#c6e3ee", "#513acb", "#7b4fa8"])
+    assert names == ["Dark blue", "Magenta", "Light blue", "Very light blue", "Blue", "Purple"]
+
+
+def test_neutrals_are_black_white_and_greys():
+    assert simple_names(["#010101", "#151718", "#313131", "#ffffff"]) == \
+        ["Black", "Dark grey", "Grey", "White"]
+    assert simple_names(["#000000", "#ffffff"]) == ["Black", "White"]
+
+
+def test_same_lightness_different_strength_is_bright_and_muted():
+    assert simple_names(["#dc1e30", "#ad3a3a"]) == ["Bright red", "Muted red"]
+
+
+def test_more_than_five_are_numbered_from_the_darkest():
+    greys = ["#{0:02x}{0:02x}{0:02x}".format(v) for v in (150, 70, 110, 190, 90, 130, 170)]
+    assert simple_names(greys) == ["Grey 5", "Grey 1", "Grey 3", "Grey 7", "Grey 2", "Grey 4", "Grey 6"]
+
+
+@pytest.mark.parametrize("seed", range(20))
+def test_names_are_always_different(seed):
+    rng = np.random.default_rng(seed)
+    for n in (2, 5, 12, 40):
+        hexes = ["#{:02x}{:02x}{:02x}".format(*c) for c in rng.integers(0, 256, size=(n, 3))]
+        names = simple_names(hexes)
+        assert len(set(names)) == n, names
+        assert all(names)
+
+
+def test_ciede2000_matches_sharmas_test_data():
+    # The first pairs of Sharma, Wu and Dalal's table ("The CIEDE2000 color-difference
+    # formula: implementation notes, supplementary test data...", 2005).
+    pairs = [
+        ((50.0, 2.6772, -79.7751), (50.0, 0.0, -82.7485), 2.0425),
+        ((50.0, 3.1571, -77.2803), (50.0, 0.0, -82.7485), 2.8615),
+        ((50.0, 2.8361, -74.0200), (50.0, 0.0, -82.7485), 3.4412),
+        ((50.0, -1.3802, -84.2814), (50.0, 0.0, -82.7485), 1.0000),
+        ((50.0, 0.0, 0.0), (50.0, -1.0, 2.0), 2.3669),
+        ((50.0, 2.49, -0.001), (50.0, -2.49, 0.0009), 7.1792),
+        ((60.2574, -34.0099, 36.2677), (60.4626, -34.1751, 39.4387), 1.2644),
+        ((22.7233, 20.0904, -46.6940), (23.0331, 14.9730, -42.5619), 2.0373),
+        ((90.8027, -2.0831, 1.4410), (91.1528, -1.6435, 0.0447), 1.4441),
+        ((2.0776, 0.0795, -1.1350), (0.9033, -0.0636, -0.5514), 0.9082),
+    ]
+    for x, y, want in pairs:
+        assert ciede2000(x, y) == pytest.approx(want, abs=1e-4)
+
+
+def test_the_two_copies_of_the_name_table_are_the_same():
+    with open(os.path.join(ROOT, "alphareader", "core", "detect", "colour_names.json")) as a, \
+            open(os.path.join(ROOT, "web", "src", "importer", "colour-names.json")) as b:
+        assert json.load(a) == json.load(b)

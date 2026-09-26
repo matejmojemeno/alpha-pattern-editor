@@ -8,6 +8,7 @@ from importlib import resources
 
 import numpy as np
 from ._nd import complete_linkage_labels
+from .names import simple_names
 
 from ..model import PaletteEntry
 
@@ -167,16 +168,18 @@ def build_palette(
         remap[old_idx] = new_idx
     index_grid = remap[nearest].reshape(rows, cols).astype(np.uint16)
 
+    # Named in everyday words, told apart within the palette (names.py). The nearest DMC
+    # floss is still recorded in `dmc`, as .alpha files have always carried it.
     dmc_lab, dmc_entries = _load_dmc()
+    hexes = ["#{:02x}{:02x}{:02x}".format(*np.clip(np.round(centroids[old_idx]), 0, 255).astype(int))
+             for old_idx in order]
     palette: list[PaletteEntry] = []
-    for old_idx in order:
-        centroid_u8 = np.clip(np.round(centroids[old_idx]), 0, 255).astype(int)
-        hex_str = "#{:02x}{:02x}{:02x}".format(*centroid_u8)
+    for old_idx, hex_str, name in zip(order, hexes, simple_names(hexes)):
         dmc = _nearest_dmc(centroids_lab[old_idx], dmc_lab, dmc_entries)
         palette.append(PaletteEntry(
             id=uuid.uuid4().hex,
             hex=hex_str,
-            name=dmc["name"],
+            name=name,
             dmc=dmc["code"],
             count=int(counts[old_idx]),
         ))
