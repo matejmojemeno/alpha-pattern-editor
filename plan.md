@@ -316,8 +316,10 @@ File dialog, drag-and-drop, and **paste from clipboard** (`Ctrl+V` of a screensh
 
 - Source image with the fitted lattice overlaid and the detected extent outlined.
 - Editable numeric spinners for **columns** and **rows**. Changing them re-derives the lattice from the same extent — this alone rescues most misdetections.
-- Draggable extent handles on all four edges, snapping to pitch increments.
-- Crop tool that re-runs `detect_pattern(crop=...)` — the manual escape hatch.
+- Draggable extent handles on all four edges, snapping to pitch increments. (Web: corners
+  too, and arrow keys on a focused edge.)
+- Crop tool that re-runs `detect_pattern(crop=...)` — the manual escape hatch. (Web: no
+  tool to switch on; a box drawn on the image off the handles is a crop.)
 - **Color similarity slider** (ΔE 2–15) with live palette preview: swatches, cell counts, merge/split controls.
 - Reconstructed pattern rendered **side by side** with the source. Visual diff is the fastest way for a human to spot an error.
 - Low-confidence cells highlighted in the reconstruction.

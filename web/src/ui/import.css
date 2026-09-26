@@ -33,51 +33,6 @@
   gap: 0.5rem;
 }
 
-.controls__detect {
-  display: inline-flex;
-  gap: 0.5rem;
-}
-
-.dim {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.dim label {
-  min-width: 2.5rem;
-}
-
-.dim__step.button {
-  min-width: var(--tap);
-  padding-inline: 0;
-  font-size: var(--text-lg);
-  line-height: 1;
-}
-
-.dim__input {
-  font: inherit;
-  font-variant-numeric: tabular-nums;
-  width: 3.75rem;
-  min-height: var(--tap);
-  padding: 0.25rem 0.5rem;
-  text-align: center;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-  color: var(--text);
-}
-
-.dim__input:disabled {
-  opacity: 0.55;
-}
-
-.controls .button[aria-pressed='true'] {
-  background: var(--accent);
-  color: #000;
-  border-color: var(--accent);
-}
-
 .controls__detail input[type='range'] {
   width: 9rem;
   min-height: var(--tap);
@@ -86,17 +41,6 @@
 
 .controls__end {
   font-size: var(--text-sm);
-}
-
-.controls__check {
-  min-height: var(--tap);
-  cursor: pointer;
-}
-
-.controls__check input {
-  width: 1.25rem;
-  height: 1.25rem;
-  accent-color: var(--accent);
 }
 
 /* --- summary -------------------------------------------------------------------------- */
@@ -221,17 +165,116 @@
   -webkit-user-select: none;
 }
 
-.source[data-cropping] {
+.source {
+  /* A handle's hit area: comfortable for a mouse, bigger for a finger. */
+  --hit: 1.5rem;
+}
+
+@media (pointer: coarse) {
+  .source {
+    --hit: 2.5rem;
+  }
+}
+
+/* A box can be drawn anywhere on the image. The finger draws it instead of scrolling
+   the page. */
+.source[data-crop] {
   cursor: crosshair;
-  /* The finger draws the box instead of scrolling the page. */
   touch-action: none;
-  outline: 2px solid var(--accent);
 }
 
 .source__image,
 .source__overlay,
-.source__band {
+.source__band,
+.source__handle,
+.source__size {
   position: absolute;
+}
+
+/* The outline's handles: a hit area along each edge, with a grip at its middle, and one
+   at each corner. */
+.source__handle {
+  z-index: 1;
+  touch-action: none;
+  display: grid;
+  place-items: center;
+}
+
+.source__handle::after {
+  content: '';
+  background: var(--overlay-extent);
+  border: 2px solid #fff;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35);
+}
+
+.source__handle--top,
+.source__handle--bottom {
+  cursor: ns-resize;
+}
+
+.source__handle--top::after,
+.source__handle--bottom::after {
+  width: 1.75rem;
+  height: 0.6rem;
+}
+
+.source__handle--left,
+.source__handle--right {
+  cursor: ew-resize;
+}
+
+.source__handle--left::after,
+.source__handle--right::after {
+  width: 0.6rem;
+  height: 1.75rem;
+}
+
+.source__handle--corner {
+  z-index: 2;
+}
+
+.source__handle--corner::after {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 2px;
+}
+
+.source__handle--top-left,
+.source__handle--bottom-right {
+  cursor: nwse-resize;
+}
+
+.source__handle--top-right,
+.source__handle--bottom-left {
+  cursor: nesw-resize;
+}
+
+.source__handle:focus-visible {
+  outline: none;
+}
+
+.source__handle:focus-visible::after {
+  box-shadow: var(--focus-ring);
+}
+
+.source[data-dragging='handle'] .source__handle::after {
+  opacity: 0.6;
+}
+
+/* The grid's size while an edge is dragged. */
+.source__size {
+  z-index: 3;
+  margin: 0.25rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-sm);
+  background: rgb(0 0 0 / 0.72);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 .source__image {

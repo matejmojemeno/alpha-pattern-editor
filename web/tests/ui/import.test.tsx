@@ -107,9 +107,8 @@ describe('Import screen', () => {
     expect(within(alert).getByText(`Detection failed (${code})`)).toBeTruthy()
     expect(within(alert).getByRole('button', { name: 'Try another image' })).toBeTruthy()
     if (code === 'NO_GRIDLINES') {
-      // Crop is here now, so the hint points to it, with a button to start.
-      expect(alert.textContent).toMatch(/Turn on Crop/)
-      expect(within(alert).getByRole('button', { name: 'Crop' })).toBeTruthy()
+      // A box can be drawn on the image beside it, so the hint points there.
+      expect(alert.textContent).toMatch(/Drag a box around just the squares on your image/)
     }
     expect((await saveButton()).hasAttribute('disabled')).toBe(true)
     // The image stays on screen.

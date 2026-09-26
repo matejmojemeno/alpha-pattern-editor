@@ -2,7 +2,8 @@
  * The confirm screen's corrections in real Chromium, with real Pyodide in the real
  * worker. Each test makes corrections, saves, exports, and checks the saved pattern cell
  * for cell against the desktop code making the same corrections
- * (scripts/desktop_import.py via desktop.ts). Also: the phone layout with every control
+ * (scripts/desktop_import.py via desktop.ts). Also: the grid's outline dragged over the
+ * rows and columns a detection left out, the phone layout with every control
  * used, the watchdog, with detection made slow by a test hook, and running out of memory,
  * with the worker's memory filled by another.
  *
@@ -38,14 +39,11 @@ async function showing(page: Page, cols: number, rows: number) {
 }
 
 /**
- * Turn on Crop and drag across the source image from one point to another, given as
- * fractions of the image. Returns the crop that asks for, in image pixels, worked out
- * independently through the same letterbox mapping the desktop uses.
+ * Drag a box across the source image from one point to another, given as fractions of
+ * the image. Returns the crop that asks for, in image pixels, worked out independently
+ * through the same letterbox mapping the desktop uses.
  */
 async function crop(page: Page, file: string, [fx0, fy0, fx1, fy1]: [number, number, number, number]): Promise<Crop> {
-  const toggle = page.locator('.controls').getByRole('button', { name: 'Crop' })
-  if ((await toggle.getAttribute('aria-pressed')) !== 'true') await toggle.click()
-  await expect(toggle).toHaveAttribute('aria-pressed', 'true')
   const source = page.locator('.source')
   await source.scrollIntoViewIfNeeded()
   const box = (await source.boundingBox())!
@@ -77,20 +75,6 @@ async function expectDesktop(page: Page, testInfo: TestInfo, name: string, file:
   return want
 }
 
-test('rows and cols changed by one each way match the desktop', async ({ page }, testInfo) => {
-  await importImage(page, CATS)
-  await showing(page, 100, 45)
-  await page.getByRole('button', { name: 'More rows' }).click()
-  await page.getByRole('button', { name: 'Fewer columns' }).click()
-  await expectDesktop(page, testInfo, 'Cats 46x99', CATS, ['rows=46', 'cols=99'])
-
-  await importImage(page, CATS)
-  await showing(page, 100, 45)
-  await page.getByRole('button', { name: 'Fewer rows' }).click()
-  await page.getByLabel('Cols').fill('101')
-  await expectDesktop(page, testInfo, 'Cats 44x101', CATS, ['rows=44', 'cols=101'])
-})
-
 test('the colour-detail slider matches the desktop', async ({ page }, testInfo) => {
   await importImage(page, CATS)
   await showing(page, 100, 45)
@@ -106,7 +90,6 @@ test('a crop detects again, at the current colour detail, and matches the deskto
   await showing(page, 100, 45)
   await page.getByRole('slider', { name: 'Colour detail' }).fill('14') // ΔE 3, carried into the crop
   const c = await crop(page, CATS, [0.25, 0.18, 0.75, 0.83])
-  await expect(page.locator('.controls').getByRole('button', { name: 'Crop' })).toHaveAttribute('aria-pressed', 'false') // crop mode ends
   const want = await expectDesktop(page, testInfo, 'Cats cropped', CATS, ['de=3', `crop=${c.join(',')}`])
   expect([want.cols, want.rows]).not.toEqual([100, 45])
 })
@@ -117,9 +100,52 @@ test('Re-detect after a crop goes back to the whole image, as the desktop does',
   const c = await crop(page, CATS, [0.25, 0.18, 0.75, 0.83])
   const cropped = desktopDetect(CATS, [`crop=${c.join(',')}`])
   await showing(page, cropped.cols, cropped.rows)
-  await page.getByRole('button', { name: 'More rows' }).click()
   await page.getByRole('button', { name: 'Re-detect' }).click()
-  await expectDesktop(page, testInfo, 'Cats redetected', CATS, [`crop=${c.join(',')}`, `rows=${cropped.rows + 1}`, 'redetect'])
+  await expectDesktop(page, testInfo, 'Cats redetected', CATS, [`crop=${c.join(',')}`, 'redetect'])
+})
+
+/** Drag one of the outline's handles to a point given as fractions of the image (beyond
+ *  0 or 1 is past its edge). */
+async function dragHandle(page: Page, file: string, handle: string, [fx, fy]: [number, number]) {
+  const source = page.locator('.source')
+  const box = (await source.boundingBox())!
+  const { width, height } = pngSize(file)
+  const fit = fitRect(box.width, box.height, width, height)
+  const from = (await page.getByTestId(handle).boundingBox())!
+  const a = { x: from.x + from.width / 2, y: from.y + from.height / 2 }
+  const b = { x: box.x + fit.x + fx * fit.width, y: box.y + fit.y + fy * fit.height }
+  await page.mouse.move(a.x, a.y)
+  await page.mouse.down()
+  await page.mouse.move((a.x + b.x) / 2, (a.y + b.y) / 2, { steps: 4 })
+  await page.mouse.move(b.x, b.y, { steps: 4 })
+  await page.mouse.up()
+}
+
+/** The outline shown, in image pixels: what was resampled. */
+async function extentShown(page: Page): Promise<string> {
+  const rect = page.getByTestId('grid-overlay').locator('rect')
+  const [x, y, w, h] = await Promise.all(['x', 'y', 'width', 'height'].map(async (a) => Number(await rect.getAttribute(a))))
+  return [x, y, x! + w!, y! + h!].join(',')
+}
+
+test('dragging the outline takes in the rows and columns a detection left out, and matches the desktop', async ({ page }, testInfo) => {
+  await importImage(page, CATS)
+  await showing(page, 100, 45)
+  // Detect only the middle, as if detection had missed the chart's sides.
+  const c = await crop(page, CATS, [0.25, 0.18, 0.75, 0.83])
+  const cropped = desktopDetect(CATS, [`crop=${c.join(',')}`])
+  await showing(page, cropped.cols, cropped.rows)
+  expect(cropped.cols).toBeLessThan(100)
+  // Drag two corners past the image's: every row and column left out comes back.
+  await dragHandle(page, CATS, 'corner-top-left', [-0.02, -0.02])
+  await dragHandle(page, CATS, 'corner-bottom-right', [1.02, 1.02])
+  await showing(page, 100, 45)
+  await expect(page.locator('.confirm__outcome')).toHaveAttribute('aria-busy', 'false')
+  const want = await expectDesktop(page, testInfo, 'Cats outline', CATS, [`crop=${c.join(',')}`, `extent=${await extentShown(page)}`, 'rows=45', 'cols=100'])
+  // And it's the chart detection finds in the whole image: the same cells, colour for colour.
+  const whole = desktopDetect(CATS)
+  const pairs = new Set(want.cells.map((k, i) => `${k}:${whole.cells[i]}`))
+  expect(pairs.size).toBe(new Set(whole.cells).size)
 })
 
 test.describe('on a phone', () => {
@@ -147,25 +173,19 @@ test.describe('on a phone', () => {
     await page.getByRole('tab', { name: 'Image' }).tap()
     await expect(page.getByTestId('grid-overlay')).toBeVisible()
 
-    // Crop (which shows the image), then the fast controls.
-    const c = await crop(page, CATS, [0.2, 0.1, 0.8, 0.9])
+    // A box drawn on the image, then colour detail. (Not too near the image's edges,
+    // where the outline's handles are.)
+    const c = await crop(page, CATS, [0.2, 0.18, 0.8, 0.82])
     await expect(page.getByRole('tab', { name: 'Pattern', selected: true })).toBeVisible()
     const cropped = desktopDetect(CATS, [`crop=${c.join(',')}`])
     await showing(page, cropped.cols, cropped.rows)
-    await page.getByRole('button', { name: 'More rows' }).tap()
-    await page.getByLabel('Cols').fill(String(cropped.cols - 1))
     await page.getByRole('slider', { name: 'Colour detail' }).fill('14')
-    const flag = page.getByRole('checkbox', { name: 'Flag unsure cells' })
-    await flag.tap()
-    await expect(flag).not.toBeChecked()
-    await flag.tap()
-    await expect(flag).toBeChecked()
 
     // Scrolled to the bottom of the pane, saving is still on screen.
     await page.mouse.wheel(0, 2000)
     await saveInView()
     await noSideways()
-    await expectDesktop(page, testInfo, 'Cats on a phone', CATS, [`crop=${c.join(',')}`, `rows=${cropped.rows + 1}`, `cols=${cropped.cols - 1}`, 'de=3'])
+    await expectDesktop(page, testInfo, 'Cats on a phone', CATS, [`crop=${c.join(',')}`, 'de=3'])
   })
 })
 
@@ -191,12 +211,10 @@ test.describe('the watchdog', () => {
     await showing(page, 100, 45)
   })
 
-  test('Crop from there starts over on just the crop, and matches the desktop', async ({ page }, testInfo) => {
+  test('a box drawn on the image starts over on just that, and matches the desktop', async ({ page }, testInfo) => {
     const { alert } = await importImage(page, CATS)
     await expect(alert).toContainText('This image is taking too long to read.')
     await hookOff(page)
-    await alert.getByRole('button', { name: 'Crop' }).click()
-    await expect(page.locator('.controls').getByRole('button', { name: 'Crop' })).toHaveAttribute('aria-pressed', 'true')
     const c = await crop(page, CATS, [0.25, 0.18, 0.75, 0.83])
     await expectDesktop(page, testInfo, 'Cats after a timeout', CATS, [`crop=${c.join(',')}`])
   })
@@ -211,7 +229,7 @@ test.describe('running out of memory', () => {
     })
   })
 
-  test('ends on a friendly screen, and Crop recovers in a fresh worker', async ({ page }, testInfo) => {
+  test('ends on a friendly screen, and a box drawn on the image recovers in a fresh worker', async ({ page }, testInfo) => {
     const { alert } = await importImage(page, CATS)
     await expect(alert).toContainText('This image is too big to read on this device.')
     await expect(alert).toContainText('Detection stopped (OUT_OF_MEMORY)')
@@ -219,7 +237,6 @@ test.describe('running out of memory', () => {
     await expect(alert.getByRole('button', { name: 'Try again' })).toHaveCount(0)
     await expect(page.getByRole('img', { name: 'The image being imported' })).toBeVisible()
     await page.evaluate(() => void ((globalThis as { __alphaDetectTest?: { fillMemory?: boolean } }).__alphaDetectTest!.fillMemory = false))
-    await alert.getByRole('button', { name: 'Crop' }).click()
     const c = await crop(page, CATS, [0.25, 0.18, 0.75, 0.83])
     await expectDesktop(page, testInfo, 'Cats after running out of memory', CATS, [`crop=${c.join(',')}`])
   })

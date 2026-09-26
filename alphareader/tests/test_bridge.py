@@ -153,7 +153,8 @@ def test_alpha_is_dropped_not_composited():
 
 
 def test_warnings_at_the_detected_settings_match_detection():
-    """The bridge rewords nothing: before any change, its warnings are detection's own."""
+    """The bridge rewords nothing: before any change, its warnings are detection's own
+    (less the low-confidence one)."""
     # Near colours and JPEG noise, so the sampled warnings actually fire.
     rng = np.random.default_rng(4)
     spec = synth.SynthSpec(rows=16, cols=22,
@@ -164,19 +165,20 @@ def test_warnings_at_the_detected_settings_match_detection():
     result = detect_pattern(img)
     assert result.warnings, "the fixture should produce warnings"
     p = _open(img)
-    assert sorted(p["warnings"]) == sorted(result.warnings)
+    # All but the low-confidence one, which the web doesn't show.
+    want = [w for w in result.warnings if "low confidence" not in w]
+    assert sorted(p["warnings"]) == sorted(want)
 
 
-def test_sampled_warnings_follow_the_settings():
+def test_no_low_confidence_warning_even_when_cells_are_unsure():
     img = _chart()
     p = _open(img)
-    assert not any("low confidence" in w for w in p["warnings"])
     sid = p["session"]
     # Half a cell's worth of misalignment samples across gridlines.
     bridge.set_params(sid, rows=p["rows"] * 2 - 1, cols=p["cols"] * 2 - 1)
     worse = bridge.preview(sid)
-    assert any("low confidence" in w for w in worse["warnings"])
     assert worse["lowConfidenceFraction"] > 0.02
+    assert not any("low confidence" in w for w in worse["warnings"])
 
 
 # --- errors as data -----------------------------------------------------------------------

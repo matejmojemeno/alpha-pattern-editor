@@ -34,7 +34,6 @@
   /* Importer overlays (Phase 2). Semantic: red = lattice, cyan = extent. */
   --overlay-grid: rgb(255 40 40 / 0.51);
   --overlay-extent: rgb(0 180 255);
-  --overlay-low-conf: rgb(255 0 0);
   --letterbox: rgb(30 30 30);
 
   /* --- the two base colours (the Qt palette's base() and text()) ------------------- */

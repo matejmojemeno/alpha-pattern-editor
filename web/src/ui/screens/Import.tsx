@@ -3,10 +3,10 @@
  * (alphareader/ui/importer/confirm_window.py), correction controls and all.
  *
  * The desktop's fast/slow split is kept (docs/web-port-plan.md, Phase 2):
- * - rows, cols and colour detail only resample (`DetectSession.update`), which folds a
- *   burst of changes into one pending request and drops stale answers;
- * - Crop and Re-detect detect again (`DetectSession.redetect`), under the client's
- *   watchdog.
+ * - colour detail and moving the grid's outline only resample (`DetectSession.update`),
+ *   which folds a burst of changes into one pending request and drops stale answers;
+ * - a box drawn on the image (a crop) and Re-detect detect again
+ *   (`DetectSession.redetect`), under the client's watchdog.
  * While an answer is on its way the last good preview stays up, dimmed after ~200 ms.
  *
  * Under 900 px the image, the pattern and the colours are tabs; wider, they're the
@@ -35,9 +35,10 @@ import {
   type Params,
   type Preview,
 } from '../../detect/protocol.ts'
-import { clampDim, DEFAULT_DELTA_E, parseDim, shrinkNotice } from '../../importer/controls.ts'
+import { DEFAULT_DELTA_E, shrinkNotice } from '../../importer/controls.ts'
 import { decodeImage, ImageDecodeError, sourcePng } from '../../importer/decode.ts'
 import { hintFor, OUT_OF_MEMORY_HINT, TIMEOUT_HINT } from '../../importer/hints.ts'
+import type { Grid } from '../../importer/outline.ts'
 import { formatStats } from '../../logic/readout.ts'
 import { emptyProgress } from '../../model/types.ts'
 import { DropOverlay, ImportButton, Notices, TopBar } from '../components.tsx'
@@ -100,12 +101,10 @@ export default function ImportScreen() {
   /** The image's decoded size: the coordinate space of the overlay and of crops. */
   const [size, setSize] = useState<{ width: number; height: number } | null>(null)
 
-  // The controls. Rows and cols are the text in their boxes, which may be mid-edit.
-  const [rows, setRows] = useState('')
-  const [cols, setCols] = useState('')
+  // The controls.
   const [deltaE, setDeltaE] = useState(DEFAULT_DELTA_E)
-  const [flagUnsure, setFlagUnsure] = useState(true)
-  const [cropping, setCropping] = useState(false)
+  /** The outline last asked for, drawn until the answers to it are in. */
+  const [outline, setOutline] = useState<Grid | null>(null)
   const [tab, setTab] = useState<Tab>('pattern')
 
   /** The latest preview, kept through a re-detection and a failure. */
@@ -115,6 +114,8 @@ export default function ImportScreen() {
   const dim = useDelayedFlag(updating > 0 || redetecting, DIM_AFTER_MS)
 
   const session = useRef<DetectSession | null>(null)
+  /** Updates asked for and not yet answered. */
+  const pending = useRef(0)
   // The colour detail as of the last render, for detections started outside it.
   const deltaERef = useRef(deltaE)
   useEffect(() => {
@@ -134,7 +135,6 @@ export default function ImportScreen() {
     setNotices([])
     // A new image starts where the desktop's does (confirm_window.load_array).
     setDeltaE(DEFAULT_DELTA_E)
-    setCropping(false)
     setShown(null)
     setSize(null)
     setRun({ attempt: 0 })
@@ -155,8 +155,6 @@ export default function ImportScreen() {
   const detected = useCallback((result: Outcome<Preview>) => {
     if (result.ok) {
       setShown(result)
-      setRows(String(result.rows))
-      setCols(String(result.cols))
       setState({ phase: 'result', preview: result })
     } else if (isDetectionError(result.code)) {
       setShown(null)
@@ -228,9 +226,12 @@ export default function ImportScreen() {
     const s = session.current
     if (!s || state.phase !== 'result') return
     setUpdating((n) => n + 1)
+    pending.current += 1
     void s.update(params).then((r) => {
       if (!mounted.current) return
       setUpdating((n) => n - 1)
+      // Once every answer is in, the preview shows what was asked for (or what was kept).
+      if (--pending.current === 0) setOutline(null)
       if (session.current !== s) return // a new image or a retry since
       if (r.ok) {
         setShown(r)
@@ -240,30 +241,19 @@ export default function ImportScreen() {
     })
   }
 
-  const onDim = (axis: 'rows' | 'cols', text: string) => {
-    ;(axis === 'rows' ? setRows : setCols)(text)
-    const n = parseDim(text)
-    if (n !== null) update({ [axis]: n })
-  }
-  const onStep = (axis: 'rows' | 'cols', by: 1 | -1) => {
-    const now = parseDim(axis === 'rows' ? rows : cols) ?? (shown ? shown[axis] : 1)
-    onDim(axis, String(clampDim(now + by)))
-  }
-  /** Leaving a rows or cols box that doesn't hold a usable number puts the preview's back. */
-  const onDimBlur = () => {
-    if (!shown) return
-    if (parseDim(rows) === null) setRows(String(shown.rows))
-    if (parseDim(cols) === null) setCols(String(shown.cols))
-  }
   const onDeltaE = (value: number) => {
     setDeltaE(value)
     update({ deltaE: value })
+  }
+  /** The outline moved: resample the new extent into its rows and columns. */
+  const onResize = (grid: Grid) => {
+    setOutline(grid)
+    update({ extent: grid.extent, rows: grid.rows, cols: grid.cols })
   }
 
   // --- the slow path: detect again ------------------------------------------------------
 
   const redetect = (crop?: Crop) => {
-    setCropping(false)
     const s = session.current
     if (!s) {
       // Nothing to detect again in: the worker was stopped (the watchdog, or memory ran
@@ -278,11 +268,6 @@ export default function ImportScreen() {
       setRedetecting(false)
       if (session.current === s) detected(r)
     })
-  }
-
-  const startCropping = (on: boolean) => {
-    setCropping(on)
-    if (on && !wide) setTab('image')
   }
 
   // --- saving ---------------------------------------------------------------------------
@@ -338,6 +323,7 @@ export default function ImportScreen() {
   const loading = state.phase === 'decoding' || state.phase === 'booting' || state.phase === 'detecting'
   const canDetect = !loading && !redetecting && state.phase !== 'error' && size !== null
   const preview = state.phase === 'result' ? state.preview : null
+  const grid = hasGrid && shown ? (outline ?? { extent: shown.extent, rows: shown.rows, cols: shown.cols }) : null
 
   const panes: { tab: Tab; label: string; body: ReactNode }[] = [
     {
@@ -345,14 +331,16 @@ export default function ImportScreen() {
       label: 'Your image',
       body: size ? (
         <>
-          {cropping && <p className="confirm__hint">Drag a box around just the squares, then let go.</p>}
+          {!grid && canDetect && <p className="confirm__hint">Drag a box around just the squares, then let go.</p>}
           <SourceView
             file={image.file}
             width={size.width}
             height={size.height}
-            preview={hasGrid ? shown : null}
-            cropping={cropping}
+            grid={grid}
+            canCrop={canDetect}
+            canResize={hasGrid && !redetecting}
             onCrop={(crop) => redetect(crop)}
+            onResize={onResize}
           />
           {/* The save bar has no room for it on a phone. */}
           {!wide && <p className="import__actions">{another('Choose another image')}</p>}
@@ -369,10 +357,9 @@ export default function ImportScreen() {
           <Outcome
             state={state}
             shown={shown}
-            flagUnsure={flagUnsure}
             redetecting={redetecting}
             onRetry={() => setRun((r) => ({ attempt: r.attempt + 1 }))}
-            onCrop={() => startCropping(true)}
+            {...(wide ? {} : { onShowImage: () => setTab('image') })}
             another={another}
           />
         </div>
@@ -391,20 +378,10 @@ export default function ImportScreen() {
       <Notices notices={notices} />
       <div className="confirm" data-dim={dim || undefined}>
         <Controls
-          rows={rows}
-          cols={cols}
           deltaE={deltaE}
-          flagUnsure={flagUnsure}
-          cropping={cropping}
           canAdjust={hasGrid && !redetecting}
           canDetect={canDetect}
-          onRows={(t) => onDim('rows', t)}
-          onCols={(t) => onDim('cols', t)}
-          onStep={onStep}
-          onDimBlur={onDimBlur}
           onDeltaE={onDeltaE}
-          onFlagUnsure={setFlagUnsure}
-          onCropping={startCropping}
           onRedetect={() => redetect()}
         />
         {preview && <Summary preview={preview} />}
@@ -480,18 +457,17 @@ function Summary({ preview }: { preview: Preview }) {
 export function Outcome({
   state,
   shown,
-  flagUnsure,
   redetecting,
   onRetry,
-  onCrop,
+  onShowImage,
   another,
 }: {
   state: ImportState
   shown: Preview | null
-  flagUnsure: boolean
   redetecting: boolean
   onRetry: () => void
-  onCrop: () => void
+  /** On a phone, where the image is another tab: go to it, to draw a box there. */
+  onShowImage?: () => void
   another: (label: string, primary?: boolean) => ReactNode
 }) {
   if (redetecting && !shown) return <Finding />
@@ -507,7 +483,7 @@ export function Outcome({
     case 'result':
       return (
         <>
-          <PatternView preview={shown ?? state.preview} flagUnsure={flagUnsure} />
+          <PatternView preview={shown ?? state.preview} />
           {redetecting && <p className="confirm__busy">Finding the grid…</p>}
         </>
       )
@@ -518,9 +494,9 @@ export function Outcome({
           <p className="import__failure-title">{hint.title}</p>
           {hint.advice && <p>{hint.advice}</p>}
           <p className="import__actions">
-            {state.code === 'NO_GRIDLINES' && (
-              <button type="button" className="button button--primary" onClick={onCrop}>
-                Crop
+            {state.code === 'NO_GRIDLINES' && onShowImage && (
+              <button type="button" className="button button--primary" onClick={onShowImage}>
+                Draw a box
               </button>
             )}
             {another('Try another image', state.code !== 'NO_GRIDLINES')}
@@ -537,9 +513,11 @@ export function Outcome({
           <p className="import__failure-title">{hint.title}</p>
           <p>{hint.advice}</p>
           <p className="import__actions">
-            <button type="button" className="button button--primary" onClick={onCrop}>
-              Crop
-            </button>
+            {onShowImage && (
+              <button type="button" className="button button--primary" onClick={onShowImage}>
+                Draw a box
+              </button>
+            )}
             {/* The same image runs out of memory the same way again. */}
             {state.code === 'TIMEOUT' && (
               <button type="button" className="button" onClick={onRetry}>
