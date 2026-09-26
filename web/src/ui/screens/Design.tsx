@@ -18,6 +18,7 @@ import '../design.css'
 
 import { AutoSaver, type SaveStatus } from '../../app/autosave.ts'
 import { useSettings } from '../../app/context.ts'
+import { downloadBlob } from '../../app/download.ts'
 import { href, navigate, paths } from '../../app/router.ts'
 import { trackSave } from '../../app/saving.ts'
 import { progressWarning } from '../../app/stages.ts'
@@ -75,6 +76,7 @@ import { carryProgress, losesProgress, progressLoss, type ProgressLoss } from '.
 import { formatStats, workingNumber } from '../../logic/readout.ts'
 import type { Pattern, Project } from '../../model/types.ts'
 import { fitCell, zoomStep, type Overlay } from '../../render/design.ts'
+import { exportPng } from '../../render/png.ts'
 import type { ProjectRepo } from '../../storage/repo.ts'
 import { CellsIcon, ConfirmDialog } from '../components.tsx'
 import { ColoursPanel } from '../design/ColoursPanel.tsx'
@@ -486,6 +488,18 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
             Redo
           </button>
         </div>
+        <button
+          type="button"
+          className="button button--small design__export"
+          title="Save the chart as an image, as the desktop's Export PNG does"
+          onClick={() => {
+            const { blob, filename } = exportPng(latest.current.pattern)
+            downloadBlob(blob, filename)
+            setMessage(`Exported “${filename}”.`)
+          }}
+        >
+          Export PNG
+        </button>
         <button type="button" className="button button--primary design__work" onClick={startWorking}>
           Start working →
         </button>
