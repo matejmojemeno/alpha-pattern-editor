@@ -45,11 +45,14 @@ then Create, then Import a repository, and pick this GitHub repo. Settings:
 |---|---|
 | Worker name | `alpha-pattern-editor` (must equal `name` in `wrangler.jsonc`) |
 | Production branch | `main` |
-| Root directory | `web` |
+| Root directory (the "Path" field under Advanced settings) | `/web` |
 | Build command | `npm ci && npm run build` |
 | Deploy command | `npx wrangler deploy` |
+| Preview command | `npx wrangler preview` (the default) |
 
-Every push to `main` then deploys, and other branches get a preview URL. Cloudflare's
+Every push to `main` then deploys, and other branches get a preview URL, posted on the
+pull request. `wrangler preview` needs the `"previews": {}` block in `wrangler.jsonc`;
+without it the build succeeds and the preview step fails. Cloudflare's
 build image has Node and Python 3 preinstalled (the build's Python step uses only the
 standard library), and the build needs network access to jsDelivr once, for numpy's
 wheel.
