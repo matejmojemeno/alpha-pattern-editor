@@ -1,8 +1,8 @@
 /**
- * The confirm screen's controls: the grid (Crop, Re-detect), then how colours are merged
- * (colour detail).
+ * The confirm screen's controls: the grid (Re-detect), then how colours are merged
+ * (colour detail). Cropping is done on the image itself (SourceView.tsx).
  *
- * Only Crop and Re-detect detect again. Colour detail only resamples.
+ * Only Re-detect detects again. Colour detail only resamples.
  */
 import { useId } from 'react'
 
@@ -10,13 +10,11 @@ import { deltaEFromSlider, MAX_DELTA_E, MIN_DELTA_E, sliderFromDeltaE } from '..
 
 export interface ControlsProps {
   deltaE: number
-  cropping: boolean
   /** Colour detail needs a detected grid to adjust. */
   canAdjust: boolean
-  /** Crop and Re-detect need an image, and nothing detecting. */
+  /** Re-detect needs an image, and nothing detecting. */
   canDetect: boolean
   onDeltaE: (deltaE: number) => void
-  onCropping: (on: boolean) => void
   onRedetect: () => void
 }
 
@@ -25,21 +23,15 @@ export function Controls(p: ControlsProps) {
   return (
     <div className="controls">
       <div className="controls__group" role="group" aria-label="Grid">
-        <span className="controls__detect">
-          <button
-            type="button"
-            className="button"
-            aria-pressed={p.cropping}
-            disabled={!p.canDetect}
-            title="Drag a box around just the grid, then let go"
-            onClick={() => p.onCropping(!p.cropping)}
-          >
-            Crop
-          </button>
-          <button type="button" className="button" disabled={!p.canDetect} onClick={p.onRedetect}>
-            Re-detect
-          </button>
-        </span>
+        <button
+          type="button"
+          className="button"
+          disabled={!p.canDetect}
+          title="Find the grid again in the whole image"
+          onClick={p.onRedetect}
+        >
+          Re-detect
+        </button>
       </div>
       <div className="controls__group controls__detail">
         {/* "ΔE" is the detector's unit; what the slider decides is how many colours you get. */}
