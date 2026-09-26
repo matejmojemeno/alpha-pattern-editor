@@ -27,6 +27,9 @@ export interface DesktopProject extends DesktopPattern {
   name: string
   stage: string
   completed: number
+  completed_row_ids: string[]
+  current_row_id: string | null
+  row_ids: string[]
   source: number[] | null
 }
 
@@ -68,3 +71,7 @@ export const desktopDetect = (file: string, corrections: Correction[] = []) => r
 
 /** Open a `.alpha` file as the desktop does. */
 export const desktopLoad = (file: string) => run(['load', file]) as DesktopProject
+
+/** Whether `png` is exactly what the desktop's Export PNG makes of the `.alpha` file. */
+export const desktopPngMatches = (alpha: string, png: string) =>
+  run(['png', alpha, png]) as { same: boolean; desktop: number[]; exported: number[] }
