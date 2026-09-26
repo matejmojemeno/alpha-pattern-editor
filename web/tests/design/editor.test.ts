@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  abortDrag,
   addColour,
   cancelDrag,
   canRedo,
@@ -18,13 +19,14 @@ import {
   renameColour,
   selectColour,
   setTool,
+  structural,
   toolForKey,
   undo,
   type Cell,
   type EditorState,
   type Tool,
 } from '../../src/design/editor.ts'
-import { addPaletteEntry, newPattern, recolorPaletteEntry } from '../../src/logic/edit.ts'
+import { addBorder, addPaletteEntry, mirrorH, newPattern, recolorPaletteEntry } from '../../src/logic/edit.ts'
 import type { Pattern } from '../../src/model/types.ts'
 
 /** A 6×4 white pattern with black (1) and red (2) added, black selected. */
@@ -201,5 +203,43 @@ describe('colours', () => {
     expect(s.colour).toBe(3)
     s = undo(s)
     expect(s.colour).toBe(2)
+  })
+})
+
+describe('a stroke that turns out to be a pinch', () => {
+  it('abortDrag takes back everything the stroke painted, with no undo step', () => {
+    let s = start()
+    s = pointerUp(pointerDown(s, { r: 3, c: 0 }), null) // an earlier stroke: one undo step
+    const before = s
+    s = pointerDown(s, { r: 0, c: 0 })
+    s = pointerMove(s, { r: 0, c: 4 })
+    expect(s.history.past.length).toBe(2)
+    s = abortDrag(s)
+    expect(s.pattern).toBe(before.pattern)
+    expect(s.history).toBe(before.history)
+    expect(s.drag).toBeNull()
+    // Redo, too, is as it was.
+    s = undo(s)
+    const redoable = s
+    s = abortDrag(pointerMove(pointerDown(s, { r: 1, c: 1 }), { r: 1, c: 3 }))
+    expect(s.pattern).toBe(redoable.pattern)
+    expect(canRedo(s)).toBe(true)
+  })
+
+  it('drops a rectangle, and leaves a state with no drag alone', () => {
+    const s = start('rect')
+    const d = pointerMove(pointerDown(s, { r: 0, c: 0 }), { r: 2, c: 2 })
+    expect(abortDrag(d)).toMatchObject({ pattern: s.pattern, drag: null })
+    expect(abortDrag(s)).toBe(s)
+  })
+})
+
+describe('structural', () => {
+  it('is one undo step, and nothing when the edit changes nothing', () => {
+    const s = start()
+    const t = structural(s, (p) => addBorder(p, { top: 1, left: 2, paletteIndex: 1 }))
+    expect([t.pattern.cols, t.pattern.rows]).toEqual([8, 5])
+    expect(undo(t).pattern).toBe(s.pattern)
+    expect(structural(s, mirrorH)).toBe(s) // all white: the same pattern
   })
 })
