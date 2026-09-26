@@ -16,6 +16,9 @@ import { Work } from './ui/screens/Work.tsx'
 // The import screen is the only one that talks to the detection worker, so it is loaded
 // only when opened: nothing it imports is part of the app's first download.
 const ImportImage = lazy(() => import('./ui/screens/Import.tsx'))
+// The Design stage is desktop-first and never needed to follow a pattern, so a phone
+// opening the Work stage doesn't download it either.
+const Design = lazy(() => import('./ui/screens/Design.tsx'))
 
 /** `repo` and `settings` default to the real ones; tests pass their own. */
 export default function App({
@@ -63,7 +66,7 @@ function Theme() {
 
 function Screens() {
   const route = useRoute()
-  const key = route.name === 'work' ? `work/${route.id}` : route.name
+  const key = 'id' in route ? `${route.name}/${route.id}` : route.name
   const first = useRef(true)
 
   // Pyodide holds hundreds of megabytes once it has detected a photo, and WebAssembly
@@ -105,6 +108,12 @@ function Screen({ route }: { route: Route }) {
       )
     case 'work':
       return <Work id={route.id} />
+    case 'design':
+      return (
+        <Suspense fallback={<LoadingScreen />}>
+          <Design id={route.id} />
+        </Suspense>
+      )
     case 'notFound':
       return <NotFound />
   }
