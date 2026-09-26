@@ -169,7 +169,9 @@ test('the chart follows your place across a wide chart', async ({ page }, testIn
 test('a chart that fits across never scrolls sideways', async ({ page }) => {
   await page.goto('/#/library')
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(BASIC)
+  // Saved by the desktop in the Design stage, with no progress: the card opens Design.
   await page.getByRole('listitem').first().getByRole('link').click()
+  await page.getByRole('button', { name: 'Start working →' }).click()
   await expect(rowLabel(page)).toHaveText('Row 1 of 5 ←')
   for (const key of ['ArrowRight', 'ArrowRight', 'ArrowLeft']) {
     await page.keyboard.press(key)

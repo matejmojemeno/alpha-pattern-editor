@@ -17,12 +17,17 @@ const basic = readAlpha(new Uint8Array(readFileSync(BASIC))).project.pattern
 const rowLabel = (page: Page) => page.locator('.work__row')
 const chips = (page: Page) => page.getByRole('list', { name: 'Colours in this row' }).getByRole('button')
 
-/** Import `file` from the Library and open it. */
+/** Import `file` from the Library and open it in the Work stage. The desktop saved these
+ *  in the Design stage with no progress, so the card opens Design (§6.4), and "Start
+ *  working →" goes on to Work. */
 async function importAndOpen(page: Page, file: string, name: string) {
   await page.goto('/#/library')
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(file)
   const card = page.getByRole('listitem').filter({ hasText: name })
   await card.getByRole('link').click()
+  await expect(page).toHaveURL(/#\/design\//)
+  await page.getByRole('button', { name: 'Start working →' }).click()
+  await expect(page).toHaveURL(/#\/work\//)
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
 }
 
