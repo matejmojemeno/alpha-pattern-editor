@@ -1,0 +1,14 @@
+# Cloudflare static-assets headers (copied into dist/ by Vite).
+# These three folders only ever hold files whose names change with their content
+# (Vite's hashes, pyodide/v<version>/, alphareader-core.<hash>.zip), so they can be cached
+# for good; e2e/bundle.spec.ts fails if one doesn't. index.html is left to revalidate, so a
+# new deploy shows up on the next visit.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+/pyodide/*
+  Cache-Control: public, max-age=31536000, immutable
+/py/*
+  Cache-Control: public, max-age=31536000, immutable
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer

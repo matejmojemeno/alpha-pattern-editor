@@ -23,7 +23,7 @@ import type { Plugin, ViteDevServer } from 'vite'
 
 /** The version scripts/parity/ verified to be bit-identical with the desktop. */
 export const PYODIDE_VERSION = '314.0.7'
-/** Cloudflare Pages refuses any single file larger than this. */
+/** Cloudflare (Workers static assets, as Pages before it) refuses any single file larger than this. */
 export const MAX_FILE_BYTES = 25 * 1024 * 1024
 /** Packages loaded into Pyodide. SciPy and Pillow are deliberately absent. */
 export const PACKAGES = ['numpy'] as const
@@ -135,7 +135,7 @@ const gzipCache = new Map<string, { mtime: number; size: number }>()
 function asset(path: string, source: string, stage: Stage): Asset {
   const st = statSync(source)
   if (st.size > MAX_FILE_BYTES) {
-    throw new Error(`${relative(ROOT, source)} is ${st.size} bytes, over Cloudflare Pages' 25 MiB per-file limit.`)
+    throw new Error(`${relative(ROOT, source)} is ${st.size} bytes, over Cloudflare's 25 MiB per-file limit.`)
   }
   let gz = gzipCache.get(source)
   if (!gz || gz.mtime !== st.mtimeMs) {
