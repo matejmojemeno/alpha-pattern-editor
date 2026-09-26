@@ -33,9 +33,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from alphareader.core import io  # noqa: E402
 from alphareader.core.confirm import ConfirmState, Extent, pattern_from_preview  # noqa: E402
 from alphareader.core.detect import detect_pattern  # noqa: E402
+from alphareader.core.detect.palette import DEFAULT_DELTA_E  # noqa: E402
 from alphareader.core.model import DetectionError  # noqa: E402
 
-DEFAULT_DELTA_E = 6.0         # confirm_window.load_array sets the slider to 6
 
 
 def _pattern(p) -> dict:

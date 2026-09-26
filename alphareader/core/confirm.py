@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from .detect.palette import build_palette, compute_confidence, count_unmatched
+from .detect.palette import DEFAULT_DELTA_E, build_palette, compute_confidence, count_unmatched
 from .detect.sample import sample_cells
 from .model import DetectionResult, Pattern, PaletteEntry
 
@@ -61,12 +61,12 @@ class ConfirmState:
     extent: Extent
     rows: int
     cols: int
-    delta_e: float = 6.0
+    delta_e: float = DEFAULT_DELTA_E
     _cache: Preview | None = field(default=None, repr=False)
 
     @classmethod
     def from_detection(cls, img: np.ndarray, result: DetectionResult,
-                       delta_e: float = 6.0) -> "ConfirmState":
+                       delta_e: float = DEFAULT_DELTA_E) -> "ConfirmState":
         rl, cl = result.lattice.row_lines, result.lattice.col_lines
         extent = Extent(float(cl[0]), float(rl[0]), float(cl[-1]), float(rl[-1]))
         return cls(img=img, extent=extent, rows=result.rows, cols=result.cols,

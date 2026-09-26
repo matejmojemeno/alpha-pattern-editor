@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 from ...core import io
 from ...core.confirm import ConfirmState, pattern_from_preview
 from ...core.detect import detect_pattern
+from ...core.detect.palette import DEFAULT_DELTA_E
 from ...core.model import DetectionError, Project
 from ...core.readout import format_stats
 from .. import theme
@@ -205,7 +206,7 @@ class ConfirmWindow(QMainWindow):
     def load_array(self, img: np.ndarray) -> None:
         self.img = img
         self.dE_slider.blockSignals(True)
-        self.dE_slider.setValue(6); self.dE_label.setText("6")
+        self.dE_slider.setValue(int(DEFAULT_DELTA_E)); self.dE_label.setText(str(int(DEFAULT_DELTA_E)))
         self.dE_slider.blockSignals(False)
         self.crop_btn.setChecked(False)
         self._run_detection()
