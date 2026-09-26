@@ -292,15 +292,26 @@ def major_border_index(p: Pattern) -> int:
 
 
 def pad_to_size(p: Pattern, target_cols: int, target_rows: int,
-                palette_index: int | None = None) -> Pattern:
-    """Grow the chart to target_cols x target_rows by adding a border, centred as evenly
-    as possible. The border colour defaults to the pattern's major border colour (§9).
-    Padding only — never crops, so the artwork is untouched."""
+                palette_index: int | None = None, *, offset_left: int | None = None,
+                offset_top: int | None = None) -> Pattern:
+    """Grow the chart to target_cols x target_rows by adding a border. The border colour
+    defaults to the pattern's major border colour (§9). Padding only — never crops, so
+    the artwork is untouched.
+
+    `offset_left`/`offset_top` place the pattern inside the new size: how many of the
+    added columns go on the left and added rows on top (the rest go right and bottom).
+    Each must be 0 <= offset <= added; left out, the pattern is centred as evenly as
+    possible, the extra one going right/bottom."""
     if target_cols < p.cols or target_rows < p.rows:
         raise ValueError("Target size must be at least the current size (this only pads).")
     if palette_index is None:
         palette_index = major_border_index(p)
     dc, dr = target_cols - p.cols, target_rows - p.rows
-    left, top = dc // 2, dr // 2
+    left = dc // 2 if offset_left is None else int(offset_left)
+    top = dr // 2 if offset_top is None else int(offset_top)
+    if not 0 <= left <= dc:
+        raise ValueError(f"Left offset must be between 0 and {dc}.")
+    if not 0 <= top <= dr:
+        raise ValueError(f"Top offset must be between 0 and {dr}.")
     return add_border(p, top=top, bottom=dr - top, left=left, right=dc - left,
                       palette_index=palette_index)
