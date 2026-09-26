@@ -104,13 +104,13 @@ describe('what the screen shows', () => {
     expect(overlay.querySelector('rect')!.getAttribute('width')).toBe('40')
   })
 
-  it('lists each colour on its own colour, in black or white', async () => {
+  it('lists each colour with its swatch, name and count', async () => {
     await openImport()
     const [white, brown] = within(screen.getByRole('list', { name: 'Colours' })).getAllByRole('listitem')
     expect(white!.querySelector('.palette__name')!.textContent).toBe('White')
     expect(white!.querySelector('.palette__count')!.textContent).toBe('6')
-    expect(white!.style.color).toBe('rgb(0, 0, 0)')
-    expect(brown!.style.color).toBe('rgb(255, 255, 255)')
+    expect((white!.querySelector('.palette__swatch') as HTMLElement).style.background).toBe('rgb(255, 255, 255)')
+    expect((brown!.querySelector('.palette__swatch') as HTMLElement).style.background).toBe('rgb(139, 69, 19)')
   })
 
   it('says when a photo was shrunk for detection', async () => {
@@ -295,6 +295,28 @@ describe('moving the outline', () => {
     await waitFor(() => expect(screen.queryByText(/don't closely match/)).toBeNull())
   })
 
+  it('keeps a colour removed through a resample, which gives the palette new ids', async () => {
+    // Each resample's palette has fresh ids, and Brown a shade off, as a real one can.
+    let n = 0
+    await openFound((p) => {
+      const preview = echo(p)
+      n++
+      return { ...preview, palette: preview.palette.map((e, i) => ({ ...e, id: `r${n}-${i}`, hex: i === 1 ? '#8a4412' : e.hex })) }
+    })
+    await userEvent.click(screen.getByRole('button', { name: 'Remove “Brown”' }))
+    expect(screen.getByRole('heading', { level: 2, name: 'Colours, 1 colour' })).toBeTruthy()
+    screen.getByRole('slider', { name: 'Top edge of the grid' }).focus()
+    await userEvent.keyboard('{ArrowUp}')
+    await waitFor(() => expect(patternLabel()).toMatch(/2 columns by 3 rows/))
+    expect(n).toBe(1)
+    expect(screen.getByRole('heading', { level: 2, name: 'Colours, 1 colour' })).toBeTruthy()
+    expect(within(screen.getByRole('list', { name: 'Colours' })).getByRole('button', { name: /^White, #ffffff, 6 stitches/ })).toBeTruthy()
+    // Restored, it is the resample's own Brown.
+    await userEvent.click(screen.getByRole('button', { name: 'Restore “Brown”' }))
+    expect(screen.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^Brown, #8a4412/ })).toBeTruthy()
+  })
+
   it('puts the outline back if the resample fails', async () => {
     await openFound(() => ({ ok: false, code: 'INTERNAL', message: 'boom' }) as never)
     screen.getByRole('slider', { name: 'Left edge of the grid' }).focus()
@@ -368,12 +390,14 @@ describe('on a phone', () => {
   it('shows one pane at a time as tabs, with Save always there', async () => {
     await openImport()
     const tabs = within(screen.getByRole('tablist', { name: 'Show' })).getAllByRole('tab')
-    expect(tabs.map((t) => t.textContent)).toEqual(['Image', 'Pattern', 'Colours'])
+    // The colours' tab carries their count.
+    expect(tabs.map((t) => t.textContent)).toEqual(['Image', 'Pattern', 'Colours2'])
+    expect(tabs[2]!.getAttribute('aria-label')).toBe('Colours, 2 colours')
     expect(screen.getByRole('tab', { name: 'Pattern', selected: true })).toBeTruthy()
     expect(screen.getByRole('tabpanel', { name: 'Pattern' })).toBeTruthy()
     expect(screen.queryByRole('list', { name: 'Colours' })).toBeNull() // its tab is hidden
 
-    await userEvent.click(screen.getByRole('tab', { name: 'Colours' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Colours, 2 colours' }))
     expect(screen.getByRole('list', { name: 'Colours' })).toBeTruthy()
 
     // A box drawn on the image shows the result.

@@ -64,15 +64,23 @@ describe('Import screen', () => {
     await saveButton()
     expect(screen.getByRole('img', { name: 'The image being imported' })).toBeTruthy()
     expect(screen.getByRole('img', { name: 'The detected pattern: 4 columns by 3 rows' })).toBeTruthy()
-    expect(screen.getByText('4 cols × 3 rows · 12 stitches · 2 colours · 5 strings needed')).toBeTruthy()
-    const colours = within(screen.getByRole('list', { name: 'Colours' })).getAllByRole('listitem')
+    // The colour count heads the colour list, not the size summary.
+    expect(screen.getByText('4 cols × 3 rows · 12 stitches · 5 strings needed')).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeTruthy()
+    const list = screen.getByRole('list', { name: 'Colours' })
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2)
     // With each colour's nearest DMC shade, once that library has loaded.
     await waitFor(() =>
-      expect(colours.map((c) => c.textContent)).toEqual([
-        '6 White stitchesNearest shade: White',
-        '6 Brown stitchesNearest shade: 975 Dark Golden Brown',
+      expect(within(list).getAllByRole('button', { pressed: false }).map((b) => b.getAttribute('aria-label'))).toEqual([
+        'White, #ffffff, 6 stitches, nearest DMC stranded cotton White',
+        'Brown, #8b4513, 6 stitches, nearest DMC stranded cotton 975 Dark Golden Brown',
       ]),
     )
+    expect(within(list).getAllByText(/^(White|975 Dark Golden Brown)$/).map((s) => s.textContent)).toEqual([
+      'White',
+      'White',
+      '975 Dark Golden Brown',
+    ])
     expect(screen.getByRole('combobox', { name: 'Match colours to' })).toHaveProperty('value', 'dmc')
     expect(within(screen.getByRole('list', { name: 'Warnings' })).getByText('Check the dimensions.')).toBeTruthy()
     expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('dog')
@@ -97,6 +105,75 @@ describe('Import screen', () => {
     expect(sourcePng).toEqual(PNG) // a PNG keeps its own bytes
     const exported = readAlpha(new Uint8Array(await (await repo.exportFile('pattern-1')).blob.arrayBuffer()))
     expect(exported.project.pattern.palette.map((e) => e.name)).toEqual(['White', 'Brown'])
+  })
+
+  it('shows where a colour is used while it is pointed at, focused, or picked', async () => {
+    await openImport()
+    await saveButton()
+    const pattern = () => screen.getByRole('img', { name: /^The detected pattern/ }).getAttribute('aria-label')
+    const brown = screen.getByRole('button', { name: /^Brown,/ })
+    const row = brown.closest('li')!
+    expect(pattern()).toBe('The detected pattern: 4 columns by 3 rows')
+
+    await userEvent.hover(row)
+    expect(pattern()).toBe('The detected pattern: 4 columns by 3 rows, showing where Brown is used')
+    expect(row.hasAttribute('data-shown')).toBe(true)
+    await userEvent.unhover(row)
+    expect(pattern()).toBe('The detected pattern: 4 columns by 3 rows')
+
+    // A click keeps it showing, after the pointer and the focus have gone.
+    await userEvent.click(brown)
+    expect(brown.getAttribute('aria-pressed')).toBe('true')
+    await userEvent.unhover(row)
+    act(() => brown.blur())
+    expect(pattern()).toMatch(/showing where Brown is used$/)
+    // Pointing at another shows that one while it lasts.
+    const white = screen.getByRole('button', { name: /^White,/ })
+    await userEvent.hover(white.closest('li')!)
+    expect(pattern()).toMatch(/showing where White is used$/)
+    await userEvent.unhover(white.closest('li')!)
+    expect(pattern()).toMatch(/showing where Brown is used$/)
+    await userEvent.click(brown)
+    act(() => brown.blur())
+    expect(brown.getAttribute('aria-pressed')).toBe('false')
+    expect(pattern()).toBe('The detected pattern: 4 columns by 3 rows')
+  })
+
+  it('removes a colour into the nearest one, restores it, and saves what is shown', async () => {
+    const { repo } = await openImport()
+    await saveButton()
+    await userEvent.click(screen.getByRole('button', { name: 'Remove “Brown”' }))
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Colours, 1 colour' })).toBeTruthy()
+    const list = screen.getByRole('list', { name: 'Colours' })
+    expect(within(list).getAllByRole('listitem')).toHaveLength(1)
+    expect(within(list).getByRole('button', { name: /^White, #ffffff, 12 stitches/ })).toBeTruthy()
+    // The last colour can't go.
+    expect(screen.getByRole('button', { name: 'Remove “White”' }).hasAttribute('disabled')).toBe(true)
+    // Focus lands on Restore, so a slip is one key away from undone.
+    const restore = screen.getByRole('button', { name: 'Restore “Brown”' })
+    expect(document.activeElement).toBe(restore)
+
+    await userEvent.click(restore)
+    expect(screen.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeTruthy()
+    expect(screen.queryByRole('list', { name: 'Removed colours' })).toBeNull()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove “Brown”' }))
+    await userEvent.click(await saveButton())
+    await waitFor(() => expect(window.location.hash).toBe('#/design/pattern-1'))
+    const { project } = await repo.open('pattern-1')
+    expect(project.pattern.palette.map((e) => [e.name, e.count])).toEqual([['White', 12]])
+    expect(new Set(project.pattern.cells)).toEqual(new Set([0]))
+    expect(project.pattern.row_ids).toEqual(['r0', 'r1', 'r2'])
+  })
+
+  it('starts a new image with every colour', async () => {
+    await openImport()
+    await saveButton()
+    await userEvent.click(screen.getByRole('button', { name: 'Remove “Brown”' }))
+    await userEvent.upload(screen.getAllByLabelText('Choose a chart image')[0]!, photo('cat.png'))
+    await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeTruthy())
+    expect(screen.queryByRole('button', { name: /^Restore/ })).toBeNull()
   })
 
   it.each(Object.entries(FAILURE_HINTS))('explains a %s failure and offers another image', async (code, hint) => {
