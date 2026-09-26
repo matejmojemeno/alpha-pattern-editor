@@ -1,7 +1,7 @@
 /**
  * Hash routing: `#/library`, `#/work/<id>`, and so on.
  *
- * Why hash rather than history routing: the app is static files on Cloudflare Pages.
+ * Why hash rather than history routing: the app is static files on Cloudflare (web/README.md, "Deploying").
  * With paths like /work/<id>, a refresh asks the server for that path, and only an SPA
  * fallback rule keeps it from being a 404. Pages' behaviour there depends on whether a
  * 404.html exists, and its `/* /index.html 200` redirect has a history of being flagged
