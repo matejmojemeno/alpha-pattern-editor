@@ -344,6 +344,24 @@ export function rotate180(p: Pattern): Pattern {
   return clone(p, { cells: p.cells.slice().reverse(), row_ids: [...p.row_ids].reverse() })
 }
 
+/** A quarter turn: R rows × C cols become C rows × R cols, as seen with row 0 at the top
+ *  (how both charts draw). Clockwise, the top row becomes the right-hand column read top
+ *  to bottom: new[i][j] = old[R-1-j][i]. Anticlockwise, the top row becomes the left-hand
+ *  column read bottom to top: new[i][j] = old[j][C-1-i]. The old rows no longer exist as
+ *  rows, so every row gets a fresh id, as in `scale`: Work-stage progress starts again. */
+export function rotate90(p: Pattern, clockwise = true): Pattern {
+  const R = p.rows
+  const C = p.cols
+  const cells = new Uint16Array(R * C)
+  // The new pattern has C rows of R cells.
+  for (let i = 0; i < C; i++) {
+    for (let j = 0; j < R; j++) {
+      cells[i * R + j] = clockwise ? p.cells[(R - 1 - j) * C + i]! : p.cells[j * C + (C - 1 - i)]!
+    }
+  }
+  return clone(p, { cells, cols: R, row_ids: freshIds(C) })
+}
+
 // --- palette ------------------------------------------------------------------------------------
 
 function indexOf(p: Pattern, entryId: string): number {
