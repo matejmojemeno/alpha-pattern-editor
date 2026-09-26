@@ -139,7 +139,7 @@ The Design/Work separation (§6) reduces the blast radius here considerably, but
 
 Charts often use two similar shades. RGB distance will either merge them or split noise into phantom colors.
 
-**Resolution:** cluster in **CIELAB** with a ΔE threshold, exposed as a slider in the import confirmation step with a live palette preview. Let the user merge or split clusters before committing.
+**Resolution:** cluster in **CIELAB** with a ΔE threshold, exposed as a slider in the import confirmation step with a live palette preview. Let the user merge or split clusters before committing. (Web: a fixed ΔE 15, no slider; see §7.2.)
 
 ### 4.7 Low-resolution input is unrecoverable
 
@@ -321,6 +321,9 @@ File dialog, drag-and-drop, and **paste from clipboard** (`Ctrl+V` of a screensh
 - Crop tool that re-runs `detect_pattern(crop=...)` — the manual escape hatch. (Web: no
   tool to switch on; a box drawn on the image off the handles is a crop.)
 - **Color similarity slider** (ΔE 2–15) with live palette preview: swatches, cell counts, merge/split controls.
+  (Web: no slider. Colours closer than ΔE 15 are always merged, so a chart comes out with
+  as few yarns as it really has. A colour left over can be deleted in Design, which gives
+  its cells the nearest remaining one.)
 - Reconstructed pattern rendered **side by side** with the source. Visual diff is the fastest way for a human to spot an error.
 - Low-confidence cells highlighted in the reconstruction.
 - Failure states show the reason plus a "crop manually" path, never a dead end.
