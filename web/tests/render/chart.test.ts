@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DONE_STRIKE, DONE_WASH, GRID_COLOR, bands, cellPixels, drawChart, type CellImage } from '../../src/render/chart.ts'
+import { DONE_STRIKE, DONE_WASH, GRID_COLOR, bands, cellPixels, drawChart, spotlightPixels, type CellImage } from '../../src/render/chart.ts'
 import { computeLayout, type RowPlace } from '../../src/render/layout.ts'
 import { SKIP_INDEX, type Pattern } from '../../src/model/types.ts'
 
@@ -28,6 +28,18 @@ describe('cellPixels', () => {
   it('is one RGBA pixel per cell from the palette, grey for skipped or unknown cells', () => {
     const px = cellPixels(pattern(1, 4, [0, 1, SKIP_INDEX, 7]))
     expect([...px]).toEqual([255, 0, 0, 255, 0, 255, 0, 255, 200, 200, 200, 255, 200, 200, 200, 255])
+  })
+})
+
+describe('spotlightPixels', () => {
+  it('keeps one colour’s cells and fades the rest: to light behind a dark colour, dark behind a light one', () => {
+    const p = pattern(1, 2, [0, 1])
+    // Red is dark (luma 54): green fades 80% towards light grey.
+    expect([...spotlightPixels(p, 0)]).toEqual([255, 0, 0, 255, 189, 240, 189, 255])
+    // Green is light (luma 182): red fades 80% towards dark grey.
+    expect([...spotlightPixels(p, 1)]).toEqual([89, 38, 38, 255, 0, 255, 0, 255])
+    // No such colour: unchanged.
+    expect([...spotlightPixels(p, 5)]).toEqual([...cellPixels(p)])
   })
 })
 

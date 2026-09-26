@@ -89,6 +89,20 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   outline, ~17 apart); deleting it in Design gives its cells the nearest colour. The web never sends a ΔE,
   so the constant is the one place it is set; the desktop's slider starts there too.
   `test_palette.py` pins it on four real charts.
+- **Colours on the import screen** (`ui/import/Palette.tsx`, `importer/removals.ts`):
+  the list sits on the page (a swatch, the name, the count, the nearest shade, wrapping
+  rather than scrolling sideways; the desktop painted each row in its colour), and the
+  colour count moved from the size summary to the list's heading and tab. Pointing at
+  or focusing a colour fades every other one in the pattern 80% towards a neutral that
+  contrasts with it (dark grey behind a light colour, light grey behind a dark one, so
+  white and black both stand out; `chart.spotlightPixels`); a click or tap keeps it
+  showing, which is how a phone sees it on the Pattern tab ("Show all colours" ends it).
+  Its × removes it as Design's Delete does (`edit.deletePaletteEntryNearest`); removed
+  colours are listed with Restore, which puts back exactly what detection found. Removals
+  survive moving the outline and Re-detect, and are applied to the committed pattern on
+  saving. `scripts/desktop_import.py` takes `remove=#rrggbb`, and
+  `e2e/corrections.spec.ts` checks the saved pattern cell for cell against the Python's
+  `delete_palette_entry_nearest`.
 - **Hosting** (`web/wrangler.jsonc`, `web/public/_headers`): Cloudflare Workers static
   assets at the free `*.workers.dev` address, deployed by Cloudflare's Git integration on
   every push to `main` (setup in `web/README.md`, "Deploying"). `/assets/*`, `/pyodide/*`
@@ -334,6 +348,13 @@ break without noticing.
   divides the extent evenly (`np.linspace`). If resampling ever follows an uneven
   lattice, draw the preview's lines again.
 
+- **A colour removed on the import screen is remembered by its hex, never its id.**
+  Every resample builds a fresh palette with fresh `uuid4` ids
+  (`palette.build_palette`), so each preview is kept as detection answered it and the
+  removals are replayed on it in order, each taking the entry nearest its hex within half
+  the merge threshold (`importer/removals.ts`). Saving replays them on the committed
+  pattern, built from the same cached preview (`bridge.commit`), so what is saved is
+  what was shown.
 - **The colour-merge threshold is set in one place,** `palette.DEFAULT_DELTA_E`. The web
   sends no ΔE, so the worker must leave `delta_e` out and let the bridge's default apply;
   don't hard-code a number in `worker.ts` again. Before moving it, rerun the real-chart

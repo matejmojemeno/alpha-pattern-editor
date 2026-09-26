@@ -4,8 +4,8 @@
  *
  * There is no colour setting: similar colours are merged at a fixed ΔE
  * (alphareader/core/detect/palette.py, DEFAULT_DELTA_E), chosen so a chart comes out with
- * as few yarns as it really has. A colour left over can be deleted in Design, which gives
- * its cells the nearest remaining one.
+ * as few yarns as it really has. A colour left over can be removed from the colour list
+ * (Palette.tsx), or deleted in Design; either gives its cells the nearest remaining one.
  */
 export interface ControlsProps {
   /** Re-detect needs an image, and nothing detecting. */

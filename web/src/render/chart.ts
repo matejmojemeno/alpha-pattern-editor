@@ -14,7 +14,7 @@
  */
 import { workingNumber } from '../logic/readout.ts'
 import type { Pattern } from '../model/types.ts'
-import { hexToRgb } from '../theme/contrast.ts'
+import { contrastOn, hexToRgb } from '../theme/contrast.ts'
 import { AXIS_LEFT, AXIS_TOP, placeDone, rowsInViewport, showAxisNumber, type ChartLayout, type RowPlace } from './layout.ts'
 
 // Drawn over the pattern's own colours, so fixed rather than themed (theme.py:71-99).
@@ -56,10 +56,40 @@ export function cellPixels(pattern: Pick<Pattern, 'rows' | 'cols' | 'cells' | 'p
   return out
 }
 
+/** How far `spotlightPixels` fades the other colours towards the backdrop. */
+export const SPOTLIGHT_FADE = 0.8
+/** The backdrops the other colours fade towards: dark behind a light colour, light
+ *  behind a dark one, so white on a white page or black on black still stands out. */
+export const SPOTLIGHT_DARK: readonly [number, number, number] = [48, 48, 48]
+export const SPOTLIGHT_LIGHT: readonly [number, number, number] = [236, 236, 236]
+
+/** `cellPixels`, with every cell not of palette entry `index` faded towards a neutral
+ *  backdrop: where one colour is used, at a glance (the import screen's colour list). */
+export function spotlightPixels(pattern: Pick<Pattern, 'rows' | 'cols' | 'cells' | 'palette'>, index: number): Uint8ClampedArray {
+  const out = cellPixels(pattern)
+  const entry = pattern.palette[index]
+  if (!entry) return out
+  let back = SPOTLIGHT_LIGHT
+  try {
+    if (contrastOn(entry.hex) === '#000000') back = SPOTLIGHT_DARK
+  } catch {
+    // an unreadable colour: fade towards light
+  }
+  const keep = 1 - SPOTLIGHT_FADE
+  for (let i = 0; i < pattern.cells.length; i++) {
+    if (pattern.cells[i] === index) continue
+    for (let k = 0; k < 3; k++) out[i * 4 + k] = out[i * 4 + k]! * keep + back[k]! * SPOTLIGHT_FADE
+  }
+  return out
+}
+
 export type CellImage = HTMLCanvasElement | OffscreenCanvas
 
 /** The offscreen image of the cells, or null where there is no canvas (tests). */
-export function buildCellImage(pattern: Pick<Pattern, 'rows' | 'cols' | 'cells' | 'palette'>): CellImage | null {
+export function buildCellImage(
+  pattern: Pick<Pattern, 'rows' | 'cols' | 'cells' | 'palette'>,
+  pixels: Uint8ClampedArray = cellPixels(pattern),
+): CellImage | null {
   if (pattern.rows <= 0 || pattern.cols <= 0) return null
   let canvas: CellImage
   if (typeof OffscreenCanvas !== 'undefined') canvas = new OffscreenCanvas(pattern.cols, pattern.rows)
@@ -71,7 +101,7 @@ export function buildCellImage(pattern: Pick<Pattern, 'rows' | 'cols' | 'cells' 
   const ctx = canvas.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null
   if (!ctx) return null
   const data = new ImageData(pattern.cols, pattern.rows)
-  data.data.set(cellPixels(pattern))
+  data.data.set(pixels)
   ctx.putImageData(data, 0, 0)
   return canvas
 }

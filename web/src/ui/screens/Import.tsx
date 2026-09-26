@@ -17,7 +17,7 @@
  */
 import '../import.css'
 
-import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { downloadBytes } from 'virtual:detect-assets'
 
 import { useRepo } from '../../app/context.ts'
@@ -35,11 +35,11 @@ import {
   type Params,
   type Preview,
 } from '../../detect/protocol.ts'
-import { shrinkNotice } from '../../importer/controls.ts'
+import { importStats, shrinkNotice } from '../../importer/controls.ts'
 import { decodeImage, ImageDecodeError, sourcePng } from '../../importer/decode.ts'
 import { hintFor, OUT_OF_MEMORY_HINT, TIMEOUT_HINT } from '../../importer/hints.ts'
 import type { Grid } from '../../importer/outline.ts'
-import { formatStats } from '../../logic/readout.ts'
+import { applyRemovals, type Removal } from '../../importer/removals.ts'
 import { emptyProgress } from '../../model/types.ts'
 import { DropOverlay, ImportButton, Notices, TopBar } from '../components.tsx'
 import { useDelayedFlag, useDocumentTitle, useFileDrop, useMediaQuery, usePastedImage } from '../hooks.ts'
@@ -111,6 +111,12 @@ export default function ImportScreen() {
   const [redetecting, setRedetecting] = useState(false)
   const dim = useDelayedFlag(updating > 0 || redetecting, DIM_AFTER_MS)
 
+  /** Colours removed before saving, in order (importer/removals.ts). */
+  const [removals, setRemovals] = useState<Removal[]>([])
+  /** The colour pointed at, and the one kept showing, in the colour list: by hex. */
+  const [pointed, setPointed] = useState<string | null>(null)
+  const [pinned, setPinned] = useState<string | null>(null)
+
   const session = useRef<DetectSession | null>(null)
   /** Updates asked for and not yet answered. */
   const pending = useRef(0)
@@ -129,6 +135,9 @@ export default function ImportScreen() {
     setShown(null)
     setSize(null)
     setRun({ attempt: 0 })
+    setRemovals([])
+    setPointed(null)
+    setPinned(null)
   }, [])
 
   const onFiles = useCallback(
@@ -264,16 +273,29 @@ export default function ImportScreen() {
       await s.idle() // a change still on its way is part of what's saved
       const committed = await s.commit(cleanName(name) ?? image.name)
       if (!committed.ok) throw new Error(committed.message)
+      // The colours removed here, as they were on the preview it was built from.
+      const pattern = applyRemovals(committed.pattern, removals, tolerance(state.preview)).result
       const png = await sourcePng(image.file)
       // A fresh detection opens in the Design stage (§7.3), to be cleaned up before it is
       // worked. (The desktop opened Work; part 1 of Phase 3 did too.)
-      const saved = await repo.save({ pattern: committed.pattern, progress: emptyProgress(), stage: 'design' }, { sourcePng: png })
+      const saved = await repo.save({ pattern, progress: emptyProgress(), stage: 'design' }, { sourcePng: png })
       navigate(paths.design(saved.pattern.id))
     } catch (err) {
       setSaving(false)
       setNotices([{ tone: 'error', text: `Couldn't save the pattern: ${err instanceof Error ? err.message : String(err)}` }])
     }
   }
+
+  // The preview as shown: detection's answer with the colours removed here.
+  const raw = shown ?? (state.phase === 'result' ? state.preview : null)
+  const { result: display, applied } = useMemo(
+    () => (raw ? applyRemovals(raw, removals, tolerance(raw)) : { result: null, applied: [] }),
+    [raw, removals],
+  )
+  const removed = removals.flatMap((removal, index) => (applied[index] ? [{ removal, index }] : []))
+  const spotHex = pointed ?? pinned
+  const spotIndex = display && spotHex !== null ? display.palette.findIndex((e) => e.hex === spotHex) : -1
+  const spotlight = spotIndex >= 0 ? spotIndex : null
 
   const another = (label: string, primary = false) => (
     <ImportButton
@@ -305,10 +327,10 @@ export default function ImportScreen() {
   const hasGrid = state.phase === 'result'
   const loading = state.phase === 'decoding' || state.phase === 'booting' || state.phase === 'detecting'
   const canDetect = !loading && !redetecting && state.phase !== 'error' && size !== null
-  const preview = state.phase === 'result' ? state.preview : null
+  const preview = state.phase === 'result' ? display : null
   const grid = hasGrid && shown ? (outline ?? { extent: shown.extent, rows: shown.rows, cols: shown.cols }) : null
 
-  const panes: { tab: Tab; label: string; body: ReactNode }[] = [
+  const panes: { tab: Tab; label: string; count?: number | undefined; body: ReactNode }[] = [
     {
       tab: 'image',
       label: 'Your image',
@@ -339,7 +361,9 @@ export default function ImportScreen() {
         <div className="confirm__outcome" aria-live="polite" aria-busy={loading || redetecting}>
           <Outcome
             state={state}
-            shown={shown}
+            shown={display}
+            spotlight={spotlight}
+            {...(pinned !== null && spotlight !== null && !wide ? { onShowAll: () => setPinned(null) } : {})}
             redetecting={redetecting}
             onRetry={() => setRun((r) => ({ attempt: r.attempt + 1 }))}
             {...(wide ? {} : { onShowImage: () => setTab('image') })}
@@ -351,7 +375,26 @@ export default function ImportScreen() {
     {
       tab: 'colours',
       label: 'Colours',
-      body: shown && hasGrid ? <Palette palette={shown.palette} /> : <p className="muted">The colours appear once the grid is found.</p>,
+      count: display && hasGrid ? display.palette.length : undefined,
+      body:
+        display && hasGrid ? (
+          <Palette
+            palette={display.palette}
+            shown={spotlight === null ? null : spotHex}
+            pinned={pinned}
+            onPoint={setPointed}
+            onPin={setPinned}
+            onRemove={(e) => {
+              setRemovals((r) => [...r, { hex: e.hex, name: e.name }])
+              setPointed(null)
+              if (pinned === e.hex) setPinned(null)
+            }}
+            removed={removed}
+            onRestore={(index) => setRemovals((r) => r.filter((_, i) => i !== index))}
+          />
+        ) : (
+          <p className="muted">The colours appear once the grid is found.</p>
+        ),
     },
   ]
 
@@ -373,9 +416,11 @@ export default function ImportScreen() {
                 aria-controls={`${tabsId}-${p.tab}`}
                 aria-selected={tab === p.tab}
                 className="confirm__tab"
+                {...countLabel(p.label, p.count)}
                 onClick={() => setTab(p.tab)}
               >
                 {p.tab === 'image' ? 'Image' : p.label}
+                {p.count !== undefined && <Count n={p.count} />}
               </button>
             ))}
           </div>
@@ -390,7 +435,12 @@ export default function ImportScreen() {
                 ? { 'aria-label': p.label }
                 : { role: 'tabpanel', 'aria-labelledby': `${tabsId}-${p.tab}-tab`, hidden: tab !== p.tab })}
             >
-              {wide && <h2 className="confirm__caption">{p.label}</h2>}
+              {wide && (
+                <h2 className="confirm__caption" {...countLabel(p.label, p.count)}>
+                  {p.label}
+                  {p.count !== undefined && <Count n={p.count} />}
+                </h2>
+              )}
               {p.body}
             </section>
           ))}
@@ -408,13 +458,30 @@ export default function ImportScreen() {
   )
 }
 
-/** The size, colours and strings; the shrink notice; the warnings. Recomputed with
+/** How close a colour must be to one removed to be taken for it, in a new preview: half
+ *  the merge threshold, so no two of its colours can both be (importer/removals.ts). */
+const tolerance = (p: { deltaE: number }) => p.deltaE / 2
+
+/** How many colours, beside the colour list's heading or tab; read out through
+ *  `countLabel` on that. */
+function Count({ n }: { n: number }) {
+  return (
+    <span className="confirm__count" aria-hidden="true">
+      {n}
+    </span>
+  )
+}
+
+const countLabel = (label: string, n: number | undefined) =>
+  n === undefined ? {} : { 'aria-label': `${label}, ${n} ${n === 1 ? 'colour' : 'colours'}` }
+
+/** The size, stitches and strings; the shrink notice; the warnings. Recomputed with
  *  every preview. */
 function Summary({ preview }: { preview: Preview }) {
   const shrunk = shrinkNotice(preview)
   return (
     <div className="confirm__summary">
-      <p className="confirm__stats">{formatStats(preview.cols, preview.rows, preview.palette.length)}</p>
+      <p className="confirm__stats">{importStats(preview.cols, preview.rows)}</p>
       {preview.warnings.length > 0 && (
         <ul className="confirm__warnings" aria-label="Warnings">
           {preview.warnings.map((w, i) => (
@@ -435,16 +502,22 @@ export function Outcome({
   state,
   shown,
   redetecting,
+  spotlight = null,
   onRetry,
   onShowImage,
+  onShowAll,
   another,
 }: {
   state: ImportState
   shown: Preview | null
   redetecting: boolean
+  /** The palette index whose cells to show, the rest faded. */
+  spotlight?: number | null
   onRetry: () => void
   /** On a phone, where the image is another tab: go to it, to draw a box there. */
   onShowImage?: () => void
+  /** On a phone, where the colours are another tab: stop showing the one picked there. */
+  onShowAll?: () => void
   another: (label: string, primary?: boolean) => ReactNode
 }) {
   if (redetecting && !shown) return <Finding />
@@ -460,7 +533,15 @@ export function Outcome({
     case 'result':
       return (
         <>
-          <PatternView preview={shown ?? state.preview} />
+          <PatternView preview={shown ?? state.preview} spotlight={spotlight} />
+          {onShowAll && spotlight !== null && shown && (
+            <p className="confirm__spotlight">
+              Showing where {shown.palette[spotlight]?.name} is used.{' '}
+              <button type="button" className="button button--small" onClick={onShowAll}>
+                Show all colours
+              </button>
+            </p>
+          )}
           {redetecting && <p className="confirm__busy">Finding the grid…</p>}
         </>
       )

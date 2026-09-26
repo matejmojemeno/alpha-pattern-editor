@@ -18,3 +18,9 @@ export function cellSize(cols: number, rows: number, boxWidth: number, boxHeight
   if (cols <= 0 || rows <= 0 || boxWidth <= 0 || boxHeight <= 0) return 0
   return Math.max(1, Math.floor(Math.min((boxWidth * dpr - 1) / cols, (boxHeight * dpr - 1) / rows)))
 }
+
+/** The import screen's size summary: readout.formatStats without the colour count, which
+ *  heads the colour list instead. */
+export function importStats(cols: number, rows: number): string {
+  return `${cols} cols × ${rows} rows · ${rows * cols} stitches · ${cols + 1} strings needed`
+}
