@@ -3,6 +3,8 @@ browser against (web/e2e/desktop.ts).
 
     python scripts/desktop_import.py detect <image> [correction ...]
     python scripts/desktop_import.py load <file.alpha>   # as the desktop opens a project
+    python scripts/desktop_import.py png <file.alpha> <exported.png>
+                                            # whether the PNG is the desktop's Export PNG
 
 `detect` follows confirm_window.py: Pillow decodes to RGB, then detect_pattern →
 ConfirmState.from_detection, then each correction in order, as the confirm screen's
@@ -88,11 +90,29 @@ def load(path: str) -> dict:
         "name": project.pattern.name,
         "stage": project.stage,
         "completed": len(project.progress.completed_row_ids),
+        "completed_row_ids": sorted(project.progress.completed_row_ids),
+        "current_row_id": project.progress.current_row_id,
+        "row_ids": list(project.pattern.row_ids),
         "source": None if source is None else list(source.shape),
         **_pattern(project.pattern),
     }
 
 
+def png(path: str, exported: str) -> dict:
+    """Export `path` as design_window.py's Export PNG… does, and compare the pixels with
+    `exported`."""
+    import tempfile
+    project = io.load_project(path)
+    with tempfile.TemporaryDirectory() as d:
+        mine = str(Path(d) / "desktop.png")
+        io.export_pattern_png(project.pattern, mine)
+        with Image.open(mine) as a, Image.open(exported) as b:
+            x = np.asarray(a.convert("RGB"))
+            y = np.asarray(b.convert("RGB"))
+    same = x.shape == y.shape and bool(np.array_equal(x, y))
+    return {"same": same, "desktop": list(x.shape), "exported": list(y.shape)}
+
+
 if __name__ == "__main__":
     mode, path, *rest = sys.argv[1:]
-    print(json.dumps({"detect": detect, "load": load}[mode](path, *rest)))
+    print(json.dumps({"detect": detect, "load": load, "png": png}[mode](path, *rest)))
