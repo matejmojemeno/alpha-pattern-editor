@@ -206,7 +206,7 @@ export function YarnPanel({
         <tbody>
           {usage.colours.map((c) => (
             <tr key={c.entry.id}>
-              <th scope="row">
+              <th scope="row" title={c.entry.name || undefined}>
                 <span className="colour__swatch yarn__swatch" style={{ background: c.entry.hex }} aria-hidden="true" />
                 {c.entry.name || 'Unnamed'}
               </th>
