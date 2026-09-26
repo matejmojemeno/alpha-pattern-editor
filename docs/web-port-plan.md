@@ -54,6 +54,19 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   wrong size is fixed in Design, with the row and column tools; the shrink notice says
   so. The controls left are Crop, Re-detect and Colour detail. `set_params` still takes
   rows and cols, and previews still carry `confidence`; the UI just doesn't use them.
+- **The grid's outline moves, and Crop is gone** (§7.2's "draggable extent handles …
+  snapping to pitch increments"; `web/src/importer/outline.ts`,
+  `web/src/ui/import/SourceView.tsx`). The blue outline over the image has a handle on
+  each edge and corner. Dragging one moves that side in whole cells at the detected
+  pitch, taking in (or leaving out) the rows and columns detection missed there, live
+  as the finger moves; a focused edge moves a cell per arrow key. It only resamples:
+  `set_params(extent, rows, cols)`, no new detection. From a detection of just the
+  middle of a chart, this gives back the whole-image detection cell for cell on cats,
+  dachshund and monkeys, and on bug.jpg bar one colour merged differently (2 of 1,815
+  cells). The Crop button is gone: a box drawn anywhere else on the image, or straight
+  away when there's no grid (a failure, the watchdog, running out of memory), detects
+  again inside it. On a phone the failure screens offer "Draw a box", which shows the
+  image tab. `scripts/desktop_import.py` takes `extent=x0,y0,x1,y1` for the e2e check.
 - **Hosting** (`web/wrangler.jsonc`, `web/public/_headers`): Cloudflare Workers static
   assets at the free `*.workers.dev` address, deployed by Cloudflare's Git integration on
   every push to `main` (setup in `web/README.md`, "Deploying"). `/assets/*`, `/pyodide/*`
@@ -289,6 +302,12 @@ Tasks that can safely run in parallel, in dependency order:
 
 These are the non-obvious constraints. Each one was learned the hard way or is easy to
 break without noticing.
+
+- **The import overlay is drawn from the extent, rows and cols** (`outline.gridLines`),
+  not from the preview's `rowLines`/`colLines`, so a dragged outline shows its lines
+  before the resample answers. That's the same picture only because `confirm.resample`
+  divides the extent evenly (`np.linspace`). If resampling ever follows an uneven
+  lattice, draw the preview's lines again.
 
 - **After any change to `alphareader/core/detect`, run `python scripts/parity/check.py`.**
   It must report 89/89 bit-identical. It exits non-zero otherwise. Run `npm install` in

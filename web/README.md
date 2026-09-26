@@ -101,7 +101,8 @@ files.
 - `src/detect/`: the Pyodide boundary. `worker.ts` runs `alphareader/core/bridge.py` in
   a module worker; `client.ts` is the app's side of it; `protocol.ts` the messages.
 - `src/importer/`: the import screen's logic: decoding images, the failure hints, the
-  letterboxed crop mapping (`letterbox.ts`) and the controls' ranges (`controls.ts`).
+  letterboxed crop mapping (`letterbox.ts`), moving the grid's outline in whole cells
+  (`outline.ts`) and the controls' ranges (`controls.ts`).
   Its components are in `src/ui/import/`.
 
 Routing uses the URL hash (`#/library`, `#/work/<id>`, `#/design/<id>`): the part after
