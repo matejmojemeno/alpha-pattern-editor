@@ -184,7 +184,8 @@
 .colour {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-areas: 'swatch name count' 'swatch hex count';
+  /* The third row, the nearest shade, is empty (and takes no room) while none shows. */
+  grid-template-areas: 'swatch name count' 'swatch hex count' 'swatch match match';
   align-items: center;
   column-gap: 0.55rem;
   width: 100%;
@@ -286,6 +287,128 @@
 
 .colours__rename {
   margin-bottom: 0.6rem;
+}
+
+.colour__match {
+  grid-area: match;
+  color: var(--muted);
+}
+
+.colours__nearest {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 0.4rem;
+  font-size: var(--text-sm);
+}
+
+/* --- the yarn estimate ------------------------------------------------------------------- */
+
+.yarn {
+  margin-top: 1rem;
+}
+
+.yarn__inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem 0.6rem;
+  margin-bottom: 0.4rem;
+}
+
+.yarn__field label {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.yarn__input {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.yarn__input input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.2rem 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.yarn__input input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.yarn__units {
+  display: flex;
+  align-items: end;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: var(--text-sm);
+}
+
+.yarn__units label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.yarn__ball,
+.yarn__assumptions {
+  margin: 0 0 0.5rem;
+  font-size: var(--text-sm);
+  line-height: 1.35;
+}
+
+.yarn__table {
+  width: 100%;
+  margin-bottom: 0.5rem;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.yarn__table th,
+.yarn__table td {
+  padding: 0.15rem 0.25rem;
+  text-align: right;
+}
+
+.yarn__table th[scope='row'],
+.yarn__table thead th:first-child {
+  max-width: 9rem;
+  overflow: hidden;
+  font-weight: 500;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yarn__table thead th {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.yarn__table tfoot th,
+.yarn__table tfoot td {
+  border-top: 1px solid var(--border);
+  font-weight: 600;
+}
+
+.yarn__swatch {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  margin-right: 0.35rem;
+  vertical-align: -0.1rem;
+  border: 1px solid var(--border);
+  border-radius: 2px;
 }
 
 /* --- the bottom bar --------------------------------------------------------------------------------- */

@@ -66,7 +66,14 @@ describe('Import screen', () => {
     expect(screen.getByRole('img', { name: 'The detected pattern: 4 columns by 3 rows' })).toBeTruthy()
     expect(screen.getByText('4 cols × 3 rows · 12 stitches · 2 colours · 5 strings needed')).toBeTruthy()
     const colours = within(screen.getByRole('list', { name: 'Colours' })).getAllByRole('listitem')
-    expect(colours.map((c) => c.textContent)).toEqual(['6 White stitches', '6 Brown stitches'])
+    // With each colour's nearest DMC shade, once that library has loaded.
+    await waitFor(() =>
+      expect(colours.map((c) => c.textContent)).toEqual([
+        '6 White stitchesNearest shade: White',
+        '6 Brown stitchesNearest shade: 975 Dark Golden Brown',
+      ]),
+    )
+    expect(screen.getByRole('combobox', { name: 'Match colours to' })).toHaveProperty('value', 'dmc')
     expect(within(screen.getByRole('list', { name: 'Warnings' })).getByText('Check the dimensions.')).toBeTruthy()
     expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('dog')
   })

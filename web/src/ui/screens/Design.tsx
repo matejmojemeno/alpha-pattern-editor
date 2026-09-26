@@ -82,8 +82,10 @@ import { CellsIcon, ConfirmDialog } from '../components.tsx'
 import { ColoursPanel } from '../design/ColoursPanel.tsx'
 import { DesignCanvas } from '../design/DesignCanvas.tsx'
 import { StructurePanel, type TransformAction } from '../design/StructurePanel.tsx'
+import { YarnPanel } from '../design/YarnPanel.tsx'
 import { useDocumentTitle, useMediaQuery } from '../hooks.ts'
 import { ProjectGate } from '../ProjectGate.tsx'
+import { useChosenMatches } from '../yarn/useShades.ts'
 
 export default function Design({ id }: { id: string }) {
   return <ProjectGate id={id}>{(repo, { project }) => <DesignStage repo={repo} initial={project} />}</ProjectGate>
@@ -153,6 +155,8 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   const [warning, setWarning] = useState(() => progressWarning(initial.pattern, initial.progress))
   const p = editor.pattern
   useDocumentTitle(`${p.name} (design)`)
+  // Each colour's nearest shade in the chosen library, which loads on first use.
+  const { library, matches } = useChosenMatches(p.palette.map((e) => e.hex))
 
   // --- saving: automatic, as a Design-stage project ---------------------------------------------
   const [status, setStatus] = useState<SaveStatus>('saved')
@@ -508,15 +512,20 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
     </div>
   )
   const colours = (
-    <ColoursPanel
-      palette={p.palette}
-      current={editor.colour}
-      onSelect={(i) => update((s) => selectColour(s, i))}
-      onAdd={(hex) => update((s) => addColour(s, hex))}
-      onRecolour={(i, hex) => update((s) => recolour(s, i, hex))}
-      onRename={(i, name) => update((s) => renameColour(s, i, name))}
-      onDelete={onDelete}
-    />
+    <>
+      <ColoursPanel
+        palette={p.palette}
+        current={editor.colour}
+        onSelect={(i) => update((s) => selectColour(s, i))}
+        onAdd={(hex) => update((s) => addColour(s, hex))}
+        onRecolour={(i, hex) => update((s) => recolour(s, i, hex))}
+        onRename={(i, name) => update((s) => renameColour(s, i, name))}
+        onDelete={onDelete}
+        library={library}
+        matches={matches}
+      />
+      <YarnPanel name={p.name} palette={p.palette} library={library} matches={matches} />
+    </>
   )
   const structure = (
     <StructurePanel

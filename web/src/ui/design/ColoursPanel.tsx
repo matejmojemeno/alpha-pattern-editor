@@ -1,13 +1,18 @@
 /**
  * The Design stage's colours (§6.2, design_window.py's palette list): each colour with
- * its name, hex and cell count; pick the one to paint with; add, recolour, rename and
- * delete. Every change is one undo step (design/editor.ts).
+ * its name, hex and cell count, and its nearest shade in the chosen colour library; pick
+ * the one to paint with; add, recolour (or snap to that shade), rename and delete. Every
+ * change is one undo step (design/editor.ts).
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import type { PaletteEntry } from '../../model/types.ts'
 import { contrastOn } from '../../theme/contrast.ts'
+import type { Library } from '../../yarn/libraries.ts'
+import type { Match } from '../../yarn/match.ts'
 import { RenameForm } from '../components.tsx'
+import { LibraryCredit, LibraryPicker, ShadeMatch } from '../yarn/ShadeViews.tsx'
+import { matchName } from '../yarn/useShades.ts'
 
 /**
  * A native colour picker that reports only the colour chosen, on `change`. React's
@@ -51,6 +56,8 @@ export function ColoursPanel({
   onRecolour,
   onRename,
   onDelete,
+  library,
+  matches,
 }: {
   palette: readonly PaletteEntry[]
   current: number
@@ -59,11 +66,16 @@ export function ColoursPanel({
   onRecolour: (index: number, hex: string) => void
   onRename: (index: number, name: string) => void
   onDelete: (index: number) => void
+  /** The chosen colour library, or null while it loads. */
+  library: Library | null
+  /** Each colour's nearest shade in it, or null while it loads. */
+  matches: readonly Match[] | null
 }) {
   const [renaming, setRenaming] = useState(false)
   const [newHex, setNewHex] = useState('#000000')
   const entry = palette[current]
   const only = palette.length <= 1
+  const match = matches?.[current]
   const renameButton = useRef<HTMLButtonElement>(null)
   const wasRenaming = useRef(false)
   useEffect(() => {
@@ -92,13 +104,22 @@ export function ColoursPanel({
               <span className="colour__name">{e.name || 'Unnamed'}</span>
               <span className="colour__hex">{e.hex}</span>
               <span className="colour__count">{e.count}</span>
+              {library && matches?.[i] && <ShadeMatch className="shade colour__match" library={library} match={matches[i]} />}
             </button>
           </li>
         ))}
       </ul>
 
+      <LibraryPicker className="library-picker colours__library" />
+      <LibraryCredit library={library} />
+
       {entry && (
         <div className="colours__selected" aria-label="Selected colour" role="group">
+          {library && match && (
+            <p className="colours__nearest">
+              Nearest: <ShadeMatch library={library} match={match} />
+            </p>
+          )}
           {renaming ? (
             <RenameForm
               className="rename colours__rename"
@@ -116,6 +137,17 @@ export function ColoursPanel({
                 <ColourInput value={entry.hex} label={`Recolour “${entry.name}”`} onPick={(hex) => onRecolour(current, hex)} />
                 Recolour
               </label>
+              {library && match && (
+                <button
+                  type="button"
+                  className="button button--small"
+                  disabled={match.shade.hex === entry.hex.toLowerCase()}
+                  title={`Recolour to ${matchName(library, match)}, ${match.shade.hex}`}
+                  onClick={() => onRecolour(current, match.shade.hex)}
+                >
+                  Use shade
+                </button>
+              )}
               <button ref={renameButton} type="button" className="button button--small" onClick={() => setRenaming(true)}>
                 Rename
               </button>

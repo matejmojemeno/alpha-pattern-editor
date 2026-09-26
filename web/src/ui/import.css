@@ -318,6 +318,15 @@
   overflow-wrap: anywhere;
 }
 
+.palette__shade {
+  flex: 0 1 auto;
+  max-width: 50%;
+}
+
+.palette__library {
+  margin-top: 0.6rem;
+}
+
 /* --- status and failures -------------------------------------------------------------- */
 
 .import__status progress {
