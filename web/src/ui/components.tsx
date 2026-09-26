@@ -267,11 +267,13 @@ export function RenameForm({
   onRename,
   onCancel,
   className = 'rename',
+  label = 'Project name',
 }: {
   name: string
   onRename: (name: string) => void
   onCancel: () => void
   className?: string
+  label?: string
 }) {
   const id = useId()
   const [value, setValue] = useState(name)
@@ -299,7 +301,7 @@ export function RenameForm({
       }}
     >
       <label htmlFor={`${id}-name`} className="visually-hidden">
-        Project name
+        {label}
       </label>
       <input
         ref={input}
