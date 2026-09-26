@@ -40,8 +40,10 @@ export interface DesktopProject extends DesktopPattern {
  * - `de=X`: the colour-detail slider, as ΔE
  * - `crop=x0,y0,x1,y1`: a crop, in image pixels, which detects again
  * - `redetect`: the Re-detect button
+ * - `extent=x0,y0,x1,y1`: the grid's outline moved, in image pixels (the web app only;
+ *   it sends rows and cols with it)
  */
-export type Correction = `rows=${number}` | `cols=${number}` | `de=${number}` | `crop=${string}` | 'redetect'
+export type Correction = `rows=${number}` | `cols=${number}` | `de=${number}` | `crop=${string}` | `extent=${string}` | 'redetect'
 
 let checked = false
 
