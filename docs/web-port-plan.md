@@ -11,7 +11,62 @@ root. This document covers *how* the app moves to the web, not *what* it does.
 | 0 — core preparation | **done** |
 | 1 — Library + Work + storage | **done** (`newPattern` and its dialog landed with Phase 3, part 1) |
 | 2 — Import wizard + Pyodide | **done**: part 1 (the worker boundary and a minimal photo import, end to end) and part 2 (the correction controls, the shrink rule, the watchdog) |
-| 3 — Design stage | **in progress**: part 1 (the editing logic and the Design screen) done; part 2 (the structural panel, PNG export, the tablet layout) remains |
+| 3 — Design stage | **done**: part 1 (the editing logic and the Design screen) and part 2 (the structural panel, progress across structural edits, PNG export, the tablet layout and touch, pinch-zoom on the Work chart). The desktop app (`alphareader/ui/`) is still in the repo; retiring it is the owner's call |
+
+What Phase 3, part 2 delivered:
+
+- **The SKIP_INDEX bug, fixed in `edit.py` first:** deleting or merging a colour shifted
+  every index above it, `SKIP_INDEX` included, so skip cells became 65534. Now only
+  indices that name a palette entry move; skip cells and any other index past the
+  palette keep their value (the decision and why: `fixtures/README.md`, porting notes).
+  Fixtures regenerated, `edit.ts` replays them.
+- **The structural panel** (`ui/design/StructurePanel.tsx`, geometry in
+  `design/structure.ts`), each edit one undo step, the canvas, stats bar and size fields
+  updating at once:
+  - **Borders:** top/right/bottom/left, linked or not, a palette colour defaulting to
+    `major_border_index`, and a live preview on the canvas (added cells in the border
+    colour, removed ones hatched in red, the result outlined). Negative values remove
+    cells; a removal that cuts into cells that aren't all one colour asks first, and
+    one that leaves nothing is refused with the Python's message.
+  - **Pad to size:** width and height (at least the current size), the colour, and
+    left/top offsets (0..added, centred by default); on the preview the pattern can be
+    dragged into place a whole cell at a time, kept in step with the fields.
+  - **Scale ×2–×12**, showing the size first and warning above 999 on a side.
+  - **Mirror ⇄, Flip ⇅, Rotate 180°, Trim edges** (all four).
+  - **Insert and delete rows and columns** from a small menu on the chart's row and
+    column numbers (and from the panel, by number, for the keyboard). The Design stage
+    has no selection, every tool acts on a press, so a menu on the numbers is where the
+    target already is, and it works the same by finger. New rows and columns take the
+    colour being painted with.
+- **Progress stays sound** (`logic/progress.ts`, not in the Python). The Work stage
+  repairs progress on load: completed ids that name no row are dropped, a missing current
+  row moves to the first row not done, a cursor past its row goes back to the row's
+  start. The Design stage saves `carryProgress(opened pattern, opened progress, now)`,
+  which also puts the cursor back at the start of its row when that row's segments
+  changed (columns edited, or its direction flipped because rows were added or removed
+  below it); computing from what it opened with is what lets undo bring progress back.
+  An edit that would drop rows marked done or the row partway through (delete, trim, a
+  border removed) or start progress again (scale) asks first.
+- **Export PNG** (`render/png.ts`): pixel for pixel `io.export_pattern_png` (16 px
+  cells, a 1 px grid in (170,170,170), a (200,200,200) background), encoded in TypeScript,
+  saved as "<pattern name>.png". Checked against the desktop's output in
+  `fixtures/png/` (`scripts/gen_png_golden.py`). Skip cells come out as empty grey cells;
+  the desktop can't export a pattern that has any.
+- **Photo import opens the Design stage** after saving (§7.3), "Save & edit pattern".
+- **Tablets and touch:** under 1100 px the tools become a toolbar over the chart and the
+  colours and the structural panel open as drawers; under 700 px the Design stage says it
+  needs a larger screen and offers Start working and the Library. One finger or a pen
+  uses the tool; two fingers pan and pinch-zoom about their midpoint and never paint (a
+  stroke the first finger started is taken back with no undo step; on touch, fill, pick
+  and fill row/column act on release). `ui/gestures.ts` is shared with the Work chart.
+- **Pinch-zoom on the Work chart** (see "Chart layout" below): `computeLayout` takes a
+  zoom (1–8×) on the base cell size; two fingers (or Ctrl/⌘ + wheel) zoom about the
+  fingers, one finger still scrolls natively, the next progress change follows as ever,
+  and the zoom resets when the Work stage opens.
+- Tier A (`npm run build`): the main entry chunk is 102.1 KB gzipped (99.1 KB on main
+  before this part: progress repair, the gesture module, the Work zoom); the Design chunk
+  is 14.1 KB (+2.2 KB CSS), still loaded only by the Design stage. Neither stage makes a
+  Pyodide request (`e2e/design.spec.ts`, `e2e/structure.spec.ts`, `e2e/touch.spec.ts`).
 
 What Phase 3, part 1 delivered:
 
@@ -209,6 +264,10 @@ break without noticing.
 - **The Work chart lays out rows with per-row heights, never a single cell size.**
   Scrolling long charts and the taller current row both depend on it (see Phase 1), and
   retrofitting it later means redoing the layout.
+- **The Design stage carries progress from what it opened with.** It saves
+  `carryProgress(openedPattern, openedProgress, pattern)`, never progress updated edit by
+  edit: that is what lets undo bring back the rows a structural edit dropped. The Work
+  stage runs `repairProgress` on load, for files edited anywhere else.
 - **The Work and Design stages make zero Pyodide requests.** Keeping Pyodide out of the
   Work stage is what makes the app usable on a phone, and Design has no use for it
   either since `edit.py` moved to TypeScript. Treat any regression here as a bug.
@@ -272,7 +331,7 @@ Monorepo. The Python package stays where it is and keeps its pytest suite.
 alpha-pattern-editor/
   plan.md                 # product spec (the § numbers cited in code)
   docs/web-port-plan.md   # this file
-  alphareader/            # ui/ is deleted at the end of Phase 3
+  alphareader/            # ui/ (the desktop app) goes when the owner decides
     core/                 # stays the detection source of truth
   fixtures/
     logic_golden.json     # contract for the readout/work TS ports (done)
@@ -429,9 +488,10 @@ A new row starts at the side it's worked from. The chart only moves when your pl
 nears the edge of the view, a view at a time, never on every stitch. A scroll by hand is
 left alone until the next progress change. Charts that fit across never scroll sideways.
 
-**Planned, not built yet: pinch-zoom on the Work chart.** The owner wants pinch-to-zoom
-(and a matching zoom on desktop) so a small chart can be blown up, or a large one read in
-more detail, on a phone. It must work *with* the row and column following, not around it:
+**Pinch-zoom on the Work chart (built in Phase 3, part 2).** The owner wanted
+pinch-to-zoom (and a matching zoom on desktop: Ctrl/⌘ + wheel, which is also a trackpad's
+pinch) so a small chart can be blown up, or a large one read in more detail, on a phone.
+It works *with* the row and column following, not around it:
 
 - Zoom scales the base cell size that `computeLayout` picks, so per-row heights, emphasis
   and focus mode keep working, and `followCurrent`/`followCurrentX` keep doing the

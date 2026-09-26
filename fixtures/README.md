@@ -126,3 +126,12 @@ Pattern = { id, name, created_at, rows, cols, row_ids[], cells[rows][cols],
 - **Ties:** `major_border_index` takes the lowest index among the most common border
   colours (`border-tie`), and `nearest_entry_id` the first of equally near entries
   (`nearest`, whose last two entries share a hex).
+
+# `png/`: the desktop's Export PNG
+
+What `io.export_pattern_png` makes of four projects in `alpha/desktop/`. The web
+app's Export PNG (`web/src/render/png.ts`) must match it pixel for pixel
+(`web/tests/render/png.test.ts`). Regenerate with `python scripts/gen_png_golden.py`;
+`alphareader/tests/test_png_golden.py` fails if the files drift from the desktop's
+output. Projects with skip cells or indices past the palette aren't included: the
+desktop can't export them.
