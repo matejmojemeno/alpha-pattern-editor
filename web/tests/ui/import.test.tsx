@@ -28,7 +28,7 @@ async function openImport(name: string | null = 'dog') {
   return view
 }
 
-const saveButton = () => screen.findByRole('button', { name: 'Save & start working' })
+const saveButton = () => screen.findByRole('button', { name: 'Save & edit pattern' })
 
 describe('Import screen', () => {
   it('shows real download progress while Pyodide boots, then detects', async () => {
@@ -71,7 +71,7 @@ describe('Import screen', () => {
     expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('dog')
   })
 
-  it('saves with the source image and opens the Work stage', async () => {
+  it('saves with the source image and opens the Design stage (§7.3)', async () => {
     const { repo } = await openImport()
     const name = screen.getByLabelText('Name') as HTMLInputElement
     await saveButton()
@@ -79,12 +79,12 @@ describe('Import screen', () => {
     expect((await saveButton()).hasAttribute('disabled')).toBe(true) // no empty names
     await userEvent.type(name, '  My   dog ')
     await userEvent.click(await saveButton())
-    await waitFor(() => expect(window.location.hash).toBe('#/work/pattern-1'))
+    await waitFor(() => expect(window.location.hash).toBe('#/design/pattern-1'))
 
     expect(detection.worker.of('commit')[0]).toMatchObject({ name: 'My dog' })
     const { project, sourcePng } = await repo.open('pattern-1')
     expect(project.pattern.name).toBe('My dog')
-    expect(project.stage).toBe('work')
+    expect(project.stage).toBe('design')
     expect(project.progress.completed_row_ids.size).toBe(0)
     expect([...project.pattern.cells]).toEqual([...makePreview(1).cells])
     expect(sourcePng).toEqual(PNG) // a PNG keeps its own bytes

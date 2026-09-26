@@ -10,7 +10,7 @@ export async function importImage(page: Page, file: string) {
   await page.goto('/')
   await page.getByLabel(PICKER).setInputFiles(file)
   await expect(page.getByRole('heading', { level: 1, name: 'Import pattern' })).toBeVisible()
-  const save = page.getByRole('button', { name: 'Save & start working' })
+  const save = page.getByRole('button', { name: 'Save & edit pattern' })
   const alert = page.getByRole('alert')
   // The save bar is there from the start, disabled until a grid is found: wait for the
   // result's summary, or for the reason there isn't one.
@@ -18,10 +18,10 @@ export async function importImage(page: Page, file: string) {
   return { save, alert }
 }
 
-/** Save the detected pattern under `name`; lands on the Work stage. */
+/** Save the detected pattern under `name`; lands on the Design stage (§7.3). */
 export async function saveAs(page: Page, name: string) {
   await page.getByLabel('Name').fill(name)
-  await page.getByRole('button', { name: 'Save & start working' }).click()
+  await page.getByRole('button', { name: 'Save & edit pattern' }).click()
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
 }
 
