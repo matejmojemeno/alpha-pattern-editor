@@ -13,6 +13,30 @@ root. This document covers *how* the app moves to the web, not *what* it does.
 | 2 — Import wizard + Pyodide | **done**: part 1 (the worker boundary and a minimal photo import, end to end) and part 2 (the correction controls, the shrink rule, the watchdog) |
 | 3 — Design stage | **done**: part 1 (the editing logic and the Design screen) and part 2 (the structural panel, progress across structural edits, PNG export, the tablet layout and touch, pinch-zoom on the Work chart). The desktop app (`alphareader/ui/`) is still in the repo; retiring it is the owner's call |
 
+### After the port
+
+- **Yarn colour libraries** (`web/src/yarn/`, Tier A, no Pyodide). Alpha crochet is
+  worked in acrylic yarn ranges, not DMC floss, so each palette colour can now be matched
+  to Stylecraft Special DK (125 shades), Paintbox Yarns Simply DK (63) or Scheepjes Colour
+  Crafter (90), besides DMC (119, the table detection uses). Hex values and names come
+  from temperature-blanket.com's yarn colorway data (CC BY 4.0, credited in the UI);
+  Scheepjes shade numbers from scheepjes.com; three contradictory Scheepjes entries are
+  left out. Provenance: `web/src/yarn/data/README.md`. Each table is its own lazily
+  loaded chunk (`e2e/bundle.spec.ts`). The nearest shade is the Python's
+  (`fixtures/yarn_nearest.json`). Shown in the Design stage's colours, where "Use shade"
+  recolours to it (one undo step), and on the import screen. The choice is app-wide (the
+  settings store): it describes the crocheter's yarn, not the chart, and nothing new goes
+  into `.alpha` files.
+- **Yarn estimate** (`yarn/usage.ts`, `ui/design/YarnPanel.tsx`): per colour, stitches ×
+  yarn per stitch × (1 + extra %), and whole balls rounded up per colour, in metres or
+  yards; the ball length defaults to the library's own. Exported as "<name> yarn.txt".
+  Defaults: 2.5 cm a stitch (a round figure for DK single crochet, not a measurement;
+  the panel says how to measure your own), 10% extra.
+- Tier A: the main entry chunk is 102.5 KB gzipped (Vite's figure); the Design chunk
+  16.2 KB (+2.4 KB CSS); each library 1.1–2.1 KB, fetched on first use.
+- **Rule:** after changing a library or `palette.srgb_to_lab`, run
+  `python scripts/gen_yarn_fixture.py`; `test_yarn_fixture.py` fails until you do.
+
 What Phase 3, part 2 delivered:
 
 - **The SKIP_INDEX bug, fixed in `edit.py` first:** deleting or merging a colour shifted
@@ -245,6 +269,10 @@ break without noticing.
   the TypeScript is wrong. If you change `readout.py`, `work.py` or `edit.py`, run
   `python scripts/gen_fixtures.py` and commit the result; `test_golden_fixtures.py` fails
   until you do.
+- **Colour library data is sourced, never typed in.** Every table in
+  `web/src/yarn/data/` comes from `scripts/import_yarn_libraries.py` and a source named
+  in its README, with its licence. After changing one, or `palette.srgb_to_lab`, run
+  `python scripts/gen_yarn_fixture.py`.
 - **Edits never renumber rows.** `edit.ts` keeps every existing `row_id` exactly and gives
   only new rows fresh ids; progress is a set of row ids, so that is what keeps the Work
   stage's place across a trip to Design.

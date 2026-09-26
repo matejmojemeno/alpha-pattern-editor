@@ -44,8 +44,15 @@ reference.
   (`db.ts`) and the repository the UI will use (`repo.ts`). Compatibility with the
   desktop format is tested in both directions; see `../fixtures/alpha/README.md`.
 
+- `src/yarn/`: colour libraries (DMC and yarn ranges) and the yarn estimate. `data/`
+  holds one JSON table per library, written by `../scripts/import_yarn_libraries.py`,
+  with every source, licence and retrieval date in `data/README.md`; each is loaded by
+  its own `import()`, never in the main chunk. `match.ts` finds the nearest shade as
+  detection does (`../fixtures/yarn_nearest.json` proves it), `usage.ts` does the
+  estimate's arithmetic. Their UI is in `src/ui/yarn/` and `src/ui/design/YarnPanel.tsx`.
 - `src/app/`: hash router, app-wide context (repository, settings), persistence request.
-- `src/settings/`: display preferences in `localStorage`, typed and fail-safe.
+- `src/settings/`: app-wide preferences in `localStorage` (display, the colour library,
+  the yarn estimate's inputs), typed and fail-safe.
 - `src/theme/`: `tokens.css` (the port of `theme.py`) and `contrastOn()`.
 - `src/ui/`: the screens (landing, Library, Settings, Work, and the lazily loaded
   import screen and Design stage) and shared components. `gestures.ts` is the two-finger
