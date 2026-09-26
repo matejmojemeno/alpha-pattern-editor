@@ -51,6 +51,23 @@ export function contentSize(cols: number, rows: number, cell: number): { width: 
   return { width: AXIS_LEFT + cols * cell + PAD, height: AXIS_TOP + rows * cell + PAD }
 }
 
+/** Which row or column number a viewport point is on, in the margins, or null. */
+export function axisAt(
+  x: number,
+  y: number,
+  v: { cell: number; rows: number; cols: number; scrollX: number; scrollY: number },
+): { kind: 'row' | 'col'; index: number } | null {
+  if (x < AXIS_LEFT && y >= AXIS_TOP) {
+    const r = Math.floor((y - AXIS_TOP + v.scrollY) / v.cell)
+    return r >= 0 && r < v.rows ? { kind: 'row', index: r } : null
+  }
+  if (y < AXIS_TOP && x >= AXIS_LEFT) {
+    const c = Math.floor((x - AXIS_LEFT + v.scrollX) / v.cell)
+    return c >= 0 && c < v.cols ? { kind: 'col', index: c } : null
+  }
+  return null
+}
+
 /**
  * The cell at a viewport point, or null over the margins or past the grid. With `clamp`,
  * the nearest cell instead: a drag that leaves the grid keeps to its edge.
@@ -107,6 +124,72 @@ export interface DesignDraw {
   colors: ChartColors
   /** A rectangle being dragged out, and the colour it will fill with. */
   preview?: { a: Cell; b: Cell; hex: string } | null
+  overlay?: Overlay | null
+}
+
+/** Half-open, in cells: rows [r0, r1) × columns [c0, c1). */
+export interface CellRect {
+  readonly r0: number
+  readonly c0: number
+  readonly r1: number
+  readonly c1: number
+}
+
+/** Drawn over the cells: a structural edit's preview, or the row or column picked. */
+export interface Overlay {
+  /** Cells an edit would remove: hatched in red. */
+  readonly removed?: readonly CellRect[]
+  /** The edges of an edit's result, or where the pattern sits in it: dashed. */
+  readonly outline?: CellRect | null
+  /** A row or column picked from its number: tinted. */
+  readonly highlight?: CellRect | null
+}
+
+/** Removed cells are hatched in the theme's danger red (tokens.css --danger). */
+export const REMOVED_COLOR = '#dd3333'
+
+function drawOverlay(ctx: CanvasRenderingContext2D, o: Overlay, ox: number, oy: number, cell: number, colors: ChartColors) {
+  const box = (r: CellRect) => [ox + r.c0 * cell, oy + r.r0 * cell, (r.c1 - r.c0) * cell, (r.r1 - r.r0) * cell] as const
+  for (const r of o.removed ?? []) {
+    if (r.r1 <= r.r0 || r.c1 <= r.c0) continue
+    const [x, y, w, h] = box(r)
+    ctx.save()
+    ctx.fillStyle = colors.background
+    ctx.globalAlpha = 0.45
+    ctx.fillRect(x, y, w, h)
+    ctx.globalAlpha = 1
+    ctx.beginPath()
+    ctx.rect(x, y, w, h)
+    ctx.clip()
+    ctx.strokeStyle = REMOVED_COLOR
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    const step = 8
+    for (let d = -h; d < w; d += step) {
+      ctx.moveTo(x + d, y + h)
+      ctx.lineTo(x + d + h, y)
+    }
+    ctx.stroke()
+    ctx.restore()
+  }
+  if (o.highlight) {
+    const [x, y, w, h] = box(o.highlight)
+    ctx.fillStyle = colors.accent
+    ctx.globalAlpha = 0.3
+    ctx.fillRect(x, y, w, h)
+    ctx.globalAlpha = 1
+    ctx.lineWidth = 2
+    ctx.strokeStyle = colors.accent
+    ctx.strokeRect(x + 1, y + 1, w - 2, h - 2)
+  }
+  if (o.outline) {
+    const [x, y, w, h] = box(o.outline)
+    ctx.lineWidth = 2
+    ctx.setLineDash([6, 4])
+    ctx.strokeStyle = colors.accent
+    ctx.strokeRect(x + 1, y + 1, w - 2, h - 2)
+    ctx.setLineDash([])
+  }
 }
 
 const px = (v: number, dpr: number) => Math.round(v * dpr) / dpr
@@ -170,6 +253,7 @@ export function drawDesign(ctx: CanvasRenderingContext2D, d: DesignDraw): void {
     ctx.strokeRect(rect[0] + 1, rect[1] + 1, rect[2] - 2, rect[3] - 2)
     ctx.setLineDash([])
   }
+  if (d.overlay) drawOverlay(ctx, d.overlay, ox, oy, cell, colors)
   ctx.restore()
 
   // --- axis numbers ------------------------------------------------------------------------------
