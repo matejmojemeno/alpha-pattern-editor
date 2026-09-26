@@ -83,3 +83,31 @@ test('what the first photo import downloads', () => {
   console.log(`first photo import downloads ${(total / 1e6).toFixed(2)} MB gzipped`)
   expect(total).toBeLessThan(10e6)
 })
+
+/** Cloudflare Workers static assets on the free plan (web/README.md, "Deploying"). */
+const CLOUDFLARE_MAX_FILES = 20_000
+
+test('the site fits Cloudflare, and everything cached for good has a versioned name', () => {
+  // public/_headers caches these three folders immutably. That is only safe while every
+  // file in them changes its name when its content changes; otherwise a deploy would
+  // never reach a returning visitor.
+  const headers = readFileSync(join(DIST, '_headers'), 'utf-8')
+  for (const dir of ['/assets/*', '/pyodide/*', '/py/*']) {
+    expect(headers, dir).toMatch(new RegExp(`^${dir.replace(/[/*]/g, '\\$&')}\\n\\s+Cache-Control: [^\\n]*immutable`, 'm'))
+  }
+  expect(headers).not.toMatch(/^\/index\.html|^\/\*\n\s+Cache-Control/m)
+
+  const all = files(DIST).map((f) => f.slice(DIST.length + 1))
+  expect(all.length).toBeLessThan(CLOUDFLARE_MAX_FILES)
+  for (const f of files(DIST)) expect(statSync(f).size, f).toBeLessThan(CLOUDFLARE_FILE_LIMIT)
+
+  const versioned: Record<string, RegExp> = {
+    assets: /^assets\/[^/]+-[A-Za-z0-9_-]{8}\.[a-z0-9]+$/, // Vite's content hash
+    pyodide: /^pyodide\/v\d+\.\d+\.\d+\/[^/]+$/, // the pinned Pyodide version
+    py: /^py\/alphareader-core\.[0-9a-f]{12}\.zip$/, // build_core_bundle.py's content hash
+  }
+  for (const f of all) {
+    const top = f.split('/')[0]!
+    if (top in versioned) expect(f, `${f} is cached for good but its name isn't versioned`).toMatch(versioned[top]!)
+  }
+})

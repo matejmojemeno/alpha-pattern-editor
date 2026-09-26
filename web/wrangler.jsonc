@@ -1,0 +1,13 @@
+// Cloudflare Workers static-assets hosting: the built app (dist/) is served as plain
+// files, with no Worker script. Deploy with `npm run deploy`, or let Cloudflare's Git
+// integration run `npx wrangler deploy` from web/ on every push to main (web/README.md).
+// `name` must match the Worker's name in the Cloudflare dashboard.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "alpha-pattern-editor",
+  "compatibility_date": "2026-09-26",
+  "assets": {
+    // Routes are hash-based (#/library, #/work/<id>), so no SPA fallback is needed.
+    "directory": "./dist"
+  }
+}
