@@ -36,6 +36,15 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   16.2 KB (+2.4 KB CSS); each library 1.1–2.1 KB, fetched on first use.
 - **Rule:** after changing a library or `palette.srgb_to_lab`, run
   `python scripts/gen_yarn_fixture.py`; `test_yarn_fixture.py` fails until you do.
+- **Hosting** (`web/wrangler.jsonc`, `web/public/_headers`): Cloudflare Workers static
+  assets at the free `*.workers.dev` address, deployed by Cloudflare's Git integration on
+  every push to `main` (setup in `web/README.md`, "Deploying"). `/assets/*`, `/pyodide/*`
+  and `/py/*` are cached immutably. `e2e/bundle.spec.ts` checks that every file there has
+  a versioned name, and that the site stays within the free plan's limits (25 MiB a file,
+  20,000 files; today 16 MB in all). Verified with `wrangler dev`: the import, Design and
+  persistence e2e specs pass against it, and `.wasm` is served as `application/wasm`.
+  **Rule:** a new file under those three folders must carry a version or content hash in
+  its name, or returning visitors never see it change.
 
 What Phase 3, part 2 delivered:
 
@@ -668,7 +677,9 @@ Desktop-first layout that degrades on tablets. Explicitly unsupported on phones.
 - `fflate` for zip files and `idb` for IndexedDB.
 - Canvas 2D for all chart rendering.
 - Vitest and Playwright for tests.
-- Hosted on Cloudflare Pages.
+- Hosted on Cloudflare Workers static assets at the free `*.workers.dev` address. This
+  replaced Cloudflare Pages, which Cloudflare no longer develops; for static files the two
+  are equivalent. Setup and the caching rules are in `web/README.md` ("Deploying").
 
 React is justified by how much state the UI holds (four stages, tool state, undo, live
 preview). Canvas 2D is enough, and WebGL isn't needed: drawing every cell is already fast
@@ -676,7 +687,7 @@ at these chart sizes once the result is cached and copied rather than redrawn pe
 
 Pyodide threading needs the `Cross-Origin-Opener-Policy: same-origin` and
 `Cross-Origin-Embedder-Policy: require-corp` headers. Nothing requires threading today.
-Cloudflare Pages can set the headers through `_headers` if that changes.
+`web/public/_headers` can set them if that changes.
 
 ## Verification
 

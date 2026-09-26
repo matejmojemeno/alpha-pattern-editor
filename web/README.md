@@ -24,6 +24,44 @@ cached in `.cache/`), and `alphareader-core.<hash>.zip` from
 `$PYTHON`. The e2e tests also use that Python, with numpy and Pillow, as the desktop
 reference.
 
+## Deploying (Cloudflare)
+
+The app is static files with no backend, hosted on Cloudflare Workers static assets
+(Cloudflare's recommended successor to Pages) at the free `*.workers.dev` address. Serving
+static assets is free and unlimited.
+
+- `wrangler.jsonc` points Cloudflare at `dist/`. There is no Worker script and no
+  redirect rule; routes are hash-based, so every URL is `/`.
+- `public/_headers` caches `/assets/*`, `/pyodide/*` and `/py/*` for a year as
+  immutable (their file names change with their content) and leaves `index.html` to
+  revalidate, so a deploy reaches returning visitors at once. `e2e/bundle.spec.ts` fails
+  if a file in those folders isn't versioned, or if the site outgrows the free plan's
+  limits (25 MiB per file, 20,000 files).
+
+**Automatic deploys (set up once, in the Cloudflare dashboard).** Go to Workers & Pages,
+then Create, then Import a repository, and pick this GitHub repo. Settings:
+
+| Setting | Value |
+|---|---|
+| Worker name | `alpha-pattern-editor` (must equal `name` in `wrangler.jsonc`) |
+| Production branch | `main` |
+| Root directory | `web` |
+| Build command | `npm ci && npm run build` |
+| Deploy command | `npx wrangler deploy` |
+
+Every push to `main` then deploys, and other branches get a preview URL. Cloudflare's
+build image has Node and Python 3 preinstalled (the build's Python step uses only the
+standard library), and the build needs network access to jsDelivr once, for numpy's
+wheel.
+
+**By hand:** `npx wrangler login` once, then `npm run deploy` (build, then
+`wrangler deploy`). `npx wrangler deploy --dry-run` checks the config without an account.
+
+**Browser storage is per address.** The library lives in IndexedDB, which belongs to one
+origin: `localhost`, the `workers.dev` address, every preview URL and any later custom
+domain each start empty. Move projects between them with Export and import of `.alpha`
+files.
+
 ## Layout so far
 
 - `src/model/`: TypeScript mirrors of `alphareader/core/model.py` (and readout's `Run`),
