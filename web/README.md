@@ -32,9 +32,14 @@ reference.
 - `src/logic/`: `readout.ts`, `work.ts` and `edit.ts`, ports of `readout.py`, `work.py`
   and `edit.py`. The Python is the spec. `tests/golden.test.ts` replays
   `../fixtures/logic_golden.json`, and `tests/edit.golden.test.ts`
-  `../fixtures/edit_golden.json`.
+  `../fixtures/edit_golden.json`. `progress.ts` (not in the Python) keeps Work-stage
+  progress sound across structural edits.
 - `src/design/`: the Design stage's editing state as pure functions: the tools' pointer
-  logic and the current colour (`editor.ts`), and undo (`history.ts`).
+  logic and the current colour (`editor.ts`), undo (`history.ts`), and the structural
+  panel's previews and form (`structure.ts`, `structureForm.ts`).
+- `src/render/`: Canvas 2D drawing and its geometry: the Work chart (`layout.ts`,
+  `chart.ts`), the Design canvas (`design.ts`), and Export PNG (`png.ts`), which is
+  checked pixel for pixel against the desktop's export in `../fixtures/png/`.
 - `src/storage/`: `.alpha` archives (`alpha.ts`, `npy.ts`, `pyjson.ts`), IndexedDB
   (`db.ts`) and the repository the UI will use (`repo.ts`). Compatibility with the
   desktop format is tested in both directions; see `../fixtures/alpha/README.md`.
@@ -43,7 +48,8 @@ reference.
 - `src/settings/`: display preferences in `localStorage`, typed and fail-safe.
 - `src/theme/`: `tokens.css` (the port of `theme.py`) and `contrastOn()`.
 - `src/ui/`: the screens (landing, Library, Settings, Work, and the lazily loaded
-  import screen and Design stage) and shared components.
+  import screen and Design stage) and shared components. `gestures.ts` is the two-finger
+  pinch and pan both charts use.
 - `src/detect/`: the Pyodide boundary. `worker.ts` runs `alphareader/core/bridge.py` in
   a module worker; `client.ts` is the app's side of it; `protocol.ts` the messages.
 - `src/importer/`: the import screen's logic: decoding images, the failure hints, the
