@@ -2,7 +2,7 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
-import { SETTINGS_KEY, createSettingsStore } from '../../src/settings/store.ts'
+import { DEFAULT_SETTINGS, SETTINGS_KEY, createSettingsStore } from '../../src/settings/store.ts'
 import { memoryStorage, renderApp, screen } from './helpers.tsx'
 
 describe('Settings screen', () => {
@@ -32,6 +32,7 @@ describe('Settings screen', () => {
     await userEvent.click(screen.getByRole('switch', { name: 'Focus mode' }))
     await userEvent.click(screen.getByRole('switch', { name: 'Emphasise the rows around the current one' }))
     expect(createSettingsStore(() => storage).get()).toEqual({
+      ...DEFAULT_SETTINGS,
       emphasiseRows: false,
       highContrast: false,
       focusMode: true,

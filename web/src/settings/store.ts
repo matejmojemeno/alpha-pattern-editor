@@ -1,13 +1,20 @@
 /**
- * App-wide display preferences, kept in localStorage.
+ * App-wide preferences, kept in localStorage.
  *
- * Only *how the app looks* lives here. Anything that changes how a pattern is read, such
- * as start_direction, stays on the pattern and travels with its `.alpha` file.
+ * Only *how the app looks* and the yarn you buy live here. Anything that changes how a
+ * pattern is read, such as start_direction, stays on the pattern and travels with its
+ * `.alpha` file. The colour library and the yarn estimate's inputs are app-wide because
+ * they describe the crocheter's yarn and hands, not the chart, and because a field on the
+ * pattern would have to round-trip through the desktop app, which knows nothing of it.
  *
  * Storage can be missing or hostile: Safari private windows, blocked site data and
  * sandboxed iframes all make localStorage throw, sometimes just for touching the
  * property. Every access is guarded, and with nothing stored the defaults apply.
  */
+
+import { DEFAULT_LIBRARY, isLibraryId, type LibraryId } from '../yarn/libraries.ts'
+
+export type Units = 'metric' | 'imperial'
 
 export interface Settings {
   /** Draw the current row, and the rows either side of it, taller in the chart. */
@@ -16,12 +23,41 @@ export interface Settings {
   readonly highContrast: boolean
   /** Draw only the rows around the current one. */
   readonly focusMode: boolean
+  /** The library each palette colour is matched to (yarn/libraries.ts). */
+  readonly colourLibrary: LibraryId
+  /** Yarn one stitch uses, in centimetres (yarn/usage.ts). */
+  readonly yarnPerStitchCm: number
+  /** One ball's length in metres, or null for the library's own ball. */
+  readonly ballMetres: number | null
+  /** Extra yarn on top of the estimate, in percent. */
+  readonly marginPercent: number
+  /** Show lengths in metres and centimetres, or yards and inches. */
+  readonly units: Units
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   emphasiseRows: true,
   highContrast: false,
   focusMode: false,
+  colourLibrary: DEFAULT_LIBRARY,
+  yarnPerStitchCm: 2.5,
+  ballMetres: null,
+  marginPercent: 10,
+  units: 'metric',
+}
+
+const positive = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v > 0
+
+/** Which stored values each field accepts; anything else falls back to the default. */
+const VALID: { [K in keyof Settings]: (v: unknown) => boolean } = {
+  emphasiseRows: (v) => typeof v === 'boolean',
+  highContrast: (v) => typeof v === 'boolean',
+  focusMode: (v) => typeof v === 'boolean',
+  colourLibrary: isLibraryId,
+  yarnPerStitchCm: positive,
+  ballMetres: (v) => v === null || positive(v),
+  marginPercent: (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0,
+  units: (v) => v === 'metric' || v === 'imperial',
 }
 
 export const SETTINGS_KEY = 'alpha-pattern-editor:settings'
@@ -46,10 +82,10 @@ export function parseSettings(raw: string | null): Settings {
     return DEFAULT_SETTINGS
   }
   if (typeof data !== 'object' || data === null) return DEFAULT_SETTINGS
-  const out: Record<string, boolean> = { ...DEFAULT_SETTINGS }
-  for (const key of Object.keys(DEFAULT_SETTINGS)) {
+  const out: Record<string, unknown> = { ...DEFAULT_SETTINGS }
+  for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof Settings)[]) {
     const v = (data as Record<string, unknown>)[key]
-    if (typeof v === 'boolean') out[key] = v
+    if (VALID[key](v)) out[key] = v
   }
   return out as unknown as Settings
 }
