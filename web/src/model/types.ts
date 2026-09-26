@@ -15,8 +15,8 @@ export type Stage = 'design' | 'work'
 export interface PaletteEntry {
   id: string
   hex: string // '#rrggbb'
-  name: string // editable, seeded from nearest DMC
-  dmc: string | null
+  name: string // editable, seeded with an everyday name (core/detect/names.py)
+  dmc: string | null // nearest DMC floss code
   count: number // number of cells using this entry
 }
 

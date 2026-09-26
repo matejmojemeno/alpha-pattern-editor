@@ -16,9 +16,10 @@ root. This document covers *how* the app moves to the web, not *what* it does.
 ### After the port
 
 - **Yarn colour libraries** (`web/src/yarn/`, Tier A, no Pyodide). Alpha crochet is
-  worked in acrylic yarn ranges, not DMC floss, so each palette colour can now be matched
+  worked in acrylic yarn ranges, not DMC floss, so each palette colour can be matched
   to Stylecraft Special DK (125 shades), Paintbox Yarns Simply DK (63) or Scheepjes Colour
-  Crafter (90), besides DMC (119, the table detection uses). Hex values and names come
+  Crafter (90), besides DMC (119, the table detection takes the `dmc` code from). Off by
+  default since everyday colour names (below): chosen under "Advanced: match to yarn". Hex values and names come
   from temperature-blanket.com's yarn colorway data (CC BY 4.0, credited in the UI);
   Scheepjes shade numbers from scheepjes.com; three contradictory Scheepjes entries are
   left out. Provenance: `web/src/yarn/data/README.md`. Each table is its own lazily
@@ -32,8 +33,9 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   yards; the ball length defaults to the library's own. Exported as "<name> yarn.txt".
   Defaults: 2.5 cm a stitch (a round figure for DK single crochet, not a measurement;
   the panel says how to measure your own), 10% extra.
-- Tier A: the main entry chunk is 102.5 KB gzipped (Vite's figure); the Design chunk
-  16.2 KB (+2.4 KB CSS); each library 1.1–2.1 KB, fetched on first use.
+- Tier A: the main entry chunk is 102.9 KB gzipped (Vite's figure); the Design chunk
+  16.7 KB (+2.5 KB CSS); the Import chunk 11.7 KB, with the colour name table; each
+  library 1.1–2.1 KB, fetched on first use.
 - **Rule:** after changing a library or `palette.srgb_to_lab`, run
   `python scripts/gen_yarn_fixture.py`; `test_yarn_fixture.py` fails until you do.
 - **Rotate a quarter turn** (`edit.rotate_90(p, clockwise=True)`, `edit.ts` `rotate90`):
@@ -103,6 +105,19 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   saving. `scripts/desktop_import.py` takes `remove=#rrggbb`, and
   `e2e/corrections.spec.ts` checks the saved pattern cell for cell against the Python's
   `delete_palette_entry_nearest`.
+- **Everyday colour names** (`core/detect/names.py`, ported as `importer/names.ts`):
+  detection used to name colours after the nearest of 119 DMC flosses, a table with
+  almost no saturated blues or purples and one made-up entry ("820b Dark Blue"), so most
+  vivid blues, violets and purples came out "Dark Blue". Colours now take one of 22
+  everyday names (blue, turquoise, burgundy…) from the nearest anchor in the xkcd colour
+  survey's averages (CC0; provenance `web/src/importer/README.md`), by CIEDE2000, and
+  shades sharing a name are told apart within the palette: one blue is "Blue", two are
+  "Dark blue" and "Light blue" (rules in `names.py`). No two names in a palette are the
+  same. The DMC code is still stored in `dmc`. The import screen names the colours left
+  again after a removal, so one blue left alone is "Blue". The yarn libraries moved
+  behind "Advanced: match to yarn", off by default (`settings.colourLibrary` is null);
+  the disclosure starts open when a library is already chosen. Checked against the
+  owner's 23 saved projects by eye, and `fixtures/colour_names.json` proves the port.
 - **Hosting** (`web/wrangler.jsonc`, `web/public/_headers`): Cloudflare Workers static
   assets at the free `*.workers.dev` address, deployed by Cloudflare's Git integration on
   every push to `main` (setup in `web/README.md`, "Deploying"). `/assets/*`, `/pyodide/*`
@@ -360,6 +375,16 @@ break without noticing.
   don't hard-code a number in `worker.ts` again. Before moving it, rerun the real-chart
   test in `test_palette.py`: real colour pairs sit only ~18 apart in CIE76, and phantom
   shades up to ~17.
+- **Colour names depend on the whole palette.** "Dark blue" means "the darker of this
+  palette's blues", so whenever the set of colours changes before saving (a removal on
+  the import screen, here and in `scripts/desktop_import.py`), every colour is named
+  again. After saving, names are the user's (Rename), so Design never renames. After
+  changing `names.py` or the table, rerun `python scripts/import_colour_names.py` (for
+  the table) and `python scripts/gen_names_fixture.py`; `test_names_fixture.py` fails
+  until you do.
+- **Settings saved before the yarn libraries went off by default still say `"dmc"`.**
+  The store writes every field whenever one changes, so an old `"dmc"` can't be told
+  from a choice. Such a browser keeps showing DMC shades until "Nothing" is picked.
 - **After any change to `alphareader/core/detect`, run `python scripts/parity/check.py`.**
   It must report 89/89 bit-identical. It exits non-zero otherwise. Run `npm install` in
   `scripts/parity/` once first.

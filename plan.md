@@ -60,7 +60,8 @@ alphareader/
       mask.py        # dark mask, longest-run profiles
       lattice.py     # autocorrelation, band grouping, least-squares fit
       sample.py      # cell sampling
-      palette.py     # Lab conversion, agglomerative clustering, DMC naming
+      palette.py     # Lab conversion, agglomerative clustering
+      names.py       # everyday colour names, told apart within the palette
       pipeline.py    # detect_pattern() orchestration
     model.py         # Pattern, Progress, PaletteEntry dataclasses
     edit.py          # all pattern mutations (pure functions, return new Pattern)
@@ -247,7 +248,7 @@ Pre-quantize identical medians (typically collapses 15,000 cells to a few dozen 
 
 Cluster centroid → palette hex. Sort palette by descending cell count. **Do not special-case white, black or the most frequent color.**
 
-Name each entry by nearest DMC floss color from a static JSON table. Names are user-editable.
+Name each entry in everyday words (`names.py`): the name of its nearest anchor in `colour_names.json` (22 names such as blue, turquoise and burgundy, anchored at the xkcd colour survey's averages, CC0) by CIEDE2000. A name used once stays plain ("Blue", however light). Colours sharing a name are told apart within the palette: Dark / plain / Light by lightness from the plain colour's (Very dark and Very light only for four or five), Bright / Muted when two differ more in strength than lightness, Black and White at the ends of the greys (a grey says Dark or Light even alone), and numbers past five. No two names in a palette are the same. The nearest DMC floss code is still recorded in `dmc`. Names are user-editable.
 
 ### Step 9 — Confidence
 
@@ -342,8 +343,8 @@ Build the `Pattern`, assign `row_id`s, persist, open in **Design stage**.
 class PaletteEntry:
     id: str
     hex: str                 # '#rrggbb'
-    name: str                # editable, seeded from nearest DMC
-    dmc: str | None = None
+    name: str                # editable, seeded with an everyday name (names.py)
+    dmc: str | None = None   # nearest DMC floss code
 
 @dataclass
 class Pattern:

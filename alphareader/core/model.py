@@ -15,8 +15,8 @@ SKIP_INDEX = 0xFFFF
 class PaletteEntry:
     id: str
     hex: str                 # '#rrggbb'
-    name: str                # editable, seeded from nearest DMC
-    dmc: str | None = None
+    name: str                # editable, seeded with an everyday name (detect/names.py)
+    dmc: str | None = None   # nearest DMC floss code
     count: int = 0           # number of cells using this entry
 
 
