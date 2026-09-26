@@ -3,20 +3,6 @@
  * (confirm_window.py).
  */
 
-/** ΔE, the colour-detail slider's range, and where it starts for a new image. */
-export const MIN_DELTA_E = 2
-export const MAX_DELTA_E = 15
-export const DEFAULT_DELTA_E = 6
-
-/**
- * The slider runs opposite to ΔE: right means more colours, which is a lower ΔE (the
- * desktop's `setInvertedAppearance(True)`). The same function maps both ways.
- */
-export function sliderFromDeltaE(deltaE: number): number {
-  return MIN_DELTA_E + MAX_DELTA_E - deltaE
-}
-export const deltaEFromSlider = sliderFromDeltaE
-
 /** "Reduced from 4000×3000 to 2000×1500 …", or null if detection saw the whole image. */
 export function shrinkNotice(p: { imageWidth: number; imageHeight: number; detectedWidth: number; detectedHeight: number }): string | null {
   if (p.detectedWidth === p.imageWidth && p.detectedHeight === p.imageHeight) return null

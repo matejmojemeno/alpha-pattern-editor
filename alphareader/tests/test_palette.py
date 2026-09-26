@@ -6,8 +6,11 @@ of that colour are recoloured into their neighbour with nothing to indicate it.
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
+from PIL import Image
 
 from alphareader.core.detect import palette as P
 from alphareader.core.detect import pipeline as PL
@@ -103,3 +106,22 @@ def test_a_genuinely_missing_colour_is_re_admitted():
     reliable = np.ones(len(flat), dtype=bool)
     reliable[-1] = False
     assert P._keep_unexplained(flat, reliable, 6.0)[-1]
+
+
+_CHARTS = Path(__file__).resolve().parents[2] / "test_images"
+
+
+@pytest.mark.parametrize("name, colours", [
+    # A noisy JPEG: at ΔE 6 its outlines split into 38 in-between shades. Nine are real.
+    ("failed/lisa.jpg", 10),
+    # Pale pink beside white, about 18 apart: the closest real pair among the test charts.
+    ("failed/face.jpg", 3),
+    # Ecru beside beige, about 20 apart.
+    ("cats.png", 3),
+    ("failed/bunny.jpg", 3),
+])
+def test_the_default_colour_setting_merges_noise_but_not_real_colours(name, colours):
+    """There is no colour slider on the web, so the default has to suit every chart: a
+    colour is a yarn to buy, so fewer is better, but never by merging two real ones."""
+    img = np.asarray(Image.open(_CHARTS / name).convert("RGB"), dtype=np.uint8)
+    assert len(PL.detect_pattern(img).palette) == colours

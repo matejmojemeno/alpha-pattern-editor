@@ -30,7 +30,7 @@ from ..model import (
 )
 from .lattice import fit_axis, line_coverage, walk_extent
 from .mask import dark_mask, extent_mask, line_response, luminance, run_profiles
-from .palette import build_palette, compute_confidence, count_unmatched
+from .palette import DEFAULT_DELTA_E, build_palette, compute_confidence, count_unmatched
 from .periodic import (edge_maps, evidence_from_maps, extent_from_peaks,
                        fit_periodic_axis, profiles_from_maps)
 from .sample import sample_cells
@@ -297,7 +297,7 @@ def _spans_image(result: DetectionResult, img: np.ndarray, min_frac: float = 0.4
 def detect_pattern(
     img: np.ndarray,
     *,
-    delta_e_threshold: float = 6.0,
+    delta_e_threshold: float = DEFAULT_DELTA_E,
     dark_threshold: int = 100,
     crop: tuple[int, int, int, int] | None = None,
 ) -> DetectionResult:

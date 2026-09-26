@@ -177,7 +177,6 @@ async function handle(req: Request): Promise<Outcome<Answers[Request['type']]>> 
         if (req.fillMemory) fillMemory(py)
         return plain(
           b.open_session.callKwargs(req.rgba, req.width, req.height, {
-            delta_e: req.deltaE ?? 6.0,
             ...(req.maxPixels ? { max_pixels: req.maxPixels } : {}),
             ...(req.crop ? { crop: toPy(req.crop) } : {}),
           }),
@@ -188,15 +187,13 @@ async function handle(req: Request): Promise<Outcome<Answers[Request['type']]>> 
         return plain(
           b.redetect.callKwargs(req.session, {
             ...(req.crop ? { crop: toPy(req.crop) } : {}),
-            ...(req.deltaE === undefined ? {} : { delta_e: req.deltaE }),
           }),
         ) as never
       case 'update': {
-        const { rows, cols, deltaE, extent } = req.params
+        const { rows, cols, extent } = req.params
         const kwargs: Record<string, unknown> = {}
         if (rows !== undefined) kwargs.rows = rows
         if (cols !== undefined) kwargs.cols = cols
-        if (deltaE !== undefined) kwargs.delta_e = deltaE
         if (extent !== undefined) kwargs.extent = toPy(extent)
         const set = plain(b.set_params.callKwargs(req.session, kwargs))
         if (set.ok !== true) return set as unknown as Failure

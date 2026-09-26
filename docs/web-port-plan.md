@@ -78,6 +78,17 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   away when there's no grid (a failure, the watchdog, running out of memory), detects
   again inside it. On a phone the failure screens offer "Draw a box", which shows the
   image tab. `scripts/desktop_import.py` takes `extent=x0,y0,x1,y1` for the e2e check.
+- **No colour setting** (`alphareader/core/detect/palette.py`, `DEFAULT_DELTA_E`): the
+  "Colour detail" slider is gone, and similar colours are merged at a fixed ΔE 15
+  instead of the old default of 6. A colour is a yarn to buy, and the slider meant
+  nothing to the people it was for. Measured on `test_images/`: at 6, a noisy JPEG splits
+  its outlines into phantom in-between shades (lisa.jpg 38 colours for 9 real ones,
+  bunny.jpg 6 for 3); the clean charts give the same palette anywhere from ΔE 4 to 15;
+  the closest real pair seen is about 18 apart (face.jpg's white and pale pink), and at
+  20 it merges. At 15, lisa.jpg keeps one phantom (a dark brown next to its charcoal
+  outline, ~17 apart); deleting it in Design gives its cells the nearest colour. The web never sends a ΔE,
+  so the constant is the one place it is set; the desktop's slider starts there too.
+  `test_palette.py` pins it on four real charts.
 - **Hosting** (`web/wrangler.jsonc`, `web/public/_headers`): Cloudflare Workers static
   assets at the free `*.workers.dev` address, deployed by Cloudflare's Git integration on
   every push to `main` (setup in `web/README.md`, "Deploying"). `/assets/*`, `/pyodide/*`
@@ -323,6 +334,11 @@ break without noticing.
   divides the extent evenly (`np.linspace`). If resampling ever follows an uneven
   lattice, draw the preview's lines again.
 
+- **The colour-merge threshold is set in one place,** `palette.DEFAULT_DELTA_E`. The web
+  sends no ΔE, so the worker must leave `delta_e` out and let the bridge's default apply;
+  don't hard-code a number in `worker.ts` again. Before moving it, rerun the real-chart
+  test in `test_palette.py`: real colour pairs sit only ~18 apart in CIE76, and phantom
+  shades up to ~17.
 - **After any change to `alphareader/core/detect`, run `python scripts/parity/check.py`.**
   It must report 89/89 bit-identical. It exits non-zero otherwise. Run `npm install` in
   `scripts/parity/` once first.

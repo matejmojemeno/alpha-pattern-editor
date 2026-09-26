@@ -1,7 +1,7 @@
 /**
- * Phase 2, part 2 in the client: a slider drag folded into two resamples, the colour
- * detail travelling with a redetect, and the watchdog that terminates a worker stuck in
- * detection.
+ * Phase 2, part 2 in the client: a drag of the grid's outline folded into two resamples,
+ * a redetect dropping a change still waiting, and the watchdog that terminates a worker
+ * stuck in detection.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -21,35 +21,35 @@ async function opened() {
   return { worker, client, session: session! }
 }
 
-describe('coalescing a slider drag', () => {
+describe('coalescing a drag', () => {
   it('40 ticks cost two resamples, and the preview moves on the first', async () => {
     const { session, worker } = await opened()
     const answers: Promise<Outcome<Preview>>[] = []
-    for (let tick = 0; tick < 40; tick++) answers.push(session.update({ deltaE: 15 - (tick % 14) }))
+    for (let tick = 0; tick < 40; tick++) answers.push(session.update({ rows: 15 - (tick % 14) }))
     let updates = worker.of('update')
     expect(updates).toHaveLength(1) // the first tick went at once
-    worker.reply(updates[0]!.id, makePreview(7, 3, 4, { deltaE: 15 }))
-    expect(await answers[0]!).toMatchObject({ ok: true, deltaE: 15 })
-    expect(session.latest?.deltaE).toBe(15)
+    worker.reply(updates[0]!.id, makePreview(7, 15, 4))
+    expect(await answers[0]!).toMatchObject({ ok: true, rows: 15 })
+    expect(session.latest?.rows).toBe(15)
     await flush()
     updates = worker.of('update')
     expect(updates).toHaveLength(2)
-    expect(updates[1]!.params).toEqual({ deltaE: 15 - (39 % 14) }) // only the last tick's value
-    worker.reply(updates[1]!.id, makePreview(7, 3, 4, { deltaE: 4 }))
+    expect(updates[1]!.params).toEqual({ rows: 15 - (39 % 14) }) // only the last tick's value
+    worker.reply(updates[1]!.id, makePreview(7, 4, 4))
     const rest = await Promise.all(answers.slice(1))
     expect(new Set(rest).size).toBe(1) // every later tick got the one folded answer
     expect(worker.of('update')).toHaveLength(2)
   })
 
-  it('a redetect carries the colour detail, so a folded change is not lost', async () => {
+  it('a redetect drops a change still waiting to be sent', async () => {
     const { session, worker } = await opened()
     void session.update({ rows: 5 })
-    void session.update({ deltaE: 9 }) // waiting, then dropped by the redetect
-    void session.redetect([1, 2, 30, 40], { deltaE: 9 })
-    expect(worker.of('redetect')[0]).toMatchObject({ crop: [1, 2, 30, 40], deltaE: 9 })
+    const waiting = session.update({ cols: 9 })
+    void session.redetect([1, 2, 30, 40])
+    expect(await waiting).toMatchObject({ ok: false, code: 'STALE' })
+    expect(worker.of('redetect')[0]).toMatchObject({ crop: [1, 2, 30, 40] })
     void session.redetect()
     expect(worker.of('redetect')[1]).not.toHaveProperty('crop')
-    expect(worker.of('redetect')[1]).not.toHaveProperty('deltaE')
   })
 })
 

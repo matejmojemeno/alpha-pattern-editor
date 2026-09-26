@@ -93,7 +93,6 @@ export type Outcome<T> = T | Failure
 export interface Params {
   rows?: number
   cols?: number
-  deltaE?: number
   extent?: Extent
 }
 
@@ -113,10 +112,9 @@ interface Delay {
 
 export type Request =
   | { id: number; type: 'boot' }
-  | ({ id: number; type: 'open'; rgba: Uint8Array; width: number; height: number; deltaE?: number; maxPixels?: number; crop?: Crop } & Delay)
-  /** Detect again. `deltaE`, if given, is set first, so a colour-detail change still
-   *  waiting to be sent isn't lost. */
-  | ({ id: number; type: 'redetect'; session: number; crop?: Crop; deltaE?: number } & Delay)
+  | ({ id: number; type: 'open'; rgba: Uint8Array; width: number; height: number; maxPixels?: number; crop?: Crop } & Delay)
+  /** Detect again, on the whole image or a crop. */
+  | ({ id: number; type: 'redetect'; session: number; crop?: Crop } & Delay)
   /** bridge.set_params then bridge.preview, in one round trip. */
   | { id: number; type: 'update'; session: number; params: Params }
   | { id: number; type: 'preview'; session: number }

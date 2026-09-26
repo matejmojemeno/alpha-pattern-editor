@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 /**
  * The confirm screen's corrections (Phase 2, part 2), with the real DetectClient on a fake
- * worker: each control sends the request it should (resample for colour detail and for
- * moving the grid's outline; detect again for a box drawn on the image and Re-detect), the preview stays up while an answer is
- * on its way, the watchdog's failure is recoverable, and the phone layout's tabs.
+ * worker: each control sends the request it should (resample for moving the grid's
+ * outline; detect again for a box drawn on the image and Re-detect), the preview stays up
+ * while an answer is on its way, the watchdog's failure is recoverable, and the phone
+ * layout's tabs.
  */
 import { act, fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -40,7 +41,6 @@ async function openImport(worker: FakeWorker = confirmingWorker()) {
 }
 
 const updates = () => detection.worker.of('update').map((u) => u.params)
-const slider = () => screen.getByRole('slider', { name: 'Colour detail' }) as HTMLInputElement
 const patternLabel = () => screen.getByRole('img', { name: /^The detected pattern/ }).getAttribute('aria-label')
 
 /** jsdom lays nothing out: give the source image's box a size, 10 screen px per image
@@ -65,69 +65,6 @@ afterEach(() => {
   delete (globalThis as { __alphaDetectTest?: unknown }).__alphaDetectTest
 })
 
-describe('the fast path: colour detail only resamples', () => {
-  it('the colour-detail slider runs opposite to ΔE', async () => {
-    await openImport()
-    expect(slider().value).toBe('11') // ΔE 6
-    fireEvent.change(slider(), { target: { value: '15' } })
-    await waitFor(() => expect(updates()).toEqual([{ deltaE: 2 }])) // far right: most colours
-    fireEvent.change(slider(), { target: { value: '2' } })
-    await waitFor(() => expect(updates()).toEqual([{ deltaE: 2 }, { deltaE: 15 }]))
-    expect(slider().getAttribute('aria-valuetext')).toBe('ΔE 15')
-    expect(detection.worker.of('redetect')).toHaveLength(0)
-  })
-
-  it('a 40-tick drag costs two resamples, and the preview moves on the first', async () => {
-    const worker = confirmingWorker()
-    const auto = worker.auto!
-    const held: Request[] = []
-    worker.auto = (msg) => (msg.type === 'update' ? (held.push(msg), undefined) : auto(msg))
-    await openImport(worker)
-    act(() => {
-      for (let tick = 0; tick < 40; tick++) fireEvent.change(slider(), { target: { value: String(2 + (tick % 14)) } })
-    })
-    expect(updates()).toEqual([{ deltaE: 15 }])
-    await act(async () => worker.reply(held[0]!.id, makePreview(1, 7, 4, { deltaE: 15 })))
-    await waitFor(() => expect(screen.getByText(/^4 cols × 7 rows/)).toBeTruthy()) // moved on the first tick
-    await waitFor(() => expect(updates()).toHaveLength(2))
-    expect(updates()[1]).toEqual({ deltaE: 17 - (2 + (39 % 14)) })
-    await act(async () => worker.reply(held[1]!.id, makePreview(1, 8, 4)))
-    await waitFor(() => expect(screen.getByText(/^4 cols × 8 rows/)).toBeTruthy())
-    expect(updates()).toHaveLength(2)
-  })
-
-  it('keeps the last preview while an answer is on its way, dimmed only once it is slow', async () => {
-    const worker = confirmingWorker()
-    const auto = worker.auto!
-    const held: Request[] = []
-    worker.auto = (msg) => (msg.type === 'update' ? (held.push(msg), undefined) : auto(msg))
-    await openImport(worker)
-    const confirm = document.querySelector('.confirm')!
-    fireEvent.change(slider(), { target: { value: '12' } })
-    expect(confirm.hasAttribute('data-dim')).toBe(false) // not straight away
-    await waitFor(() => expect(confirm.hasAttribute('data-dim')).toBe(true), { timeout: 1000 })
-    expect(patternLabel()).toMatch(/4 columns by 3 rows/) // never blanked
-    await act(async () => worker.reply(held[0]!.id, makePreview(1, 4, 4)))
-    await waitFor(() => expect(confirm.hasAttribute('data-dim')).toBe(false))
-    expect(patternLabel()).toMatch(/4 columns by 4 rows/)
-  })
-
-  it('recomputes the warnings with every preview', async () => {
-    await openImport(
-      confirmingWorker((p) =>
-        makePreview(1, 3, 4, {
-          warnings: p.deltaE === 15 ? ["2 cell(s) don't closely match any detected colour — a colour may be missing; check them before committing."] : [],
-        }),
-      ),
-    )
-    expect(screen.queryByRole('list', { name: 'Warnings' })).toBeNull()
-    fireEvent.change(slider(), { target: { value: '2' } }) // ΔE 15
-    expect(await screen.findByText(/don't closely match/)).toBeTruthy()
-    fireEvent.change(slider(), { target: { value: '11' } }) // ΔE 6
-    await waitFor(() => expect(screen.queryByText(/don't closely match/)).toBeNull())
-  })
-})
-
 describe('what the screen shows', () => {
   it('has no rows and cols boxes, and flags no unsure cells', async () => {
     const worker = detectingWorker()
@@ -139,6 +76,12 @@ describe('what the screen shows', () => {
     expect(screen.queryByLabelText('Cols')).toBeNull()
     expect(screen.queryByRole('checkbox', { name: 'Flag unsure cells' })).toBeNull()
     expect(patternLabel()).toBe('The detected pattern: 4 columns by 3 rows')
+  })
+
+  it('has no colour setting, and never asks for one', async () => {
+    await openImport()
+    expect(screen.queryByRole('slider', { name: 'Colour detail' })).toBeNull()
+    expect(detection.worker.of('open')[0]).not.toHaveProperty('deltaE') // the bridge's default
   })
 
   it('draws the detected gridlines and extent over the image', async () => {
@@ -186,14 +129,14 @@ describe('what the screen shows', () => {
 })
 
 describe('the slow path: a box drawn on the image, and Re-detect, detect again', () => {
-  it('has no Crop button: a box drawn on the image crops, in image pixels, at the current colour detail', async () => {
+  it('has no Crop button: a box drawn on the image crops, in image pixels', async () => {
     await openImport()
     expect(screen.queryByRole('button', { name: 'Crop' })).toBeNull()
     expect(screen.queryByText('Drag a box around just the squares, then let go.')).toBeNull() // only without a grid
-    fireEvent.change(slider(), { target: { value: '13' } }) // ΔE 4
     drag(layOutSource(), [100, 75], [300, 225])
     await waitFor(() => expect(detection.worker.of('redetect')).toHaveLength(1))
-    expect(detection.worker.of('redetect')[0]).toMatchObject({ crop: [10, 7, 30, 22], deltaE: 4 })
+    expect(detection.worker.of('redetect')[0]).toMatchObject({ crop: [10, 7, 30, 22] })
+    expect(detection.worker.of('redetect')[0]).not.toHaveProperty('deltaE')
     await waitFor(() => expect(screen.getByText(/^6 cols × 5 rows/)).toBeTruthy())
   })
 
@@ -236,7 +179,6 @@ describe('the slow path: a box drawn on the image, and Re-detect, detect again',
     expect(alert.textContent).toMatch(/Drag a box around just the squares on your image/)
     expect(within(alert).queryByRole('button', { name: 'Draw a box' })).toBeNull() // the image is right beside it
     expect(screen.getByText('Drag a box around just the squares, then let go.')).toBeTruthy()
-    expect(slider().disabled).toBe(true) // nothing to adjust
     drag(layOutSource(), [40, 30], [360, 270])
     await waitFor(() => expect(detection.worker.of('redetect')[0]).toMatchObject({ session: 1, crop: [4, 3, 36, 27] }))
     expect((await screen.findByRole('button', { name: 'Save & edit pattern' })).hasAttribute('disabled')).toBe(false)
@@ -326,6 +268,31 @@ describe('moving the outline', () => {
     screen.getByRole('slider', { name: 'Right edge of the grid' }).focus()
     await userEvent.keyboard('{ArrowLeft}')
     await waitFor(() => expect(updates().at(-1)).toEqual({ extent: { x0: 10, y0: 10, x1: 20, y1: 20 }, rows: 2, cols: 1 }))
+  })
+
+  it('keeps the last preview while an answer is on its way, dimmed only once it is slow', async () => {
+    const { worker } = await openFound(() => undefined) // answered below
+    const confirm = document.querySelector('.confirm')!
+    screen.getByRole('slider', { name: 'Top edge of the grid' }).focus()
+    await userEvent.keyboard('{ArrowUp}')
+    expect(confirm.hasAttribute('data-dim')).toBe(false) // not straight away
+    await waitFor(() => expect(confirm.hasAttribute('data-dim')).toBe(true), { timeout: 1000 })
+    expect(patternLabel()).toMatch(/2 columns by 2 rows/) // never blanked
+    const asked = worker.of('update')[0]!
+    await act(async () => worker.reply(asked.id, echo(asked.params)))
+    await waitFor(() => expect(confirm.hasAttribute('data-dim')).toBe(false))
+    expect(patternLabel()).toMatch(/2 columns by 3 rows/)
+  })
+
+  it('recomputes the warnings with every preview', async () => {
+    const missing = "2 cell(s) don't closely match any detected colour — a colour may be missing; check them before committing."
+    await openFound((p) => ({ ...echo(p), warnings: p.rows === 3 ? [missing] : [] }))
+    expect(screen.queryByRole('list', { name: 'Warnings' })).toBeNull()
+    screen.getByRole('slider', { name: 'Top edge of the grid' }).focus()
+    await userEvent.keyboard('{ArrowUp}')
+    expect(await screen.findByText(/don't closely match/)).toBeTruthy()
+    await userEvent.keyboard('{ArrowDown}')
+    await waitFor(() => expect(screen.queryByText(/don't closely match/)).toBeNull())
   })
 
   it('puts the outline back if the resample fails', async () => {

@@ -36,9 +36,8 @@ import numpy as np
 
 from .confirm import ConfirmState, Extent, Preview, pattern_from_preview
 from .detect import detect_pattern
+from .detect.palette import DEFAULT_DELTA_E
 from .model import DetectionError
-
-DEFAULT_DELTA_E = 6.0
 
 # The detection warnings that come from sampling the cells rather than from fitting the
 # lattice. They are recomputed on every preview, because changing the dimensions or the

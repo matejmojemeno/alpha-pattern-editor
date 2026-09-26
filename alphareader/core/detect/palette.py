@@ -12,6 +12,15 @@ from ._nd import complete_linkage_labels
 from ..model import PaletteEntry
 
 
+# How far apart (CIE76 ΔE) two palette colours must be to stay separate: the one colour
+# setting, fixed since the web app dropped its slider. A chart's colours are yarns someone
+# has to buy, so near-duplicates are worth merging. Measured on test_images/: at 6 a noisy
+# JPEG splits into dozens of phantom in-between shades (lisa.jpg: 38 colours, 9 real),
+# while the clean charts give the same palette anywhere from 4 to 15; the closest real
+# pair seen is about 18 apart (face.jpg's white and pale pink), so 15 stays below it.
+DEFAULT_DELTA_E = 15.0
+
+
 def hex_to_rgb(hex_str: str) -> np.ndarray:
     return np.array([int(hex_str[1:3], 16), int(hex_str[3:5], 16), int(hex_str[5:7], 16)])
 
@@ -87,7 +96,7 @@ def _nearest_dmc(lab: np.ndarray, dmc_lab: np.ndarray, dmc_entries: list[dict]) 
 
 def build_palette(
     colors: np.ndarray,           # (rows, cols, 3) uint8
-    delta_e_threshold: float = 6.0,
+    delta_e_threshold: float = DEFAULT_DELTA_E,
     spread: np.ndarray | None = None,   # (rows, cols) per-cell IQR spread
     spread_thr: float = 18.0,
 ) -> tuple[np.ndarray, list[PaletteEntry]]:
