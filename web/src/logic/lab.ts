@@ -1,6 +1,8 @@
 /**
  * sRGB → CIELAB (D65), a port of `srgb_to_lab` in alphareader/core/detect/palette.py.
- * Used to find the perceptually nearest colour (edit.ts, `nearestEntryId`).
+ * Used to find the perceptually nearest colour (edit.ts, `nearestEntryId`) and the
+ * nearest shade of a colour library (yarn/match.ts). web/tests/yarn/match.test.ts checks
+ * it against the Python's output (fixtures/yarn_nearest.json) to within 1e-12.
  */
 import { hexToRgb } from '../theme/contrast.ts'
 
