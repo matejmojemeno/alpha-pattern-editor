@@ -5,12 +5,13 @@
  * next to the yarn. Every progress change goes through logic/work.ts; nothing here edits
  * the pattern's cells (§13.7).
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { AutoSaver, type SaveStatus } from '../../app/autosave.ts'
-import { useRepo, useSettings } from '../../app/context.ts'
+import { useSettings } from '../../app/context.ts'
 import { downloadBlob } from '../../app/download.ts'
-import { href, paths } from '../../app/router.ts'
+import { href, navigate, paths } from '../../app/router.ts'
+import { trackSave } from '../../app/saving.ts'
 import { keepScreenAwake } from '../../app/wakeLock.ts'
 import { encodeRow, exportAllRowsText, formatRowText, rowDirection, workingNumber } from '../../logic/readout.ts'
 import {
@@ -27,81 +28,17 @@ import {
 import type { Project } from '../../model/types.ts'
 import type { RowPlace } from '../../render/layout.ts'
 import { progressPct } from '../../storage/alpha.ts'
-import { ProjectNotFoundError, type ProjectRepo } from '../../storage/repo.ts'
-import { ProgressBar, RenameForm, TopBar } from '../components.tsx'
+import type { ProjectRepo } from '../../storage/repo.ts'
+import { ProgressBar, RenameForm } from '../components.tsx'
 import { useDocumentTitle } from '../hooks.ts'
+import { ProjectGate } from '../ProjectGate.tsx'
 import { ChartView } from '../work/ChartView.tsx'
 import { Chips } from '../work/Chips.tsx'
 import { entryFor } from '../work/segments.ts'
 import { SegmentDialog } from '../work/SegmentDialog.tsx'
-import { StorageUnavailable } from './Landing.tsx'
-
-type Load =
-  | { status: 'loading' }
-  | { status: 'missing' }
-  | { status: 'error'; message: string }
-  | { status: 'ready'; project: Project }
 
 export function Work({ id }: { id: string }) {
-  const state = useRepo()
-  const repo = state.status === 'ready' ? state.repo : null
-  const [load, setLoad] = useState<Load>({ status: 'loading' })
-
-  useEffect(() => {
-    if (!repo) return
-    // A different id is a different route key, so this component is remounted rather
-    // than reused, and never needs to go back to 'loading'.
-    let live = true
-    repo.open(id).then(
-      ({ project }) => live && setLoad({ status: 'ready', project }),
-      (e: unknown) =>
-        live &&
-        setLoad(e instanceof ProjectNotFoundError ? { status: 'missing' } : { status: 'error', message: String(e) }),
-    )
-    return () => {
-      live = false
-    }
-  }, [repo, id])
-
-  if (state.status === 'error') return <Message title="Project"><StorageUnavailable /></Message>
-  if (load.status === 'missing') {
-    return (
-      <Message title="Project not found">
-        <p>There's no project at this link in this browser's library. It may have been deleted, or saved in another browser.</p>
-        <p>
-          <a href={href(paths.library)}>Go to your library</a>
-        </p>
-      </Message>
-    )
-  }
-  if (load.status === 'error') {
-    return (
-      <Message title="Couldn't open this project">
-        <p className="notice notice--error">{load.message}</p>
-        <p>
-          <a href={href(paths.library)}>Go to your library</a>
-        </p>
-      </Message>
-    )
-  }
-  if (load.status === 'loading' || !repo) {
-    return (
-      <Message title="Project">
-        <p className="muted">Loading…</p>
-      </Message>
-    )
-  }
-  return <WorkStage repo={repo} initial={load.project} />
-}
-
-function Message({ title, children }: { title: string; children: ReactNode }) {
-  useDocumentTitle(title)
-  return (
-    <main className="screen">
-      <TopBar title={title} />
-      {children}
-    </main>
-  )
+  return <ProjectGate id={id}>{(repo, { project }) => <WorkStage repo={repo} initial={project} />}</ProjectGate>
 }
 
 /** Keys that belong to whatever has focus, not to the Work stage. */
@@ -158,7 +95,8 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
     return () => {
       document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('pagehide', flush)
-      flush() // leaving the Work stage
+      // Leaving the Work stage: whatever opens next waits for this (app/saving.ts).
+      void trackSave(saver.flush())
     }
   }, [saver])
 
@@ -250,6 +188,14 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
   const setStartRight = (right: boolean) =>
     change((x) => ({ ...x, pattern: { ...x.pattern, start_direction: right ? 'RTL' : 'LTR' } }))
 
+  // Back to Design (§6.4), a deliberate action in the Options menu. The project is saved
+  // as a Design-stage one first, as the desktop did, so it reopens there.
+  const editPattern = () => {
+    const saved = saver.flush().then(() => repo.save({ ...latest.current, stage: 'design' }))
+    void trackSave(saved).catch(() => {})
+    navigate(paths.design(latest.current.pattern.id))
+  }
+
   const exportReadout = () =>
     downloadBlob(new Blob([exportAllRowsText(p)], { type: 'text/plain;charset=utf-8' }), `${p.name}.txt`)
 
@@ -326,6 +272,9 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
             </label>
             <button type="button" className="button button--small" onClick={exportReadout}>
               Export readout
+            </button>
+            <button type="button" className="button button--small" onClick={editPattern}>
+              Edit pattern…
             </button>
           </div>
         </details>

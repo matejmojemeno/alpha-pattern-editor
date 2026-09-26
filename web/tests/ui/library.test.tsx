@@ -57,18 +57,20 @@ describe('Library', () => {
     expect(order).toContain(links[1])
     expect(order.indexOf(links[1]!)).toBeGreaterThan(order.indexOf(links[0]!))
 
-    card('basic').querySelector('a')!.focus()
+    // with-source has progress, so it opens in the Work stage (§6.4).
+    card('with-source').querySelector('a')!.focus()
     await user.keyboard(' ')
-    await waitFor(() => expect(window.location.hash).toBe(`#/work/${idOf('basic.alpha')}`))
+    await waitFor(() => expect(window.location.hash).toBe(`#/work/${idOf('with-source.alpha')}`))
   })
 
-  it('opens a card with Enter', async () => {
+  it('opens a card with Enter, in the stage it was last in when there is no progress', async () => {
     await withProjects('basic.alpha')
     const link = cards()[0]!.querySelector('a')!
-    expect(link.getAttribute('href')).toBe(`#/work/${idOf('basic.alpha')}`)
+    expect(link.getAttribute('href')).toBe(`#/open/${idOf('basic.alpha')}`)
     link.focus()
     await userEvent.keyboard('{Enter}')
-    await waitFor(() => expect(window.location.hash).toBe(`#/work/${idOf('basic.alpha')}`))
+    // basic.alpha was saved by the desktop in the Design stage, with no progress.
+    await waitFor(() => expect(window.location.hash).toBe(`#/design/${idOf('basic.alpha')}`))
   })
 
   it('offers designing a new pattern', async () => {

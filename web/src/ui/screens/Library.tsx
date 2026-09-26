@@ -185,12 +185,13 @@ function ProjectCard({
   const onKeyDown = (e: KeyboardEvent<HTMLAnchorElement>) => {
     if (e.key === ' ') {
       e.preventDefault()
-      navigate(paths.work(s.id))
+      navigate(paths.open(s.id))
     }
   }
   return (
     <li className="card">
-      <a className="card__open" href={href(paths.work(s.id))} onKeyDown={onKeyDown}>
+      {/* #/open picks the stage: Work if there's progress, else the one it was last in. */}
+      <a className="card__open" href={href(paths.open(s.id))} onKeyDown={onKeyDown}>
         <Thumb blob={s.thumbnail} kind={s.thumbnail_kind} />
         <span className="card__name">{s.name}</span>
         <span className="card__meta">
