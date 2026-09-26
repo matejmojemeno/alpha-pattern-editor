@@ -36,6 +36,18 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   16.2 KB (+2.4 KB CSS); each library 1.1–2.1 KB, fetched on first use.
 - **Rule:** after changing a library or `palette.srgb_to_lab`, run
   `python scripts/gen_yarn_fixture.py`; `test_yarn_fixture.py` fails until you do.
+- **Rotate a quarter turn** (`edit.rotate_90(p, clockwise=True)`, `edit.ts` `rotate90`):
+  "Rotate ↻ 90°" and "Rotate ↺ 90°" replace "Rotate 180°" in the structural panel, so a
+  chart can go from horizontal to vertical; two clicks still make a half turn.
+  `rotate_180` stays in `edit.py`/`edit.ts` and the fixtures. Seen with row 0 at the top,
+  clockwise takes the top row to the right-hand column (new[i, j] = old[R-1-j, i]),
+  anticlockwise to the left-hand one read upwards (new[i, j] = old[j, C-1-i]). The old
+  rows no longer exist as rows, so every row gets a fresh id, as with Scale: with rows
+  done in Work it asks first ("Rotating gives every row a new place, so your progress in
+  the Work stage (N rows done) starts again from the first row. Undo brings it all
+  back."), and undo does. Each click is one undo step; the pad-to-size target turns with
+  the pattern (undo too), and dragged offsets go back to centred. Fixtures: 166 calls.
+  Tier A: main chunk 102.6 KB gzipped, Design 16.3 KB (+2.5 KB CSS).
 - **Hosting** (`web/wrangler.jsonc`, `web/public/_headers`): Cloudflare Workers static
   assets at the free `*.workers.dev` address, deployed by Cloudflare's Git integration on
   every push to `main` (setup in `web/README.md`, "Deploying"). `/assets/*`, `/pyodide/*`
@@ -65,7 +77,8 @@ What Phase 3, part 2 delivered:
     left/top offsets (0..added, centred by default); on the preview the pattern can be
     dragged into place a whole cell at a time, kept in step with the fields.
   - **Scale ×2–×12**, showing the size first and warning above 999 on a side.
-  - **Mirror ⇄, Flip ⇅, Rotate 180°, Trim edges** (all four).
+  - **Mirror ⇄, Flip ⇅, Rotate 180°, Trim edges** (all four). (Rotate 180° is now two
+    quarter-turn buttons; see "After the port".)
   - **Insert and delete rows and columns** from a small menu on the chart's row and
     column numbers (and from the panel, by number, for the keyboard). The Design stage
     has no selection, every tool acts on a press, so a menu on the numbers is where the
