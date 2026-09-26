@@ -25,6 +25,7 @@ import {
   TopBar,
 } from '../components.tsx'
 import { useDocumentTitle, useFileDrop, usePastedImage, useProjects } from '../hooks.ts'
+import { NewPatternDialog } from '../NewPattern.tsx'
 import { openImageImport, useAlphaImport, type Notice } from '../useAlphaImport.ts'
 import { StorageUnavailable } from './Landing.tsx'
 
@@ -47,6 +48,7 @@ export function Library() {
     void importFiles(files)
   })
   usePastedImage(openPasted)
+  const [creating, setCreating] = useState(false)
 
   const onRename = async (s: ProjectSummary, name: string) => {
     if (!repo) return
@@ -98,6 +100,9 @@ export function Library() {
           >
             Import pattern…
           </ImportButton>
+          <button type="button" className="button" onClick={() => setCreating(true)} disabled={!repo}>
+            Design pattern…
+          </button>
         </TopBar>
       </div>
 
@@ -111,7 +116,7 @@ export function Library() {
           <p>No saved projects yet.</p>
           <p className="muted">
             Import a photo of a chart or a <code>.alpha</code> file with the button above, or drop or paste one
-            here.
+            here. Or design a pattern of your own from a blank grid.
           </p>
         </div>
       ) : (
@@ -150,6 +155,7 @@ export function Library() {
         </ConfirmDialog>
       )}
       {question && <ReplaceDialog question={question} />}
+      {creating && repo && <NewPatternDialog repo={repo} onCancel={() => setCreating(false)} />}
     </main>
   )
 }

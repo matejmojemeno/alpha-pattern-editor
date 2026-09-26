@@ -2,7 +2,7 @@
  * The first screen: four ways in. The desktop opened straight onto the Library; the web
  * app starts here instead (docs/web-port-plan.md, "Landing screen").
  */
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 
 import { useRepo } from '../../app/context.ts'
 import { preloadDetection } from '../../app/detection.ts'
@@ -10,6 +10,7 @@ import { PASTED_NAME } from '../../app/pendingImage.ts'
 import { href, navigate, paths } from '../../app/router.ts'
 import { CellsIcon, DropOverlay, ImportButton, Notices, ReplaceDialog } from '../components.tsx'
 import { useDocumentTitle, useFileDrop, usePastedImage, useProjects } from '../hooks.ts'
+import { NewPatternDialog } from '../NewPattern.tsx'
 import { openImageImport, useAlphaImport } from '../useAlphaImport.ts'
 
 const openPasted = (file: File) => openImageImport({ file, name: PASTED_NAME })
@@ -27,6 +28,7 @@ export function Landing() {
   )
   const { importFiles, notices, busy, question } = useAlphaImport(repo, onImported)
   const drop = useFileDrop((files) => void importFiles(files))
+  const [creating, setCreating] = useState(false)
   usePastedImage(openPasted)
 
   return (
@@ -54,20 +56,10 @@ export function Landing() {
           </ImportButton>
         </li>
         <li>
-          <button
-            type="button"
-            className="tile"
-            aria-disabled="true"
-            aria-describedby="design-later"
-            onClick={(e) => e.preventDefault()}
-          >
+          <button type="button" className="tile" onClick={() => setCreating(true)} disabled={!repo}>
             <CellsIcon filled={[[1, 1]]} />
-            <span className="tile__title">
-              Design pattern <span className="badge">Coming later</span>
-            </span>
-            <span className="tile__text" id="design-later">
-              Start from a blank grid. The Design stage isn't built yet.
-            </span>
+            <span className="tile__title">Design pattern</span>
+            <span className="tile__text">Start from a blank grid, and paint your own chart.</span>
           </button>
         </li>
         <li>
@@ -96,6 +88,7 @@ export function Landing() {
       <Notices notices={notices} />
       <DropOverlay show={drop.over} />
       {question && <ReplaceDialog question={question} />}
+      {creating && repo && <NewPatternDialog repo={repo} onCancel={() => setCreating(false)} />}
     </main>
   )
 }
