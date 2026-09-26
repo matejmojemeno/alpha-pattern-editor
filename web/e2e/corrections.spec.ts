@@ -133,7 +133,7 @@ test.describe('on a phone', () => {
       expect(scrollWidth).toBeLessThanOrEqual(innerWidth)
     }
     const saveInView = async () => {
-      const b = (await page.getByRole('button', { name: 'Save & start working' }).boundingBox())!
+      const b = (await page.getByRole('button', { name: 'Save & edit pattern' }).boundingBox())!
       expect(b.y + b.height).toBeLessThanOrEqual(860)
       expect(b.y).toBeGreaterThanOrEqual(0)
     }

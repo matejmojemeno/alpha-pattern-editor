@@ -10,7 +10,7 @@
  * While an answer is on its way the last good preview stays up, dimmed after ~200 ms.
  *
  * Under 900 px the image, the pattern and the colours are tabs; wider, they're the
- * desktop's three panes side by side. "Save & start working" stays in view either way.
+ * desktop's three panes side by side. "Save & edit pattern" stays in view either way.
  *
  * Loaded lazily (App.tsx), and the only screen that starts the detection worker. Leaving
  * it terminates the worker (App.tsx), which frees Pyodide's memory.
@@ -297,8 +297,10 @@ export default function ImportScreen() {
       const committed = await s.commit(cleanName(name) ?? image.name)
       if (!committed.ok) throw new Error(committed.message)
       const png = await sourcePng(image.file)
-      const saved = await repo.save({ pattern: committed.pattern, progress: emptyProgress(), stage: 'work' }, { sourcePng: png })
-      navigate(paths.work(saved.pattern.id))
+      // A fresh detection opens in the Design stage (§7.3), to be cleaned up before it is
+      // worked. (The desktop opened Work; part 1 of Phase 3 did too.)
+      const saved = await repo.save({ pattern: committed.pattern, progress: emptyProgress(), stage: 'design' }, { sourcePng: png })
+      navigate(paths.design(saved.pattern.id))
     } catch (err) {
       setSaving(false)
       setNotices([{ tone: 'error', text: `Couldn't save the pattern: ${err instanceof Error ? err.message : String(err)}` }])
@@ -622,7 +624,7 @@ function SaveBar({
         onChange={(e) => onName(e.target.value)}
       />
       <button type="submit" className="button button--primary savebar__save" disabled={disabled || cleanName(name) === null}>
-        Save &amp; start working
+        Save &amp; edit pattern
       </button>
       <span className="savebar__another">{another('Choose another image')}</span>
     </form>

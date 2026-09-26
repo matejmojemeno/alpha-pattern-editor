@@ -34,7 +34,7 @@ async function openImport(worker: FakeWorker = confirmingWorker()) {
   detection.reset(worker)
   handOffImage({ file: new File([PNG], 'dog.png', { type: 'image/png' }), name: 'dog' })
   const view = await renderApp('#/import')
-  await screen.findByRole('button', { name: 'Save & start working' })
+  await screen.findByRole('button', { name: 'Save & edit pattern' })
   await waitFor(() => expect((screen.getByLabelText('Rows') as HTMLInputElement).value).toBe('3'))
   return view
 }
@@ -269,7 +269,7 @@ describe('the slow path: Crop and Re-detect detect again', () => {
     expect(screen.getByRole('button', { name: 'Crop', pressed: true })).toBeTruthy()
     drag(layOutSource(), [40, 30], [360, 270])
     await waitFor(() => expect(detection.worker.of('redetect')[0]).toMatchObject({ session: 1, crop: [4, 3, 36, 27] }))
-    expect((await screen.findByRole('button', { name: 'Save & start working' })).hasAttribute('disabled')).toBe(false)
+    expect((await screen.findByRole('button', { name: 'Save & edit pattern' })).hasAttribute('disabled')).toBe(false)
   })
 })
 
@@ -297,7 +297,7 @@ describe('the watchdog', () => {
   it('stops a detection that runs too long, and Try again starts a fresh worker', async () => {
     const alert = await timedOut()
     await userEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
-    expect(await screen.findByRole('button', { name: 'Save & start working' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Save & edit pattern' })).toBeTruthy()
     await waitFor(() => expect((screen.getByLabelText('Rows') as HTMLInputElement).value).toBe('3'))
     expect(detection.worker.of('boot')).toHaveLength(2) // a new worker boots again
     expect(detection.worker.of('open')[1]).not.toHaveProperty('crop')
@@ -309,7 +309,7 @@ describe('the watchdog', () => {
     drag(layOutSource(), [100, 75], [300, 225])
     await waitFor(() => expect(detection.worker.of('open')).toHaveLength(2))
     expect(detection.worker.of('open')[1]).toMatchObject({ crop: [10, 7, 30, 22] })
-    expect(await screen.findByRole('button', { name: 'Save & start working' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Save & edit pattern' })).toBeTruthy()
   })
 })
 
@@ -340,6 +340,6 @@ describe('on a phone', () => {
     drag(layOutSource(), [100, 75], [300, 225], 'touch')
     await waitFor(() => expect(screen.getByRole('tab', { name: 'Pattern', selected: true })).toBeTruthy())
 
-    expect(screen.getByRole('button', { name: 'Save & start working' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Save & edit pattern' })).toBeTruthy()
   })
 })
