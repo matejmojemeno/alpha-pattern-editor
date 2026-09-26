@@ -14,6 +14,7 @@ import {
   type Rect,
   type Sides,
 } from '../../src/design/structure.ts'
+import { initialForm, keepPadValid, turnPad } from '../../src/design/structureForm.ts'
 import { EditError, newPattern, padToSize, setCell, addPaletteEntry } from '../../src/logic/edit.ts'
 import type { Pattern } from '../../src/model/types.ts'
 
@@ -129,5 +130,15 @@ describe('scaledSize', () => {
     expect(scaledSize({ cols: 40, rows: 30 }, 3)).toEqual({ cols: 120, rows: 90, large: false })
     expect(scaledSize({ cols: 100, rows: 30 }, 10)).toEqual({ cols: 1000, rows: 300, large: true })
     expect(scaledSize({ cols: 83, rows: 30 }, 12).large).toBe(false)
+  })
+})
+
+describe('turnPad', () => {
+  it('turns the pad target with the pattern, and centres it again', () => {
+    const f = { ...initialForm({ cols: 12, rows: 5 }), pad: { width: '20', height: '8', left: 3, top: 1, colour: 2 } }
+    expect(turnPad(f).pad).toEqual({ width: '8', height: '20', left: null, top: null, colour: 2 })
+    // Untouched, it is the size, and stays the size of the turned pattern.
+    const plain = initialForm({ cols: 12, rows: 5 })
+    expect(keepPadValid(turnPad(plain), { cols: 5, rows: 12 }).pad).toMatchObject({ width: '5', height: '12' })
   })
 })

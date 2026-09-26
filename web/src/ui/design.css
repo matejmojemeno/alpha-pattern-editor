@@ -450,6 +450,11 @@
   margin-bottom: 0.6rem;
 }
 
+/* An odd one out (Trim edges, after the two pairs) takes the whole line. */
+.structure__transforms > :last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 .structure__section {
   border-top: 1px solid var(--border);
 }

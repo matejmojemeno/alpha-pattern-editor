@@ -88,6 +88,19 @@ describe('carryProgress', () => {
     expect(remainingStitches(q, got)).toBe(q.rows * q.cols)
   })
 
+  it('loses everything to a quarter turn, which gives every row a new id, and undo brings it back', () => {
+    for (const clockwise of [true, false]) {
+      const q = edit.rotate90(p, clockwise)
+      const got = carryProgress(p, pr, q)
+      expect(got.completed_row_ids.size).toBe(0)
+      // Worked bottom up: the cursor goes to the first row in working order.
+      expect(got.current_row_id).toBe(q.row_ids.at(-1))
+      expect([got.current_run_index, got.current_run_stitches]).toEqual([0, 0])
+      expect(remainingStitches(q, got)).toBe(q.rows * q.cols)
+      expect(carryProgress(p, pr, p)).toBe(pr)
+    }
+  })
+
   it('keeps a flipped pattern’s ids, so the same rows stay done wherever they went', () => {
     const q = edit.mirrorV(p)
     const got = carryProgress(p, pr, q)
@@ -149,6 +162,8 @@ describe('progressLoss', () => {
     expect(progressLoss(p, pr, edit.deleteRow(p, 4))).toEqual({ doneRows: 1, partRow: false })
     expect(progressLoss(p, pr, edit.deleteRow(p, 2))).toEqual({ doneRows: 0, partRow: true })
     expect(progressLoss(p, pr, edit.scale(p, 2))).toEqual({ doneRows: 3, partRow: true })
+    expect(progressLoss(p, pr, edit.rotate90(p))).toEqual({ doneRows: 3, partRow: true })
+    expect(progressLoss(p, pr, edit.rotate90(p, false))).toEqual({ doneRows: 3, partRow: true })
     expect(progressLoss(p, pr, edit.addBorder(p, { bottom: -2 }))).toEqual({ doneRows: 2, partRow: false })
     expect(losesProgress(progressLoss(p, pr, edit.deleteRow(p, 0)))).toBe(false)
     expect(losesProgress(progressLoss(p, pr, edit.mirrorV(p)))).toBe(false)

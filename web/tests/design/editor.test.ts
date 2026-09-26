@@ -26,7 +26,7 @@ import {
   type EditorState,
   type Tool,
 } from '../../src/design/editor.ts'
-import { addBorder, addPaletteEntry, mirrorH, newPattern, recolorPaletteEntry } from '../../src/logic/edit.ts'
+import { addBorder, addPaletteEntry, mirrorH, newPattern, recolorPaletteEntry, rotate180, rotate90, setCell } from '../../src/logic/edit.ts'
 import type { Pattern } from '../../src/model/types.ts'
 
 /** A 6×4 white pattern with black (1) and red (2) added, black selected. */
@@ -241,5 +241,24 @@ describe('structural', () => {
     expect([t.pattern.cols, t.pattern.rows]).toEqual([8, 5])
     expect(undo(t).pattern).toBe(s.pattern)
     expect(structural(s, mirrorH)).toBe(s) // all white: the same pattern
+  })
+
+  it('rotates a quarter turn as one undo step, and undo gives back the very pattern', () => {
+    let s = start()
+    s = { ...s, pattern: setCell(setCell(s.pattern, 0, 0, 1), 3, 5, 2) }
+    const before = s.pattern
+    for (const clockwise of [true, false]) {
+      const t = structural(s, (p) => rotate90(p, clockwise))
+      expect([t.pattern.cols, t.pattern.rows]).toEqual([4, 6])
+      expect(canUndo(t)).toBe(true)
+      const u = undo(t)
+      expect(u.pattern).toBe(before) // dims, cells and row ids, exactly
+      expect(canUndo(u)).toBe(false)
+      expect(redo(u).pattern).toBe(t.pattern)
+    }
+    // Two quarter turns: two steps, and the cells of a half turn.
+    const twice = structural(structural(s, rotate90), rotate90)
+    expect([...twice.pattern.cells]).toEqual([...rotate180(before).cells])
+    expect(undo(undo(twice)).pattern).toBe(before)
   })
 })
