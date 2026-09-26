@@ -11,10 +11,14 @@
  *
  * Saving applies the same removals to the committed pattern, which is built from the same
  * cached preview (bridge.commit), so what is saved is what was shown.
+ *
+ * Once a colour is gone, the rest are named again (names.ts), since detection told them
+ * apart from it: with one of two blues removed, "Dark blue" is plain "Blue" again.
  */
 import { deletePaletteEntryNearest } from '../logic/edit.ts'
 import { deltaE, hexToLab } from '../logic/lab.ts'
 import type { PaletteEntry, Pattern } from '../model/types.ts'
+import { simpleNames } from './names.ts'
 
 type Cells = Pick<Pattern, 'rows' | 'cols' | 'cells' | 'palette'>
 
@@ -41,8 +45,8 @@ export function matchEntry(palette: readonly PaletteEntry[], hex: string, tolera
 
 /**
  * `p` with each removal applied in turn; `applied` says which were. The last colour is
- * never removed. Everything else about `p` (a Pattern's ids, a Preview's confidence) is
- * kept as it is.
+ * never removed. When any was, the colours left are named again. Everything else about
+ * `p` (a Pattern's ids, a Preview's confidence) is kept as it is.
  */
 export function applyRemovals<T extends Cells>(
   p: T,
@@ -59,5 +63,7 @@ export function applyRemovals<T extends Cells>(
     q = deletePaletteEntryNearest(q, q.palette[i]!.id)
     return true
   })
-  return { result: { ...p, cells: q.cells, palette: q.palette }, applied }
+  const names = applied.some(Boolean) ? simpleNames(q.palette.map((e) => e.hex)) : null
+  const palette = names ? q.palette.map((e, i) => ({ ...e, name: names[i]! })) : q.palette
+  return { result: { ...p, cells: q.cells, palette }, applied }
 }

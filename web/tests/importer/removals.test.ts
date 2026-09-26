@@ -84,6 +84,16 @@ describe('applyRemovals', () => {
     expect(result.row_ids).toEqual(['r0', 'r1'])
   })
 
+  it('names the colours left again, so one blue left alone is plain “Blue”', () => {
+    const p = preview(['a', 'b', 'c'], ['#1a2a80', '#8ab8e8', '#ffffff'])
+    p.palette = p.palette.map((e, i) => ({ ...e, name: ['Dark blue', 'Light blue', 'White'][i]! }))
+    const { result } = applyRemovals(p, [{ hex: '#8ab8e8', name: 'Light blue' }], 7.5)
+    expect(result.palette.map((e) => [e.id, e.name])).toEqual([
+      ['a', 'Blue'],
+      ['c', 'White'],
+    ])
+  })
+
   it('returns the same object when nothing is removed', () => {
     const p = preview()
     expect(applyRemovals(p, [], 7.5).result).toBe(p)
