@@ -2,16 +2,17 @@
  * /design/:id, the Design stage (§6.2): a port of alphareader/ui/design/design_window.py.
  *
  * Dense and tool-oriented, for a desk and a mouse: tools on the left, the chart in the
- * middle, colours on the right, and the size underneath. No progress is shown anywhere
- * (§6.1), but it is kept: cell and colour edits never change row ids, so the rows done in
- * the Work stage are still done when it's opened again.
+ * middle, colours and the structural panel on the right, and the size underneath. No
+ * progress is shown anywhere (§6.1), but it is kept, and carried through every edit
+ * (logic/progress.ts): an edit that would lose rows marked done asks first.
  *
- * Every edit goes through design/editor.ts, which also keeps undo. Saving is automatic,
- * as in the Work stage (app/autosave.ts), and stamps the project as in the Design stage.
+ * Every edit goes through design/editor.ts, which also keeps undo; each structural
+ * edit is one undo step. Saving is automatic, as in the Work stage (app/autosave.ts),
+ * and stamps the project as in the Design stage.
  *
  * Loaded lazily (App.tsx): nothing here is needed to follow a pattern on a phone.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import '../design.css'
 
@@ -22,6 +23,7 @@ import { trackSave } from '../../app/saving.ts'
 import { progressWarning } from '../../app/stages.ts'
 import {
   TOOLS,
+  abortDrag,
   addColour,
   canRedo,
   canUndo,
@@ -36,19 +38,48 @@ import {
   renameColour,
   selectColour,
   setTool,
+  structural,
   toolForKey,
   undo,
   type EditorState,
   type Tool,
 } from '../../design/editor.ts'
-import { carryProgress } from '../../logic/progress.ts'
-import { formatStats } from '../../logic/readout.ts'
-import type { Project } from '../../model/types.ts'
-import { fitCell, zoomStep } from '../../render/design.ts'
+import {
+  borderPreview,
+  dragOffsets,
+  padOffsets,
+  padPreview,
+  removedCount,
+  removesArtwork,
+  tryBorder,
+  type Preview,
+} from '../../design/structure.ts'
+import { formSides, initialForm, keepPadValid, parseWhole, type StructureForm } from '../../design/structureForm.ts'
+import {
+  EditError,
+  addBorder,
+  deleteColumn,
+  deleteRow,
+  insertColumn,
+  insertRow,
+  majorBorderIndex,
+  mirrorH,
+  mirrorV,
+  padToSize,
+  rotate180,
+  samePattern,
+  scale,
+  trimUniformEdges,
+} from '../../logic/edit.ts'
+import { carryProgress, losesProgress, progressLoss, type ProgressLoss } from '../../logic/progress.ts'
+import { formatStats, workingNumber } from '../../logic/readout.ts'
+import type { Pattern, Project } from '../../model/types.ts'
+import { fitCell, zoomStep, type Overlay } from '../../render/design.ts'
 import type { ProjectRepo } from '../../storage/repo.ts'
-import { CellsIcon } from '../components.tsx'
+import { CellsIcon, ConfirmDialog } from '../components.tsx'
 import { ColoursPanel } from '../design/ColoursPanel.tsx'
 import { DesignCanvas } from '../design/DesignCanvas.tsx'
+import { StructurePanel, type TransformAction } from '../design/StructurePanel.tsx'
 import { useDocumentTitle } from '../hooks.ts'
 import { ProjectGate } from '../ProjectGate.tsx'
 
@@ -70,10 +101,47 @@ const ICONS: Record<Tool, ReadonlyArray<readonly [number, number]>> = {
 function ownsKeys(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
   if (target.isContentEditable) return true
-  return target.closest('input, textarea, select, [role="dialog"], [role="alertdialog"]') !== null
+  return target.closest('input, textarea, select, [role="dialog"], [role="alertdialog"], [role="menu"]') !== null
 }
 
 const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+'
+
+/** The desktop's spin boxes stop at 2000 (design_window.py). */
+const MAX_PAD = 2000
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
+const sizeOf = (p: Pattern) => `${p.cols} × ${p.rows}`
+
+/** What an edit about to lose progress says about it. */
+function lossText(loss: ProgressLoss, scaling: boolean): string {
+  const done = plural(loss.doneRows, 'row')
+  if (scaling) {
+    const what = loss.doneRows ? `${done} done${loss.partRow ? ' and part of another' : ''}` : 'part of a row done'
+    return `Scaling gives every row a new place, so your progress in the Work stage (${what}) starts again from the first row.`
+  }
+  const what = [loss.doneRows ? `${done} you’ve marked done` : '', loss.partRow ? 'the row you’re partway through' : '']
+    .filter(Boolean)
+    .join(' and ')
+  return `This removes ${what} in the Work stage. That progress goes with ${loss.doneRows + (loss.partRow ? 1 : 0) === 1 ? 'it' : 'them'}.`
+}
+
+interface Pending {
+  title: string
+  body: ReactNode
+  confirmLabel: string
+  next: Pattern
+  done: string
+  after?: () => void
+}
+
+interface AxisMenu {
+  /** The pattern it was opened on: once that changes (an edit, an undo), it closes. */
+  pattern: Pattern
+  kind: 'row' | 'col'
+  index: number
+  x: number
+  y: number
+}
 
 function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
   const [settings] = useSettings()
@@ -84,7 +152,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   const p = editor.pattern
   useDocumentTitle(`${p.name} (design)`)
 
-  // --- saving: automatic, as a Design-stage project, progress carried through untouched ----
+  // --- saving: automatic, as a Design-stage project ---------------------------------------------
   const [status, setStatus] = useState<SaveStatus>('saved')
   const [saver] = useState(() => new AutoSaver<Project>((x) => repo.save({ ...x, stage: 'design' }), setStatus))
   // Progress is carried from the pattern this screen opened with, every time: rows that
@@ -131,12 +199,184 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
     navigate(paths.work(p.id))
   }
 
+  // --- the structural panel's form, and the preview it drives ------------------------------------
+  const [form, setForm] = useState<StructureForm>(() => initialForm(initial.pattern))
+  const borderIndex = useMemo(() => {
+    const i = majorBorderIndex(p)
+    return i < p.palette.length ? i : 0
+  }, [p])
+  const pick = (i: number | null) => (i !== null && i < p.palette.length ? i : borderIndex)
+  const sides = formSides(form.border)
+  const borderColour = pick(form.border.colour)
+  const borderResult = useMemo(() => {
+    if (form.open !== 'border' || Object.values(sides).every((v) => v === 0)) return null
+    const r = tryBorder(p, sides, borderColour)
+    return r instanceof EditError ? { error: r.message } : { cols: r.cols, rows: r.rows }
+    // `sides` is rebuilt every render; its fields are what matter.
+  }, [form.open, p, sides.top, sides.right, sides.bottom, sides.left, borderColour]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const padW = parseWhole(form.pad.width)
+  const padH = parseWhole(form.pad.height)
+  const padError =
+    padW === null || padH === null
+      ? 'Enter a width and a height.'
+      : padW < p.cols || padH < p.rows
+        ? 'Target must be at least the current size: this adds a border, it doesn’t crop.'
+        : padW > MAX_PAD || padH > MAX_PAD
+          ? `At most ${MAX_PAD} on a side.`
+          : null
+  const pad = padOffsets(p, padError ? p.cols : padW!, padError ? p.rows : padH!, form.pad.left, form.pad.top)
+  const padColour = pick(form.pad.colour)
+
+  // Keep the pad target valid (at least the size) whenever the size changes, without
+  // clobbering a larger one typed, as the desktop's _after_edit does.
+  const [sizeSeen, setSizeSeen] = useState({ cols: p.cols, rows: p.rows })
+  if (sizeSeen.cols !== p.cols || sizeSeen.rows !== p.rows) {
+    setSizeSeen({ cols: p.cols, rows: p.rows })
+    setForm((f) => keepPadValid(f, p))
+  }
+
+  const preview: Preview | null = useMemo(() => {
+    if (form.open === 'border') return borderPreview(p, sides, borderColour)
+    if (form.open === 'pad' && !padError) return padPreview(p, padW!, padH!, pad.left, pad.top, padColour)
+    return null
+  }, [form.open, p, sides.top, sides.right, sides.bottom, sides.left, borderColour, padError, padW, padH, pad.left, pad.top, padColour]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Dragging the pattern on the padding preview: offsets from where it was picked up.
+  const dragFrom = useRef<{ left: number; top: number } | null>(null)
+  const onShift = (delta: { dr: number; dc: number } | null) => {
+    if (!delta) {
+      dragFrom.current = null
+      return
+    }
+    dragFrom.current ??= { left: pad.left, top: pad.top }
+    const to = dragOffsets(dragFrom.current, delta.dr, delta.dc, { cols: pad.addedCols, rows: pad.addedRows })
+    setForm((f) => (f.pad.left === to.left && f.pad.top === to.top ? f : { ...f, pad: { ...f.pad, left: to.left, top: to.top } }))
+  }
+
+  // --- structural edits: one undo step each, asking first when something would be lost -----------
+  const [pending, setPending] = useState<Pending | null>(null)
+  const carried = useMemo(() => carryProgress(initial.pattern, initial.progress, p), [initial, p])
+
+  /** Make `next` the pattern, as one undo step. `after` runs once it is. */
+  const apply = (next: Pattern, done: string, after?: () => void) => {
+    update((s) => structural(s, () => next))
+    setMessage(done)
+    after?.()
+  }
+
+  /** Make `next` the pattern, first asking if it removes artwork or progress. */
+  const attempt = (
+    next: Pattern,
+    done: string,
+    opts: { title?: string; confirmLabel?: string; artwork?: string; scaling?: boolean; after?: () => void } = {},
+  ) => {
+    if (samePattern(p, next)) return
+    const loss = progressLoss(p, carried, next)
+    const reasons = [opts.artwork, losesProgress(loss) ? lossText(loss, !!opts.scaling) : ''].filter(Boolean)
+    if (reasons.length === 0) {
+      apply(next, done, opts.after)
+      return
+    }
+    setPending({
+      title: opts.title ?? 'Lose progress?',
+      confirmLabel: opts.confirmLabel ?? 'Continue',
+      next,
+      done,
+      after: opts.after,
+      body: (
+        <>
+          {reasons.map((r) => (
+            <p key={r}>{r}</p>
+          ))}
+          <p className="muted">Undo brings it all back.</p>
+        </>
+      ),
+    })
+  }
+
+  /** Run an edit that may refuse (EditError: the Python's ValueError), and say why. */
+  const guarded = (fn: () => void) => {
+    try {
+      fn()
+    } catch (e) {
+      if (!(e instanceof EditError)) throw e
+      setMessage(e.message)
+    }
+  }
+
+  const closeSection = () => setForm((f) => ({ ...f, open: null }))
+
+  const onBorder = () =>
+    guarded(() => {
+      const next = addBorder(p, { ...sides, paletteIndex: borderColour })
+      const artwork = removesArtwork(p, sides)
+        ? `The ${plural(removedCount(p, sides), 'cell')} this removes aren’t all one colour, so it cuts into the pattern.`
+        : undefined
+      attempt(next, `Border applied: now ${sizeOf(next)}.`, {
+        artwork,
+        after: closeSection,
+        title: artwork ? 'Remove part of the pattern?' : undefined,
+        confirmLabel: artwork ? 'Remove cells' : undefined,
+      })
+    })
+
+  const onPad = () =>
+    guarded(() => {
+      if (padError) return
+      const next = padToSize(p, padW!, padH!, { offsetLeft: pad.left, offsetTop: pad.top, paletteIndex: padColour })
+      attempt(next, `Padded to ${sizeOf(next)}.`, { after: closeSection })
+    })
+
+  const onScale = () =>
+    guarded(() => {
+      const next = scale(p, form.scale)
+      attempt(next, `Scaled ×${form.scale}: now ${sizeOf(next)}.`, { scaling: true, title: 'Start progress again?', confirmLabel: 'Scale' })
+    })
+
+  const transforms: TransformAction[] = [
+    { label: 'Mirror ⇄', title: 'Mirror left to right', run: () => attempt(mirrorH(p), 'Mirrored left to right.') },
+    { label: 'Flip ⇅', title: 'Flip top to bottom', run: () => attempt(mirrorV(p), 'Flipped top to bottom.') },
+    { label: 'Rotate 180°', title: 'Rotate half a turn', run: () => attempt(rotate180(p), 'Rotated 180°.') },
+    {
+      label: 'Trim edges',
+      title: 'Remove single-colour rows and columns from all four edges',
+      run: () => {
+        const next = trimUniformEdges(p, { top: true, right: true, bottom: true, left: true })
+        if (samePattern(p, next)) setMessage('No single-colour edges to trim.')
+        else attempt(next, `Trimmed single-colour edges: now ${sizeOf(next)}.`)
+      },
+    },
+  ]
+
+  const onRow = (action: 'above' | 'below' | 'delete', r: number) =>
+    guarded(() => {
+      const n = workingNumber(p, r)
+      if (action === 'delete') attempt(deleteRow(p, r), `Deleted row ${n}.`, { title: 'Delete a row you’ve worked?', confirmLabel: 'Delete row' })
+      else apply(insertRow(p, action === 'above' ? r : r + 1, editor.colour), `Inserted a row ${action} row ${n}.`)
+    })
+
+  const onCol = (action: 'left' | 'right' | 'delete', c: number) =>
+    guarded(() => {
+      if (action === 'delete') attempt(deleteColumn(p, c), `Deleted column ${c + 1}.`)
+      else apply(insertColumn(p, action === 'left' ? c : c + 1, editor.colour), `Inserted a column ${action} of column ${c + 1}.`)
+    })
+
+  // --- a row or column picked from its number on the chart ------------------------------------------
+  const [openMenu, setAxisMenu] = useState<AxisMenu | null>(null)
+  const axisMenu = openMenu?.pattern === p ? openMenu : null
+  const onAxis = (kind: 'row' | 'col', index: number, at: { x: number; y: number }) => {
+    setAxisMenu({ pattern: p, kind, index, ...at })
+    setForm((f) => (kind === 'row' ? { ...f, row: String(workingNumber(p, index)) } : { ...f, col: String(index + 1) }))
+  }
+
   // --- zoom: px per cell. Until zoomed (and after Fit) it follows the view's size. ----------
+  const shownPattern = preview?.pattern ?? p
   const [viewport, setViewport] = useState<{ width: number; height: number } | null>(null)
   const [zoomed, setZoomed] = useState<number | null>(null)
   const fit = useMemo(
-    () => (viewport ? fitCell(p.cols, p.rows, viewport.width, viewport.height) : null),
-    [viewport, p.cols, p.rows],
+    () => (viewport ? fitCell(shownPattern.cols, shownPattern.rows, viewport.width, viewport.height) : null),
+    [viewport, shownPattern.cols, shownPattern.rows],
   )
   const cell = zoomed ?? fit
   const shown = useRef(cell)
@@ -200,8 +440,19 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   }
 
   const d = editor.drag
-  const preview = d?.tool === 'rect' ? { a: d.start, b: d.end, hex: p.palette[editor.colour]?.hex ?? '#000000' } : null
+  const rectPreview = d?.tool === 'rect' ? { a: d.start, b: d.end, hex: p.palette[editor.colour]?.hex ?? '#000000' } : null
   const current = p.palette[editor.colour]
+  const overlay: Overlay | null = preview
+    ? { removed: preview.removed, outline: preview.outline }
+    : axisMenu
+      ? {
+          highlight:
+            axisMenu.kind === 'row'
+              ? { r0: axisMenu.index, r1: axisMenu.index + 1, c0: 0, c1: p.cols }
+              : { r0: 0, r1: p.rows, c0: axisMenu.index, c1: axisMenu.index + 1 },
+        }
+      : null
+  const mode = preview ? (form.open === 'pad' ? 'move' : 'view') : 'edit'
 
   return (
     <main className="screen design">
@@ -298,19 +549,30 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
 
         <section className="design__canvas" aria-label="Pattern">
           <DesignCanvas
-              pattern={p}
-              cell={cell ?? 16}
-              tool={editor.tool}
-              preview={preview}
-              onDown={(c) => update((s) => pointerDown(s, c))}
-              onMove={(c) => update((s) => pointerMove(s, c))}
-              onUp={(c) => update((s) => pointerUp(s, c))}
-              onCancel={() => update(cancelDrag)}
-              onZoom={zoom}
-              onViewport={setViewport}
-              themeKey={settings.highContrast ? 'high' : 'normal'}
-              label={`Pattern, ${p.cols} by ${p.rows}`}
-            />
+            pattern={shownPattern}
+            cell={cell ?? 16}
+            tool={editor.tool}
+            mode={mode}
+            preview={rectPreview}
+            overlay={overlay}
+            onDown={(c) => update((s) => pointerDown(s, c))}
+            onMove={(c) => update((s) => pointerMove(s, c))}
+            onUp={(c) => update((s) => pointerUp(s, c))}
+            onCancel={() => update(cancelDrag)}
+            onAbort={() => update(abortDrag)}
+            onShift={onShift}
+            onAxis={onAxis}
+            onZoom={zoom}
+            onZoomTo={setZoomed}
+            onViewport={setViewport}
+            themeKey={settings.highContrast ? 'high' : 'normal'}
+            label={preview ? `Preview, ${shownPattern.cols} by ${shownPattern.rows}` : `Pattern, ${p.cols} by ${p.rows}`}
+          />
+          {preview && (
+            <p className="design__previewing" role="status">
+              {form.open === 'pad' ? 'Previewing the padding: drag the pattern to place it.' : 'Previewing the border.'}
+            </p>
+          )}
         </section>
 
         <aside className="design__side">
@@ -323,6 +585,21 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
             onRename={(i, name) => update((s) => renameColour(s, i, name))}
             onDelete={onDelete}
           />
+          <StructurePanel
+            pattern={p}
+            form={form}
+            onForm={setForm}
+            borderIndex={borderIndex}
+            borderResult={borderResult}
+            pad={pad}
+            padError={form.open === 'pad' ? padError : null}
+            onBorder={onBorder}
+            onPad={onPad}
+            onScale={onScale}
+            transforms={transforms}
+            onRow={onRow}
+            onCol={onCol}
+          />
         </aside>
       </div>
 
@@ -332,6 +609,123 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
           {message}
         </span>
       </footer>
+
+      {axisMenu && (
+        <AxisMenuPopup
+          menu={axisMenu}
+          pattern={p}
+          onClose={() => setAxisMenu(null)}
+          onRow={(a) => {
+            setAxisMenu(null)
+            onRow(a, axisMenu.index)
+          }}
+          onCol={(a) => {
+            setAxisMenu(null)
+            onCol(a, axisMenu.index)
+          }}
+        />
+      )}
+
+      {pending && (
+        <ConfirmDialog
+          title={pending.title}
+          confirmLabel={pending.confirmLabel}
+          danger
+          onCancel={() => setPending(null)}
+          onConfirm={() => {
+            const { next, done, after } = pending
+            setPending(null)
+            apply(next, done, after)
+          }}
+        >
+          {pending.body}
+        </ConfirmDialog>
+      )}
     </main>
+  )
+}
+
+/**
+ * Insert or delete the row or column whose number was pressed. A small menu at the
+ * number, rather than a selected cell: the Design stage has no selection (every tool
+ * acts on a press), the numbers are already there to aim at, and it works the same with
+ * a finger. Escape, or a press outside, closes it.
+ */
+function AxisMenuPopup({
+  menu,
+  pattern: p,
+  onClose,
+  onRow,
+  onCol,
+}: {
+  menu: AxisMenu
+  pattern: Pattern
+  onClose: () => void
+  onRow: (action: 'above' | 'below' | 'delete') => void
+  onCol: (action: 'left' | 'right' | 'delete') => void
+}) {
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    box.current?.querySelector('button')?.focus()
+    const outside = (e: PointerEvent) => {
+      if (!box.current?.contains(e.target as Node)) onClose()
+    }
+    // Deferred, so the press that opened the menu doesn't close it.
+    const t = setTimeout(() => document.addEventListener('pointerdown', outside), 0)
+    return () => {
+      clearTimeout(t)
+      document.removeEventListener('pointerdown', outside)
+    }
+  }, [onClose])
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const items = [...(box.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])]
+    const at = items.indexOf(document.activeElement as HTMLButtonElement)
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      onClose()
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      items[(at + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus()
+    } else if (e.key === 'Tab') {
+      onClose()
+    }
+  }
+
+  const row = menu.kind === 'row'
+  const n = row ? workingNumber(p, menu.index) : menu.index + 1
+  const last = row ? p.rows <= 1 : p.cols <= 1
+  const left = Math.max(8, Math.min(menu.x, window.innerWidth - 220))
+  const top = Math.max(8, Math.min(menu.y, window.innerHeight - 160))
+  const label = row ? `Row ${n}` : `Column ${n}`
+  return (
+    <div ref={box} className="axis-menu" role="menu" aria-label={label} style={{ left, top }} onKeyDown={onKeyDown}>
+      <p className="axis-menu__title">{label}</p>
+      {row ? (
+        <>
+          <button type="button" role="menuitem" onClick={() => onRow('above')}>
+            Insert row above
+          </button>
+          <button type="button" role="menuitem" onClick={() => onRow('below')}>
+            Insert row below
+          </button>
+          <button type="button" role="menuitem" className="axis-menu__danger" disabled={last} title={last ? 'Cannot delete the last row.' : undefined} onClick={() => onRow('delete')}>
+            Delete row {n}
+          </button>
+        </>
+      ) : (
+        <>
+          <button type="button" role="menuitem" onClick={() => onCol('left')}>
+            Insert column left
+          </button>
+          <button type="button" role="menuitem" onClick={() => onCol('right')}>
+            Insert column right
+          </button>
+          <button type="button" role="menuitem" className="axis-menu__danger" disabled={last} title={last ? 'Cannot delete the last column.' : undefined} onClick={() => onCol('delete')}>
+            Delete column {n}
+          </button>
+        </>
+      )}
+    </div>
   )
 }

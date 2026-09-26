@@ -306,3 +306,230 @@
 .design__message {
   color: var(--muted);
 }
+
+/* --- the structural panel -------------------------------------------------------------------------- */
+
+.structure {
+  margin-top: 1rem;
+}
+
+.structure__transforms {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  margin-bottom: 0.6rem;
+}
+
+.structure__section {
+  border-top: 1px solid var(--border);
+}
+
+.structure__section:last-child {
+  border-bottom: 1px solid var(--border);
+}
+
+.structure__title {
+  margin: 0;
+  font-size: inherit;
+}
+
+.structure__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0 0.25rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.structure__toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.structure__chevron {
+  width: 1em;
+  color: var(--muted);
+}
+
+.structure__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0 0.25rem 0.75rem;
+}
+
+.structure__hint {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.structure__sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem 0.6rem;
+}
+
+.structure__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: var(--text-sm);
+}
+
+.structure__field--wide {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.structure__field input,
+.structure__field select {
+  min-width: 0;
+  min-height: 2rem;
+  padding: 0 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.structure__sides input {
+  width: 100%;
+}
+
+.structure__field input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.structure__colour {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.structure__colour .colour__swatch {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.structure__colour select {
+  flex: 1;
+  min-width: 0;
+}
+
+.structure__result {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.structure__result--error {
+  color: var(--danger);
+}
+
+.structure__result--warn {
+  color: var(--warn);
+}
+
+.structure__apply,
+.structure__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.structure__line {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.structure__line .structure__field {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.structure__line .structure__field span {
+  width: 3.75rem;
+}
+
+.structure__line input {
+  width: 5rem;
+}
+
+/* --- the preview note and the row/column menu --------------------------------------------------------- */
+
+.design__previewing {
+  position: absolute;
+  left: 50%;
+  bottom: 0.5rem;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+  font-size: var(--text-sm);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.axis-menu {
+  position: fixed;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 12rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.25);
+}
+
+.axis-menu__title {
+  margin: 0.15rem 0.5rem 0.3rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.axis-menu button {
+  min-height: 2.25rem;
+  padding: 0 0.6rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.axis-menu button:hover:not(:disabled),
+.axis-menu button:focus-visible {
+  outline: none;
+  background: var(--raised);
+}
+
+.axis-menu button:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.axis-menu__danger:not(:disabled) {
+  color: var(--danger);
+}
