@@ -23,8 +23,36 @@ const throwing = (): Storage => {
 
 describe('parseSettings', () => {
   it('has the documented defaults', () => {
-    expect(DEFAULT_SETTINGS).toEqual({ emphasiseRows: true, highContrast: false, focusMode: false })
+    expect(DEFAULT_SETTINGS).toEqual({
+      emphasiseRows: true,
+      highContrast: false,
+      focusMode: false,
+      colourLibrary: 'dmc',
+      yarnPerStitchCm: 2.5,
+      ballMetres: null,
+      marginPercent: 10,
+      units: 'metric',
+    })
     expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS)
+  })
+
+  it('keeps the colour library and yarn inputs only when they make sense', () => {
+    expect(
+      parseSettings(
+        '{"colourLibrary":"stylecraft-special-dk","yarnPerStitchCm":3,"ballMetres":276,"marginPercent":0,"units":"imperial"}',
+      ),
+    ).toEqual({
+      ...DEFAULT_SETTINGS,
+      colourLibrary: 'stylecraft-special-dk',
+      yarnPerStitchCm: 3,
+      ballMetres: 276,
+      marginPercent: 0,
+      units: 'imperial',
+    })
+    expect(
+      parseSettings('{"colourLibrary":"acme","yarnPerStitchCm":0,"ballMetres":-1,"marginPercent":-5,"units":"cubits"}'),
+    ).toEqual(DEFAULT_SETTINGS)
+    expect(parseSettings('{"yarnPerStitchCm":"2","ballMetres":null,"marginPercent":null}')).toEqual(DEFAULT_SETTINGS)
   })
 
   it('keeps well-typed known fields and ignores the rest', () => {
@@ -50,6 +78,7 @@ describe('createSettingsStore', () => {
     store.set({ highContrast: true })
     expect(listener).toHaveBeenCalledTimes(1)
     expect(JSON.parse(storage.getItem(SETTINGS_KEY)!)).toEqual({
+      ...DEFAULT_SETTINGS,
       emphasiseRows: true,
       highContrast: true,
       focusMode: true,

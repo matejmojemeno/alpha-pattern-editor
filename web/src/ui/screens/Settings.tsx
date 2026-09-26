@@ -10,7 +10,9 @@ import type { Settings as SettingsValues } from '../../settings/store.ts'
 import { TopBar } from '../components.tsx'
 import { useDocumentTitle } from '../hooks.ts'
 
-const OPTIONS: { key: keyof SettingsValues; label: string; help: string }[] = [
+type Switch = { [K in keyof SettingsValues]: SettingsValues[K] extends boolean ? K : never }[keyof SettingsValues]
+
+const OPTIONS: { key: Switch; label: string; help: string }[] = [
   {
     key: 'emphasiseRows',
     label: 'Emphasise the rows around the current one',
