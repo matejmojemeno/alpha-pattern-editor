@@ -14,6 +14,8 @@ controls make it, then preview → pattern_from_preview. A correction is one of:
     de=X                      the colour-detail slider, as ΔE (_on_delta_e_changed)
     crop=x0,y0,x1,y1          a crop, in image pixels (_on_crop_requested → _run_detection)
     redetect                  the Re-detect button (_run_detection with no crop)
+    extent=x0,y0,x1,y1        the grid's outline moved, in image pixels (set_extent); the
+                              web app only, which sends rows and cols with it
 
 Detection always runs at the slider's current ΔE, as the desktop's does.
 """
@@ -74,6 +76,9 @@ def detect(path: str, *corrections: str) -> dict:
             elif op == "crop":
                 x0, y0, x1, y1 = (int(v) for v in arg.split(","))
                 state = _run_detection(img, delta_e, crop=(x0, y0, x1, y1))
+            elif op == "extent":
+                x0, y0, x1, y1 = (float(v) for v in arg.split(","))
+                state.set_extent(Extent(x0, y0, x1, y1))
             elif op == "redetect":
                 state = _run_detection(img, delta_e)
             else:
