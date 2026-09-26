@@ -174,6 +174,42 @@ def test_pad_to_size_rejects_shrink():
         edit.pad_to_size(p, target_cols=1, target_rows=1)
 
 
+def test_pad_to_size_default_centring_is_unchanged():
+    """No offsets: dc // 2 on the left and dr // 2 on top, the extra one right/bottom."""
+    p = _pattern([[1]])
+    q = edit.pad_to_size(p, target_cols=4, target_rows=4, palette_index=0)
+    assert np.argwhere(q.cells == 1).tolist() == [[1, 1]]
+    explicit = edit.pad_to_size(p, 4, 4, 0, offset_left=1, offset_top=1)
+    assert np.array_equal(q.cells, explicit.cells)
+
+
+def test_pad_to_size_offsets_place_the_pattern():
+    p = _pattern([[1, 2], [2, 1]])
+    q = edit.pad_to_size(p, target_cols=5, target_rows=12, palette_index=0,
+                         offset_left=0, offset_top=2)
+    assert (q.rows, q.cols) == (12, 5)
+    assert np.array_equal(q.cells[2:4, 0:2], p.cells)
+    assert q.row_ids[2:4] == p.row_ids                   # progress survives
+    assert int((q.cells != 0).sum()) == 4                # only the artwork is coloured
+    # Only one offset given: the other axis is still centred.
+    q = edit.pad_to_size(p, 6, 4, 0, offset_left=4)
+    assert np.array_equal(q.cells[1:3, 4:6], p.cells)
+    # The far edge is allowed.
+    q = edit.pad_to_size(p, 3, 3, 0, offset_left=1, offset_top=1)
+    assert np.array_equal(q.cells[1:, 1:], p.cells)
+
+
+def test_pad_to_size_rejects_offsets_out_of_range():
+    import pytest
+    p = _pattern([[0, 1], [1, 0]])                       # 2x2 padded to 4x4: 2 added each way
+    for kw in ({"offset_left": -1}, {"offset_left": 3},
+               {"offset_top": -1}, {"offset_top": 3}):
+        with pytest.raises(ValueError):
+            edit.pad_to_size(p, 4, 4, palette_index=0, **kw)
+    with pytest.raises(ValueError):                      # nothing added across: only 0 fits
+        edit.pad_to_size(p, 2, 4, palette_index=0, offset_left=1)
+
+
 def test_trim_uniform_edges():
     p = _pattern([[0, 0, 0], [0, 1, 0], [0, 0, 0]])
     q = edit.trim_uniform_edges(p, top=True, bottom=True)
