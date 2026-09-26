@@ -67,9 +67,9 @@ other ops take none.
 # Edit fixtures
 
 `edit_golden.json` records what `alphareader/core/edit.py` does: every public function
-(the §9 operations, insert/delete of rows and columns, `scale`, `pad_to_size` with and
-without offsets, `trim_uniform_edges`, the palette functions, `nearest_entry_id` and
-`major_border_index`), over small patterns chosen for their edge cases, including every
+(the §9 operations, insert/delete of rows and columns, `rotate_90` both ways, `scale`,
+`pad_to_size` with and without offsets, `trim_uniform_edges`, the palette functions,
+`nearest_entry_id` and `major_border_index`), over small patterns chosen for their edge cases, including every
 `ValueError` path. `logic/edit.ts`, the Design stage's port, replays it. The same
 `gen_fixtures.py` writes it, and the same Python test fails when it's stale.
 
@@ -100,9 +100,9 @@ Pattern = { id, name, created_at, rows, cols, row_ids[], cells[rows][cols],
 
 ## Porting notes
 
-- **Made-up ids.** New rows (`add_border`, `insert_row`, `scale`, `pad_to_size`) and
-  new palette entries (`add_palette_entry`) get `uuid4().hex` ids, which can't be
-  recorded literally. So ids are recorded *structurally*: an id the input had stays its
+- **Made-up ids.** New rows (`add_border`, `insert_row`, `scale`, `pad_to_size`, and
+  every row of `rotate_90`) and new palette entries (`add_palette_entry`) get
+  `uuid4().hex` ids, which can't be recorded literally. So ids are recorded *structurally*: an id the input had stays its
   literal value, and one it didn't becomes `"new"`. The port must produce an id that is
   **fresh** (not among the input's ids) and **unique** (no two alike) wherever the
   fixture says `"new"`, and exactly the recorded id everywhere else. Keeping existing

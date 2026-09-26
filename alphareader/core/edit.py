@@ -190,6 +190,20 @@ def rotate_180(p: Pattern) -> Pattern:
     return _clone(p, cells=p.cells[::-1, ::-1], row_ids=list(reversed(p.row_ids)))
 
 
+def rotate_90(p: Pattern, *, clockwise: bool = True) -> Pattern:
+    """A quarter turn: R rows x C cols become C rows x R cols, as seen with row 0 at the
+    top (how every chart is drawn). Clockwise, the top row becomes the right-hand column
+    read top to bottom, so new[i, j] = old[R-1-j, i]; anticlockwise, the top row becomes
+    the left-hand column read bottom to top, so new[i, j] = old[j, C-1-i].
+
+    Cells move exactly (np.rot90), no colour changes. The old rows no longer exist as
+    rows, so every row gets a fresh id, as in `scale`: Work-stage progress starts again.
+    """
+    cells = np.rot90(p.cells, k=-1 if clockwise else 1)
+    row_ids = [uuid.uuid4().hex for _ in range(cells.shape[0])]
+    return _clone(p, cells=cells, row_ids=row_ids)
+
+
 # --- palette -----------------------------------------------------------------
 
 def recolor_palette_entry(p: Pattern, entry_id: str, new_hex: str) -> Pattern:

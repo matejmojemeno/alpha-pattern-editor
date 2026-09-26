@@ -6567,6 +6567,1383 @@
    }
   },
   {
+   "args": [],
+   "fn": "rotate_90",
+   "kwargs": {},
+   "pattern": "framed",
+   "result": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+     ],
+     [
+      2,
+      2,
+      0,
+      1,
+      0,
+      2
+     ],
+     [
+      1,
+      2,
+      3,
+      1,
+      1,
+      2
+     ],
+     [
+      2,
+      2,
+      0,
+      3,
+      0,
+      2
+     ],
+     [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+     ]
+    ],
+    "cols": 6,
+    "created_at": 0.0,
+    "id": "pat-framed",
+    "name": "framed",
+    "palette": [
+     {
+      "count": 4,
+      "dmc": null,
+      "hex": "#ffffff",
+      "id": "pal0",
+      "name": "White"
+     },
+     {
+      "count": 4,
+      "dmc": null,
+      "hex": "#6b3e26",
+      "id": "pal1",
+      "name": "Brown"
+     },
+     {
+      "count": 20,
+      "dmc": null,
+      "hex": "#d93a3a",
+      "id": "pal2",
+      "name": "Red"
+     },
+     {
+      "count": 2,
+      "dmc": null,
+      "hex": "#2f5fb0",
+      "id": "pal3",
+      "name": "Blue"
+     }
+    ],
+    "row_ids": [
+     "new",
+     "new",
+     "new",
+     "new",
+     "new"
+    ],
+    "rows": 5,
+    "start_direction": "RTL"
+   }
+  },
+  {
+   "args": [],
+   "fn": "rotate_90",
+   "kwargs": {
+    "clockwise": true
+   },
+   "pattern": "framed",
+   "result": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+     ],
+     [
+      2,
+      2,
+      0,
+      1,
+      0,
+      2
+     ],
+     [
+      1,
+      2,
+      3,
+      1,
+      1,
+      2
+     ],
+     [
+      2,
+      2,
+      0,
+      3,
+      0,
+      2
+     ],
+     [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+     ]
+    ],
+    "cols": 6,
+    "created_at": 0.0,
+    "id": "pat-framed",
+    "name": "framed",
+    "palette": [
+     {
+      "count": 4,
+      "dmc": null,
+      "hex": "#ffffff",
+      "id": "pal0",
+      "name": "White"
+     },
+     {
+      "count": 4,
+      "dmc": null,
+      "hex": "#6b3e26",
+      "id": "pal1",
+      "name": "Brown"
+     },
+     {
+      "count": 20,
+      "dmc": null,
+      "hex": "#d93a3a",
+      "id": "pal2",
+      "name": "Red"
+     },
+     {
+      "count": 2,
+      "dmc": null,
+      "hex": "#2f5fb0",
+      "id": "pal3",
+      "name": "Blue"
+     }
+    ],
+    "row_ids": [
+     "new",
+     "new",
+     "new",
+     "new",
+     "new"
+    ],
+    "rows": 5,
+    "start_direction": "RTL"
+   }
+  },
+  {
+   "args": [],
+   "fn": "rotate_90",
+   "kwargs": {
+    "clockwise": false
+   },
+   "pattern": "framed",
+   "result": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+     ],
+     [
+      2,
+      0,
+      3,
+      0,
+      2,
+      2
+     ],
+     [
+      2,
+      1,
+      1,
+      3,
+      2,
+      1
+     ],
+     [
+      2,
+      0,
+      1,
+      0,
+      2,
+      2
+     ],
+     [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+     ]
+    ],
+    "cols": 6,
+    "created_at": 0.0,
+    "id": "pat-framed",
+    "name": "framed",
+    "palette": [
+     {
+      "count": 4,
+      "dmc": null,
+      "hex": "#ffffff",
+      "id": "pal0",
+      "name": "White"
+     },
+     {
+      "count": 4,
+      "dmc": null,
+      "hex": "#6b3e26",
+      "id": "pal1",
+      "name": "Brown"
+     },
+     {
+      "count": 20,
+      "dmc": null,
+      "hex": "#d93a3a",
+      "id": "pal2",
+      "name": "Red"
+     },
+     {
+      "count": 2,
+      "dmc": null,
+      "hex": "#2f5fb0",
+      "id": "pal3",
+      "name": "Blue"
+     }
+    ],
+    "row_ids": [
+     "new",
+     "new",
+     "new",
+     "new",
+     "new"
+    ],
+    "rows": 5,
+    "start_direction": "RTL"
+   }
+  },
+  {
+   "args": [],
+   "fn": "rotate_90",
+   "kwargs": {},
+   "pattern": "random",
+   "result": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      1,
+      3,
+      4,
+      0,
+      1,
+      4,
+      4
+     ],
+     [
+      1,
+      2,
+      1,
+      0,
+      2,
+      0,
+      4
+     ],
+     [
+      4,
+      4,
+      3,
+      1,
+      1,
+      1,
+      4
+     ],
+     [
+      2,
+      4,
+      3,
+      4,
+      2,
+      0,
+      4
+     ],
+     [
+      0,
+      0,
+      2,
+      1,
+      2,
+      2,
+      4
+     ],
+     [
+      2,
+      3,
+      3,
+      3,
+      4,
+      2,
+      3
+     ],
+     [
+      0,
+      3,
+      3,
+      2,
+      4,
+      0,
+      0
+     ],
+     [
+      2,
+      4,
+      3,
+      4,
+      4,
+      2,
+      3
+     ],
+     [
+      3,
+      1,
+      4,
+      4,
+      3,
+      4,
+      2
+     ]
+    ],
+    "cols": 7,
+    "created_at": 0.0,
+    "id": "pat-random",
+    "name": "random",
+    "palette": [
+     {
+      "count": 9,
+      "dmc": null,
+      "hex": "#ffffff",
+      "id": "pal0",
+      "name": "White"
+     },
+     {
+      "count": 9,
+      "dmc": null,
+      "hex": "#6b3e26",
+      "id": "pal1",
+      "name": "Brown"
+     },
+     {
+      "count": 13,
+      "dmc": null,
+      "hex": "#d93a3a",
+      "id": "pal2",
+      "name": "Red"
+     },
+     {
+      "count": 13,
+      "dmc": null,
+      "hex": "#2f5fb0",
+      "id": "pal3",
+      "name": "Blue"
+     },
+     {
+      "count": 19,
+      "dmc": null,
+      "hex": "#f2c230",
+      "id": "pal4",
+      "name": "Yellow"
+     }
+    ],
+    "row_ids": [
+     "new",
+     "new",
+     "new",
+     "new",
+     "new",
+     "new",
+     "new",
+     "new",
+     "new"
+    ],
+    "rows": 9,
+    "start_direction": "RTL"
+   }
+  },
+  {
+   "args": [],
+   "fn": "rotate_90",
+   "kwargs": {
+    "clockwise": true
+   },
+   "pattern": "random",
+   "result": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      1,
+      3,
+      4,
+      0,
+      1,
+      4,
+      4
+     ],
+     [
+      1,
+      2,
+      1,
+      0,
+      2,
+      0,
+      4
+     ],
+     [
+      4,
+      4,
+      3,
+      1,
+      1,
+      1,
+      4
+     ],
+     [
+      2,
+      4,
+      3,
+      4,
+      2,
+      0,
+      4
+     ],
+     [
+      0,
+      0,
+      2,
+      1,
+      2,
+      2,
+      4
+     ],
+     [
+      2,
+      3,
+      3,
+      3,
+      4,
+      2,
+      3
+     ],
+     [
+      0,
+      3,
+      3,
+      2,
+      4,
+      0,
+      0
+     ],
+     [
+      2,
+      4,
+      3,
+      4,
+      4,
+      2,
+      3
+     ],
+     [
+      3,
+      1,
+      4,
+      4,
+      3,
+      4,
+      2
+     ]
+    ],
+    "cols": 7,
+    "created_at": 0.0,
+    "id": "pat-random",
+    "name": "random",
+    "palette": [
+     {
+      "count": 9,
+      "dmc": null,
+      "hex": "#ffffff",
+      "id": "pal0",
+      "name": "White"
+     },
+     {
+      "count": 9,
+      "dmc": null,
+      "hex": "#6b3e26",
+      "id": "pal1",
+      "name": "Brown"
+     },
+     {
+      "count": 13,
+      "dmc": null,
+      "hex": "#d93a3a",
+      "id": "pal2",
+      "name": "Red"
+     },
+     {
+      "count": 13,
+      "dmc": null,
+      "hex": "#2f5fb0",
+      "id": "pal3",
+      "name": "Blue"
+     },
+     {
+      "count": 19,
+      "dmc": null,
+      "hex": "#f2c230",
+      "id": "pal4",
+      "name": "Yellow"
+     }
+    ],
+    "row_ids": [
+     "new",
+     "new",
+     "new",
+     "new",
+     "new",
+     "new",
+     "new",
+     "new",
+     "new"
+    ],
+    "rows": 9,
+    "start_direction": "RTL"
+   }
+  },
+  {
+   "args": [],
+   "fn": "rotate_90",
+   "kwargs": {
+    "clockwise": false
+   },
+   "pattern": "random",
+   "result": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      2,
+      4,
+      3,
+      4,
+      4,
+      1,
+      3
+     ],
+     [
+      3,
+      2,
+      4,
+      4,
+      3,
+      4,
+      2
+     ],
+     [
+      0,
+      0,
+      4,
+      2,
+      3,
+      3,
+      0
+     ],
+     [
+      3,
+      2,
+      4,
+      3,
+      3,
+      3,
+      2
+     ],
+     [
+      4,
+      2,
+      2,
+      1,
+      2,
+      0,
+      0
+     ],
+     [
+      4,
+      0,
+      2,
+      4,
+      3,
+      4,
+      2
+     ],
+     [
+      4,
+      1,
+      1,
+      1,
+      3,
+      4,
+      4
+     ],
+     [
+      4,
+      0,
+      2,
+      0,
+      1,
+      2,
+      1
+     ],
+     [
+      4,
+      4,
+      1,
+      0,
+      4,
+      3,
+      1
+     ]
+    ],
+    "cols": 7,
+    "created_at": 0.0,
+    "id": "pat-random",
+    "name": "random",
+    "palette": [
+     {
+      "count": 9,
+      "dmc": null,
+      "hex": "#ffffff",
+      "id": "pal0",
+      "name": "White"
+     },
+     {
+      "count": 9,
+      "dmc": null,
+      "hex": "#6b3e26",
+      "id": "pal1",
+      "name": "Brown"
+     },
+     {
+      "count": 13,
+      "dmc": null,
+      "hex": "#d93a3a",
+      "id": "pal2",
+      "name": "Red"
+     },
+     {
+      "count": 13,
+      "dmc": null,
+      "hex": "#2f5fb0",
+      "id": "pal3",
+      "name": "Blue"
+     },
+     {
+      "count": 19,
+      "dmc": null,
+      "hex": "#f2c230",
+      "id": "pal4",
+      "name": "Yellow"
+     }
+    ],
+    "row_ids": [
+     "new",
+     "new",
+     "new",
+     "new",
+     "new",
+     "new",
+     "new",
+     "new",
+     "new"
+    ],
+    "rows": 9,
+    "start_direction": "RTL"
+   }
+  },
+  {
+   "args": [],
+   "fn": "rotate_90",
+   "kwargs": {},
+   "pattern": "single-row",
+   "result": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      0
+     ],
+     [
+      1
+     ],
+     [
+      1
+     ],
+     [
+      0
+     ],
+     [
+      2
+     ]
+    ],
+    "cols": 1,
+    "created_at": 0.0,
+    "id": "pat-single-row",
+    "name": "single-row",
+    "palette": [
+     {
+      "count": 2,
+      "dmc": null,
+      "hex": "#ffffff",
+      "id": "pal0",
+      "name": "White"
+     },
+     {
+      "count": 2,
+      "dmc": null,
+      "hex": "#6b3e26",
+      "id": "pal1",
+      "name": "Brown"
+     },
+     {
+      "count": 1,
+      "dmc": null,
+      "hex": "#d93a3a",
+      "id": "pal2",
+      "name": "Red"
+     }
+    ],
+    "row_ids": [
+     "new",
+     "new",
+     "new",
+     "new",
+     "new"
+    ],
+    "rows": 5,
+    "start_direction": "RTL"
+   }
+  },
+  {
+   "args": [],
+   "fn": "rotate_90",
+   "kwargs": {
+    "clockwise": true
+   },
+   "pattern": "single-row",
+   "result": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      0
+     ],
+     [
+      1
+     ],
+     [
+      1
+     ],
+     [
+      0
+     ],
+     [
+      2
+     ]
+    ],
+    "cols": 1,
+    "created_at": 0.0,
+    "id": "pat-single-row",
+    "name": "single-row",
+    "palette": [
+     {
+      "count": 2,
+      "dmc": null,
+      "hex": "#ffffff",
+      "id": "pal0",
+      "name": "White"
+     },
+     {
+      "count": 2,
+      "dmc": null,
+      "hex": "#6b3e26",
+      "id": "pal1",
+      "name": "Brown"
+     },
+     {
+      "count": 1,
+      "dmc": null,
+      "hex": "#d93a3a",
+      "id": "pal2",
+      "name": "Red"
+     }
+    ],
+    "row_ids": [
+     "new",
+     "new",
+     "new",
+     "new",
+     "new"
+    ],
+    "rows": 5,
+    "start_direction": "RTL"
+   }
+  },
+  {
+   "args": [],
+   "fn": "rotate_90",
+   "kwargs": {
+    "clockwise": false
+   },
+   "pattern": "single-row",
+   "result": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      2
+     ],
+     [
+      0
+     ],
+     [
+      1
+     ],
+     [
+      1
+     ],
+     [
+      0
+     ]
+    ],
+    "cols": 1,
+    "created_at": 0.0,
+    "id": "pat-single-row",
+    "name": "single-row",
+    "palette": [
+     {
+      "count": 2,
+      "dmc": null,
+      "hex": "#ffffff",
+      "id": "pal0",
+      "name": "White"
+     },
+     {
+      "count": 2,
+      "dmc": null,
+      "hex": "#6b3e26",
+      "id": "pal1",
+      "name": "Brown"
+     },
+     {
+      "count": 1,
+      "dmc": null,
+      "hex": "#d93a3a",
+      "id": "pal2",
+      "name": "Red"
+     }
+    ],
+    "row_ids": [
+     "new",
+     "new",
+     "new",
+     "new",
+     "new"
+    ],
+    "rows": 5,
+    "start_direction": "RTL"
+   }
+  },
+  {
+   "args": [],
+   "fn": "rotate_90",
+   "kwargs": {},
+   "pattern": "single-column",
+   "result": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      2,
+      0,
+      1,
+      1
+     ]
+    ],
+    "cols": 4,
+    "created_at": 0.0,
+    "id": "pat-single-column",
+    "name": "single-column",
+    "palette": [
+     {
+      "count": 1,
+      "dmc": null,
+      "hex": "#ffffff",
+      "id": "pal0",
+      "name": "White"
+     },
+     {
+      "count": 2,
+      "dmc": null,
+      "hex": "#6b3e26",
+      "id": "pal1",
+      "name": "Brown"
+     },
+     {
+      "count": 1,
+      "dmc": null,
+      "hex": "#d93a3a",
+      "id": "pal2",
+      "name": "Red"
+     }
+    ],
+    "row_ids": [
+     "new"
+    ],
+    "rows": 1,
+    "start_direction": "RTL"
+   }
+  },
+  {
+   "args": [],
+   "fn": "rotate_90",
+   "kwargs": {
+    "clockwise": true
+   },
+   "pattern": "single-column",
+   "result": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      2,
+      0,
+      1,
+      1
+     ]
+    ],
+    "cols": 4,
+    "created_at": 0.0,
+    "id": "pat-single-column",
+    "name": "single-column",
+    "palette": [
+     {
+      "count": 1,
+      "dmc": null,
+      "hex": "#ffffff",
+      "id": "pal0",
+      "name": "White"
+     },
+     {
+      "count": 2,
+      "dmc": null,
+      "hex": "#6b3e26",
+      "id": "pal1",
+      "name": "Brown"
+     },
+     {
+      "count": 1,
+      "dmc": null,
+      "hex": "#d93a3a",
+      "id": "pal2",
+      "name": "Red"
+     }
+    ],
+    "row_ids": [
+     "new"
+    ],
+    "rows": 1,
+    "start_direction": "RTL"
+   }
+  },
+  {
+   "args": [],
+   "fn": "rotate_90",
+   "kwargs": {
+    "clockwise": false
+   },
+   "pattern": "single-column",
+   "result": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      1,
+      1,
+      0,
+      2
+     ]
+    ],
+    "cols": 4,
+    "created_at": 0.0,
+    "id": "pat-single-column",
+    "name": "single-column",
+    "palette": [
+     {
+      "count": 1,
+      "dmc": null,
+      "hex": "#ffffff",
+      "id": "pal0",
+      "name": "White"
+     },
+     {
+      "count": 2,
+      "dmc": null,
+      "hex": "#6b3e26",
+      "id": "pal1",
+      "name": "Brown"
+     },
+     {
+      "count": 1,
+      "dmc": null,
+      "hex": "#d93a3a",
+      "id": "pal2",
+      "name": "Red"
+     }
+    ],
+    "row_ids": [
+     "new"
+    ],
+    "rows": 1,
+    "start_direction": "RTL"
+   }
+  },
+  {
+   "args": [],
+   "fn": "rotate_90",
+   "kwargs": {},
+   "pattern": "single-cell",
+   "result": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      0
+     ]
+    ],
+    "cols": 1,
+    "created_at": 0.0,
+    "id": "pat-single-cell",
+    "name": "single-cell",
+    "palette": [
+     {
+      "count": 1,
+      "dmc": null,
+      "hex": "#ffffff",
+      "id": "pal0",
+      "name": "White"
+     }
+    ],
+    "row_ids": [
+     "new"
+    ],
+    "rows": 1,
+    "start_direction": "RTL"
+   }
+  },
+  {
+   "args": [],
+   "fn": "rotate_90",
+   "kwargs": {
+    "clockwise": true
+   },
+   "pattern": "single-cell",
+   "result": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      0
+     ]
+    ],
+    "cols": 1,
+    "created_at": 0.0,
+    "id": "pat-single-cell",
+    "name": "single-cell",
+    "palette": [
+     {
+      "count": 1,
+      "dmc": null,
+      "hex": "#ffffff",
+      "id": "pal0",
+      "name": "White"
+     }
+    ],
+    "row_ids": [
+     "new"
+    ],
+    "rows": 1,
+    "start_direction": "RTL"
+   }
+  },
+  {
+   "args": [],
+   "fn": "rotate_90",
+   "kwargs": {
+    "clockwise": false
+   },
+   "pattern": "single-cell",
+   "result": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      0
+     ]
+    ],
+    "cols": 1,
+    "created_at": 0.0,
+    "id": "pat-single-cell",
+    "name": "single-cell",
+    "palette": [
+     {
+      "count": 1,
+      "dmc": null,
+      "hex": "#ffffff",
+      "id": "pal0",
+      "name": "White"
+     }
+    ],
+    "row_ids": [
+     "new"
+    ],
+    "rows": 1,
+    "start_direction": "RTL"
+   }
+  },
+  {
+   "args": [],
+   "fn": "rotate_90",
+   "kwargs": {},
+   "pattern": "odd-indices",
+   "result": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      7,
+      0
+     ],
+     [
+      2,
+      65535
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      3
+     ]
+    ],
+    "cols": 2,
+    "created_at": 0.0,
+    "id": "pat-odd-indices",
+    "name": "odd-indices",
+    "palette": [
+     {
+      "count": 2,
+      "dmc": null,
+      "hex": "#ffffff",
+      "id": "pal0",
+      "name": "White"
+     },
+     {
+      "count": 2,
+      "dmc": null,
+      "hex": "#6b3e26",
+      "id": "pal1",
+      "name": "Brown"
+     },
+     {
+      "count": 1,
+      "dmc": null,
+      "hex": "#d93a3a",
+      "id": "pal2",
+      "name": "Red"
+     }
+    ],
+    "row_ids": [
+     "new",
+     "new",
+     "new",
+     "new"
+    ],
+    "rows": 4,
+    "start_direction": "RTL"
+   }
+  },
+  {
+   "args": [],
+   "fn": "rotate_90",
+   "kwargs": {
+    "clockwise": true
+   },
+   "pattern": "odd-indices",
+   "result": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      7,
+      0
+     ],
+     [
+      2,
+      65535
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      3
+     ]
+    ],
+    "cols": 2,
+    "created_at": 0.0,
+    "id": "pat-odd-indices",
+    "name": "odd-indices",
+    "palette": [
+     {
+      "count": 2,
+      "dmc": null,
+      "hex": "#ffffff",
+      "id": "pal0",
+      "name": "White"
+     },
+     {
+      "count": 2,
+      "dmc": null,
+      "hex": "#6b3e26",
+      "id": "pal1",
+      "name": "Brown"
+     },
+     {
+      "count": 1,
+      "dmc": null,
+      "hex": "#d93a3a",
+      "id": "pal2",
+      "name": "Red"
+     }
+    ],
+    "row_ids": [
+     "new",
+     "new",
+     "new",
+     "new"
+    ],
+    "rows": 4,
+    "start_direction": "RTL"
+   }
+  },
+  {
+   "args": [],
+   "fn": "rotate_90",
+   "kwargs": {
+    "clockwise": false
+   },
+   "pattern": "odd-indices",
+   "result": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      3,
+      1
+     ],
+     [
+      1,
+      0
+     ],
+     [
+      65535,
+      2
+     ],
+     [
+      0,
+      7
+     ]
+    ],
+    "cols": 2,
+    "created_at": 0.0,
+    "id": "pat-odd-indices",
+    "name": "odd-indices",
+    "palette": [
+     {
+      "count": 2,
+      "dmc": null,
+      "hex": "#ffffff",
+      "id": "pal0",
+      "name": "White"
+     },
+     {
+      "count": 2,
+      "dmc": null,
+      "hex": "#6b3e26",
+      "id": "pal1",
+      "name": "Brown"
+     },
+     {
+      "count": 1,
+      "dmc": null,
+      "hex": "#d93a3a",
+      "id": "pal2",
+      "name": "Red"
+     }
+    ],
+    "row_ids": [
+     "new",
+     "new",
+     "new",
+     "new"
+    ],
+    "rows": 4,
+    "start_direction": "RTL"
+   }
+  },
+  {
    "args": [
     "pal1",
     "#123456"
