@@ -101,6 +101,17 @@ export function setCell(p: Pattern, r: number, c: number, paletteIndex: number):
   return clone(p, { cells })
 }
 
+/** `setCell` over several cells at once, with one copy: what a drag that crosses cells
+ *  between two pointer events paints. Not in edit.py; the same as repeated set_cell. */
+export function setCells(p: Pattern, at: readonly (readonly [r: number, c: number])[], paletteIndex: number): Pattern {
+  const cells = p.cells.slice()
+  for (const [r, c] of at) {
+    checkCell(p, r, c)
+    cells[r * p.cols + c] = paletteIndex
+  }
+  return clone(p, { cells })
+}
+
 /** 4-connected flood fill bounded by the grid. */
 export function floodFill(p: Pattern, r: number, c: number, paletteIndex: number): Pattern {
   checkCell(p, r, c)
