@@ -139,14 +139,9 @@ def _out_of_memory_as_data(fn):
 
 def _warnings(session: _Session, preview: Preview) -> list[str]:
     """The lattice warnings from the last detection, then the ones this preview earns.
-    Worded as in pipeline._finish."""
+    Worded as in pipeline._finish. The web shows no low-confidence warning: it doesn't
+    flag unsure cells, so there'd be nothing to review."""
     out = list(session.lattice_warnings)
-    total = preview.rows * preview.cols
-    flagged = int(np.count_nonzero(preview.confidence < 0.6))
-    frac = flagged / total if total else 0.0
-    if frac > 0.02:
-        out.append(f"{flagged}/{total} cells ({100*frac:.1f}%) have low confidence — "
-                   f"review before committing.")
     if preview.unmatched:
         out.append(f"{preview.unmatched} cell(s) don't closely match any detected colour — a "
                    f"colour may be missing; check them before committing.")

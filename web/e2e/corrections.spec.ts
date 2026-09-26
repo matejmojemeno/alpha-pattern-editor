@@ -77,20 +77,6 @@ async function expectDesktop(page: Page, testInfo: TestInfo, name: string, file:
   return want
 }
 
-test('rows and cols changed by one each way match the desktop', async ({ page }, testInfo) => {
-  await importImage(page, CATS)
-  await showing(page, 100, 45)
-  await page.getByRole('button', { name: 'More rows' }).click()
-  await page.getByRole('button', { name: 'Fewer columns' }).click()
-  await expectDesktop(page, testInfo, 'Cats 46x99', CATS, ['rows=46', 'cols=99'])
-
-  await importImage(page, CATS)
-  await showing(page, 100, 45)
-  await page.getByRole('button', { name: 'Fewer rows' }).click()
-  await page.getByLabel('Cols').fill('101')
-  await expectDesktop(page, testInfo, 'Cats 44x101', CATS, ['rows=44', 'cols=101'])
-})
-
 test('the colour-detail slider matches the desktop', async ({ page }, testInfo) => {
   await importImage(page, CATS)
   await showing(page, 100, 45)
@@ -117,9 +103,8 @@ test('Re-detect after a crop goes back to the whole image, as the desktop does',
   const c = await crop(page, CATS, [0.25, 0.18, 0.75, 0.83])
   const cropped = desktopDetect(CATS, [`crop=${c.join(',')}`])
   await showing(page, cropped.cols, cropped.rows)
-  await page.getByRole('button', { name: 'More rows' }).click()
   await page.getByRole('button', { name: 'Re-detect' }).click()
-  await expectDesktop(page, testInfo, 'Cats redetected', CATS, [`crop=${c.join(',')}`, `rows=${cropped.rows + 1}`, 'redetect'])
+  await expectDesktop(page, testInfo, 'Cats redetected', CATS, [`crop=${c.join(',')}`, 'redetect'])
 })
 
 test.describe('on a phone', () => {
@@ -147,25 +132,18 @@ test.describe('on a phone', () => {
     await page.getByRole('tab', { name: 'Image' }).tap()
     await expect(page.getByTestId('grid-overlay')).toBeVisible()
 
-    // Crop (which shows the image), then the fast controls.
+    // Crop (which shows the image), then colour detail.
     const c = await crop(page, CATS, [0.2, 0.1, 0.8, 0.9])
     await expect(page.getByRole('tab', { name: 'Pattern', selected: true })).toBeVisible()
     const cropped = desktopDetect(CATS, [`crop=${c.join(',')}`])
     await showing(page, cropped.cols, cropped.rows)
-    await page.getByRole('button', { name: 'More rows' }).tap()
-    await page.getByLabel('Cols').fill(String(cropped.cols - 1))
     await page.getByRole('slider', { name: 'Colour detail' }).fill('14')
-    const flag = page.getByRole('checkbox', { name: 'Flag unsure cells' })
-    await flag.tap()
-    await expect(flag).not.toBeChecked()
-    await flag.tap()
-    await expect(flag).toBeChecked()
 
     // Scrolled to the bottom of the pane, saving is still on screen.
     await page.mouse.wheel(0, 2000)
     await saveInView()
     await noSideways()
-    await expectDesktop(page, testInfo, 'Cats on a phone', CATS, [`crop=${c.join(',')}`, `rows=${cropped.rows + 1}`, `cols=${cropped.cols - 1}`, 'de=3'])
+    await expectDesktop(page, testInfo, 'Cats on a phone', CATS, [`crop=${c.join(',')}`, 'de=3'])
   })
 })
 

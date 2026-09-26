@@ -3,8 +3,8 @@
  * (alphareader/ui/importer/confirm_window.py), correction controls and all.
  *
  * The desktop's fast/slow split is kept (docs/web-port-plan.md, Phase 2):
- * - rows, cols and colour detail only resample (`DetectSession.update`), which folds a
- *   burst of changes into one pending request and drops stale answers;
+ * - colour detail only resamples (`DetectSession.update`), which folds a burst of
+ *   changes into one pending request and drops stale answers;
  * - Crop and Re-detect detect again (`DetectSession.redetect`), under the client's
  *   watchdog.
  * While an answer is on its way the last good preview stays up, dimmed after ~200 ms.
@@ -35,7 +35,7 @@ import {
   type Params,
   type Preview,
 } from '../../detect/protocol.ts'
-import { clampDim, DEFAULT_DELTA_E, parseDim, shrinkNotice } from '../../importer/controls.ts'
+import { DEFAULT_DELTA_E, shrinkNotice } from '../../importer/controls.ts'
 import { decodeImage, ImageDecodeError, sourcePng } from '../../importer/decode.ts'
 import { hintFor, OUT_OF_MEMORY_HINT, TIMEOUT_HINT } from '../../importer/hints.ts'
 import { formatStats } from '../../logic/readout.ts'
@@ -100,11 +100,8 @@ export default function ImportScreen() {
   /** The image's decoded size: the coordinate space of the overlay and of crops. */
   const [size, setSize] = useState<{ width: number; height: number } | null>(null)
 
-  // The controls. Rows and cols are the text in their boxes, which may be mid-edit.
-  const [rows, setRows] = useState('')
-  const [cols, setCols] = useState('')
+  // The controls.
   const [deltaE, setDeltaE] = useState(DEFAULT_DELTA_E)
-  const [flagUnsure, setFlagUnsure] = useState(true)
   const [cropping, setCropping] = useState(false)
   const [tab, setTab] = useState<Tab>('pattern')
 
@@ -155,8 +152,6 @@ export default function ImportScreen() {
   const detected = useCallback((result: Outcome<Preview>) => {
     if (result.ok) {
       setShown(result)
-      setRows(String(result.rows))
-      setCols(String(result.cols))
       setState({ phase: 'result', preview: result })
     } else if (isDetectionError(result.code)) {
       setShown(null)
@@ -240,21 +235,6 @@ export default function ImportScreen() {
     })
   }
 
-  const onDim = (axis: 'rows' | 'cols', text: string) => {
-    ;(axis === 'rows' ? setRows : setCols)(text)
-    const n = parseDim(text)
-    if (n !== null) update({ [axis]: n })
-  }
-  const onStep = (axis: 'rows' | 'cols', by: 1 | -1) => {
-    const now = parseDim(axis === 'rows' ? rows : cols) ?? (shown ? shown[axis] : 1)
-    onDim(axis, String(clampDim(now + by)))
-  }
-  /** Leaving a rows or cols box that doesn't hold a usable number puts the preview's back. */
-  const onDimBlur = () => {
-    if (!shown) return
-    if (parseDim(rows) === null) setRows(String(shown.rows))
-    if (parseDim(cols) === null) setCols(String(shown.cols))
-  }
   const onDeltaE = (value: number) => {
     setDeltaE(value)
     update({ deltaE: value })
@@ -369,7 +349,6 @@ export default function ImportScreen() {
           <Outcome
             state={state}
             shown={shown}
-            flagUnsure={flagUnsure}
             redetecting={redetecting}
             onRetry={() => setRun((r) => ({ attempt: r.attempt + 1 }))}
             onCrop={() => startCropping(true)}
@@ -391,19 +370,11 @@ export default function ImportScreen() {
       <Notices notices={notices} />
       <div className="confirm" data-dim={dim || undefined}>
         <Controls
-          rows={rows}
-          cols={cols}
           deltaE={deltaE}
-          flagUnsure={flagUnsure}
           cropping={cropping}
           canAdjust={hasGrid && !redetecting}
           canDetect={canDetect}
-          onRows={(t) => onDim('rows', t)}
-          onCols={(t) => onDim('cols', t)}
-          onStep={onStep}
-          onDimBlur={onDimBlur}
           onDeltaE={onDeltaE}
-          onFlagUnsure={setFlagUnsure}
           onCropping={startCropping}
           onRedetect={() => redetect()}
         />
@@ -480,7 +451,6 @@ function Summary({ preview }: { preview: Preview }) {
 export function Outcome({
   state,
   shown,
-  flagUnsure,
   redetecting,
   onRetry,
   onCrop,
@@ -488,7 +458,6 @@ export function Outcome({
 }: {
   state: ImportState
   shown: Preview | null
-  flagUnsure: boolean
   redetecting: boolean
   onRetry: () => void
   onCrop: () => void
@@ -507,7 +476,7 @@ export function Outcome({
     case 'result':
       return (
         <>
-          <PatternView preview={shown ?? state.preview} flagUnsure={flagUnsure} />
+          <PatternView preview={shown ?? state.preview} />
           {redetecting && <p className="confirm__busy">Finding the grid…</p>}
         </>
       )

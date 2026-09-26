@@ -48,6 +48,12 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   back."), and undo does. Each click is one undo step; the pad-to-size target turns with
   the pattern (undo too), and dragged offsets go back to centred. Fixtures: 166 calls.
   Tier A: main chunk 102.6 KB gzipped, Design 16.3 KB (+2.5 KB CSS).
+- **A simpler import screen**: the rows and cols boxes and "Flag unsure cells" are
+  gone, and so are the red Xs and the low-confidence warning (`bridge._warnings` no
+  longer adds it; the pipeline's copy was already filtered as a sampled warning). A
+  wrong size is fixed in Design, with the row and column tools; the shrink notice says
+  so. The controls left are Crop, Re-detect and Colour detail. `set_params` still takes
+  rows and cols, and previews still carry `confidence`; the UI just doesn't use them.
 - **Hosting** (`web/wrangler.jsonc`, `web/public/_headers`): Cloudflare Workers static
   assets at the free `*.workers.dev` address, deployed by Cloudflare's Git integration on
   every push to `main` (setup in `web/README.md`, "Deploying"). `/assets/*`, `/pyodide/*`
@@ -178,7 +184,8 @@ What Phase 2 delivered:
     "Colour detail" slider (ΔE 2–15), "Flag unsure cells" (a red X below 0.6
     confidence), Crop (a pointer-event rubber band mapped through the letterboxed fit,
     `letterbox.ts`), Re-detect, the gridline and extent overlay, the palette on its own
-    colours, and the warnings, recomputed with every preview.
+    colours, and the warnings, recomputed with every preview. (Rows, cols and the
+    unsure-cell flag have since been removed; see "After the port".)
   - Only Crop and Re-detect detect again; everything else resamples. Changes made while
     one is in flight are folded into one request, stale answers are dropped, and the
     last preview stays up, dimmed after 200 ms. Saving waits for a change still on its

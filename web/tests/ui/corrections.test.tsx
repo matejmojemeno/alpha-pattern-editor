@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
  * The confirm screen's corrections (Phase 2, part 2), with the real DetectClient on a fake
- * worker: each control sends the request it should (resample for rows, cols and colour
- * detail; detect again for Crop and Re-detect), the preview stays up while an answer is
+ * worker: each control sends the request it should (resample for colour detail; detect
+ * again for Crop and Re-detect), the preview stays up while an answer is
  * on its way, the watchdog's failure is recoverable, and the phone layout's tabs.
  */
 import { act, fireEvent, waitFor, within } from '@testing-library/react'
@@ -35,7 +35,7 @@ async function openImport(worker: FakeWorker = confirmingWorker()) {
   handOffImage({ file: new File([PNG], 'dog.png', { type: 'image/png' }), name: 'dog' })
   const view = await renderApp('#/import')
   await screen.findByRole('button', { name: 'Save & edit pattern' })
-  await waitFor(() => expect((screen.getByLabelText('Rows') as HTMLInputElement).value).toBe('3'))
+  await waitFor(() => expect(screen.getByText(/^4 cols × 3 rows/)).toBeTruthy())
   return view
 }
 
@@ -65,34 +65,7 @@ afterEach(() => {
   delete (globalThis as { __alphaDetectTest?: unknown }).__alphaDetectTest
 })
 
-describe('the fast path: rows, cols and colour detail only resample', () => {
-  it('rows and cols, typed or stepped', async () => {
-    await openImport()
-    const rows = screen.getByLabelText('Rows') as HTMLInputElement
-    await userEvent.click(screen.getByRole('button', { name: 'More rows' }))
-    await waitFor(() => expect(updates()).toEqual([{ rows: 4 }]))
-    expect(rows.value).toBe('4')
-    await userEvent.click(screen.getByRole('button', { name: 'Fewer columns' }))
-    await waitFor(() => expect(updates()).toEqual([{ rows: 4 }, { cols: 3 }]))
-    expect((screen.getByLabelText('Cols') as HTMLInputElement).value).toBe('3')
-
-    await userEvent.clear(rows)
-    await userEvent.type(rows, '12')
-    // '' isn't a size; '1' and '12' are.
-    await waitFor(() => expect(updates().slice(2)).toEqual([{ rows: 1 }, { rows: 12 }]))
-    fireEvent.keyDown(rows, { key: 'ArrowDown' })
-    await waitFor(() => expect(updates().at(-1)).toEqual({ rows: 11 }))
-
-    // Nothing but a size is sent, and leaving the box puts the preview's value back.
-    const sent = updates().length
-    await userEvent.clear(rows)
-    await userEvent.type(rows, '0')
-    rows.blur()
-    await waitFor(() => expect(rows.value).toBe('3')) // the fake always resamples to 3×4
-    expect(updates()).toHaveLength(sent)
-    expect(detection.worker.of('redetect')).toHaveLength(0)
-  })
-
+describe('the fast path: colour detail only resamples', () => {
   it('the colour-detail slider runs opposite to ΔE', async () => {
     await openImport()
     expect(slider().value).toBe('11') // ΔE 6
@@ -130,7 +103,7 @@ describe('the fast path: rows, cols and colour detail only resample', () => {
     worker.auto = (msg) => (msg.type === 'update' ? (held.push(msg), undefined) : auto(msg))
     await openImport(worker)
     const confirm = document.querySelector('.confirm')!
-    await userEvent.click(screen.getByRole('button', { name: 'More rows' }))
+    fireEvent.change(slider(), { target: { value: '12' } })
     expect(confirm.hasAttribute('data-dim')).toBe(false) // not straight away
     await waitFor(() => expect(confirm.hasAttribute('data-dim')).toBe(true), { timeout: 1000 })
     expect(patternLabel()).toMatch(/4 columns by 3 rows/) // never blanked
@@ -142,32 +115,30 @@ describe('the fast path: rows, cols and colour detail only resample', () => {
   it('recomputes the warnings with every preview', async () => {
     await openImport(
       confirmingWorker((p) =>
-        makePreview(1, p.rows ?? 3, 4, {
-          warnings: p.rows === 4 ? ['2/16 cells (12.5%) have low confidence — review before committing.'] : [],
+        makePreview(1, 3, 4, {
+          warnings: p.deltaE === 15 ? ["2 cell(s) don't closely match any detected colour — a colour may be missing; check them before committing."] : [],
         }),
       ),
     )
     expect(screen.queryByRole('list', { name: 'Warnings' })).toBeNull()
-    await userEvent.click(screen.getByRole('button', { name: 'More rows' }))
-    expect(await screen.findByText(/have low confidence/)).toBeTruthy()
-    await userEvent.click(screen.getByRole('button', { name: 'Fewer rows' }))
-    await waitFor(() => expect(screen.queryByText(/have low confidence/)).toBeNull())
+    fireEvent.change(slider(), { target: { value: '2' } }) // ΔE 15
+    expect(await screen.findByText(/don't closely match/)).toBeTruthy()
+    fireEvent.change(slider(), { target: { value: '11' } }) // ΔE 6
+    await waitFor(() => expect(screen.queryByText(/don't closely match/)).toBeNull())
   })
 })
 
 describe('what the screen shows', () => {
-  it('flags unsure cells, and can stop', async () => {
+  it('has no rows and cols boxes, and flags no unsure cells', async () => {
     const worker = detectingWorker()
     const auto = worker.auto!
     worker.auto = (msg) =>
       msg.type === 'open' ? makePreview(1, 3, 4, { confidence: new Float32Array([1, 0.2, 1, 1, 1, 1, 0.59, 1, 1, 1, 1, 0.6]) }) : auto(msg)
     await openImport(worker)
-    const flag = screen.getByRole('checkbox', { name: 'Flag unsure cells' }) as HTMLInputElement
-    expect(flag.checked).toBe(true) // on by default
-    expect(patternLabel()).toMatch(/2 unsure cells crossed out/)
-    await userEvent.click(flag)
-    expect(patternLabel()).not.toMatch(/crossed out/)
-    expect(detection.worker.of('update')).toHaveLength(0) // drawing only
+    expect(screen.queryByLabelText('Rows')).toBeNull()
+    expect(screen.queryByLabelText('Cols')).toBeNull()
+    expect(screen.queryByRole('checkbox', { name: 'Flag unsure cells' })).toBeNull()
+    expect(patternLabel()).toBe('The detected pattern: 4 columns by 3 rows')
   })
 
   it('draws the detected gridlines and extent over the image', async () => {
@@ -225,9 +196,8 @@ describe('the slow path: Crop and Re-detect detect again', () => {
     drag(layOutSource(), [100, 75], [300, 225])
     await waitFor(() => expect(detection.worker.of('redetect')).toHaveLength(1))
     expect(detection.worker.of('redetect')[0]).toMatchObject({ crop: [10, 7, 30, 22], deltaE: 4 })
-    // The new detection's size lands in the boxes; crop mode ends.
-    await waitFor(() => expect((screen.getByLabelText('Rows') as HTMLInputElement).value).toBe('5'))
-    expect((screen.getByLabelText('Cols') as HTMLInputElement).value).toBe('6')
+    // The new detection's size is shown; crop mode ends.
+    await waitFor(() => expect(screen.getByText(/^6 cols × 5 rows/)).toBeTruthy())
     expect(crop.getAttribute('aria-pressed')).toBe('false')
   })
 
@@ -249,11 +219,10 @@ describe('the slow path: Crop and Re-detect detect again', () => {
 
   it('Re-detect detects the whole image again', async () => {
     await openImport()
-    await userEvent.click(screen.getByRole('button', { name: 'More rows' }))
     await userEvent.click(screen.getByRole('button', { name: 'Re-detect' }))
     await waitFor(() => expect(detection.worker.of('redetect')).toHaveLength(1))
     expect(detection.worker.of('redetect')[0]).not.toHaveProperty('crop')
-    await waitFor(() => expect((screen.getByLabelText('Rows') as HTMLInputElement).value).toBe('5'))
+    await waitFor(() => expect(screen.getByText(/^6 cols × 5 rows/)).toBeTruthy())
   })
 
   it('after NO_GRIDLINES, the hint suggests Crop and a crop recovers', async () => {
@@ -265,7 +234,7 @@ describe('the slow path: Crop and Re-detect detect again', () => {
     await renderApp('#/import')
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toMatch(/Turn on Crop, drag a box around just the squares/)
-    expect((screen.getByLabelText('Rows') as HTMLInputElement).disabled).toBe(true) // nothing to adjust
+    expect(slider().disabled).toBe(true) // nothing to adjust
     await userEvent.click(within(alert).getByRole('button', { name: 'Crop' }))
     expect(screen.getByRole('button', { name: 'Crop', pressed: true })).toBeTruthy()
     drag(layOutSource(), [40, 30], [360, 270])
@@ -299,7 +268,7 @@ describe('the watchdog', () => {
     const alert = await timedOut()
     await userEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('button', { name: 'Save & edit pattern' })).toBeTruthy()
-    await waitFor(() => expect((screen.getByLabelText('Rows') as HTMLInputElement).value).toBe('3'))
+    await waitFor(() => expect(screen.getByText(/^4 cols × 3 rows/)).toBeTruthy())
     expect(detection.worker.of('boot')).toHaveLength(2) // a new worker boots again
     expect(detection.worker.of('open')[1]).not.toHaveProperty('crop')
   })
