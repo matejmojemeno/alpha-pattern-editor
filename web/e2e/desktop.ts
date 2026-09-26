@@ -41,11 +41,13 @@ export interface DesktopProject extends DesktopPattern {
  * - `redetect`: the Re-detect button
  * - `extent=x0,y0,x1,y1`: the grid's outline moved, in image pixels (the web app only;
  *   it sends rows and cols with it)
+ * - `remove=#rrggbb`: a colour removed from the list (the web app only), applied after
+ *   the rest, in order, as Design's Delete (edit.delete_palette_entry_nearest)
  *
  * desktop_import.py also takes `de=X`, the desktop's colour-detail slider. The web app
  * has no colour setting, so it isn't offered here.
  */
-export type Correction = `rows=${number}` | `cols=${number}` | `crop=${string}` | `extent=${string}` | 'redetect'
+export type Correction = `rows=${number}` | `cols=${number}` | `crop=${string}` | `extent=${string}` | `remove=${string}` | 'redetect'
 
 let checked = false
 

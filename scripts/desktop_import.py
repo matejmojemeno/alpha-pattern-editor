@@ -16,6 +16,10 @@ controls make it, then preview → pattern_from_preview. A correction is one of:
     redetect                  the Re-detect button (_run_detection with no crop)
     extent=x0,y0,x1,y1        the grid's outline moved, in image pixels (set_extent); the
                               web app only, which sends rows and cols with it
+    remove=#rrggbb            a colour removed from the list (the web app only): after the
+                              other corrections, in order, the entry nearest #rrggbb within
+                              half the merge threshold is deleted as Design's Delete does
+                              (edit.delete_palette_entry_nearest); none that near, skipped
 
 Detection always runs at the slider's current ΔE, as the desktop's does.
 """
@@ -30,10 +34,10 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from alphareader.core import io  # noqa: E402
+from alphareader.core import edit, io  # noqa: E402
 from alphareader.core.confirm import ConfirmState, Extent, pattern_from_preview  # noqa: E402
 from alphareader.core.detect import detect_pattern  # noqa: E402
-from alphareader.core.detect.palette import DEFAULT_DELTA_E  # noqa: E402
+from alphareader.core.detect.palette import DEFAULT_DELTA_E, hex_to_rgb, srgb_to_lab  # noqa: E402
 from alphareader.core.model import DetectionError  # noqa: E402
 
 
@@ -62,11 +66,14 @@ def detect(path: str, *corrections: str) -> dict:
     with Image.open(path) as im:
         img = np.array(im.convert("RGB"), dtype=np.uint8)
     delta_e = DEFAULT_DELTA_E
+    removals = []
     try:
         state = _run_detection(img, delta_e)
         for c in corrections:
             op, _, arg = c.partition("=")
-            if op == "rows":
+            if op == "remove":
+                removals.append(arg)
+            elif op == "rows":
                 state.set_dims(rows=int(arg))
             elif op == "cols":
                 state.set_dims(cols=int(arg))
@@ -85,7 +92,22 @@ def detect(path: str, *corrections: str) -> dict:
                 raise SystemExit(f"unknown correction {c!r}")
     except DetectionError as e:
         return {"ok": False, "code": e.code}
-    return {"ok": True, **_pattern(pattern_from_preview(state.preview(), "x"))}
+    p = pattern_from_preview(state.preview(), "x")
+    for hex_str in removals:
+        p = _remove(p, hex_str, delta_e / 2)
+    return {"ok": True, **_pattern(p)}
+
+
+def _remove(p, hex_str: str, tolerance: float):
+    """The entry nearest `hex_str`, if within `tolerance` (CIELAB ΔE) and not the last,
+    deleted into its nearest neighbour."""
+    if len(p.palette) <= 1:
+        return p
+    labs = srgb_to_lab(np.array([hex_to_rgb(e.hex) for e in p.palette], dtype=float))
+    want = srgb_to_lab(np.array([hex_to_rgb(hex_str)], dtype=float))[0]
+    d = np.linalg.norm(labs - want, axis=1)
+    i = int(np.argmin(d))
+    return edit.delete_palette_entry_nearest(p, p.palette[i].id) if d[i] <= tolerance else p
 
 
 def load(path: str) -> dict:
