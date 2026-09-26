@@ -50,8 +50,9 @@ export interface ChartViewProps {
   /** Changes when the theme does, so the colours are read again. */
   themeKey: string
   label: string
-  /** Your place in the current row, followed across. A new object on every progress
-   *  change, so a scroll by hand is undone by the next one. */
+  /** Your place in the current row, followed across, with the stitches before it washed
+   *  as done. A new object on every progress change, so a scroll by hand is undone by
+   *  the next one. */
   place?: RowPlace | null
 }
 
@@ -134,6 +135,7 @@ export function ChartView({
         image,
         pattern,
         completed,
+        place,
         scrollX: sc.scrollLeft,
         scrollY: sc.scrollTop,
         width: size.width,
@@ -278,7 +280,7 @@ export function ChartView({
   }, [])
 
   // Anything drawn changed.
-  useLayoutEffect(() => draw.current(), [layout, image, pattern, completed, dpr, themeKey, dark])
+  useLayoutEffect(() => draw.current(), [layout, image, pattern, completed, place, dpr, themeKey, dark])
 
   // A tall chart scrolls down and a wide one across (layout.ts, shouldScroll); zoomed in,
   // any chart may scroll both ways.
