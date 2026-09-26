@@ -367,14 +367,15 @@ export function addPaletteEntry(p: Pattern, hex: string, name = 'New colour'): P
   return clone(p, { palette: [...p.palette, { id: newId(), hex, name, dmc: null, count: 0 }] })
 }
 
-/** Repaint `remove` cells as `replace`, then shift every index above `remove` down one
- *  (SKIP_INDEX and indices past the palette too, as the Python does). */
-function removeIndex(cells: Uint16Array, remove: number, replace: number): Uint16Array {
+/** Repaint `remove` cells as `replace`, then shift the palette indices above `remove`
+ *  down one, as the entry goes. Only indices that name an entry (below `paletteLength`)
+ *  move: SKIP_INDEX, and any other index past the palette, is left exactly as it was. */
+function removeIndex(cells: Uint16Array, remove: number, replace: number, paletteLength: number): Uint16Array {
   const out = cells.slice()
   for (let i = 0; i < out.length; i++) {
     let v = out[i]!
     if (v === remove) v = replace
-    out[i] = v > remove ? v - 1 : v
+    out[i] = v > remove && v < paletteLength ? v - 1 : v
   }
   return out
 }
@@ -384,7 +385,7 @@ export function mergePaletteEntries(p: Pattern, fromId: string, intoId: string):
   const fi = indexOf(p, fromId)
   const ti = indexOf(p, intoId)
   if (fi === ti) return clone(p)
-  return clone(p, { cells: removeIndex(p.cells, fi, ti), palette: p.palette.filter((_, i) => i !== fi) })
+  return clone(p, { cells: removeIndex(p.cells, fi, ti, p.palette.length), palette: p.palette.filter((_, i) => i !== fi) })
 }
 
 /** Remove an entry, repainting its cells with `replacement`. */
@@ -392,7 +393,7 @@ export function deletePaletteEntry(p: Pattern, entryId: string, replacementId: s
   const di = indexOf(p, entryId)
   const ri = indexOf(p, replacementId)
   if (di === ri) throw new EditError('Replacement colour must differ from the deleted one.')
-  return clone(p, { cells: removeIndex(p.cells, di, ri), palette: p.palette.filter((_, i) => i !== di) })
+  return clone(p, { cells: removeIndex(p.cells, di, ri, p.palette.length), palette: p.palette.filter((_, i) => i !== di) })
 }
 
 /** The id of the entry perceptually nearest (CIELAB ΔE) to `entryId`; the first of
