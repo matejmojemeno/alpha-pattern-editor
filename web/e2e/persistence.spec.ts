@@ -38,9 +38,13 @@ test('import, reload, open, export, delete, re-import', async ({ page }, testInf
     .poll(() => card.locator('.thumb img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth))
     .toBe(basic.cols)
 
-  // 4. Open it in the Work stage.
+  // 4. Open it. The desktop saved it in the Design stage with no progress, so the card
+  //    opens Design (§6.4); the Work stage is a deep link away. Opening either saves
+  //    nothing, which the byte-for-byte export below relies on.
   await card.getByRole('link').click()
-  await expect(page).toHaveURL(new RegExp(`#/work/${basic.id}$`))
+  await expect(page).toHaveURL(new RegExp(`#/design/${basic.id}$`))
+  await expect(page.getByRole('heading', { level: 1, name: basic.name })).toBeVisible()
+  await page.goto(`/#/work/${basic.id}`)
   await expect(page.getByRole('heading', { level: 1, name: basic.name })).toBeVisible()
   const row = page.locator('.work__row')
   await expect(row).toHaveText(new RegExp(`^Row 1 of ${basic.rows} [←→]$`))
@@ -74,6 +78,8 @@ test('import, reload, open, export, delete, re-import', async ({ page }, testInf
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(exported)
   await expect(card).toBeVisible()
   await card.getByRole('link').click()
+  await expect(page).toHaveURL(new RegExp(`#/design/${basic.id}$`))
+  await page.goto(`/#/work/${basic.id}`)
   await expect(page.getByRole('heading', { level: 1, name: basic.name })).toBeVisible()
   await expect(page.getByRole('list', { name: 'Colours in this row' })).toHaveText(chipsBefore!)
 })

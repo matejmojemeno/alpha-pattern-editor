@@ -29,8 +29,10 @@ test('the main entry chunk has no Pyodide and is within budget', () => {
   for (const needle of ['loadPyodide', 'pyodide.asm', 'pyodide.mjs', 'alphareader-core', 'new Worker', 'worker-']) {
     expect(main, needle).not.toContain(needle)
   }
-  // Nothing the page loads up front (modulepreload) is the client or the worker either.
-  expect(html).not.toMatch(/client-|worker-|Import-/)
+  // Nothing the page loads up front (modulepreload) is the client or the worker either,
+  // nor the Design stage, which a phone following a pattern never needs.
+  expect(html).not.toMatch(/client-|worker-|Import-|Design-/)
+  expect(assets().some((f) => /^Design-.*\.js$/.test(f))).toBe(true)
   const gz = gzipSync(readFileSync(join(DIST, 'assets', entry!))).length
   console.log(`main entry chunk: ${(gz / 1024).toFixed(1)} KB gzipped`)
   expect(gz).toBeLessThan(MAIN_BUDGET_GZIP)
