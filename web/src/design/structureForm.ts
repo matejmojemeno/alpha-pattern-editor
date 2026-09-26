@@ -71,3 +71,9 @@ export function keepPadValid(f: StructureForm, p: Pick<Pattern, 'cols' | 'rows'>
   const height = h === null || h < p.rows ? String(p.rows) : f.pad.height
   return width === f.pad.width && height === f.pad.height ? f : { ...f, pad: { ...f.pad, width, height } }
 }
+
+/** The pad target turned a quarter with the pattern: width and height swap, and the
+ *  offsets, placed for the old shape, go back to centred. */
+export function turnPad(f: StructureForm): StructureForm {
+  return { ...f, pad: { ...f.pad, width: f.pad.height, height: f.pad.width, left: null, top: null } }
+}

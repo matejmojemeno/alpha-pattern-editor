@@ -1,7 +1,7 @@
 /**
  * The Design stage's structural panel (§6.2, §9; design_window.py `_structural_panel`):
- * borders, pad to size, scale, mirror, flip, rotate, trim, and inserting and deleting
- * rows and columns.
+ * borders, pad to size, scale, mirror, flip, rotate a quarter turn either way, trim, and
+ * inserting and deleting rows and columns.
  *
  * The form lives in the Design screen (design/structureForm.ts), because the border and padding
  * sections drive the canvas: while one is open with something to add or remove, the

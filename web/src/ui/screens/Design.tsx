@@ -55,7 +55,7 @@ import {
   tryBorder,
   type Preview,
 } from '../../design/structure.ts'
-import { formSides, initialForm, keepPadValid, parseWhole, type StructureForm } from '../../design/structureForm.ts'
+import { formSides, initialForm, keepPadValid, parseWhole, turnPad, type StructureForm } from '../../design/structureForm.ts'
 import {
   EditError,
   addBorder,
@@ -67,7 +67,7 @@ import {
   mirrorH,
   mirrorV,
   padToSize,
-  rotate180,
+  rotate90,
   samePattern,
   scale,
   trimUniformEdges,
@@ -116,12 +116,13 @@ const MAX_PAD = 2000
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 const sizeOf = (p: Pattern) => `${p.cols} × ${p.rows}`
 
-/** What an edit about to lose progress says about it. */
-function lossText(loss: ProgressLoss, scaling: boolean): string {
+/** What an edit about to lose progress says about it. `restart` names an edit that
+ *  gives every row a new id (scale, rotate), so all progress starts again. */
+function lossText(loss: ProgressLoss, restart?: 'Scaling' | 'Rotating'): string {
   const done = plural(loss.doneRows, 'row')
-  if (scaling) {
+  if (restart) {
     const what = loss.doneRows ? `${done} done${loss.partRow ? ' and part of another' : ''}` : 'part of a row done'
-    return `Scaling gives every row a new place, so your progress in the Work stage (${what}) starts again from the first row.`
+    return `${restart} gives every row a new place, so your progress in the Work stage (${what}) starts again from the first row.`
   }
   const what = [loss.doneRows ? `${done} you’ve marked done` : '', loss.partRow ? 'the row you’re partway through' : '']
     .filter(Boolean)
@@ -235,11 +236,14 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   const padColour = pick(form.pad.colour)
 
   // Keep the pad target valid (at least the size) whenever the size changes, without
-  // clobbering a larger one typed, as the desktop's _after_edit does.
+  // clobbering a larger one typed, as the desktop's _after_edit does. A quarter turn (or
+  // undoing one) swaps width and height: the target turns with the pattern, and offsets
+  // dragged for the old shape go back to centred.
   const [sizeSeen, setSizeSeen] = useState({ cols: p.cols, rows: p.rows })
   if (sizeSeen.cols !== p.cols || sizeSeen.rows !== p.rows) {
+    const turned = sizeSeen.cols === p.rows && sizeSeen.rows === p.cols
     setSizeSeen({ cols: p.cols, rows: p.rows })
-    setForm((f) => keepPadValid(f, p))
+    setForm((f) => keepPadValid(turned ? turnPad(f) : f, p))
   }
 
 
@@ -270,11 +274,11 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   const attempt = (
     next: Pattern,
     done: string,
-    opts: { title?: string; confirmLabel?: string; artwork?: string; scaling?: boolean; after?: () => void } = {},
+    opts: { title?: string; confirmLabel?: string; artwork?: string; restart?: 'Scaling' | 'Rotating'; after?: () => void } = {},
   ) => {
     if (samePattern(p, next)) return
     const loss = progressLoss(p, carried, next)
-    const reasons = [opts.artwork, losesProgress(loss) ? lossText(loss, !!opts.scaling) : ''].filter(Boolean)
+    const reasons = [opts.artwork, losesProgress(loss) ? lossText(loss, opts.restart) : ''].filter(Boolean)
     if (reasons.length === 0) {
       apply(next, done, opts.after)
       return
@@ -332,13 +336,28 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   const onScale = () =>
     guarded(() => {
       const next = scale(p, form.scale)
-      attempt(next, `Scaled ×${form.scale}: now ${sizeOf(next)}.`, { scaling: true, title: 'Start progress again?', confirmLabel: 'Scale' })
+      attempt(next, `Scaled ×${form.scale}: now ${sizeOf(next)}.`, { restart: 'Scaling', title: 'Start progress again?', confirmLabel: 'Scale' })
     })
 
   const transforms: TransformAction[] = [
     { label: 'Mirror ⇄', title: 'Mirror left to right', run: () => attempt(mirrorH(p), 'Mirrored left to right.') },
     { label: 'Flip ⇅', title: 'Flip top to bottom', run: () => attempt(mirrorV(p), 'Flipped top to bottom.') },
-    { label: 'Rotate 180°', title: 'Rotate half a turn', run: () => attempt(rotate180(p), 'Rotated 180°.') },
+    {
+      label: 'Rotate ↻ 90°',
+      title: 'Rotate a quarter turn clockwise: rows become columns',
+      run: () => {
+        const next = rotate90(p, true)
+        attempt(next, `Rotated 90° clockwise: now ${sizeOf(next)}.`, { restart: 'Rotating', title: 'Start progress again?', confirmLabel: 'Rotate' })
+      },
+    },
+    {
+      label: 'Rotate ↺ 90°',
+      title: 'Rotate a quarter turn anticlockwise: rows become columns',
+      run: () => {
+        const next = rotate90(p, false)
+        attempt(next, `Rotated 90° anticlockwise: now ${sizeOf(next)}.`, { restart: 'Rotating', title: 'Start progress again?', confirmLabel: 'Rotate' })
+      },
+    },
     {
       label: 'Trim edges',
       title: 'Remove single-colour rows and columns from all four edges',

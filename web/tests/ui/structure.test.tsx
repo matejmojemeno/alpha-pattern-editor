@@ -8,7 +8,7 @@ import { fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent, { type UserEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
-import { newPattern } from '../../src/logic/edit.ts'
+import { addPaletteEntry, newPattern, setCell } from '../../src/logic/edit.ts'
 import { encodeRow } from '../../src/logic/readout.ts'
 import { completeCurrentRow, ensureStarted, rowIndex, setRunStitches } from '../../src/logic/work.ts'
 import { emptyProgress, type Pattern, type Progress } from '../../src/model/types.ts'
@@ -105,7 +105,20 @@ const OPS: Op[] = [
   },
   { name: 'mirroring', run: (u) => u.click(screen.getByRole('button', { name: 'Mirror ⇄' })), size: [7, 5], done: 2 },
   { name: 'flipping', run: (u) => u.click(screen.getByRole('button', { name: 'Flip ⇅' })), size: [7, 5], done: 2 },
-  { name: 'rotating', run: (u) => u.click(screen.getByRole('button', { name: 'Rotate 180°' })), size: [7, 5], done: 2 },
+  {
+    name: 'rotating a quarter turn clockwise (every row new)',
+    run: (u) => u.click(screen.getByRole('button', { name: 'Rotate ↻ 90°' })),
+    asks: ['Start progress again?', 'Rotate'],
+    size: [5, 7],
+    done: 0,
+  },
+  {
+    name: 'rotating a quarter turn anticlockwise (every row new)',
+    run: (u) => u.click(screen.getByRole('button', { name: 'Rotate ↺ 90°' })),
+    asks: ['Start progress again?', 'Rotate'],
+    size: [5, 7],
+    done: 0,
+  },
   {
     name: 'deleting a done row',
     setup: async (u) => {
@@ -212,6 +225,129 @@ describe('structural edits with Work-stage progress on the pattern', () => {
       expect([got.current_run_index, got.current_run_stitches]).toEqual([pr.current_run_index, pr.current_run_stitches])
     }
     if (op.done === 0) expect(document.querySelector('.work__row')!.textContent).toMatch(/^Row 1 of/)
+  })
+})
+
+/** 12 × 5, white, with a black cell at the top left and a red one at the bottom left:
+ *  every quarter turn puts them somewhere else. */
+async function wide() {
+  const repo = await freshRepo()
+  let p = newPattern(12, 5, '#ffffff', { name: 'Wide' })
+  p = addPaletteEntry(p, '#000000', 'Black')
+  p = addPaletteEntry(p, '#d93a3a', 'Red')
+  p = setCell(setCell(p, 0, 0, 1), 4, 0, 2)
+  await repo.save({ pattern: p, progress: emptyProgress(), stage: 'design' })
+  return { repo, p }
+}
+
+const saved = async (repo: ProjectRepo, id: string) => {
+  await settle()
+  return (await repo.open(id)).project
+}
+const at = (q: Pattern, r: number, c: number) => q.cells[r * q.cols + c]
+const field = (label: string) => (screen.getByLabelText(label, { selector: 'input' }) as HTMLInputElement).value
+
+describe('rotating a quarter turn', () => {
+  it('turns either way with no question when there is no progress, one undo step each', async () => {
+    const { repo, p } = await wide()
+    await openDesign(repo, p.id, 'Wide')
+    const user = userEvent.setup()
+    const before = stats()
+
+    await user.click(screen.getByRole('button', { name: 'Rotate ↻ 90°' }))
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(stats()).toMatch(/^5 cols × 12 rows/)
+    expect(message()).toBe('Rotated 90° clockwise: now 5 × 12.')
+    let q = (await saved(repo, p.id)).pattern
+    // Clockwise: the top-left cell goes to the top right, the bottom-left to the top left.
+    expect([at(q, 0, 4), at(q, 0, 0)]).toEqual([1, 2])
+    expect(q.row_ids.some((id) => p.row_ids.includes(id))).toBe(false)
+
+    // Undo: exactly the pattern it was, row ids and all.
+    fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true })
+    expect(stats()).toBe(before)
+    q = (await saved(repo, p.id)).pattern
+    expect(q.row_ids).toEqual(p.row_ids)
+    expect([...q.cells]).toEqual([...p.cells])
+
+    await user.click(screen.getByRole('button', { name: 'Rotate ↺ 90°' }))
+    expect(stats()).toMatch(/^5 cols × 12 rows/)
+    expect(message()).toBe('Rotated 90° anticlockwise: now 5 × 12.')
+    q = (await saved(repo, p.id)).pattern
+    // Anticlockwise: the top-left cell goes to the bottom left, the bottom-left to the bottom right.
+    expect([at(q, 11, 0), at(q, 11, 4)]).toEqual([1, 2])
+
+    // Back with the other button (a new step), then two undos to the start.
+    await user.click(screen.getByRole('button', { name: 'Rotate ↻ 90°' }))
+    expect(stats()).toBe(before)
+    q = (await saved(repo, p.id)).pattern
+    expect([...q.cells]).toEqual([...p.cells])
+    fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true })
+    expect(stats()).toMatch(/^5 cols × 12 rows/)
+    fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true })
+    expect(stats()).toBe(before)
+    expect((await saved(repo, p.id)).pattern.row_ids).toEqual(p.row_ids)
+  })
+
+  it('turns the pad-to-size fields and the border’s result with the pattern', async () => {
+    const { repo, p } = await wide()
+    await openDesign(repo, p.id, 'Wide')
+    const user = userEvent.setup()
+    await section(user, 'Pad to size')
+    expect([field('Width'), field('Height')]).toEqual(['12', '5'])
+    await user.click(screen.getByRole('button', { name: 'Rotate ↻ 90°' }))
+    expect([field('Width'), field('Height')]).toEqual(['5', '12'])
+    expect(screen.getByText('Set a size larger than the pattern.')).toBeTruthy()
+
+    // A target typed and placed by hand turns too, and is centred again.
+    await fill(user, 'Width', '9')
+    await fill(user, 'Height', '20')
+    fireEvent.change(screen.getByLabelText('Left', { selector: 'input' }), { target: { value: '0' } })
+    expect(screen.getByText(/Adds 0 left, 4 right, 4 top, 4 bottom/)).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Rotate ↺ 90°' }))
+    expect([field('Width'), field('Height')]).toEqual(['20', '9'])
+    expect(screen.getByText(/Adds 4 left, 4 right, 2 top, 2 bottom/)).toBeTruthy()
+    // Undo turns it back.
+    fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true })
+    expect([field('Width'), field('Height')]).toEqual(['9', '20'])
+    expect(screen.queryByText(/Target must be at least/)).toBeNull()
+
+    await section(user, 'Border')
+    expect(screen.getByText(/^Result: 7 × 14$/)).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Rotate ↻ 90°' }))
+    expect(screen.getByText(/^Result: 14 × 7$/)).toBeTruthy()
+  })
+
+  it('asks first when rows are marked done, saying what goes; Undo brings the progress back', async () => {
+    const { repo, p, pr } = await worked()
+    await openDesign(repo, p.id, p.name)
+    const user = userEvent.setup()
+    const before = stats()
+    await user.click(screen.getByRole('button', { name: 'Rotate ↻ 90°' }))
+    const dialog = await screen.findByRole('alertdialog', { name: 'Start progress again?' })
+    expect(dialog.textContent).toContain(
+      'Rotating gives every row a new place, so your progress in the Work stage (2 rows done and part of another) starts again from the first row.',
+    )
+    expect(dialog.textContent).toContain('Undo brings it all back.')
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(stats()).toBe(before)
+    let got = await saved(repo, p.id)
+    expect(got.pattern.row_ids).toEqual(p.row_ids)
+    expect(got.progress.completed_row_ids).toEqual(pr.completed_row_ids)
+
+    await user.click(screen.getByRole('button', { name: 'Rotate ↺ 90°' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Rotate' }))
+    expect(stats()).toMatch(/^5 cols × 7 rows/)
+    got = await saved(repo, p.id)
+    expect(got.progress.completed_row_ids.size).toBe(0)
+
+    fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true })
+    expect(stats()).toBe(before)
+    got = await saved(repo, p.id)
+    expect(got.pattern.row_ids).toEqual(p.row_ids)
+    expect(got.progress.completed_row_ids).toEqual(pr.completed_row_ids)
+    expect(got.progress.current_row_id).toBe(pr.current_row_id)
+    expect([got.progress.current_run_index, got.progress.current_run_stitches]).toEqual([pr.current_run_index, pr.current_run_stitches])
   })
 })
 
