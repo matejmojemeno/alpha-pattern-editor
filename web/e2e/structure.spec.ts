@@ -172,6 +172,38 @@ test('structural edits with rows done in Work, and the desktop opens the result'
   expect(pyodide).toEqual([])
 })
 
+test('Add row and Add column preview where the pointer is, and add there on a click', async ({ page }, testInfo) => {
+  await banner(page)
+  const shown = async () => {
+    const h = await scroller(page).locator('div').first().evaluate((d) => parseFloat(d.style.height))
+    return Math.round((h - AXIS_TOP - 6) / Number(await scroller(page).getAttribute('data-cell')))
+  }
+  await page.keyboard.press('Shift+H')
+  await expect(page.getByRole('button', { name: /^Add row/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.design__message')).toContainText('Point at the chart where the new row goes')
+  // The mouse only points: the new row shows at row 3, in black, the colour painted with.
+  const at = await cellCentre(page, 3, 5)
+  await page.mouse.move(at.x, at.y)
+  await expect.poll(shown).toBe(11)
+  await expect(stats(page)).toHaveText(/^12 cols × 10 rows/)
+  await page.locator('.design__canvas').screenshot({ path: testInfo.outputPath('add-row-preview.png') })
+  await page.mouse.click(at.x, at.y)
+  await expect(stats(page)).toHaveText(/^12 cols × 11 rows/)
+  // Worked bottom up by default? Either way the message names the row by its number on the chart.
+  await expect(page.locator('.design__message')).toHaveText(/^Added row \d+: now 12 × 11\.$/)
+  await expect.poll(shown).toBe(11)
+
+  await page.keyboard.press('Shift+V')
+  const col = await cellCentre(page, 2, 12) // just past the last column: one at the end
+  await page.mouse.move(col.x + 40, col.y)
+  await page.mouse.click(col.x + 40, col.y)
+  await expect(stats(page)).toHaveText(/^13 cols × 11 rows/)
+  await expect(page.locator('.design__message')).toHaveText('Added column 13: now 13 × 11.')
+  await page.keyboard.press('ControlOrMeta+z')
+  await page.keyboard.press('ControlOrMeta+z')
+  await expect(stats(page)).toHaveText(/^12 cols × 10 rows/)
+})
+
 test.describe('on a tablet', () => {
   test.use({ viewport: { width: 1024, height: 768 }, hasTouch: true })
 

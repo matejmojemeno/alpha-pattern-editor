@@ -11,6 +11,7 @@ import {
   cellAt,
   contentSize,
   fitCell,
+  insertAt,
   showNumber,
   visibleCells,
   zoomScroll,
@@ -38,6 +39,26 @@ describe('cellAt', () => {
     expect(cellAt(0, 0, v, true)).toEqual({ r: 0, c: 0 })
     expect(cellAt(9999, 9999, v, true)).toEqual({ r: 4, c: 7 })
     expect(cellAt(AXIS_LEFT + 35, -50, v, true)).toEqual({ r: 0, c: 3 })
+  })
+})
+
+describe('insertAt', () => {
+  const v = { cell: 10, rows: 5, cols: 8, scrollX: 0, scrollY: 0 }
+  it('adds before the row or column under the point', () => {
+    expect(insertAt('row', AXIS_LEFT, AXIS_TOP, v)).toBe(0)
+    expect(insertAt('row', AXIS_LEFT + 5, AXIS_TOP + 29.9, v)).toBe(2)
+    expect(insertAt('col', AXIS_LEFT + 29.9, AXIS_TOP + 5, v)).toBe(2)
+    expect(insertAt('col', AXIS_LEFT + 5, AXIS_TOP + 5, { ...v, scrollX: 30 })).toBe(3)
+  })
+  it('anywhere past the end adds one at the end, and anywhere across counts', () => {
+    expect(insertAt('row', AXIS_LEFT + 5, AXIS_TOP + 50, v)).toBe(5)
+    expect(insertAt('row', AXIS_LEFT + 5, 9999, v)).toBe(5)
+    expect(insertAt('row', 9999, AXIS_TOP + 15, v)).toBe(1)
+    expect(insertAt('col', 9999, 9999, v)).toBe(8)
+  })
+  it('is null over the axis margins', () => {
+    expect(insertAt('row', AXIS_LEFT - 1, AXIS_TOP + 5, v)).toBeNull()
+    expect(insertAt('col', AXIS_LEFT + 5, AXIS_TOP - 1, v)).toBeNull()
   })
 })
 

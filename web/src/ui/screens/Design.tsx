@@ -23,9 +23,11 @@ import { href, navigate, paths } from '../../app/router.ts'
 import { trackSave } from '../../app/saving.ts'
 import { progressWarning } from '../../app/stages.ts'
 import {
+  ADD_TOOLS,
   TOOLS,
   abortDrag,
   addColour,
+  addLine,
   canRedo,
   canUndo,
   cancelDrag,
@@ -99,6 +101,8 @@ const ICONS: Record<Tool, ReadonlyArray<readonly [number, number]>> = {
   eyedropper: [[0, 2], [1, 1], [2, 0]],
   row: [[1, 0], [1, 1], [1, 2]],
   col: [[0, 1], [1, 1], [2, 1]],
+  addRow: [[1, 0], [1, 1], [1, 2]],
+  addCol: [[0, 1], [1, 1], [2, 1]],
 }
 
 /** Keys that belong to whatever has focus, not to the Design stage. */
@@ -137,6 +141,16 @@ interface Pending {
   next: Pattern
   done: string
   after?: () => void
+}
+
+/** Where the Add row or Add column tool is pointing: the new one goes before row (column)
+ *  `at` of the pattern, or at the end. `added` is the pattern a click there made: while
+ *  it is still the pattern, the row or column added is highlighted instead of previewing
+ *  another. */
+interface AddHover {
+  kind: 'row' | 'col'
+  at: number
+  added: Pattern | null
 }
 
 interface AxisMenu {
@@ -385,10 +399,33 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   // --- a row or column picked from its number on the chart ------------------------------------------
   const [openMenu, setAxisMenu] = useState<AxisMenu | null>(null)
   const axisMenu = openMenu?.pattern === p ? openMenu : null
-  const onAxis = (kind: 'row' | 'col', index: number, at: { x: number; y: number }) => {
-    setAxisMenu({ pattern: p, kind, index, ...at })
-    setForm((f) => (kind === 'row' ? { ...f, row: String(workingNumber(p, index)) } : { ...f, col: String(index + 1) }))
+  const onAxis = (kind: 'row' | 'col', index: number, at: { x: number; y: number }) => setAxisMenu({ pattern: p, kind, index, ...at })
+
+  // --- Add row and Add column: previewed where the pointer is, added with a click ----------------
+  const [addHover, setAddHover] = useState<AddHover | null>(null)
+  const onInsertHover = (at: number | null) => {
+    const kind = ADD_TOOLS[latest.current.tool]
+    setAddHover((h) => (at === null || !kind ? null : h?.kind === kind && h.at === at ? h : { kind, at, added: null }))
   }
+  const onInsert = (at: number) => {
+    const kind = ADD_TOOLS[latest.current.tool]
+    if (!kind) return
+    update((s) => addLine(s, kind, at))
+    const next = latest.current.pattern
+    setAddHover({ kind, at, added: next })
+    setMessage(kind === 'row' ? `Added row ${workingNumber(next, at)}: now ${sizeOf(next)}.` : `Added column ${at + 1}: now ${sizeOf(next)}.`)
+  }
+  const chooseTool = useCallback(
+    (tool: Tool) => {
+      update((s) => setTool(s, tool))
+      const kind = ADD_TOOLS[tool]
+      if (kind) {
+        const one = kind === 'row' ? 'row' : 'column'
+        setMessage(`Point at the chart where the new ${one} goes, and click to add it. To delete a ${one}, press its number.`)
+      }
+    },
+    [update],
+  )
 
   // --- zoom: px per cell. Until zoomed (and after Fit) it follows the view's size. ----------
   const [viewport, setViewport] = useState<{ width: number; height: number } | null>(null)
@@ -411,10 +448,26 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
     if (previewing === 'pad' && !padError) return padPreview(p, padW!, padH!, pad.left, pad.top, padColour)
     return null
   }, [previewing, p, sides.top, sides.right, sides.bottom, sides.left, borderColour, padError, padW, padH, pad.left, pad.top, padColour]) // eslint-disable-line react-hooks/exhaustive-deps
-  const shownPattern = preview?.pattern ?? p
+  // The row or column the Add tool would add, shown in place, in the colour it will be.
+  // It doesn't change the fit: the zoom would jump under the pointer as it moved.
+  const addKind = ADD_TOOLS[editor.tool]
+  const adding =
+    !preview && addKind && addHover?.kind === addKind && addHover.at <= (addKind === 'row' ? p.rows : p.cols) ? addHover : null
+  const justAdded = adding?.added === p
+  const addPreview = useMemo(
+    () =>
+      adding && !justAdded
+        ? adding.kind === 'row'
+          ? insertRow(p, adding.at, editor.colour)
+          : insertColumn(p, adding.at, editor.colour)
+        : null,
+    [adding?.kind, adding?.at, justAdded, p, editor.colour], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  const fitted = preview?.pattern ?? p
+  const shownPattern = preview?.pattern ?? addPreview ?? p
   const fit = useMemo(
-    () => (viewport ? fitCell(shownPattern.cols, shownPattern.rows, viewport.width, viewport.height) : null),
-    [viewport, shownPattern.cols, shownPattern.rows],
+    () => (viewport ? fitCell(fitted.cols, fitted.rows, viewport.width, viewport.height) : null),
+    [viewport, fitted.cols, fitted.rows],
   )
   const cell = zoomed ?? fit
   const shown = useRef(cell)
@@ -453,15 +506,15 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       if (e.key === '+' || e.key === '=') zoom(1)
       else if (e.key === '-' || e.key === '_') zoom(-1)
       else {
-        const tool = toolForKey(e.key)
+        const tool = toolForKey(e.key, e.shiftKey)
         if (!tool) return
-        update((s) => setTool(s, tool))
+        chooseTool(tool)
       }
       e.preventDefault()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [saver, update, zoom])
+  }, [saver, update, zoom, chooseTool])
 
   // --- colours -----------------------------------------------------------------------------------
   const onDelete = (i: number) => {
@@ -481,16 +534,17 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   const d = editor.drag
   const rectPreview = d?.tool === 'rect' ? { a: d.start, b: d.end, hex: p.palette[editor.colour]?.hex ?? '#000000' } : null
   const current = p.palette[editor.colour]
+  const line = (kind: 'row' | 'col', i: number, q: Pattern) =>
+    kind === 'row' ? { r0: i, r1: i + 1, c0: 0, c1: q.cols } : { r0: 0, r1: q.rows, c0: i, c1: i + 1 }
   const overlay: Overlay | null = preview
     ? { removed: preview.removed, outline: preview.outline }
     : axisMenu
-      ? {
-          highlight:
-            axisMenu.kind === 'row'
-              ? { r0: axisMenu.index, r1: axisMenu.index + 1, c0: 0, c1: p.cols }
-              : { r0: 0, r1: p.rows, c0: axisMenu.index, c1: axisMenu.index + 1 },
-        }
-      : null
+      ? { highlight: line(axisMenu.kind, axisMenu.index, p) }
+      : adding
+        ? justAdded
+          ? { highlight: line(adding.kind, adding.at, p) }
+          : { outline: line(adding.kind, adding.at, shownPattern) }
+        : null
   const mode = preview ? (previewing === 'pad' ? 'move' : 'view') : 'edit'
 
   // The same controls, laid out for the screen: side columns on a desktop; on a tablet a
@@ -503,13 +557,16 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
           type="button"
           className="tool"
           aria-pressed={editor.tool === t.tool}
-          aria-keyshortcuts={t.key}
-          title={`${t.label} (${t.key})`}
-          onClick={() => update((s) => setTool(s, t.tool))}
+          aria-keyshortcuts={t.shift ? `Shift+${t.key}` : t.key}
+          title={`${t.label} (${t.shift ? '⇧' : ''}${t.key})`}
+          onClick={() => chooseTool(t.tool)}
         >
-          <CellsIcon filled={ICONS[t.tool]} />
+          <CellsIcon filled={ICONS[t.tool]} plus={t.tool in ADD_TOOLS} />
           <span className="tool__label">{t.label}</span>
-          <kbd className="tool__key">{t.key}</kbd>
+          <kbd className="tool__key">
+            {t.shift ? '⇧' : ''}
+            {t.key}
+          </kbd>
         </button>
       ))}
     </div>
@@ -559,8 +616,6 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       onPad={onPad}
       onScale={onScale}
       transforms={transforms}
-      onRow={onRow}
-      onCol={onCol}
     />
   )
 
@@ -707,6 +762,9 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
             onAbort={() => update(abortDrag)}
             onShift={onShift}
             onAxis={onAxis}
+            base={addPreview ? { rows: p.rows, cols: p.cols } : undefined}
+            onInsertHover={onInsertHover}
+            onInsert={onInsert}
             onZoom={zoom}
             onZoomTo={setZoomed}
             onViewport={setViewport}

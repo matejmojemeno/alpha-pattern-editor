@@ -16,6 +16,10 @@
  *   first finger started is taken back, with no undo step, when the second one lands
  *   (`onAbort`). On touch, the tools that act on a press (fill, pick, fill row and
  *   column) act when the finger lifts instead, so a pinch can't fill anything first.
+ * - With Add row or Add column, pointing at the chart (a mouse or pen needn't press)
+ *   says where the new row or column would go (`onInsertHover`), for the screen to
+ *   preview; a click, or a finger lifted after dragging it into place, adds it
+ *   (`onInsert`).
  * - A press on a row or column number, in the margins, picks that row or column
  *   (`onAxis`), for inserting or deleting it.
  * - Ctrl/⌘ + wheel zooms about the pointer (a trackpad pinch arrives as this too); a
@@ -26,17 +30,20 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Pattern } from '../../model/types.ts'
 import { buildCellImage, type ChartColors } from '../../render/chart.ts'
 import {
+  AXIS_LEFT,
+  AXIS_TOP,
   MAX_ZOOM,
   MIN_ZOOM,
   axisAt,
   cellAt,
   contentSize,
   drawDesign,
+  insertAt,
   zoomScroll,
   type Cell,
   type Overlay,
 } from '../../render/design.ts'
-import type { Tool } from '../../design/editor.ts'
+import { ADD_TOOLS, type Tool } from '../../design/editor.ts'
 import { readColors, useDarkScheme } from '../chartColors.ts'
 import { TwoFingers, type PinchStep } from '../gestures.ts'
 
@@ -48,6 +55,8 @@ const CURSORS: Record<Tool, string> = {
   rect: 'crosshair',
   row: 'crosshair',
   col: 'crosshair',
+  addRow: 'crosshair',
+  addCol: 'crosshair',
   fill: 'pointer',
   eyedropper: 'pointer',
 }
@@ -74,6 +83,14 @@ export interface DesignCanvasProps {
   /** "move" mode: the pattern dragged by this many cells from where it was picked up;
    *  null when the drag ends. */
   onShift?: (delta: { dr: number; dc: number } | null) => void
+  /** The pattern's own size when `pattern` is a preview of a row or column being added
+   *  to it: where the pointer adds one is worked out on this. */
+  base?: { rows: number; cols: number }
+  /** Add row or Add column: where the new one would go (before this row or column, or at
+   *  the end), as the pointer moves; null when it is off the chart or the press ended. */
+  onInsertHover?: (at: number | null) => void
+  /** Add row or Add column: add it there. */
+  onInsert?: (at: number) => void
   /** A row or column number was pressed; (x, y) is where, in the page. */
   onAxis?: (kind: 'row' | 'col', index: number, at: { x: number; y: number }) => void
   /** Ctrl/⌘ + wheel: zoom in (dir > 0) or out. The canvas keeps the point under the
@@ -205,11 +222,27 @@ export function DesignCanvas(props: DesignCanvasProps) {
     const { left, top } = view()
     return cellAt(e.clientX - left, e.clientY - top, geometry(), clamp)
   }
+  /** Whether the tool adds a row or a column, and which. */
+  const adds = () => ((latest.current.mode ?? 'edit') === 'edit' ? ADD_TOOLS[latest.current.tool] : undefined)
+  /** Where the tool adds its row or column for a point; with `clamp`, a drag that leaves
+   *  the chart for the margins keeps to its edge. */
+  const insertIndex = (e: { clientX: number; clientY: number }, clamp: boolean): number | null => {
+    const kind = adds()
+    if (!kind) return null
+    const { left, top } = view()
+    const x = e.clientX - left
+    const y = e.clientY - top
+    const g = geometry()
+    const base = latest.current.base ?? g
+    return insertAt(kind, clamp ? Math.max(x, AXIS_LEFT) : x, clamp ? Math.max(y, AXIS_TOP) : y, { ...g, rows: base.rows, cols: base.cols })
+  }
 
   /** The pointer using the tool (or dragging the pattern), and where a drag began. */
   const dragging = useRef<{ id: number; from: Cell } | null>(null)
   /** A touch on a tool that acts on release, waiting for the finger to lift. */
   const tap = useRef<{ id: number; cell: Cell } | null>(null)
+  /** The pointer pressed with Add row or Add column: it adds where it comes up. */
+  const adding = useRef<number | null>(null)
   const fingers = useRef(new TwoFingers())
   /** The cell size a pinch is heading for, unrounded. */
   const pinchCell = useRef(cell)
@@ -241,6 +274,10 @@ export function DesignCanvas(props: DesignCanvasProps) {
         // A second finger: this gesture is a pinch. Nothing the first one did stays.
         e.preventDefault()
         tap.current = null
+        if (adding.current !== null) {
+          adding.current = null
+          latest.current.onInsertHover?.(null)
+        }
         pinchCell.current = shownCell.current
         const d = dragging.current
         if (d) {
@@ -254,7 +291,7 @@ export function DesignCanvas(props: DesignCanvasProps) {
       }
       if (fingers.current.pinching) return
     } else if (e.button !== 0) return
-    if (dragging.current !== null) return
+    if (dragging.current !== null || adding.current !== null) return
 
     const { sc, left, top } = view()
     const x = e.clientX - left
@@ -263,7 +300,8 @@ export function DesignCanvas(props: DesignCanvasProps) {
     if (x >= sc.clientWidth || y >= sc.clientHeight) return
     const m = latest.current.mode ?? 'edit'
     const hit = locate(e, false)
-    if (!hit) {
+    const at = insertIndex(e, false)
+    if (adds() ? at === null : !hit) {
       const axis = m === 'edit' ? axisAt(x, y, geometry()) : null
       if (axis && latest.current.onAxis) {
         e.preventDefault()
@@ -275,6 +313,12 @@ export function DesignCanvas(props: DesignCanvasProps) {
     e.preventDefault()
     wrap.current?.focus({ preventScroll: true })
     e.currentTarget.setPointerCapture?.(e.pointerId)
+    if (at !== null) {
+      adding.current = e.pointerId
+      latest.current.onInsertHover?.(at)
+      return
+    }
+    if (!hit) return
     if (m === 'edit' && touch && ON_RELEASE.has(latest.current.tool)) {
       tap.current = { id: e.pointerId, cell: hit }
       return
@@ -289,6 +333,12 @@ export function DesignCanvas(props: DesignCanvasProps) {
       if (step) pinch(step)
       if (fingers.current.pinching) return
     }
+    if (adds()) {
+      // A mouse or a pen points without pressing; a finger has to be down.
+      const a = adding.current
+      if (a === e.pointerId || (a === null && e.pointerType !== 'touch')) latest.current.onInsertHover?.(insertIndex(e, a !== null))
+      return
+    }
     const d = dragging.current
     if (d?.id !== e.pointerId) return
     const at = locate(e, true)!
@@ -298,6 +348,13 @@ export function DesignCanvas(props: DesignCanvasProps) {
 
   const end = (e: React.PointerEvent<HTMLDivElement>, cancelled: boolean) => {
     if (e.pointerType === 'touch') fingers.current.up(e.pointerId)
+    if (adding.current === e.pointerId) {
+      adding.current = null
+      const at = cancelled ? null : insertIndex(e, true)
+      if (at === null) latest.current.onInsertHover?.(null)
+      else latest.current.onInsert?.(at)
+      return
+    }
     const t = tap.current
     if (t?.id === e.pointerId) {
       tap.current = null
@@ -345,6 +402,7 @@ export function DesignCanvas(props: DesignCanvasProps) {
         onPointerMove={onPointerMove}
         onPointerUp={(e) => end(e, false)}
         onPointerCancel={(e) => end(e, true)}
+        onPointerLeave={() => adding.current === null && latest.current.onInsertHover?.(null)}
         onContextMenu={(e) => e.preventDefault()}
         data-testid="design-scroller"
         data-cell={cell}

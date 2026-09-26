@@ -12,6 +12,7 @@ import { addPaletteEntry, newPattern, setCell } from '../../src/logic/edit.ts'
 import { encodeRow } from '../../src/logic/readout.ts'
 import { completeCurrentRow, ensureStarted, rowIndex, setRunStitches } from '../../src/logic/work.ts'
 import { emptyProgress, type Pattern, type Progress } from '../../src/model/types.ts'
+import { AXIS_LEFT, AXIS_TOP, PAD } from '../../src/render/design.ts'
 import { readAlpha } from '../../src/storage/alpha.ts'
 import type { ProjectRepo } from '../../src/storage/repo.ts'
 import { fixture, freshRepo, renderApp, screen } from './helpers.tsx'
@@ -41,6 +42,37 @@ async function openDesign(repo: ProjectRepo, id: string, name: string) {
 }
 
 const section = (user: UserEvent, name: string) => user.click(screen.getByRole('button', { name, expanded: false }))
+
+/** The chart, given a size (jsdom lays nothing out, and a press past its content box is
+ *  on a scrollbar), and its cell size. It sits at the page's top left. */
+function chart() {
+  const sc = screen.getByTestId('design-scroller')
+  Object.defineProperty(sc, 'clientWidth', { configurable: true, get: () => 2000 })
+  Object.defineProperty(sc, 'clientHeight', { configurable: true, get: () => 2000 })
+  return { sc, cell: Number(sc.dataset.cell) }
+}
+
+type Pointer = { x: number; y: number; type?: string }
+const ev = ({ x, y, type = 'mouse' }: Pointer) => ({ pointerId: 1, pointerType: type, button: 0, clientX: x, clientY: y })
+/** The middle of row `r` (or column `c`), well inside the chart. */
+const onRow = (r: number): Pointer => ({ x: AXIS_LEFT + 8, y: AXIS_TOP + r * chart().cell + chart().cell / 2 })
+const onCol = (c: number): Pointer => ({ x: AXIS_LEFT + c * chart().cell + chart().cell / 2, y: AXIS_TOP + 8 })
+function click(at: Pointer) {
+  const { sc } = chart()
+  fireEvent.pointerMove(sc, ev(at))
+  fireEvent.pointerDown(sc, ev(at))
+  fireEvent.pointerUp(sc, ev(at))
+}
+/** The rows (columns) the chart has room for: its scrollable size, preview included. */
+const shownRows = () => (parseFloat((chart().sc.firstElementChild as HTMLElement).style.height) - AXIS_TOP - PAD) / chart().cell
+const shownCols = () => (parseFloat((chart().sc.firstElementChild as HTMLElement).style.width) - AXIS_LEFT - PAD) / chart().cell
+
+/** Press image row `r`'s number (or column `c`'s) for its menu, then an item on it. */
+async function fromNumber(user: UserEvent, kind: 'row' | 'col', i: number, item: string) {
+  const { sc } = chart()
+  fireEvent.pointerDown(sc, ev(kind === 'row' ? { x: AXIS_LEFT / 2, y: onRow(i).y } : { x: onCol(i).x, y: AXIS_TOP / 2 }))
+  await user.click(await screen.findByRole('menuitem', { name: item }))
+}
 
 async function fill(user: UserEvent, label: string, value: string) {
   const input = screen.getByLabelText(label, { selector: 'input' })
@@ -119,13 +151,10 @@ const OPS: Op[] = [
     size: [5, 7],
     done: 0,
   },
+  // basic.alpha is worked bottom up: working row n is image row 5 - n.
   {
     name: 'deleting a done row',
-    setup: async (u) => {
-      await section(u, 'Rows and columns')
-      await fill(u, 'Row', '1')
-    },
-    run: (u) => u.click(screen.getByRole('button', { name: 'Delete row' })),
+    run: (u) => fromNumber(u, 'row', 4, 'Delete row 1'),
     asks: ['Delete a row you’ve worked?', 'Delete row'],
     size: [7, 4],
     done: 1,
@@ -134,46 +163,39 @@ const OPS: Op[] = [
   },
   {
     name: 'deleting the row partway through',
-    setup: async (u) => {
-      await section(u, 'Rows and columns')
-      await fill(u, 'Row', '3')
-    },
-    run: (u) => u.click(screen.getByRole('button', { name: 'Delete row' })),
+    run: (u) => fromNumber(u, 'row', 2, 'Delete row 3'),
     asks: ['Delete a row you’ve worked?', 'Delete row'],
     size: [7, 4],
     done: 2,
   },
   {
     name: 'deleting a row not yet worked',
-    setup: async (u) => {
-      await section(u, 'Rows and columns')
-      await fill(u, 'Row', '5')
-    },
-    run: (u) => u.click(screen.getByRole('button', { name: 'Delete row' })),
+    run: (u) => fromNumber(u, 'row', 0, 'Delete row 5'),
     size: [7, 4],
     done: 2,
     partKept: true,
   },
   {
-    name: 'inserting a row below the first',
-    setup: async (u) => {
-      await section(u, 'Rows and columns')
-      await fill(u, 'Row', '1')
-    },
-    run: (u) => u.click(screen.getByRole('button', { name: 'Insert below' })),
+    name: 'adding a row between the first two, with Add row',
+    setup: (u) => u.click(screen.getByRole('button', { name: /^Add row/ })),
+    run: async () => click(onRow(4)),
     size: [7, 6],
     done: 2,
   },
   {
-    name: 'inserting and deleting columns',
+    name: 'inserting a row from the menu on its number',
+    run: (u) => fromNumber(u, 'row', 4, 'Insert row above'),
+    size: [7, 6],
+    done: 2,
+  },
+  {
+    name: 'adding and deleting columns',
     setup: async (u) => {
-      await section(u, 'Rows and columns')
-      await u.click(screen.getByRole('button', { name: 'Insert left' }))
-      await fill(u, 'Column', '8')
-      await u.click(screen.getByRole('button', { name: 'Delete column' }))
-      await fill(u, 'Column', '1')
+      await u.click(screen.getByRole('button', { name: /^Add column/ }))
+      click(onCol(0))
+      await fromNumber(u, 'col', 7, 'Delete column 8')
     },
-    run: (u) => u.click(screen.getByRole('button', { name: 'Delete column' })),
+    run: (u) => fromNumber(u, 'col', 0, 'Delete column 1'),
     size: [6, 5],
     done: 2,
   },
@@ -417,17 +439,23 @@ describe('the structural panel', () => {
     expect(stats()).toMatch(/^1000 cols × 100 rows/)
   })
 
-  it('refuses to delete the last row or column, with the Python’s message', async () => {
+  it('won’t delete the last row or column', async () => {
     const repo = await freshRepo()
     const p = newPattern(1, 1, '#ffffff', { name: 'Dot' })
     await repo.save({ pattern: p, progress: emptyProgress(), stage: 'design' })
     await openDesign(repo, p.id, 'Dot')
-    const user = userEvent.setup()
-    await section(user, 'Rows and columns')
-    await user.click(screen.getByRole('button', { name: 'Delete row' }))
-    expect(message()).toBe('Cannot delete the last row.')
-    await user.click(screen.getByRole('button', { name: 'Delete column' }))
-    expect(message()).toBe('Cannot delete the last column.')
+    for (const [kind, name, why] of [
+      ['row', 'Delete row 1', 'Cannot delete the last row.'],
+      ['col', 'Delete column 1', 'Cannot delete the last column.'],
+    ] as const) {
+      const { sc } = chart()
+      fireEvent.pointerDown(sc, ev(kind === 'row' ? { x: AXIS_LEFT / 2, y: onRow(0).y } : { x: onCol(0).x, y: AXIS_TOP / 2 }))
+      const item = await screen.findByRole('menuitem', { name })
+      expect((item as HTMLButtonElement).disabled).toBe(true)
+      expect(item.title).toBe(why)
+      fireEvent.keyDown(item, { key: 'Escape' })
+    }
+    expect(stats()).toMatch(/^1 cols × 1 rows/)
   })
 
   it('trims single-colour edges, or says there are none', async () => {
@@ -441,5 +469,79 @@ describe('the structural panel', () => {
     expect(stats()).toMatch(/^9 cols × 7 rows/)
     await user.click(screen.getByRole('button', { name: 'Trim edges' }))
     expect(stats()).toMatch(/^7 cols × 5 rows/)
+  })
+})
+
+describe('Add row and Add column', () => {
+  /** basic.alpha, 7 × 5 and worked bottom up, with no progress, painting in its 2nd colour. */
+  async function basic() {
+    const repo = await freshRepo()
+    const { project } = readAlpha(fixture('basic.alpha'))
+    const p = project.pattern
+    await repo.save({ pattern: p, progress: emptyProgress(), stage: 'design' })
+    await openDesign(repo, p.id, p.name)
+    return { repo, p }
+  }
+
+  it('previews the row where the pointer is, and a click adds it there', async () => {
+    const { repo, p } = await basic()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /^Add row/ }))
+    expect(message()).toMatch(/^Point at the chart where the new row goes, and click to add it. To delete a row, press its number./)
+    const { sc } = chart()
+
+    // Pointing previews it (the chart has a row more), without changing the pattern.
+    fireEvent.pointerMove(sc, ev(onRow(2)))
+    expect(shownRows()).toBe(6)
+    expect(stats()).toMatch(/^7 cols × 5 rows/)
+    // Over the numbers, or off the chart, nothing is previewed.
+    fireEvent.pointerMove(sc, ev({ x: AXIS_LEFT / 2, y: onRow(2).y }))
+    expect(shownRows()).toBe(5)
+    fireEvent.pointerMove(sc, ev(onRow(1)))
+    fireEvent.pointerLeave(sc)
+    expect(shownRows()).toBe(5)
+
+    // Anywhere below the chart adds one at the end: bottom up, the new first row.
+    click({ x: AXIS_LEFT + 500, y: AXIS_TOP + 900 })
+    expect(stats()).toMatch(/^7 cols × 6 rows/)
+    expect(message()).toBe('Added row 1: now 7 × 6.')
+    // What was added is shown, not another one, until the pointer moves to another row.
+    expect(shownRows()).toBe(6)
+    fireEvent.pointerMove(sc, ev(onRow(1)))
+    expect(shownRows()).toBe(7)
+
+    // One undo step.
+    fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true })
+    expect(stats()).toMatch(/^7 cols × 5 rows/)
+    fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true, shiftKey: true })
+    const q = (await saved(repo, p.id)).pattern
+    expect(q.rows).toBe(6)
+    expect(q.row_ids.slice(0, 5)).toEqual(p.row_ids)
+    expect(new Set(q.cells.subarray(5 * 7))).toEqual(new Set([0]))
+  })
+
+  it('adds a column with the current colour; a finger drags it into place and adds it on lifting', async () => {
+    const { repo, p } = await basic()
+    const user = userEvent.setup()
+    // Shift+V is Add column; V alone still fills one.
+    fireEvent.keyDown(document.body, { key: 'V', shiftKey: true })
+    expect(screen.getByRole('button', { name: /^Add column/, pressed: true })).toBeTruthy()
+    // Painting with the palette's second colour.
+    await user.click(within(screen.getByRole('list', { name: 'Palette' })).getAllByRole('button')[1]!)
+    const { sc } = chart()
+    const t = (c: number) => ({ ...onCol(c), type: 'touch' })
+    fireEvent.pointerDown(sc, ev(t(0)))
+    expect(shownCols()).toBe(8)
+    fireEvent.pointerMove(sc, ev(t(3)))
+    expect(stats()).toMatch(/^7 cols × 5 rows/)
+    fireEvent.pointerUp(sc, ev(t(3)))
+    expect(stats()).toMatch(/^8 cols × 5 rows/)
+    expect(message()).toBe('Added column 4: now 8 × 5.')
+    const q = (await saved(repo, p.id)).pattern
+    for (let r = 0; r < 5; r++) {
+      const row = [...q.cells.subarray(r * 8, r * 8 + 8)]
+      expect(row[3]).toBe(1)
+      expect(row.filter((_, c) => c !== 3)).toEqual([...p.cells.subarray(r * 7, r * 7 + 7)])
+    }
   })
 })
