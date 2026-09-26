@@ -33,6 +33,8 @@ export const EMPHASIS_SCALE = 1.6
 export const MIN_CELL = 3
 /** Charts longer than this on one axis than the other scroll along it instead of fitting. */
 export const SCROLL_ASPECT = 2
+/** How far the chart can be zoomed in (pinch, or Ctrl/⌘ + wheel), over its usual size. */
+export const MAX_ZOOM = 8
 
 const snap = (v: number, dpr: number) => Math.floor(v * dpr + 1e-6) / dpr
 const round = (v: number, dpr: number) => Math.round(v * dpr) / dpr
@@ -91,6 +93,10 @@ export interface LayoutInput {
   /** Device pixels per CSS pixel. Sizes snap to it so cells and lines land on whole
    *  device pixels and stay sharp. */
   readonly dpr?: number
+  /** Zoom over the usual size, 1 to MAX_ZOOM: it scales the base cell size, so every
+   *  row keeps its own height (emphasis and focus mode work as ever) and the chart
+   *  scrolls wherever it no longer fits. */
+  readonly zoom?: number
 }
 
 export interface ChartLayout {
@@ -146,7 +152,8 @@ export function computeLayout(input: LayoutInput): ChartLayout {
   else if (mode === 'fit') base = Math.min(viewWidth / cols, viewHeight / weight)
   else if (rows > cols) base = viewWidth / cols
   else base = viewHeight / weight
-  base = Math.max(MIN_CELL, snap(base, dpr))
+  const zoom = Math.max(1, Math.min(MAX_ZOOM, input.zoom ?? 1)) || 1
+  base = Math.max(MIN_CELL, snap(base * zoom, dpr))
 
   const heights: number[] = []
   for (let r = range.start; r < range.end; r++) heights.push(rowHeight(r, base, near, emphasise, dpr))

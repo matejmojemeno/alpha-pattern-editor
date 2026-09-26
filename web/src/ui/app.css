@@ -779,6 +779,17 @@ code {
   overflow: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  /* One finger scrolls natively; two pinch-zoom the chart (ChartView), never the page. */
+  touch-action: pan-x pan-y;
+}
+
+.chart__unzoom {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  z-index: 1;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.2);
 }
 
 .work__bar {
