@@ -406,6 +406,7 @@ def trim_uniform_edges(p, *, top, right, bottom, left) -> Pattern
 def mirror_h(p) -> Pattern
 def mirror_v(p) -> Pattern
 def rotate_180(p) -> Pattern
+def rotate_90(p, *, clockwise=True) -> Pattern   # C x R; every row a fresh row_id
 
 def recolor_palette_entry(p, entry_id, new_hex) -> Pattern
 def merge_palette_entries(p, from_id, into_id) -> Pattern
