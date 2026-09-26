@@ -135,3 +135,18 @@ app's Export PNG (`web/src/render/png.ts`) must match it pixel for pixel
 `alphareader/tests/test_png_golden.py` fails if the files drift from the desktop's
 output. Projects with skip cells or indices past the palette aren't included: the
 desktop can't export them.
+
+# `yarn_nearest.json`: the nearest shade of each colour library
+
+What detection's colour matching (`palette.srgb_to_lab`, then the first `np.argmin` of
+`np.linalg.norm`, as `_nearest_dmc` does) makes of the libraries in
+`web/src/yarn/data/`: for 1,000 random colours from a fixed seed, a grey ramp and every
+shade's own hex, each colour's Lab and its nearest shade's index in each library.
+`web/tests/yarn/match.test.ts` reproduces every index, and every Lab to within 1e-12.
+Regenerate with `python scripts/gen_yarn_fixture.py` after changing a library or the
+Lab conversion; `alphareader/tests/test_yarn_fixture.py` fails if it is stale.
+
+```text
+{ about, shades: {library: count}, colours: ["#rrggbb"], lab: [[L, a, b]],
+  nearest: {library: [index per colour]} }
+```
