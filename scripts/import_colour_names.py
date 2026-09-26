@@ -34,7 +34,8 @@ LICENCE_LINE = "# License: https://creativecommons.org/publicdomain/zero/1.0/"
 FAMILIES: list[tuple[str, list[str]]] = [
     ("grey", ["grey", "black", "charcoal", "dark grey", "light grey", "white"]),
     ("cream", ["cream", "ivory", "off white"]),
-    ("beige", ["beige", "light beige", "dark beige", "tan", "light tan", "dark tan"]),
+    ("beige", ["beige", "light beige", "dark beige", "tan", "light tan", "dark tan", "taupe",
+               "mushroom"]),
     ("brown", ["brown", "light brown", "dark brown"]),
     ("red", ["red", "dark red", "light red"]),
     ("burgundy", ["burgundy", "maroon", "wine"]),

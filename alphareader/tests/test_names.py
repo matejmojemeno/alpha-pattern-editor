@@ -37,6 +37,9 @@ def test_neutrals_are_black_white_and_greys():
     assert simple_names(["#010101", "#151718", "#313131", "#ffffff"]) == \
         ["Black", "Dark grey", "Grey", "White"]
     assert simple_names(["#000000", "#ffffff"]) == ["Black", "White"]
+    # Unlike a hue, a grey alone still says how dark it is.
+    assert simple_names(["#e7e8ec", "#272930"]) == ["White", "Dark grey"]
+    assert simple_names(["#ffffff", "#929591"]) == ["White", "Grey"]
 
 
 def test_same_lightness_different_strength_is_bright_and_muted():

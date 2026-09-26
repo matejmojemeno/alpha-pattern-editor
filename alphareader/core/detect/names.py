@@ -10,7 +10,8 @@ plain: one blue is "Blue", however light. Colours sharing a name are told apart:
   the same word, they move apart the least that keeps them in order (`_spread`);
 - two that differ more in strength than lightness are "Bright pink" and "Muted pink";
 - neutrals: the darkest is "Black" and the lightest "White" when those are their
-  nearest anchors, and the rest are greys;
+  nearest anchors, and the rest are greys, which say "Dark" or "Light" even alone:
+  "Grey" for a near-black would mislead where "Blue" for a pale blue doesn't;
 - past five of one name, "Grey 1", "Grey 2", … from the darkest.
 
 So every name in a palette is different. web/src/importer/names.ts is a port;
@@ -177,7 +178,7 @@ def simple_names(hexes: list[str]) -> list[str]:
         n = len(members)
         if n == 0:
             continue
-        if n == 1:
+        if n == 1 and fam != "grey":
             out[members[0]] = _cap(fam)
         elif n == 2 and abs(_chroma(labs[members[0]]) - _chroma(labs[members[1]])) > \
                 abs(labs[members[0]][0] - labs[members[1]][0]):

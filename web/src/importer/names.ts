@@ -165,7 +165,7 @@ export function simpleNames(hexes: readonly string[]): string[] {
     }
     const n = members.length
     if (n === 0) continue
-    if (n === 1) {
+    if (n === 1 && fam !== 'grey') {
       out[members[0]!] = cap(fam)
     } else if (
       n === 2 &&

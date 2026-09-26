@@ -74,6 +74,14 @@
     {
      "name": "dark tan",
      "hex": "#af884a"
+    },
+    {
+     "name": "taupe",
+     "hex": "#b9a281"
+    },
+    {
+     "name": "mushroom",
+     "hex": "#ba9e88"
     }
    ]
   },
