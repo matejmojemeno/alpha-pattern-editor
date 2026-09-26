@@ -37,13 +37,15 @@ export interface DesktopProject extends DesktopPattern {
  * A correction made on the confirm screen, in the order made (desktop_import.py applies
  * them the way confirm_window.py does):
  * - `rows=N`, `cols=N`: the spinboxes
- * - `de=X`: the colour-detail slider, as ΔE
  * - `crop=x0,y0,x1,y1`: a crop, in image pixels, which detects again
  * - `redetect`: the Re-detect button
  * - `extent=x0,y0,x1,y1`: the grid's outline moved, in image pixels (the web app only;
  *   it sends rows and cols with it)
+ *
+ * desktop_import.py also takes `de=X`, the desktop's colour-detail slider. The web app
+ * has no colour setting, so it isn't offered here.
  */
-export type Correction = `rows=${number}` | `cols=${number}` | `de=${number}` | `crop=${string}` | `extent=${string}` | 'redetect'
+export type Correction = `rows=${number}` | `cols=${number}` | `crop=${string}` | `extent=${string}` | 'redetect'
 
 let checked = false
 

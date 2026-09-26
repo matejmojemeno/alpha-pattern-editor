@@ -75,22 +75,19 @@ async function expectDesktop(page: Page, testInfo: TestInfo, name: string, file:
   return want
 }
 
-test('the colour-detail slider matches the desktop', async ({ page }, testInfo) => {
+test('the colours are merged as the desktop merges them, with nothing to set', async ({ page }, testInfo) => {
   await importImage(page, CATS)
   await showing(page, 100, 45)
   await expect(stats(page)).toContainText('3 colours')
-  // Right is more colours: slider 14 is ΔE 3, which splits the blue.
-  await page.getByRole('slider', { name: 'Colour detail' }).fill('14')
-  await expect(stats(page)).toContainText('5 colours')
-  await expectDesktop(page, testInfo, 'Cats more colours', CATS, ['de=3'])
+  await expect(page.getByRole('slider', { name: 'Colour detail' })).toHaveCount(0)
+  await expectDesktop(page, testInfo, 'Cats', CATS, [])
 })
 
-test('a crop detects again, at the current colour detail, and matches the desktop', async ({ page }, testInfo) => {
+test('a crop detects again, and matches the desktop', async ({ page }, testInfo) => {
   await importImage(page, CATS)
   await showing(page, 100, 45)
-  await page.getByRole('slider', { name: 'Colour detail' }).fill('14') // ΔE 3, carried into the crop
   const c = await crop(page, CATS, [0.25, 0.18, 0.75, 0.83])
-  const want = await expectDesktop(page, testInfo, 'Cats cropped', CATS, ['de=3', `crop=${c.join(',')}`])
+  const want = await expectDesktop(page, testInfo, 'Cats cropped', CATS, [`crop=${c.join(',')}`])
   expect([want.cols, want.rows]).not.toEqual([100, 45])
 })
 
@@ -173,19 +170,18 @@ test.describe('on a phone', () => {
     await page.getByRole('tab', { name: 'Image' }).tap()
     await expect(page.getByTestId('grid-overlay')).toBeVisible()
 
-    // A box drawn on the image, then colour detail. (Not too near the image's edges,
-    // where the outline's handles are.)
+    // A box drawn on the image. (Not too near the image's edges, where the outline's
+    // handles are.)
     const c = await crop(page, CATS, [0.2, 0.18, 0.8, 0.82])
     await expect(page.getByRole('tab', { name: 'Pattern', selected: true })).toBeVisible()
     const cropped = desktopDetect(CATS, [`crop=${c.join(',')}`])
     await showing(page, cropped.cols, cropped.rows)
-    await page.getByRole('slider', { name: 'Colour detail' }).fill('14')
 
     // Scrolled to the bottom of the pane, saving is still on screen.
     await page.mouse.wheel(0, 2000)
     await saveInView()
     await noSideways()
-    await expectDesktop(page, testInfo, 'Cats on a phone', CATS, [`crop=${c.join(',')}`, 'de=3'])
+    await expectDesktop(page, testInfo, 'Cats on a phone', CATS, [`crop=${c.join(',')}`])
   })
 })
 

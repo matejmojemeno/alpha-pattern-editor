@@ -66,9 +66,9 @@ describe('DetectClient', () => {
     const { msg, transfer } = worker.sent[0]!
     expect(msg).toMatchObject({ type: 'open', width: 4, height: 3, maxPixels: DEFAULT_MAX_PIXELS })
     expect(transfer).toEqual([img.rgba.buffer])
-    void client.open(image(), { maxPixels: 0, deltaE: 9 })
+    void client.open(image(), { maxPixels: 0 })
     expect(worker.sent[1]!.msg).not.toHaveProperty('maxPixels')
-    expect(worker.sent[1]!.msg).toMatchObject({ deltaE: 9 })
+    expect(worker.sent[1]!.msg).not.toHaveProperty('deltaE') // the bridge's default, always
   })
 
   it('boots once, reports progress, and can retry a failed boot', async () => {
@@ -157,7 +157,7 @@ describe('DetectSession', () => {
     const { session, worker } = await opened()
     const first = session.update({ rows: 5 })
     const second = session.update({ cols: 6 })
-    const third = session.update({ rows: 8, deltaE: 4 })
+    const third = session.update({ rows: 8, extent: { x0: 1, y0: 2, x1: 3, y1: 4 } })
     let updates = worker.of('update')
     expect(updates.map((u) => u.params)).toEqual([{ rows: 5 }])
     expect(second).toBe(third)
@@ -167,7 +167,7 @@ describe('DetectSession', () => {
     expect(session.latest?.rows).toBe(5) // the preview moved on the first change
     await flush()
     updates = worker.of('update')
-    expect(updates.map((u) => u.params)).toEqual([{ rows: 5 }, { cols: 6, rows: 8, deltaE: 4 }])
+    expect(updates.map((u) => u.params)).toEqual([{ rows: 5 }, { cols: 6, rows: 8, extent: { x0: 1, y0: 2, x1: 3, y1: 4 } }])
 
     worker.reply(updates[1]!.id, makePreview(7, 8, 6))
     const [r2, r3] = await Promise.all([second, third])

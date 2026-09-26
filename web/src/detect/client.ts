@@ -68,7 +68,6 @@ export const DEFAULT_MAX_PIXELS = 4_000_000
 export const DETECT_BUDGET_MS = 20_000
 
 export interface OpenOptions {
-  deltaE?: number
   /** Shrink an image with more pixels than this before detecting it; 0 never shrinks. */
   maxPixels?: number
   /** Detect only this part of the image (image pixels), as a crop does. */
@@ -199,14 +198,13 @@ export class DetectClient {
    * `open` superseded this one).
    */
   async open(image: RgbaImage, opts: OpenOptions = {}): Promise<{ session: DetectSession | null; result: Outcome<Preview> }> {
-    const { deltaE, maxPixels = DEFAULT_MAX_PIXELS, crop } = opts
+    const { maxPixels = DEFAULT_MAX_PIXELS, crop } = opts
     const { id, answer } = this.send<BodyOf<'open'>>(
       {
         type: 'open',
         rgba: image.rgba,
         width: image.width,
         height: image.height,
-        ...(deltaE === undefined ? {} : { deltaE }),
         ...(maxPixels > 0 ? { maxPixels } : {}),
         ...(crop ? { crop } : {}),
       },
@@ -316,10 +314,9 @@ export class DetectSession {
     return this.view({ type: 'preview', session: this.id })
   }
 
-  /** Full detection again, on the whole image or a crop (image pixels), at `deltaE` if
-   *  given. Any pending update is dropped: detection resets the grid it would have
-   *  changed, and the colour detail travels with this request instead. */
-  redetect(crop?: Crop, { deltaE }: { deltaE?: number } = {}): Promise<Outcome<Preview>> {
+  /** Full detection again, on the whole image or a crop (image pixels). Any pending
+   *  update is dropped: detection resets the grid it would have changed. */
+  redetect(crop?: Crop): Promise<Outcome<Preview>> {
     const dropped = this.pending
     this.pending = null
     dropped?.resolve(failure('STALE', 'Superseded by a new detection.'))
@@ -327,7 +324,6 @@ export class DetectSession {
       type: 'redetect',
       session: this.id,
       ...(crop ? { crop } : {}),
-      ...(deltaE === undefined ? {} : { deltaE }),
     })
   }
 

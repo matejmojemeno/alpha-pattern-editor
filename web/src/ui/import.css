@@ -33,16 +33,6 @@
   gap: 0.5rem;
 }
 
-.controls__detail input[type='range'] {
-  width: 9rem;
-  min-height: var(--tap);
-  accent-color: var(--accent);
-}
-
-.controls__end {
-  font-size: var(--text-sm);
-}
-
 /* --- summary -------------------------------------------------------------------------- */
 
 .confirm__summary p,

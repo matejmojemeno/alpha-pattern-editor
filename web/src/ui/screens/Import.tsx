@@ -3,7 +3,7 @@
  * (alphareader/ui/importer/confirm_window.py), correction controls and all.
  *
  * The desktop's fast/slow split is kept (docs/web-port-plan.md, Phase 2):
- * - colour detail and moving the grid's outline only resample (`DetectSession.update`),
+ * - moving the grid's outline only resamples (`DetectSession.update`),
  *   which folds a burst of changes into one pending request and drops stale answers;
  * - a box drawn on the image (a crop) and Re-detect detect again
  *   (`DetectSession.redetect`), under the client's watchdog.
@@ -35,7 +35,7 @@ import {
   type Params,
   type Preview,
 } from '../../detect/protocol.ts'
-import { DEFAULT_DELTA_E, shrinkNotice } from '../../importer/controls.ts'
+import { shrinkNotice } from '../../importer/controls.ts'
 import { decodeImage, ImageDecodeError, sourcePng } from '../../importer/decode.ts'
 import { hintFor, OUT_OF_MEMORY_HINT, TIMEOUT_HINT } from '../../importer/hints.ts'
 import type { Grid } from '../../importer/outline.ts'
@@ -101,8 +101,6 @@ export default function ImportScreen() {
   /** The image's decoded size: the coordinate space of the overlay and of crops. */
   const [size, setSize] = useState<{ width: number; height: number } | null>(null)
 
-  // The controls.
-  const [deltaE, setDeltaE] = useState(DEFAULT_DELTA_E)
   /** The outline last asked for, drawn until the answers to it are in. */
   const [outline, setOutline] = useState<Grid | null>(null)
   const [tab, setTab] = useState<Tab>('pattern')
@@ -116,11 +114,6 @@ export default function ImportScreen() {
   const session = useRef<DetectSession | null>(null)
   /** Updates asked for and not yet answered. */
   const pending = useRef(0)
-  // The colour detail as of the last render, for detections started outside it.
-  const deltaERef = useRef(deltaE)
-  useEffect(() => {
-    deltaERef.current = deltaE
-  }, [deltaE])
   const mounted = useRef(true)
   useEffect(() => {
     mounted.current = true
@@ -133,8 +126,6 @@ export default function ImportScreen() {
     setImage({ file, name: fileName })
     setName(fileName)
     setNotices([])
-    // A new image starts where the desktop's does (confirm_window.load_array).
-    setDeltaE(DEFAULT_DELTA_E)
     setShown(null)
     setSize(null)
     setRun({ attempt: 0 })
@@ -192,11 +183,7 @@ export default function ImportScreen() {
         return
       }
       setState({ phase: 'detecting' })
-      const deltaE = deltaERef.current
-      const { session: s, result } = await client.open(pixels, {
-        ...(deltaE === DEFAULT_DELTA_E ? {} : { deltaE }),
-        ...(run.crop ? { crop: run.crop } : {}),
-      })
+      const { session: s, result } = await client.open(pixels, run.crop ? { crop: run.crop } : {})
       opened = s
       if (!live) {
         void s?.close()
@@ -241,10 +228,6 @@ export default function ImportScreen() {
     })
   }
 
-  const onDeltaE = (value: number) => {
-    setDeltaE(value)
-    update({ deltaE: value })
-  }
   /** The outline moved: resample the new extent into its rows and columns. */
   const onResize = (grid: Grid) => {
     setOutline(grid)
@@ -263,7 +246,7 @@ export default function ImportScreen() {
     }
     if (!wide) setTab('pattern')
     setRedetecting(true)
-    void s.redetect(crop, { deltaE: deltaERef.current }).then((r) => {
+    void s.redetect(crop).then((r) => {
       if (!mounted.current) return
       setRedetecting(false)
       if (session.current === s) detected(r)
@@ -377,13 +360,7 @@ export default function ImportScreen() {
       <TopBar title="Import pattern" />
       <Notices notices={notices} />
       <div className="confirm" data-dim={dim || undefined}>
-        <Controls
-          deltaE={deltaE}
-          canAdjust={hasGrid && !redetecting}
-          canDetect={canDetect}
-          onDeltaE={onDeltaE}
-          onRedetect={() => redetect()}
-        />
+        <Controls canDetect={canDetect} onRedetect={() => redetect()} />
         {preview && <Summary preview={preview} />}
         {!wide && (
           <div className="confirm__tabs" role="tablist" aria-label="Show">

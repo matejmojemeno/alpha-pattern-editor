@@ -1,26 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  cellSize,
-  DEFAULT_DELTA_E,
-  deltaEFromSlider,
-  MAX_DELTA_E,
-  MIN_DELTA_E,
-  shrinkNotice,
-  sliderFromDeltaE,
-} from '../../src/importer/controls.ts'
-
-describe('the colour-detail slider', () => {
-  it('runs opposite to ΔE over 2–15: right is more colours, a lower ΔE', () => {
-    expect([MIN_DELTA_E, MAX_DELTA_E, DEFAULT_DELTA_E]).toEqual([2, 15, 6])
-    expect(sliderFromDeltaE(15)).toBe(2) // far left: fewest colours
-    expect(sliderFromDeltaE(2)).toBe(15) // far right: most colours
-    expect(sliderFromDeltaE(6)).toBe(11)
-    for (let v = 2; v <= 15; v++) expect(sliderFromDeltaE(deltaEFromSlider(v))).toBe(v)
-    // Moving right lowers ΔE.
-    expect(deltaEFromSlider(12)).toBeLessThan(deltaEFromSlider(11))
-  })
-})
+import { cellSize, shrinkNotice } from '../../src/importer/controls.ts'
 
 describe('the shrink notice', () => {
   it('says what was reduced to what, only when it was', () => {
