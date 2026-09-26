@@ -121,6 +121,8 @@ function call(p: Pattern, c: Case): unknown {
       return edit.mirrorV(p)
     case 'rotate_180':
       return edit.rotate180(p)
+    case 'rotate_90':
+      return edit.rotate90(p, k.clockwise as boolean | undefined)
     case 'recolor_palette_entry':
       return edit.recolorPaletteEntry(p, a[0], a[1])
     case 'rename_palette_entry':
@@ -203,6 +205,6 @@ describe('edit.ts replays fixtures/edit_golden.json', () => {
 
   it('covers every function the Python has', () => {
     const fns = new Set(golden.cases.map((c) => c.fn))
-    expect(fns.size).toBe(24)
+    expect(fns.size).toBe(25)
   })
 })
