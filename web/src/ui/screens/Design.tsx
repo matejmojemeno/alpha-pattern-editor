@@ -82,7 +82,7 @@ import { CellsIcon, ConfirmDialog } from '../components.tsx'
 import { ColoursPanel } from '../design/ColoursPanel.tsx'
 import { DesignCanvas } from '../design/DesignCanvas.tsx'
 import { StructurePanel, type TransformAction } from '../design/StructurePanel.tsx'
-import { useDocumentTitle } from '../hooks.ts'
+import { useDocumentTitle, useMediaQuery } from '../hooks.ts'
 import { ProjectGate } from '../ProjectGate.tsx'
 
 export default function Design({ id }: { id: string }) {
@@ -238,11 +238,6 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
     setForm((f) => keepPadValid(f, p))
   }
 
-  const preview: Preview | null = useMemo(() => {
-    if (form.open === 'border') return borderPreview(p, sides, borderColour)
-    if (form.open === 'pad' && !padError) return padPreview(p, padW!, padH!, pad.left, pad.top, padColour)
-    return null
-  }, [form.open, p, sides.top, sides.right, sides.bottom, sides.left, borderColour, padError, padW, padH, pad.left, pad.top, padColour]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Dragging the pattern on the padding preview: offsets from where it was picked up.
   const dragFrom = useRef<{ left: number; top: number } | null>(null)
@@ -373,9 +368,27 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   }
 
   // --- zoom: px per cell. Until zoomed (and after Fit) it follows the view's size. ----------
-  const shownPattern = preview?.pattern ?? p
   const [viewport, setViewport] = useState<{ width: number; height: number } | null>(null)
   const [zoomed, setZoomed] = useState<number | null>(null)
+
+  // --- the screen: desktop, tablet (a toolbar and drawers), or too small ------------------------
+  const compact = useMediaQuery('(max-width: 1099.98px)')
+  const tooSmall = useMediaQuery('(max-width: 699.98px)')
+  const [drawer, setDrawer] = useState<'colours' | 'structure' | null>(null)
+  const hidden = useRef(tooSmall)
+  useEffect(() => {
+    hidden.current = tooSmall
+  }, [tooSmall])
+
+  // A border or a padding is previewed while its section is open and in view (on a
+  // tablet, while the structure drawer is).
+  const previewing = form.open !== null && (!compact || drawer === 'structure') ? form.open : null
+  const preview: Preview | null = useMemo(() => {
+    if (previewing === 'border') return borderPreview(p, sides, borderColour)
+    if (previewing === 'pad' && !padError) return padPreview(p, padW!, padH!, pad.left, pad.top, padColour)
+    return null
+  }, [previewing, p, sides.top, sides.right, sides.bottom, sides.left, borderColour, padError, padW, padH, pad.left, pad.top, padColour]) // eslint-disable-line react-hooks/exhaustive-deps
+  const shownPattern = preview?.pattern ?? p
   const fit = useMemo(
     () => (viewport ? fitCell(shownPattern.cols, shownPattern.rows, viewport.width, viewport.height) : null),
     [viewport, shownPattern.cols, shownPattern.rows],
@@ -390,6 +403,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   // --- keyboard -------------------------------------------------------------------------------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (hidden.current) return
       const mod = e.metaKey || e.ctrlKey
       const key = e.key.toLowerCase()
       if (mod && key === 's') {
@@ -454,10 +468,102 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
               : { r0: 0, r1: p.rows, c0: axisMenu.index, c1: axisMenu.index + 1 },
         }
       : null
-  const mode = preview ? (form.open === 'pad' ? 'move' : 'view') : 'edit'
+  const mode = preview ? (previewing === 'pad' ? 'move' : 'view') : 'edit'
+
+  // The same controls, laid out for the screen: side columns on a desktop; on a tablet a
+  // toolbar over the chart, and the colours and the structural panel in drawers.
+  const tools = (
+    <div className="tools" role="group" aria-label="Tool">
+      {TOOLS.map((t) => (
+        <button
+          key={t.tool}
+          type="button"
+          className="tool"
+          aria-pressed={editor.tool === t.tool}
+          aria-keyshortcuts={t.key}
+          title={`${t.label} (${t.key})`}
+          onClick={() => update((s) => setTool(s, t.tool))}
+        >
+          <CellsIcon filled={ICONS[t.tool]} />
+          <span className="tool__label">{t.label}</span>
+          <kbd className="tool__key">{t.key}</kbd>
+        </button>
+      ))}
+    </div>
+  )
+  const zoomControls = (
+    <div className="zoom">
+      <button type="button" className="button button--small" aria-label="Zoom out" onClick={() => zoom(-1)}>
+        −
+      </button>
+      <button type="button" className="button button--small" aria-label="Zoom in" onClick={() => zoom(1)}>
+        +
+      </button>
+      <button type="button" className="button button--small" onClick={() => setZoomed(null)}>
+        Fit
+      </button>
+      <span className="zoom__label muted" title={`${MOD} + scroll, or pinch, over the chart to zoom`}>
+        {cell ?? '–'} px per cell
+      </span>
+    </div>
+  )
+  const colours = (
+    <ColoursPanel
+      palette={p.palette}
+      current={editor.colour}
+      onSelect={(i) => update((s) => selectColour(s, i))}
+      onAdd={(hex) => update((s) => addColour(s, hex))}
+      onRecolour={(i, hex) => update((s) => recolour(s, i, hex))}
+      onRename={(i, name) => update((s) => renameColour(s, i, name))}
+      onDelete={onDelete}
+    />
+  )
+  const structure = (
+    <StructurePanel
+      pattern={p}
+      form={form}
+      onForm={setForm}
+      borderIndex={borderIndex}
+      borderResult={borderResult}
+      pad={pad}
+      padError={form.open === 'pad' ? padError : null}
+      onBorder={onBorder}
+      onPad={onPad}
+      onScale={onScale}
+      transforms={transforms}
+      onRow={onRow}
+      onCol={onCol}
+    />
+  )
+
+  // A phone: the Design stage is desktop-first and doesn't fit (docs/web-port-plan.md,
+  // Phase 3). This screen keeps its state (the pattern, undo) meanwhile, so turning a
+  // device round and back loses nothing.
+  if (tooSmall) {
+    return (
+      <main className="screen design design--small">
+        <h1 className="design__name">{p.name}</h1>
+        <section className="design__too-small" aria-labelledby="design-too-small">
+          <h2 id="design-too-small">The Design stage needs a larger screen</h2>
+          <p>
+            Editing a pattern needs a tablet or a computer. On this screen you can work from it, row by row, or go back to your
+            library.
+          </p>
+          <div className="design__too-small-actions">
+            <button type="button" className="button button--primary" onClick={startWorking}>
+              Start working →
+            </button>
+            <a className="button" href={href(paths.library)}>
+              ← Library
+            </a>
+          </div>
+        </section>
+      </main>
+    )
+  }
 
   return (
-    <main className="screen design">
+    <main className={compact ? 'screen design design--compact' : 'screen design'}>
       <header className="design__top">
         <a className="topbar__home" href={href(paths.library)}>
           <span aria-hidden="true">←</span> Library
@@ -515,51 +621,48 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       )}
 
       <div className="design__body">
-        <aside className="design__tools" aria-label="Tools">
-          <h2 className="design__heading">Tools</h2>
-          <div className="tools" role="group" aria-label="Tool">
-            {TOOLS.map((t) => (
+        {compact ? (
+          <div className="design__toolbar" role="toolbar" aria-label="Tools">
+            {tools}
+            <span className="design__toolbar-gap" />
+            {zoomControls}
+            <span className="design__toolbar-gap" />
+            {(['colours', 'structure'] as const).map((d) => (
               <button
-                key={t.tool}
+                key={d}
                 type="button"
-                className="tool"
-                aria-pressed={editor.tool === t.tool}
-                aria-keyshortcuts={t.key}
-                title={`${t.label} (${t.key})`}
-                onClick={() => update((s) => setTool(s, t.tool))}
+                className="button button--small"
+                aria-expanded={drawer === d}
+                aria-controls={`design-drawer-${d}`}
+                onClick={() => setDrawer((x) => (x === d ? null : d))}
               >
-                <CellsIcon filled={ICONS[t.tool]} />
-                <span className="tool__label">{t.label}</span>
-                <kbd className="tool__key">{t.key}</kbd>
+                {d === 'colours' ? (
+                  <>
+                    <span className="colour__swatch design__toolbar-swatch" style={{ background: current?.hex }} aria-hidden="true" />
+                    Colours
+                  </>
+                ) : (
+                  'Structure'
+                )}
               </button>
             ))}
           </div>
-
-          <h2 className="design__heading">Zoom</h2>
-          <div className="zoom">
-            <button type="button" className="button button--small" aria-label="Zoom out" onClick={() => zoom(-1)}>
-              −
-            </button>
-            <button type="button" className="button button--small" aria-label="Zoom in" onClick={() => zoom(1)}>
-              +
-            </button>
-            <button type="button" className="button button--small" onClick={() => setZoomed(null)}>
-              Fit
-            </button>
-          </div>
-          <p className="zoom__label muted" title={`${MOD} + scroll over the chart to zoom`}>
-            {cell ?? '–'} px per cell
-          </p>
-
-          {current && (
-            <div className="design__current">
-              <span className="colour__swatch" style={{ background: current.hex }} aria-hidden="true" />
-              <span>
-                Painting with <strong>{current.name || 'Unnamed'}</strong>
-              </span>
-            </div>
-          )}
-        </aside>
+        ) : (
+          <aside className="design__tools" aria-label="Tools">
+            <h2 className="design__heading">Tools</h2>
+            {tools}
+            <h2 className="design__heading">Zoom</h2>
+            {zoomControls}
+            {current && (
+              <div className="design__current">
+                <span className="colour__swatch" style={{ background: current.hex }} aria-hidden="true" />
+                <span>
+                  Painting with <strong>{current.name || 'Unnamed'}</strong>
+                </span>
+              </div>
+            )}
+          </aside>
+        )}
 
         <section className="design__canvas" aria-label="Pattern">
           <DesignCanvas
@@ -584,37 +687,26 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
           />
           {preview && (
             <p className="design__previewing" role="status">
-              {form.open === 'pad' ? 'Previewing the padding: drag the pattern to place it.' : 'Previewing the border.'}
+              {previewing === 'pad' ? 'Previewing the padding: drag the pattern to place it.' : 'Previewing the border.'}
             </p>
           )}
         </section>
 
-        <aside className="design__side">
-          <ColoursPanel
-            palette={p.palette}
-            current={editor.colour}
-            onSelect={(i) => update((s) => selectColour(s, i))}
-            onAdd={(hex) => update((s) => addColour(s, hex))}
-            onRecolour={(i, hex) => update((s) => recolour(s, i, hex))}
-            onRename={(i, name) => update((s) => renameColour(s, i, name))}
-            onDelete={onDelete}
-          />
-          <StructurePanel
-            pattern={p}
-            form={form}
-            onForm={setForm}
-            borderIndex={borderIndex}
-            borderResult={borderResult}
-            pad={pad}
-            padError={form.open === 'pad' ? padError : null}
-            onBorder={onBorder}
-            onPad={onPad}
-            onScale={onScale}
-            transforms={transforms}
-            onRow={onRow}
-            onCol={onCol}
-          />
-        </aside>
+        {compact ? (
+          drawer && (
+            <aside id={`design-drawer-${drawer}`} className="design__drawer" aria-label={drawer === 'colours' ? 'Colours' : 'Structure'}>
+              <button type="button" className="button button--small design__drawer-close" onClick={() => setDrawer(null)}>
+                Close
+              </button>
+              {drawer === 'colours' ? colours : structure}
+            </aside>
+          )
+        ) : (
+          <aside className="design__side">
+            {colours}
+            {structure}
+          </aside>
+        )}
       </div>
 
       <footer className="design__bar">
