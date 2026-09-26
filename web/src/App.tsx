@@ -10,6 +10,7 @@ import { TopBar } from './ui/components.tsx'
 import { useDocumentTitle } from './ui/hooks.ts'
 import { Landing } from './ui/screens/Landing.tsx'
 import { Library } from './ui/screens/Library.tsx'
+import { OpenProject } from './ui/screens/OpenProject.tsx'
 import { Settings } from './ui/screens/Settings.tsx'
 import { Work } from './ui/screens/Work.tsx'
 
@@ -114,6 +115,8 @@ function Screen({ route }: { route: Route }) {
           <Design id={route.id} />
         </Suspense>
       )
+    case 'open':
+      return <OpenProject id={route.id} />
     case 'notFound':
       return <NotFound />
   }
