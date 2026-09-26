@@ -57,6 +57,7 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   persistence e2e specs pass against it, and `.wasm` is served as `application/wasm`.
   **Rule:** a new file under those three folders must carry a version or content hash in
   its name, or returning visitors never see it change.
+- **`CLAUDE.md`** (repo root): how this project is developed, for future sessions.
 
 What Phase 3, part 2 delivered:
 
