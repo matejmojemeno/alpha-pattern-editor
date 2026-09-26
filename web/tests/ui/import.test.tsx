@@ -69,19 +69,22 @@ describe('Import screen', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeTruthy()
     const list = screen.getByRole('list', { name: 'Colours' })
     expect(within(list).getAllByRole('listitem')).toHaveLength(2)
-    // With each colour's nearest DMC shade, once that library has loaded.
+    // No yarn shades until a range is chosen under "Advanced: match to yarn".
+    expect(within(list).getAllByRole('button', { pressed: false }).map((b) => b.getAttribute('aria-label'))).toEqual([
+      'White, #ffffff, 6 stitches',
+      'Brown, #8b4513, 6 stitches',
+    ])
+    expect(list.querySelector('.shade')).toBeNull()
+    const advanced = screen.getByText('Advanced: match to yarn').closest('details')!
+    expect(advanced.open).toBe(false)
+    expect(screen.getByRole('combobox', { name: 'Match colours to' })).toHaveProperty('value', '')
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Match colours to' }), 'dmc')
     await waitFor(() =>
       expect(within(list).getAllByRole('button', { pressed: false }).map((b) => b.getAttribute('aria-label'))).toEqual([
         'White, #ffffff, 6 stitches, nearest DMC stranded cotton White',
         'Brown, #8b4513, 6 stitches, nearest DMC stranded cotton 975 Dark Golden Brown',
       ]),
     )
-    expect(within(list).getAllByText(/^(White|975 Dark Golden Brown)$/).map((s) => s.textContent)).toEqual([
-      'White',
-      'White',
-      '975 Dark Golden Brown',
-    ])
-    expect(screen.getByRole('combobox', { name: 'Match colours to' })).toHaveProperty('value', 'dmc')
     expect(within(screen.getByRole('list', { name: 'Warnings' })).getByText('Check the dimensions.')).toBeTruthy()
     expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('dog')
   })

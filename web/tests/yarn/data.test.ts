@@ -51,7 +51,8 @@ describe('loadLibrary', () => {
   })
 
   it('knows its ids', () => {
-    expect(isLibraryId(DEFAULT_LIBRARY)).toBe(true)
+    expect(DEFAULT_LIBRARY).toBeNull()
+    expect(isLibraryId('dmc')).toBe(true)
     expect(isLibraryId('stylecraft-special-dk')).toBe(true)
     expect(isLibraryId('madeup')).toBe(false)
     expect(isLibraryId(3)).toBe(false)

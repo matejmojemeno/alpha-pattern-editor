@@ -15,7 +15,7 @@ import { useEffect, useRef } from 'react'
 
 import type { Removal } from '../../importer/removals.ts'
 import type { PaletteEntry } from '../../model/types.ts'
-import { LibraryCredit, LibraryPicker, ShadeMatch } from '../yarn/ShadeViews.tsx'
+import { ShadeMatch, YarnMatching } from '../yarn/ShadeViews.tsx'
 import { matchName, useChosenMatches } from '../yarn/useShades.ts'
 
 export interface PaletteProps {
@@ -103,8 +103,7 @@ export function Palette(p: PaletteProps) {
           </ul>
         </div>
       )}
-      <LibraryPicker className="library-picker palette__library" />
-      <LibraryCredit library={library} />
+      <YarnMatching className="palette__library" library={library} />
     </div>
   )
 }

@@ -1,6 +1,8 @@
 /**
- * The colour libraries palette colours are matched against: DMC (what detection names
- * colours from) and yarn ranges. The tables are in ./data/ (provenance: data/README.md)
+ * The colour libraries palette colours can be matched against: yarn ranges, and DMC
+ * (whose nearest floss detection records on each colour). Matching is off until one is
+ * chosen: colours go by their everyday names (core/detect/names.py), and yarn shades are
+ * an advanced option. The tables are in ./data/ (provenance: data/README.md)
  * and each is loaded with a dynamic import(), so none is in the main chunk: a library
  * is fetched the first time something shows its matches.
  */
@@ -26,7 +28,8 @@ export interface Library {
 
 export const LIBRARY_IDS = ['dmc', 'stylecraft-special-dk', 'paintbox-simply-dk', 'scheepjes-colour-crafter'] as const
 export type LibraryId = (typeof LIBRARY_IDS)[number]
-export const DEFAULT_LIBRARY: LibraryId = 'dmc'
+/** Off: no library until one is chosen. */
+export const DEFAULT_LIBRARY: LibraryId | null = null
 
 /** What the picker shows, without loading any table. */
 export const LIBRARY_LABELS: Record<LibraryId, string> = {

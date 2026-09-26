@@ -23,8 +23,8 @@ export interface Settings {
   readonly highContrast: boolean
   /** Draw only the rows around the current one. */
   readonly focusMode: boolean
-  /** The library each palette colour is matched to (yarn/libraries.ts). */
-  readonly colourLibrary: LibraryId
+  /** The library each palette colour is matched to (yarn/libraries.ts), or null for none. */
+  readonly colourLibrary: LibraryId | null
   /** Yarn one stitch uses, in centimetres (yarn/usage.ts). */
   readonly yarnPerStitchCm: number
   /** One ball's length in metres, or null for the library's own ball. */
@@ -53,7 +53,7 @@ const VALID: { [K in keyof Settings]: (v: unknown) => boolean } = {
   emphasiseRows: (v) => typeof v === 'boolean',
   highContrast: (v) => typeof v === 'boolean',
   focusMode: (v) => typeof v === 'boolean',
-  colourLibrary: isLibraryId,
+  colourLibrary: (v) => v === null || isLibraryId(v),
   yarnPerStitchCm: positive,
   ballMetres: (v) => v === null || positive(v),
   marginPercent: (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0,
