@@ -25,6 +25,7 @@ import {
   setRunStitches,
   workSequence,
 } from '../../logic/work.ts'
+import { repairProgress } from '../../logic/progress.ts'
 import type { Project } from '../../model/types.ts'
 import type { RowPlace } from '../../render/layout.ts'
 import { progressPct } from '../../storage/alpha.ts'
@@ -57,7 +58,9 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
   const [settings, setSettings] = useSettings()
   const [project, setProject] = useState<Project>(() => ({
     ...initial,
-    progress: ensureStarted(initial.pattern, initial.progress),
+    // Made sound first: a structural edit (or a file from elsewhere) can leave progress
+    // naming rows that are gone, or a place past the end of its row (logic/progress.ts).
+    progress: ensureStarted(initial.pattern, repairProgress(initial.pattern, initial.progress)),
   }))
   const latest = useRef(project)
   const [segment, setSegment] = useState<number | null>(null)

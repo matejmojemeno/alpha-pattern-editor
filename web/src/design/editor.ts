@@ -50,10 +50,17 @@ export interface Cell {
 }
 
 export type Drag =
-  /** A paint stroke. `recorded`: its undo step is taken (a cell has changed). */
-  | { readonly tool: 'paint'; readonly last: Cell; readonly recorded: boolean }
+  /** A paint stroke. `recorded`: its undo step is taken (a cell has changed). `origin`:
+   *  the pattern and history before it, for `abortDrag`. */
+  | { readonly tool: 'paint'; readonly last: Cell; readonly recorded: boolean; readonly origin: Origin }
   /** A rectangle being dragged out, previewed until the pointer comes up. */
   | { readonly tool: 'rect'; readonly start: Cell; readonly end: Cell }
+
+/** Where a stroke began: what `abortDrag` puts back. */
+export interface Origin {
+  readonly pattern: Pattern
+  readonly history: History
+}
 
 export interface EditorState {
   readonly pattern: Pattern
@@ -114,10 +121,10 @@ export function lineCells(a: Cell, b: Cell): Cell[] {
 
 /** Paint `cells` in the current colour as part of a stroke, taking the stroke's undo
  *  step the first time a cell actually changes. */
-function paint(s: EditorState, cells: readonly Cell[], last: Cell, recorded: boolean): EditorState {
+function paint(s: EditorState, cells: readonly Cell[], last: Cell, recorded: boolean, origin: Origin): EditorState {
   const p = s.pattern
   const changed = cells.filter(({ r, c }) => p.cells[r * p.cols + c] !== s.colour)
-  if (changed.length === 0) return { ...s, drag: { tool: 'paint', last, recorded } }
+  if (changed.length === 0) return { ...s, drag: { tool: 'paint', last, recorded, origin } }
   return {
     ...s,
     pattern: setCells(
@@ -126,7 +133,7 @@ function paint(s: EditorState, cells: readonly Cell[], last: Cell, recorded: boo
       s.colour,
     ),
     history: recorded ? s.history : record(s.history, p),
-    drag: { tool: 'paint', last, recorded: true },
+    drag: { tool: 'paint', last, recorded: true, origin },
   }
 }
 
@@ -136,7 +143,7 @@ export function pointerDown(s: EditorState, cell: Cell): EditorState {
   const { r, c } = cell
   switch (s.tool) {
     case 'paint':
-      return paint({ ...s, drag: null }, [cell], cell, false)
+      return paint({ ...s, drag: null }, [cell], cell, false, { pattern: p, history: s.history })
     case 'fill':
       return commit({ ...s, drag: null }, floodFill(p, r, c, colour))
     case 'rect':
@@ -158,7 +165,7 @@ export function pointerMove(s: EditorState, cell: Cell): EditorState {
   if (!d) return s
   if (d.tool === 'paint') {
     if (d.last.r === cell.r && d.last.c === cell.c) return s
-    return paint(s, lineCells(d.last, cell).slice(1), cell, d.recorded)
+    return paint(s, lineCells(d.last, cell).slice(1), cell, d.recorded, d.origin)
   }
   if (d.end.r === cell.r && d.end.c === cell.c) return s
   return { ...s, drag: { ...d, end: cell } }
@@ -178,6 +185,22 @@ export function pointerUp(s: EditorState, cell?: Cell | null): EditorState {
  *  painted, as on the desktop; undo takes it back in one step. */
 export function cancelDrag(s: EditorState): EditorState {
   return s.drag ? { ...s, drag: null } : s
+}
+
+/** A second finger landed (the gesture is a pinch, not a stroke): take back everything
+ *  the stroke painted, as if it never happened, with no undo step; drop a rectangle. */
+export function abortDrag(s: EditorState): EditorState {
+  const d = s.drag
+  if (!d) return s
+  if (d.tool === 'paint' && d.recorded) return { ...s, pattern: d.origin.pattern, history: d.origin.history, drag: null }
+  return { ...s, drag: null }
+}
+
+/** Apply a structural edit (or any whole-pattern edit) as one undo step. Anything in
+ *  progress on the canvas is dropped first. */
+export function structural(s: EditorState, fn: (p: Pattern) => Pattern): EditorState {
+  const next = fn(s.pattern)
+  return samePattern(s.pattern, next) ? s : commit({ ...s, drag: null }, next)
 }
 
 // --- undo ----------------------------------------------------------------------------------

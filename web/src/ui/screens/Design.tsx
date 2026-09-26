@@ -41,6 +41,7 @@ import {
   type EditorState,
   type Tool,
 } from '../../design/editor.ts'
+import { carryProgress } from '../../logic/progress.ts'
 import { formatStats } from '../../logic/readout.ts'
 import type { Project } from '../../model/types.ts'
 import { fitCell, zoomStep } from '../../render/design.ts'
@@ -86,9 +87,16 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   // --- saving: automatic, as a Design-stage project, progress carried through untouched ----
   const [status, setStatus] = useState<SaveStatus>('saved')
   const [saver] = useState(() => new AutoSaver<Project>((x) => repo.save({ ...x, stage: 'design' }), setStatus))
+  // Progress is carried from the pattern this screen opened with, every time: rows that
+  // are gone stop counting and a moved cursor goes back to the start of its row, and
+  // undoing the edit brings all of it back (logic/progress.ts).
   const projectOf = useCallback(
-    (s: EditorState): Project => ({ pattern: s.pattern, progress: initial.progress, stage: 'design' }),
-    [initial.progress],
+    (s: EditorState): Project => ({
+      pattern: s.pattern,
+      progress: carryProgress(initial.pattern, initial.progress, s.pattern),
+      stage: 'design',
+    }),
+    [initial.pattern, initial.progress],
   )
 
   /** Apply a change to the editor; save if it changed the pattern. */
