@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { DONE_STRIKE, DONE_WASH, GRID_COLOR, bands, cellPixels, drawChart, type CellImage } from '../../src/render/chart.ts'
-import { computeLayout } from '../../src/render/layout.ts'
+import { computeLayout, type RowPlace } from '../../src/render/layout.ts'
 import { SKIP_INDEX, type Pattern } from '../../src/model/types.ts'
 
 function pattern(rows: number, cols: number, cells?: number[]): Pattern {
@@ -90,6 +90,26 @@ describe('drawChart', () => {
     expect(calls.filter((c) => c.op === 'strokeRect' && c.strokeStyle === colors.accent)).toHaveLength(1)
     // Never a fillRect per cell.
     expect(calls.filter((c) => c.op === 'fillRect').length).toBeLessThan(10)
+  })
+
+  it('washes the part of the current row already worked, and nothing when none is', () => {
+    const p = pattern(10, 10)
+    const layout = computeLayout({ rows: 10, cols: 10, current: 9, emphasise: false, focus: false, width: 240, height: 228 })
+    const draw = (place: RowPlace | null, completed = new Set<number>()) => {
+      const { ctx, calls } = recorder()
+      drawChart(ctx, { layout, image: {} as CellImage, pattern: p, completed, place, scrollX: 0, scrollY: 0, width: 240, height: 228, dpr: 1, colors })
+      return calls.filter((c) => c.op === 'fillRect' && c.fillStyle === DONE_WASH)
+    }
+    const runs = [{ start_col: 0, count: 4 }, { start_col: 4, count: 6 }]
+    const ltr = draw({ runs, runIndex: 1, stitches: 2, direction: 'LTR' })
+    expect(ltr).toHaveLength(1)
+    const [x, , w] = ltr[0]!.args as number[]
+    expect(w).toBeCloseTo(6 * layout.cell)
+    const rtl = draw({ runs, runIndex: 1, stitches: 2, direction: 'RTL' })
+    expect((rtl[0]!.args as number[])[0]).toBeCloseTo(x! + 4 * layout.cell)
+    expect(draw({ runs, runIndex: 0, stitches: 0, direction: 'LTR' })).toHaveLength(0)
+    // A current row already marked done is washed once, whole.
+    expect(draw({ runs, runIndex: 1, stitches: 2, direction: 'LTR' }, new Set([9]))).toHaveLength(1)
   })
 
   it('numbers rows in working order', () => {

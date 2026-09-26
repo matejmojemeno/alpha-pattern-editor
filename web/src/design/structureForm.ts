@@ -5,7 +5,7 @@
 import type { Pattern } from '../model/types.ts'
 import type { Sides } from './structure.ts'
 
-export type Section = 'border' | 'pad' | 'scale' | 'rows'
+export type Section = 'border' | 'pad' | 'scale'
 
 export interface StructureForm {
   readonly open: Section | null
@@ -27,9 +27,6 @@ export interface StructureForm {
     readonly colour: number | null
   }
   readonly scale: number
-  /** Working row number and column number, as on the chart's axes. */
-  readonly row: string
-  readonly col: string
 }
 
 export function initialForm(p: Pick<Pattern, 'cols' | 'rows'>): StructureForm {
@@ -38,8 +35,6 @@ export function initialForm(p: Pick<Pattern, 'cols' | 'rows'>): StructureForm {
     border: { top: '1', right: '1', bottom: '1', left: '1', linked: true, colour: null },
     pad: { width: String(p.cols), height: String(p.rows), left: null, top: null, colour: null },
     scale: 2,
-    row: '1',
-    col: '1',
   }
 }
 
@@ -55,11 +50,6 @@ export function parseWhole(s: string): number | null {
 export function formSides(f: StructureForm['border']): Sides {
   const n = (s: string) => parseWhole(s) ?? 0
   return { top: n(f.top), right: n(f.right), bottom: n(f.bottom), left: n(f.left) }
-}
-
-/** The image row for a working row number, as the chart numbers rows. */
-export function rowForNumber(p: Pick<Pattern, 'rows' | 'bottom_up'>, n: number): number {
-  return p.bottom_up ? p.rows - n : n - 1
 }
 
 /** The pad target kept at least the pattern's size, without clobbering a larger one

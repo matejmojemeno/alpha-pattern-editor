@@ -48,6 +48,17 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   back."), and undo does. Each click is one undo step; the pad-to-size target turns with
   the pattern (undo too), and dragged offsets go back to centred. Fixtures: 166 calls.
   Tier A: main chunk 102.6 KB gzipped, Design 16.3 KB (+2.5 KB CSS).
+- **Add row and Add column tools** (`editor.ts` `addLine`, `render/design.ts`
+  `insertAt`), `Shift+H` and `Shift+V` beside fill row and fill column, in place of the
+  structural panel's "Rows and columns" section. Pointing at the chart (a mouse or pen
+  needn't press) shows the pattern with the new row or column already in place, in the
+  colour being painted with and outlined, where the pointer is: it goes before the row
+  (column) under the pointer, so the new one is always under it, and anywhere past the
+  last one adds one at the end. A click adds it, one undo step; what was added is then
+  highlighted until the pointer moves to another row. On touch, the finger drags it into
+  place and it is added on release; a second finger cancels it. The preview doesn't
+  change the fit, so the zoom never jumps under the pointer. Deleting stays on the menu
+  on the numbers, which the tool's hint says. Inserting never loses progress (row ids).
 - **A simpler import screen**: the rows and cols boxes and "Flag unsure cells" are
   gone, and so are the red Xs and the low-confidence warning (`bridge._warnings` no
   longer adds it; the pipeline's copy was already filtered as a sampled warning). A
@@ -76,6 +87,7 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   persistence e2e specs pass against it, and `.wasm` is served as `application/wasm`.
   **Rule:** a new file under those three folders must carry a version or content hash in
   its name, or returning visitors never see it change.
+- **`CLAUDE.md`** (repo root): how this project is developed, for future sessions.
 
 What Phase 3, part 2 delivered:
 
@@ -99,10 +111,11 @@ What Phase 3, part 2 delivered:
   - **Mirror ⇄, Flip ⇅, Rotate 180°, Trim edges** (all four). (Rotate 180° is now two
     quarter-turn buttons; see "After the port".)
   - **Insert and delete rows and columns** from a small menu on the chart's row and
-    column numbers (and from the panel, by number, for the keyboard). The Design stage
-    has no selection, every tool acts on a press, so a menu on the numbers is where the
-    target already is, and it works the same by finger. New rows and columns take the
-    colour being painted with.
+    column numbers. The Design stage has no selection, every tool acts on a press, so a
+    menu on the numbers is where the target already is, and it works the same by finger.
+    New rows and columns take the colour being painted with. (The panel's "Rows and
+    columns" section, by number, is now the Add row and Add column tools; see "After
+    the port".)
 - **Progress stays sound** (`logic/progress.ts`, not in the Python). The Work stage
   repairs progress on load: completed ids that name no row are dropped, a missing current
   row moves to the first row not done, a cursor past its row goes back to the row's
@@ -123,7 +136,8 @@ What Phase 3, part 2 delivered:
   needs a larger screen and offers Start working and the Library. One finger or a pen
   uses the tool; two fingers pan and pinch-zoom about their midpoint and never paint (a
   stroke the first finger started is taken back with no undo step; on touch, fill, pick
-  and fill row/column act on release). `ui/gestures.ts` is shared with the Work chart.
+  and fill row/column act on release; Add row and Add column follow the finger and add on
+  release). `ui/gestures.ts` is shared with the Work chart.
 - **Pinch-zoom on the Work chart** (see "Chart layout" below): `computeLayout` takes a
   zoom (1–8×) on the base cell size; two fingers (or Ctrl/⌘ + wheel) zoom about the
   fingers, one finger still scrolls natively, the next progress change follows as ever,
