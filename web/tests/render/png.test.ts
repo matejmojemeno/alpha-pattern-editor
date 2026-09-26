@@ -11,10 +11,23 @@ import { describe, expect, it } from 'vitest'
 
 import { newPattern, setCell } from '../../src/logic/edit.ts'
 import { SKIP_INDEX } from '../../src/model/types.ts'
-import { BACKGROUND_RGB, GRID_RGB, encodePng, exportPixels, exportPng, type RgbImage } from '../../src/render/png.ts'
+import { BACKGROUND_RGB, GRID_RGB, exportPixels, exportPng } from '../../src/render/png.ts'
 import { readAlpha } from '../../src/storage/alpha.ts'
 
 const root = resolve(process.cwd(), '..', 'fixtures')
+
+interface RgbImage {
+  width: number
+  height: number
+  rgb: Uint8Array
+}
+
+/** RGBA to RGB. */
+const rgbOf = (rgba: Uint8Array) => {
+  const rgb = new Uint8Array((rgba.length / 4) * 3)
+  for (let i = 0; i < rgba.length / 4; i++) rgb.set(rgba.subarray(i * 4, i * 4 + 3), i * 3)
+  return rgb
+}
 
 /** A minimal PNG decoder for 8-bit RGB (and RGBA, alpha dropped), every filter type. */
 function decodePng(bytes: Uint8Array): RgbImage {
@@ -76,18 +89,20 @@ function decodePng(bytes: Uint8Array): RgbImage {
 }
 
 describe('Export PNG', () => {
-  it.each(['basic', 'partial-row', 'unicode', 'with-source'])('matches the desktop’s export of %s.alpha, pixel for pixel', (name) => {
+  it.each(['basic', 'partial-row', 'unicode', 'with-source'])('matches the desktop’s export of %s.alpha, pixel for pixel', async (name) => {
     const { project } = readAlpha(new Uint8Array(readFileSync(resolve(root, 'alpha/desktop', `${name}.alpha`))))
     const desktop = decodePng(new Uint8Array(readFileSync(resolve(root, 'png', `${name}.png`))))
-    const ours = exportPixels(project.pattern)
+    const img = exportPixels(project.pattern)
+    const ours = { ...img, rgb: rgbOf(img.rgba) }
+    expect([...img.rgba.filter((_, i) => i % 4 === 3)].every((a) => a === 255)).toBe(true)
     expect([ours.width, ours.height]).toEqual([desktop.width, desktop.height])
     expect([ours.width, ours.height]).toEqual([project.pattern.cols * 16 + 1, project.pattern.rows * 16 + 1])
     // Not toEqual on the whole array: a mismatch should say where.
     let first = -1
     for (let i = 0; i < ours.rgb.length && first < 0; i++) if (ours.rgb[i] !== desktop.rgb[i]) first = i
     expect(first === -1 ? null : { x: (first / 3) % ours.width | 0, y: (first / 3 / ours.width) | 0 }).toBeNull()
-    // And our PNG decodes to the same pixels.
-    const back = decodePng(encodePng(ours))
+    // And the file saved decodes to the same pixels.
+    const back = decodePng(new Uint8Array(await exportPng(project.pattern).blob.arrayBuffer()))
     expect(back.width).toBe(ours.width)
     expect(Buffer.from(back.rgb).equals(Buffer.from(ours.rgb))).toBe(true)
   })
@@ -96,7 +111,7 @@ describe('Export PNG', () => {
     let p = newPattern(2, 1, '#ff0000')
     p = setCell(p, 0, 1, SKIP_INDEX)
     const img = exportPixels(p)
-    const pixel = (x: number, y: number) => [...img.rgb.subarray((y * img.width + x) * 3, (y * img.width + x) * 3 + 3)]
+    const pixel = (x: number, y: number) => [...img.rgba.subarray((y * img.width + x) * 4, (y * img.width + x) * 4 + 3)]
     expect(pixel(8, 8)).toEqual([255, 0, 0])
     expect(pixel(24, 8)).toEqual([...BACKGROUND_RGB])
     expect(pixel(16, 8)).toEqual([...GRID_RGB])
