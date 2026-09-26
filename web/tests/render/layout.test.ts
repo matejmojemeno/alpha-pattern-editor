@@ -443,3 +443,37 @@ describe('your place in the row stays in view across', () => {
     expect(followCurrentX(finished, at(5, 0, 'LTR'), 250)).toBe(250)
   })
 })
+
+describe('zoom', () => {
+  it('scales the base cell size, so a fitted chart grows past its view and scrolls both ways', () => {
+    const one = layout({ rows: 40, cols: 40 })
+    const two = layout({ rows: 40, cols: 40, zoom: 2 })
+    expect(one.cell).toBe(10)
+    expect(two.cell).toBe(20)
+    expect([two.maxScrollX, two.maxScrollY]).toEqual([400, 400])
+    expect(two.mode).toBe(one.mode)
+  })
+
+  it('keeps per-row heights: the rows around the current one stay taller, and followed', () => {
+    const z = layout({ rows: 40, cols: 40, current: 20, emphasise: true, zoom: 3 })
+    const base = layout({ rows: 40, cols: 40, current: 20, emphasise: true })
+    expect(z.heights[20]).toBe(Math.round(z.cell * EMPHASIS_SCALE)) // on whole device pixels
+    expect(z.heights[0]).toBe(z.cell)
+    expect(z.cell).toBeCloseTo(base.cell * 3, 0)
+    const span = rowSpan(z, 20)!
+    expect(followCurrent(z, 0)).toBeCloseTo((span.top + span.bottom) / 2 - z.viewHeight / 2)
+  })
+
+  it('lets a chart that fits across at 1× scroll across, and follows your place there', () => {
+    const z = layout({ rows: 40, cols: 40, current: 0, zoom: 4 })
+    expect(z.maxScrollX).toBeGreaterThan(0)
+    const row = [{ start_col: 0, count: 40 }]
+    expect(followCurrentX(z, { runs: row, runIndex: 0, stitches: 35, direction: 'LTR' }, 0)).toBeGreaterThan(0)
+  })
+
+  it('stays within 1× and 8×', () => {
+    expect(layout({ rows: 40, cols: 40, zoom: 0.2 }).cell).toBe(10)
+    expect(layout({ rows: 40, cols: 40, zoom: 50 }).cell).toBe(80)
+    expect(layout({ rows: 40, cols: 40, zoom: Number.NaN }).cell).toBe(10)
+  })
+})

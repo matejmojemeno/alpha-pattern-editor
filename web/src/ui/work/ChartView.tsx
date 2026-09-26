@@ -13,8 +13,17 @@
  * (non-overlay) scrollbar, so nothing sits under one. The axis a chart scrolls along
  * always shows its scrollbar, so whether there is one never depends on the size measured
  * with it, and can't flip back and forth.
+ *
+ * Pinch (two fingers, ui/gestures.ts) or Ctrl/⌘ + wheel zooms: it scales the base cell
+ * size the layout picks (`zoom`), never the canvas, so rows keep their own heights and
+ * the lines stay sharp. The point under the fingers stays still, and the chart is left
+ * where the zoom put it until the next progress change follows your place again, as
+ * after a scroll by hand. One finger still scrolls natively. The zoom lives here, so it
+ * is back to 1× whenever the Work stage is opened.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+
+import { TwoFingers, scrollAbout, type PinchStep } from '../gestures.ts'
 
 import { buildCellImage, drawChart, type ChartColors } from '../../render/chart.ts'
 import { readColors, useDarkScheme } from '../chartColors.ts'
@@ -22,6 +31,7 @@ import {
   AXIS_LEFT,
   AXIS_TOP,
   PAD,
+  MAX_ZOOM,
   computeLayout,
   followCurrent,
   followCurrentX,
@@ -65,6 +75,7 @@ export function ChartView({
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [dpr, setDpr] = useState(() => Math.min(MAX_DPR, globalThis.devicePixelRatio || 1))
   const dark = useDarkScheme()
+  const [zoom, setZoom] = useState(1)
 
   // The chart area's size, kept current by a ResizeObserver: the scroller's content box,
   // which a scrollbar appearing or going changes too.
@@ -103,8 +114,9 @@ export function ChartView({
         emphasise,
         focus,
         dpr,
+        zoom,
       }),
-    [pattern.rows, pattern.cols, current, size.width, size.height, emphasise, focus, dpr],
+    [pattern.rows, pattern.cols, current, size.width, size.height, emphasise, focus, dpr, zoom],
   )
 
   // The latest draw, for the scroll handler and animation frames. Set in an effect, before
@@ -160,9 +172,21 @@ export function ChartView({
   // for less motion.
   const placed = useRef(false)
   const followed = useRef<typeof layout | null>(null)
+  /** A zoom asked for about this point (in the scroller's view): where it was, and the
+   *  cell size then. The layout it makes keeps the point still instead of following. */
+  const anchor = useRef<{ x: number; y: number; cell: number } | null>(null)
   useLayoutEffect(() => {
     const sc = scroller.current
     if (!sc || size.width === 0) return
+    const a = anchor.current
+    if (a && followed.current && followed.current !== layout) {
+      anchor.current = null
+      followed.current = layout
+      const ratio = layout.cell / a.cell
+      sc.scrollLeft = scrollAbout(sc.scrollLeft, a.x - AXIS_LEFT, ratio)
+      sc.scrollTop = scrollAbout(sc.scrollTop, a.y - AXIS_TOP, ratio)
+      return
+    }
     // Only the axes that move, so a glide already under way on the other one carries on.
     const to: { top?: number; left?: number } = {}
     if (followed.current !== layout) {
@@ -183,11 +207,82 @@ export function ChartView({
     placed.current = true
   }, [layout, place, size.width])
 
+  // --- zoom: pinch, or Ctrl/⌘ + wheel (a trackpad's pinch arrives as that too) --------------
+  const latestCell = useRef(layout.cell)
+  useLayoutEffect(() => {
+    latestCell.current = layout.cell
+  })
+  const zoomNow = useRef(zoom)
+  useLayoutEffect(() => {
+    zoomNow.current = zoom
+  })
+  const zoomTo = useRef((to: number, x: number, y: number) => {
+    const z = Math.max(1, Math.min(MAX_ZOOM, to))
+    // Nothing to do at either end; and an anchor left set would stop the next progress
+    // change from following.
+    if (Math.abs(z - zoomNow.current) < 1e-3) return
+    anchor.current = { x, y, cell: latestCell.current }
+    zoomNow.current = z
+    setZoom(z)
+  })
+  useEffect(() => {
+    const sc = scroller.current
+    if (!sc) return
+    const at = (x: number, y: number) => {
+      const r = sc.getBoundingClientRect()
+      return { x: x - r.left - sc.clientLeft, y: y - r.top - sc.clientTop }
+    }
+    const fingers = new TwoFingers()
+    let target = 1
+    const step = (s: PinchStep) => {
+      sc.scrollLeft -= s.dx
+      sc.scrollTop -= s.dy
+      target = Math.max(1, Math.min(MAX_ZOOM, target * s.scale))
+      const p = at(s.mid.x, s.mid.y)
+      zoomTo.current(target, p.x, p.y)
+    }
+    const onStart = (e: TouchEvent) => {
+      for (const t of e.changedTouches) {
+        if (fingers.down(t.identifier, { x: t.clientX, y: t.clientY })) target = zoomNow.current
+      }
+    }
+    const onMove = (e: TouchEvent) => {
+      for (const t of e.changedTouches) {
+        const s = fingers.move(t.identifier, { x: t.clientX, y: t.clientY })
+        if (s) step(s)
+      }
+      // Two fingers are the app's: no native scroll, and never the page's own zoom.
+      if (fingers.pinching && e.cancelable) e.preventDefault()
+    }
+    const onEnd = (e: TouchEvent) => {
+      for (const t of e.changedTouches) fingers.up(t.identifier)
+    }
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.deltaY === 0) return
+      e.preventDefault()
+      const p = at(e.clientX, e.clientY)
+      zoomTo.current(zoomNow.current * Math.exp(-e.deltaY / 200), p.x, p.y)
+    }
+    sc.addEventListener('touchstart', onStart, { passive: true })
+    sc.addEventListener('touchmove', onMove, { passive: false })
+    sc.addEventListener('touchend', onEnd)
+    sc.addEventListener('touchcancel', onEnd)
+    sc.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      sc.removeEventListener('touchstart', onStart)
+      sc.removeEventListener('touchmove', onMove)
+      sc.removeEventListener('touchend', onEnd)
+      sc.removeEventListener('touchcancel', onEnd)
+      sc.removeEventListener('wheel', onWheel)
+    }
+  }, [])
+
   // Anything drawn changed.
   useLayoutEffect(() => draw.current(), [layout, image, pattern, completed, dpr, themeKey, dark])
 
-  // A tall chart scrolls down and a wide one across (layout.ts, shouldScroll).
-  const scrolls = layout.mode === 'scroll' ? (pattern.rows > pattern.cols ? 'y' : 'x') : null
+  // A tall chart scrolls down and a wide one across (layout.ts, shouldScroll); zoomed in,
+  // any chart may scroll both ways.
+  const scrolls = zoom > 1 ? 'both' : layout.mode === 'scroll' ? (pattern.rows > pattern.cols ? 'y' : 'x') : null
   return (
     <div ref={wrap} className="chart" role="img" aria-label={label}>
       <canvas
@@ -199,9 +294,19 @@ export function ChartView({
       <div
         ref={scroller}
         className="chart__scroller"
-        style={scrolls === 'y' ? { overflowY: 'scroll' } : scrolls === 'x' ? { overflowX: 'scroll' } : undefined}
+        style={
+          scrolls === 'both'
+            ? { overflow: 'scroll' }
+            : scrolls === 'y'
+              ? { overflowY: 'scroll' }
+              : scrolls === 'x'
+                ? { overflowX: 'scroll' }
+                : undefined
+        }
         onScroll={schedule}
         data-testid="chart-scroller"
+        data-zoom={zoom}
+        data-cell={layout.cell}
       >
         <div
           style={{
@@ -210,6 +315,18 @@ export function ChartView({
           }}
         />
       </div>
+      {zoom > 1 && (
+        <button
+          type="button"
+          className="button button--small chart__unzoom"
+          onClick={() => {
+            anchor.current = null
+            setZoom(1)
+          }}
+        >
+          {zoom.toFixed(1)}× · Fit
+        </button>
+      )}
     </div>
   )
 }
