@@ -54,7 +54,7 @@ Left out, because the sources contradict themselves and nothing says which is ri
 ## Ball weights and lengths
 
 Quoted from the manufacturer's or retailer's page on 2026-09-26, and used only as the
-default skein length in the yarn estimate (the user can change it):
+default ball length and weight in "Yarn & size" (the user can change them):
 
 - Stylecraft Special DK: "100g", "295m/322yds",
   <https://www.stylecraft-yarns.co.uk/yarns/special-dk>.

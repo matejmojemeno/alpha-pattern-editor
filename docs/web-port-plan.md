@@ -24,15 +24,12 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   Scheepjes shade numbers from scheepjes.com; three contradictory Scheepjes entries are
   left out. Provenance: `web/src/yarn/data/README.md`. Each table is its own lazily
   loaded chunk (`e2e/bundle.spec.ts`). The nearest shade is the Python's
-  (`fixtures/yarn_nearest.json`). Shown in the Design stage's colours, where "Use shade"
-  recolours to it (one undo step), and on the import screen. The choice is app-wide (the
+  (`fixtures/yarn_nearest.json`). Shown on the import screen only: the Design stage's
+  shades and "Use shade" went with "Yarn and size" (below). The choice is app-wide (the
   settings store): it describes the crocheter's yarn, not the chart, and nothing new goes
   into `.alpha` files.
-- **Yarn estimate** (`yarn/usage.ts`, `ui/design/YarnPanel.tsx`): per colour, stitches ×
-  yarn per stitch × (1 + extra %), and whole balls rounded up per colour, in metres or
-  yards; the ball length defaults to the library's own. Exported as "<name> yarn.txt".
-  Defaults: 2.5 cm a stitch (a round figure for DK single crochet, not a measurement;
-  the panel says how to measure your own), 10% extra.
+- **Yarn estimate:** first a panel in the Design stage (stitches × yarn per stitch ×
+  (1 + extra %)); since "Yarn and size" (below), a dialog on the import screen.
 - Tier A: the main entry chunk is 102.9 KB gzipped (Vite's figure); the Design chunk
   16.7 KB (+2.5 KB CSS); the Import chunk 11.7 KB, with the colour name table; each
   library 1.1–2.1 KB, fetched on first use.
@@ -145,7 +142,7 @@ root. This document covers *how* the app moves to the web, not *what* it does.
     snapping boxes to the edge would fight cropping off edge numbers.
   - **Colours:** counts end at the dividers' right edge (the × sits over the count on
     hover, beside it on touch), a total at the foot, and "Advanced: match to yarn" is a
-    body-sized disclosure with a chevron and hover state (in Design too). **The colour
+    body-sized disclosure with a chevron and hover state. **The colour
     count is a stepper:** − merges the two most alike colours (CIELAB ΔE, the measure
     Delete uses) by removing the one used less, so its stitches go to the other
     (`removals.mergeCandidate`); + undoes the last merge. Merges are removals marked
@@ -174,6 +171,35 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   in the Python: the desktop never showed it, and it only reads the pattern. Tested
   against the strands themselves: over 800 random patterns, every strand enters a row
   where it left the one before when rows alternate, carried exactly |q − p|.
+- **Yarn and size** (`yarn/usage.ts`, `ui/import/YarnEstimate.tsx`): the Design stage's
+  "Advanced: match to yarn", its shade chips, "Use shade" and the yarn estimate panel
+  are gone. Beside "Save & edit pattern" on the import screen, **"Yarn & size"** opens a
+  dialog for the pattern as it will be saved (removals and merges applied). The method
+  follows how crocheters estimate, from one swatch in their own yarn, hook and stitch:
+  - **Swatch:** stitches × rows (10 × 10 to start, the swatch Magic Yarn Pixels'
+    calculators ask for, <https://magicyarnpixels.com/finished-size-yarn-quantity-calculators/>),
+    its width and height, and optionally its weight.
+  - **Finished size** = columns × (width ÷ stitches) by rows × (height ÷ rows), before
+    any border. No default gauge: the Craft Yarn Council publishes stitch ranges per yarn
+    weight (DK 12–17 sc to 4 in, <https://www.craftyarncouncil.com/standards/yarn-weight-system>)
+    but nothing for rows, and a range isn't a size.
+  - **Yarn by weight** when the swatch is weighed: grams per stitch = swatch grams ÷
+    (stitches × rows), the method yardage guides recommend over generic charts
+    (<https://www.petalstopicots.com/yardage-calculator/>; weighing a swatch and scaling
+    by area, then 10% extra). Otherwise **by length**: yarn per stitch (2.5 cm, the old
+    round figure; the dialog says how to measure your own: work 10, unravel, divide).
+    Metres and grams convert through the ball (its length and weight, the library's own
+    by default); balls are counted by the estimate's own measure, else the other.
+  - **Carried yarn** (tapestry crochet, off by default): `carry.carriedStitches` counts,
+    per colour, the stitches it is carried inside when worked as the Work stage's carry
+    hints say (between its runs in a row, and to or from the next row), with the
+    directions a new pattern gets (`PATTERN_DEFAULTS`). Each takes one stitch's width of
+    yarn (a strand runs straight through): geometry, not a published figure, as none was
+    found. By weight it needs the ball's grams per metre, and says so when missing.
+  - Inputs are app-wide settings (`swatch*`, `ballGrams`, `countCarried` beside the
+    old ones). "Export yarn list" is in the dialog, named after the typed name.
+  - Tier A: main entry chunk 104.3 KB gzipped (Vite's figure; `bundle.spec.ts` counts
+    100.7 KB), Design 14.6 KB (from 16.7), Import 17.1 KB.
 - **Hosting** (`web/wrangler.jsonc`, `web/public/_headers`): Cloudflare Workers static
   assets at the free `*.workers.dev` address, deployed by Cloudflare's Git integration on
   every push to `main` (setup in `web/README.md`, "Deploying"). `/assets/*`, `/pyodide/*`
@@ -426,6 +452,10 @@ break without noticing.
   divides the extent evenly (`np.linspace`). If resampling ever follows an uneven
   lattice, draw the preview's lines again.
 
+- **"Yarn & size" counts carried yarn with `PATTERN_DEFAULTS`' row directions**, the ones
+  `bridge.commit` gives a new pattern, because the pattern isn't saved yet. How much is
+  carried depends on which way each row runs; if imports ever get other directions,
+  pass them to `carriedStitches` in `ui/import/YarnEstimate.tsx` too.
 - **A colour removed on the import screen is remembered by its hex, never its id.**
   Every resample builds a fresh palette with fresh `uuid4` ids
   (`palette.build_palette`), so each preview is kept as detection answered it and the

@@ -92,7 +92,8 @@ files.
   with every source, licence and retrieval date in `data/README.md`; each is loaded by
   its own `import()`, never in the main chunk. `match.ts` finds the nearest shade as
   detection does (`../fixtures/yarn_nearest.json` proves it), `usage.ts` does the
-  estimate's arithmetic. Their UI is in `src/ui/yarn/` and `src/ui/design/YarnPanel.tsx`.
+  estimate's arithmetic (swatch, finished size, yarn by weight or length). Their UI is in
+  `src/ui/yarn/` and `src/ui/import/YarnEstimate.tsx` ("Yarn & size" on the import screen).
 - `src/app/`: hash router, app-wide context (repository, settings), persistence request.
 - `src/settings/`: app-wide preferences in `localStorage` (display, the colour library,
   the yarn estimate's inputs), typed and fail-safe.
