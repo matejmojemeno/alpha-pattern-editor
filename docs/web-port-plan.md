@@ -122,6 +122,23 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   behind "Advanced: match to yarn", off by default (`settings.colourLibrary` is null);
   the disclosure starts open when a library is already chosen. Checked against the
   owner's 23 saved projects by eye, and `fixtures/colour_names.json` proves the port.
+- **Where to carry yarn** (`web/src/logic/carry.ts`; Work stage, "Show where to carry
+  yarn" in Options and Settings, off by default, app-wide in `settings.showCarries`).
+  For tapestry crochet worked over the strands, with no floats, that keeps each colour
+  only until the next row needs it. After a colour's last stitch in a row, it is carried
+  on inside the following stitches up to the column where the next row first uses it
+  when that lies further along (the next row could not reach the strand in time);
+  otherwise the next row passes the dropped strand first, and it's picked up there and
+  carried up to its first stitch. Either way |q − p| stitches between consecutive rows,
+  never more. Carrying between two runs of one colour in a row isn't shown (it's done
+  anyway), a colour missing from the next row is dropped, and when rows don't alternate
+  a strand the next row needs behind it gets no suggestion (it can't be reached without a
+  float). The chart draws each strand as a band of its colour through the middle of the
+  stitches it's carried in (rows under 6 px tall get none), and each chip of the current
+  row says "carry Black over the first 2" or "pick up Black, carry over the last 3". Not
+  in the Python: the desktop never showed it, and it only reads the pattern. Tested
+  against the strands themselves: over 800 random patterns, every strand enters a row
+  where it left the one before when rows alternate, carried exactly |q − p|.
 - **Hosting** (`web/wrangler.jsonc`, `web/public/_headers`): Cloudflare Workers static
   assets at the free `*.workers.dev` address, deployed by Cloudflare's Git integration on
   every push to `main` (setup in `web/README.md`, "Deploying"). `/assets/*`, `/pyodide/*`
