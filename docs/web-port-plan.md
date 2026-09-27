@@ -122,21 +122,33 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   behind "Advanced: match to yarn", off by default (`settings.colourLibrary` is null);
   the disclosure starts open when a library is already chosen. Checked against the
   owner's 23 saved projects by eye, and `fixtures/colour_names.json` proves the port.
-- **The import screen, rearranged** (`ui/screens/Import.tsx`): the name, "Choose
-  another image" and "Save & edit pattern" head the screen instead of sitting in a bar
-  at the bottom (sticky on a phone). The name field starts empty, with the name it will
-  otherwise get greyed in it: the file name, or for a pasted image "Pattern 27 Sep 2026,
-  14:05" (`pastedName`; it used to be "Pasted pattern", which named every paste the
-  same). The grid's size is the only figure left, set large beside the Pattern heading
-  (above the tabs on a phone, so it shows on the image tab too); stitches and "strings
-  needed" are gone from this screen, still in Design. **Re-detect became "Use the whole
-  image"**, under the image and shown only after a box has been drawn: with the outline
-  movable and no colour setting, the whole image again is all it could do, and before a
-  box it only found what was already found. A box drawn by hand round the whole image is
-  no substitute: on cats.png, whose chart runs to the image's edges, one begun a single
-  screen pixel in loses the outermost column and row (99 × 44 for 100 × 45), and snapping
-  boxes to the edge would fight cropping off edge numbers. `e2e/corrections.spec.ts`
-  checks the button against the desktop's crop then Re-detect.
+- **The import screen, redesigned** (`ui/screens/Import.tsx`, `ui/import.css`):
+  - **Top bar:** "Pattern name" (a caption-sized label over an empty field, placeholder
+    "Untitled pattern") and "Save & edit pattern" at the right; it stays at the top as
+    the page scrolls, so Save is always in reach. Saved empty, a pattern is named when
+    it's saved, `YYYY-MM-DD-HHMMSS` in local time (`timestampName`); file names are no
+    longer used, and a typed name survives "Replace image" (in the image's header).
+  - **Stages:** the image and the pattern each sit on a stage of one size: the column's
+    width, the *source image's* shape, at most min(70vh, 720px) tall. The image fills
+    its stage; the pattern is fitted into its own, centred, with square whole-pixel
+    cells, and the stage's background shows round it. Loading and failure messages sit
+    on a stage-sized box that grows rather than clips. The size ("29 × 31 stitches · 899
+    total") is a caption under the pattern's stage.
+  - **Grid:** image, pattern and a 280 px colour sidebar from 1100 px; the sidebar drops
+    below from 700 px; narrower, everything stacks. The phone tabs are gone.
+  - **Cropping:** outside the grid's outline is dimmed on the image; the handles already
+    moved in whole cells. **Re-detect is "Reset to detected grid"**, under the image
+    beside a helper caption, enabled once a box has been drawn or the outline moved; it
+    detects the whole image again. A box drawn by hand round the whole image is no
+    substitute: on cats.png, whose chart runs to the image's edges, one begun a single
+    screen pixel in loses the outermost column and row (99 × 44 for 100 × 45), and
+    snapping boxes to the edge would fight cropping off edge numbers.
+  - **Colours:** counts end at the dividers' right edge (the × sits over the count on
+    hover, beside it on touch), a total at the foot, and "Advanced: match to yarn" is a
+    body-sized disclosure with a chevron and hover state (in Design too).
+  - Four text styles only, spacing in 8/16/24/32 px. `e2e/corrections.spec.ts` checks
+    the stages' sizes and alignment at 1280, 900 and 400 px, and Reset against the
+    desktop's crop then Re-detect.
 - **Hosting** (`web/wrangler.jsonc`, `web/public/_headers`): Cloudflare Workers static
   assets at the free `*.workers.dev` address, deployed by Cloudflare's Git integration on
   every push to `main` (setup in `web/README.md`, "Deploying"). `/assets/*`, `/pyodide/*`
@@ -276,7 +288,7 @@ What Phase 2 delivered:
     one is in flight are folded into one request, stale answers are dropped, and the
     last preview stays up, dimmed after 200 ms. Saving waits for a change still on its
     way (`DetectSession.idle`).
-  - Under 900 px the image, pattern and colours are tabs and the save bar sticks to the
+  - Under 900 px the image, pattern and colours were tabs (since stacked instead) and the save bar stuck to the
     bottom; wider, three panes.
   - **Shrink rule:** the smallest whole factor that brings the image to **4 MP** or
     fewer (`bridge.shrink_factor`), replacing part 1's ceil(long edge / 1600). A quiet
@@ -375,6 +387,13 @@ Tasks that can safely run in parallel, in dependency order:
 
 These are the non-obvious constraints. Each one was learned the hard way or is easy to
 break without noticing.
+
+- **The import screen's two stages both take the source image's shape** (`--source-ratio`
+  on `.confirm`), never the pattern's: that is what makes them the same size and line
+  up, whatever a crop or a border does to the pattern's own shape. The pattern is fitted
+  inside its stage instead. A stage holding words (`.stage--message`) keeps the size
+  from an invisible stand-in, so it grows rather than clips. `e2e/corrections.spec.ts`
+  measures both at three widths.
 
 - **The import overlay is drawn from the extent, rows and cols** (`outline.gridLines`),
   not from the preview's `rowLines`/`colLines`, so a dragged outline shows its lines
