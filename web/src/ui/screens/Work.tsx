@@ -13,6 +13,7 @@ import { downloadBlob } from '../../app/download.ts'
 import { href, navigate, paths } from '../../app/router.ts'
 import { trackSave } from '../../app/saving.ts'
 import { keepScreenAwake } from '../../app/wakeLock.ts'
+import { carriesByRun, carryPlan } from '../../logic/carry.ts'
 import { encodeRow, exportAllRowsText, formatRowText, rowDirection, workingNumber } from '../../logic/readout.ts'
 import {
   completeCurrentRow,
@@ -143,6 +144,12 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
           },
     [p, cur, runs, pr],
   )
+  // Where to carry each colour, for the whole chart: only worked out when asked for.
+  const carries = useMemo(() => (settings.showCarries ? carryPlan(p) : null), [p, settings.showCarries])
+  const runCarries = useMemo(
+    () => (carries === null || cur === null ? null : carriesByRun(p.cols, runs, carries[cur]!, rowDirection(p, cur))),
+    [p, cur, runs, carries],
+  )
   const completed = useMemo(() => {
     const s = new Set<number>()
     p.row_ids.forEach((rid, i) => pr.completed_row_ids.has(rid) && s.add(i))
@@ -260,6 +267,14 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
             <label className="check">
               <input
                 type="checkbox"
+                checked={settings.showCarries}
+                onChange={(e) => setSettings({ showCarries: e.target.checked })}
+              />
+              Show where to carry yarn
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
                 checked={settings.emphasiseRows}
                 onChange={(e) => setSettings({ emphasiseRows: e.target.checked })}
               />
@@ -315,6 +330,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
               runs={runs}
               cursor={pr.current_run_index}
               stitches={pr.current_run_stitches}
+              carries={runCarries}
               onChip={setSegment}
             />
           )}
@@ -334,6 +350,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
           focus={settings.focusMode}
           themeKey={settings.highContrast ? 'high' : 'normal'}
           place={place}
+          carries={carries}
           label={`Chart, ${p.cols} by ${p.rows}${cur === null ? '' : `, row ${workingNumber(p, cur)} outlined`}`}
         />
       </div>

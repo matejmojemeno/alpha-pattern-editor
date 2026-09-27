@@ -37,6 +37,7 @@ import {
   followCurrentX,
   type RowPlace,
 } from '../../render/layout.ts'
+import type { Carry } from '../../logic/carry.ts'
 import type { Pattern } from '../../model/types.ts'
 
 export interface ChartViewProps {
@@ -54,6 +55,8 @@ export interface ChartViewProps {
    *  as done. A new object on every progress change, so a scroll by hand is undone by
    *  the next one. */
   place?: RowPlace | null
+  /** Strands to draw carried inside stitches, per image row (logic/carry.ts), or none. */
+  carries?: readonly (readonly Carry[])[] | null
 }
 
 const MAX_DPR = 2
@@ -67,6 +70,7 @@ export function ChartView({
   themeKey,
   label,
   place = null,
+  carries = null,
 }: ChartViewProps) {
   const wrap = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -136,6 +140,7 @@ export function ChartView({
         pattern,
         completed,
         place,
+        carries,
         scrollX: sc.scrollLeft,
         scrollY: sc.scrollTop,
         width: size.width,
@@ -280,7 +285,7 @@ export function ChartView({
   }, [])
 
   // Anything drawn changed.
-  useLayoutEffect(() => draw.current(), [layout, image, pattern, completed, place, dpr, themeKey, dark])
+  useLayoutEffect(() => draw.current(), [layout, image, pattern, completed, place, carries, dpr, themeKey, dark])
 
   // A tall chart scrolls down and a wide one across (layout.ts, shouldScroll); zoomed in,
   // any chart may scroll both ways.

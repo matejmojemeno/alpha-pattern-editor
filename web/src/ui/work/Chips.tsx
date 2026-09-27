@@ -6,12 +6,14 @@
  *   pending  the rest: plain
  *
  * Each chip is a swatch plus "{count} {colour name}", and tapping one opens the segment
- * dialog.
+ * dialog. With carrying shown (logic/carry.ts), a chip also says which other colours to
+ * carry inside its stitches, and over how many.
  */
 import type { ReactNode } from 'react'
 
+import type { RunCarry } from '../../logic/carry.ts'
 import type { Pattern, Run } from '../../model/types.ts'
-import { chipState, entryFor, swatchBorder } from './segments.ts'
+import { carryNote, chipState, entryFor, swatchBorder } from './segments.ts'
 
 export function Swatch({ hex, className = 'swatch', children }: { hex: string; className?: string; children?: ReactNode }) {
   return (
@@ -26,6 +28,7 @@ export function Chips({
   runs,
   cursor,
   stitches,
+  carries,
   onChip,
 }: {
   pattern: Pattern
@@ -34,6 +37,8 @@ export function Chips({
   cursor: number
   /** progress.current_run_stitches */
   stitches: number
+  /** Colours to carry inside each run's stitches, run by run (carriesByRun), or none. */
+  carries?: readonly (readonly RunCarry[])[] | null
   onChip: (index: number) => void
 }) {
   return (
@@ -42,6 +47,7 @@ export function Chips({
         const entry = entryFor(pattern, run.palette_index)
         const state = chipState(i, cursor)
         const partly = state === 'current' && stitches > 0 && stitches < run.count
+        const notes = (carries?.[i] ?? []).map((c) => ({ c, entry: entryFor(pattern, c.palette_index) }))
         const status = state === 'done' ? 'done' : partly ? `${stitches} of ${run.count} done` : state === 'current' ? 'next' : ''
         return (
           <li key={i}>
@@ -49,12 +55,18 @@ export function Chips({
               type="button"
               className={`chip chip--${state}`}
               aria-current={state === 'current' ? 'step' : undefined}
-              aria-label={`${run.count} ${entry.name}${status ? `, ${status}` : ''}. Record progress`}
+              aria-label={`${run.count} ${entry.name}${notes.map(({ c, entry: e }) => `, ${carryNote(e.name, c)}`).join('')}${status ? `, ${status}` : ''}. Record progress`}
               onClick={() => onChip(i)}
             >
               <Swatch hex={entry.hex} />
               <span className="chip__text">
                 {run.count} {entry.name}
+                {notes.map(({ c, entry: e }) => (
+                  <span key={c.palette_index} className="chip__carry">
+                    <Swatch hex={e.hex} className="swatch swatch--carry" />
+                    {carryNote(e.name, c)}
+                  </span>
+                ))}
               </span>
               {state === 'done' && <span className="chip__mark">✓</span>}
               {partly && (

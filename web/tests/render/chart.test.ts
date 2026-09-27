@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { DONE_STRIKE, DONE_WASH, GRID_COLOR, bands, cellPixels, drawChart, spotlightPixels, type CellImage } from '../../src/render/chart.ts'
-import { computeLayout, type RowPlace } from '../../src/render/layout.ts'
+import { CARRY_MIN_ROW, DONE_STRIKE, DONE_WASH, GRID_COLOR, bands, carryEdge, cellPixels, drawChart, spotlightPixels, type CellImage } from '../../src/render/chart.ts'
+import { AXIS_TOP, computeLayout, type RowPlace } from '../../src/render/layout.ts'
 import { SKIP_INDEX, type Pattern } from '../../src/model/types.ts'
 
 function pattern(rows: number, cols: number, cells?: number[]): Pattern {
@@ -135,5 +135,60 @@ describe('drawChart', () => {
     expect(texts.slice(0, 10)).toEqual(['10', '9', '8', '7', '6', '5', '4', '3', '2', '1'])
     // Column numbers 1..10 along the top.
     expect(texts.slice(-10)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'])
+  })
+
+  it('draws each carried strand along the middle of its stitches, stacked by colour, under the done wash', () => {
+    const p = pattern(10, 10)
+    const layout = computeLayout({ rows: 10, cols: 10, current: 9, emphasise: false, focus: false, width: 240, height: 228 })
+    expect(layout.heights[4]).toBeGreaterThanOrEqual(CARRY_MIN_ROW)
+    const carries = Array.from({ length: 10 }, () => [] as { palette_index: number; from: number; to: number; kind: 'on' | 'pickup' }[])
+    carries[4] = [
+      { palette_index: 0, from: 2, to: 5, kind: 'on' },
+      { palette_index: 1, from: 3, to: 4, kind: 'pickup' },
+    ]
+    const { ctx, calls } = recorder()
+    drawChart(ctx, { layout, image: {} as CellImage, pattern: p, completed: new Set([4]), carries, scrollX: 0, scrollY: 0, width: 240, height: 228, dpr: 1, colors })
+    const fills = calls.filter((c) => c.op === 'fillRect')
+    const red = fills.filter((c) => c.fillStyle === '#ff0000').map((c) => c.args as number[])
+    const green = fills.filter((c) => c.fillStyle === '#00ff00').map((c) => c.args as number[])
+    expect(red).toHaveLength(1)
+    expect(green).toHaveLength(1)
+    // Across exactly the carried columns.
+    expect(red[0]![2]).toBeCloseTo(3 * layout.cell)
+    expect(green[0]![0]! - red[0]![0]!).toBeCloseTo(layout.cell)
+    // Two lanes, either side of the row's middle, inside the row.
+    const y = layout.offsets[4]! + AXIS_TOP
+    const mid = y + layout.heights[4]! / 2
+    expect(red[0]![1]! + red[0]![3]!).toBeLessThanOrEqual(mid + 1)
+    expect(green[0]![1]!).toBeGreaterThanOrEqual(mid - 1)
+    expect(red[0]![1]!).toBeGreaterThan(y)
+    expect(green[0]![1]! + green[0]![3]!).toBeLessThan(y + layout.heights[4]!)
+    // Each on its edge (both pale enough for the dark one), all before the done wash
+    // that fades a finished row.
+    expect(fills.filter((c) => c.fillStyle === carryEdge('#ff0000'))).toHaveLength(2)
+    const wash = calls.findIndex((c) => c.op === 'fillRect' && c.fillStyle === DONE_WASH)
+    expect(calls.findIndex((c) => c.fillStyle === '#00ff00')).toBeLessThan(wash)
+  })
+
+  it('draws no strands on rows too short to show them, or when none are given', () => {
+    // A small fitted chart: plain rows ~4 px, the five around the current one taller.
+    const p = pattern(50, 40)
+    const layout = computeLayout({ rows: 50, cols: 40, current: 25, emphasise: true, focus: false, width: 200, height: 400 })
+    const tall = layout.heights.filter((h) => h >= CARRY_MIN_ROW).length
+    expect(tall).toBeGreaterThan(0)
+    expect(tall).toBeLessThan(50)
+    const carries = Array.from({ length: 50 }, () => [{ palette_index: 0, from: 0, to: 40, kind: 'on' as const }])
+    const draw = (given: typeof carries | null) => {
+      const { ctx, calls } = recorder()
+      drawChart(ctx, { layout, image: {} as CellImage, pattern: p, completed: new Set(), carries: given, scrollX: 0, scrollY: 0, width: 200, height: 400, dpr: 1, colors })
+      return calls.filter((c) => c.op === 'fillRect' && c.fillStyle === '#ff0000')
+    }
+    expect(draw(carries)).toHaveLength(tall)
+    expect(draw(null)).toHaveLength(0)
+  })
+
+  it('edges a pale strand dark and a dark one pale', () => {
+    expect(carryEdge('#ffffff')).toBe('#888888')
+    expect(carryEdge('#000000')).toBe('#cccccc')
   })
 })

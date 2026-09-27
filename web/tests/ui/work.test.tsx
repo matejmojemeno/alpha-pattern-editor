@@ -3,8 +3,9 @@ import { fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { carriesByRun, carryPlan } from '../../src/logic/carry.ts'
 import * as work from '../../src/logic/work.ts'
-import { encodeRow, formatRowText, workingNumber } from '../../src/logic/readout.ts'
+import { encodeRow, formatRowText, rowDirection, workingNumber } from '../../src/logic/readout.ts'
 import { readAlpha } from '../../src/storage/alpha.ts'
 import { fixture, freshRepo, renderApp, screen } from './helpers.tsx'
 
@@ -261,6 +262,39 @@ describe('options', () => {
     // ...with the stored cursor where it was.
     expect(chips().findIndex((c) => c.className.includes('chip--current'))).toBe(cursorChip)
     expect(screen.getByText(`Next: Row ${workingNumber(p, r) + 1}: ${formatRowText({ ...p, start_direction: 'RTL' }, r + 1)}`)).toBeTruthy()
+  })
+
+  it('shows where to carry yarn only when asked, on the chips of the row being worked', async () => {
+    const { project, settings } = await openWork('basic.alpha')
+    const p = project.pattern
+    const plan = carryPlan(p)
+    expect(document.querySelector('.chip__carry')).toBeNull()
+    await userEvent.click(screen.getByLabelText('Show where to carry yarn'))
+    expect(settings.get().showCarries).toBe(true)
+    // Work on to the first row with something to carry.
+    const seq = work.workSequence(p)
+    const k = seq.findIndex((r) => plan[r]!.length > 0)
+    expect(k).toBeGreaterThanOrEqual(0)
+    for (let i = 0; i < k; i++) await userEvent.click(screen.getByRole('button', { name: /Row complete/ }))
+    const r = seq[k]!
+    expect(rowLabel()).toMatch(new RegExp(`^Row ${workingNumber(p, r)} `))
+    const byRun = carriesByRun(p.cols, encodeRow(p, r), plan[r]!, rowDirection(p, r))
+    const notes = chips().map((c) => [...c.querySelectorAll('.chip__carry')].map((n) => n.textContent))
+    expect(notes).toEqual(
+      byRun.map((cs) =>
+        cs.map((c) => {
+          const name = p.palette[c.palette_index]!.name
+          const over = c.part === 'all' ? `all ${c.count}` : `the ${c.part} ${c.count}`
+          return c.pickUp ? `pick up ${name}, carry over ${over}` : `carry ${name} over ${over}`
+        }),
+      ),
+    )
+    // Read out too.
+    const i = byRun.findIndex((cs) => cs.length > 0)
+    expect(chips()[i]!.getAttribute('aria-label')).toContain(`, ${notes[i]![0]}`)
+    // And gone again when switched off.
+    await userEvent.click(screen.getByLabelText('Show where to carry yarn'))
+    expect(document.querySelector('.chip__carry')).toBeNull()
   })
 
   it('focus mode hides the next-row preview', async () => {
