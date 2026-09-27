@@ -1,5 +1,6 @@
 /** What the chips show for each colour segment of the current row (chips.py). */
 import { SKIP_INDEX, type PaletteEntry, type Pattern } from '../../model/types.ts'
+import type { RunCarry } from '../../logic/carry.ts'
 import { hexToRgb } from '../../theme/contrast.ts'
 
 export type ChipState = 'done' | 'current' | 'pending'
@@ -26,4 +27,11 @@ export function swatchBorder(hex: string): string {
     return '#888888'
   }
   return rgb[0] + rgb[1] + rgb[2] > 180 ? '#888888' : '#cccccc'
+}
+
+/** A chip's note for a colour carried over some of its stitches (logic/carry.ts), e.g.
+ *  "carry Black over the first 2" or "pick up Black, carry over the last 3". */
+export function carryNote(name: string, c: Pick<RunCarry, 'count' | 'part' | 'pickUp'>): string {
+  const over = c.part === 'all' ? `all ${c.count}` : `the ${c.part} ${c.count}`
+  return c.pickUp ? `pick up ${name}, carry over ${over}` : `carry ${name} over ${over}`
 }
