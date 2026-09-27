@@ -28,10 +28,21 @@ export interface Settings {
   readonly showCarries: boolean
   /** The library each palette colour is matched to (yarn/libraries.ts), or null for none. */
   readonly colourLibrary: LibraryId | null
-  /** Yarn one stitch uses, in centimetres (yarn/usage.ts). */
+  /** The swatch the yarn estimate and finished size come from (yarn/usage.ts): its
+   *  stitches across and rows, its width and height in cm, and its weight in grams, each
+   *  measurement null until entered. */
+  readonly swatchStitches: number
+  readonly swatchRows: number
+  readonly swatchWidthCm: number | null
+  readonly swatchHeightCm: number | null
+  readonly swatchGrams: number | null
+  /** Yarn one stitch uses, in centimetres, when the swatch isn't weighed. */
   readonly yarnPerStitchCm: number
-  /** One ball's length in metres, or null for the library's own ball. */
+  /** One ball's length in metres and weight in grams, each null for the library's own. */
   readonly ballMetres: number | null
+  readonly ballGrams: number | null
+  /** Count the yarn carried inside the stitches, for tapestry crochet (logic/carry.ts). */
+  readonly countCarried: boolean
   /** Extra yarn on top of the estimate, in percent. */
   readonly marginPercent: number
   /** Show lengths in metres and centimetres, or yards and inches. */
@@ -44,13 +55,23 @@ export const DEFAULT_SETTINGS: Settings = {
   focusMode: false,
   showCarries: false,
   colourLibrary: DEFAULT_LIBRARY,
+  // 10 × 10: the swatch Magic Yarn Pixels' calculators ask for (docs/web-port-plan.md).
+  swatchStitches: 10,
+  swatchRows: 10,
+  swatchWidthCm: null,
+  swatchHeightCm: null,
+  swatchGrams: null,
   yarnPerStitchCm: 2.5,
   ballMetres: null,
+  ballGrams: null,
+  countCarried: false,
   marginPercent: 10,
   units: 'metric',
 }
 
 const positive = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v > 0
+const positiveOrNull = (v: unknown) => v === null || positive(v)
+const count = (v: unknown) => Number.isInteger(v) && (v as number) > 0
 
 /** Which stored values each field accepts; anything else falls back to the default. */
 const VALID: { [K in keyof Settings]: (v: unknown) => boolean } = {
@@ -59,8 +80,15 @@ const VALID: { [K in keyof Settings]: (v: unknown) => boolean } = {
   focusMode: (v) => typeof v === 'boolean',
   showCarries: (v) => typeof v === 'boolean',
   colourLibrary: (v) => v === null || isLibraryId(v),
+  swatchStitches: count,
+  swatchRows: count,
+  swatchWidthCm: positiveOrNull,
+  swatchHeightCm: positiveOrNull,
+  swatchGrams: positiveOrNull,
   yarnPerStitchCm: positive,
-  ballMetres: (v) => v === null || positive(v),
+  ballMetres: positiveOrNull,
+  ballGrams: positiveOrNull,
+  countCarried: (v) => typeof v === 'boolean',
   marginPercent: (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0,
   units: (v) => v === 'metric' || v === 'imperial',
 }

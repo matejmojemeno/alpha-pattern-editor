@@ -29,12 +29,41 @@ describe('parseSettings', () => {
       focusMode: false,
       showCarries: false,
       colourLibrary: null,
+      swatchStitches: 10,
+      swatchRows: 10,
+      swatchWidthCm: null,
+      swatchHeightCm: null,
+      swatchGrams: null,
       yarnPerStitchCm: 2.5,
       ballMetres: null,
+      ballGrams: null,
+      countCarried: false,
       marginPercent: 10,
       units: 'metric',
     })
     expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS)
+  })
+
+  it('keeps the swatch only when it makes sense: whole stitches and rows, positive measures', () => {
+    expect(
+      parseSettings(
+        '{"swatchStitches":12,"swatchRows":14,"swatchWidthCm":10.5,"swatchHeightCm":9,"swatchGrams":6.2,"ballGrams":100,"countCarried":true}',
+      ),
+    ).toEqual({
+      ...DEFAULT_SETTINGS,
+      swatchStitches: 12,
+      swatchRows: 14,
+      swatchWidthCm: 10.5,
+      swatchHeightCm: 9,
+      swatchGrams: 6.2,
+      ballGrams: 100,
+      countCarried: true,
+    })
+    expect(
+      parseSettings(
+        '{"swatchStitches":2.5,"swatchRows":0,"swatchWidthCm":-1,"swatchHeightCm":"9","swatchGrams":0,"ballGrams":-5,"countCarried":1}',
+      ),
+    ).toEqual(DEFAULT_SETTINGS)
   })
 
   it('keeps the colour library and yarn inputs only when they make sense', () => {

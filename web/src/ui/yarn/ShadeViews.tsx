@@ -33,7 +33,7 @@ export function LibraryPicker({ className = 'library-picker' }: { className?: st
       <select
         id={id}
         value={settings.colourLibrary ?? ''}
-        onChange={(e) => set({ colourLibrary: (e.target.value || null) as LibraryId | null, ballMetres: null })}
+        onChange={(e) => set({ colourLibrary: (e.target.value || null) as LibraryId | null, ballMetres: null, ballGrams: null })}
       >
         <option value="">Nothing</option>
         {LIBRARY_IDS.map((l) => (

@@ -129,3 +129,29 @@ export function carriesByRun(
     return out
   })
 }
+
+/**
+ * How many stitches each colour is carried inside, worked as carryPlan says, for the yarn
+ * estimate (yarn/usage.ts): in each row, the stitches between its first and last that are
+ * another colour's (carried between its runs), and the carries to and from the next row.
+ * Indexed by palette index; skip cells and indices past the palette count for no colour.
+ */
+export function carriedStitches(p: Pattern): number[] {
+  const out = new Array<number>(p.palette.length).fill(0)
+  const plan = carryPlan(p)
+  for (let r = 0; r < p.rows; r++) {
+    const seen = new Map<number, { first: number; last: number; n: number }>()
+    for (let c = 0; c < p.cols; c++) {
+      const v = p.cells[r * p.cols + c]!
+      if (v === SKIP_INDEX || v >= out.length) continue
+      const e = seen.get(v)
+      if (e) {
+        e.last = c
+        e.n++
+      } else seen.set(v, { first: c, last: c, n: 1 })
+    }
+    for (const [v, { first, last, n }] of seen) out[v]! += last - first + 1 - n
+    for (const k of plan[r]!) if (k.palette_index < out.length) out[k.palette_index]! += k.to - k.from
+  }
+  return out
+}
