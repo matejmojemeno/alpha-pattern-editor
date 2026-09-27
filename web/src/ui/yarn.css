@@ -105,7 +105,7 @@
 
 /* Wider than a question, and scrolling inside itself on a short screen. */
 .yarn-dialog {
-  width: min(100%, 34rem);
+  width: min(100%, 30rem);
   max-height: calc(100dvh - 2rem);
   overflow-y: auto;
 }
@@ -122,7 +122,8 @@
 
 .yarn__inputs {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  /* In pairs: stitches and rows, width and height, a ball's length and weight. */
+  grid-template-columns: 1fr 1fr;
   gap: 0.5rem 0.75rem;
   margin-bottom: 0.5rem;
 }

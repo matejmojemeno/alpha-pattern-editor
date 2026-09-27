@@ -8,7 +8,7 @@
  * defaults to the chosen yarn range's own, when one is chosen under "Advanced: match to
  * yarn".
  */
-import { useId, useMemo, useRef } from 'react'
+import { useId, useMemo } from 'react'
 
 import '../yarn.css'
 
@@ -51,7 +51,6 @@ export function YarnEstimate({ name, pattern, onClose }: { name: string; pattern
   const metric = units === 'metric'
   const cm = metric ? 'cm' : 'in'
   const unitsName = useId()
-  const close = useRef<HTMLButtonElement>(null)
   const { library, matches } = useChosenMatches(pattern.palette.map((e) => e.hex))
   const libraryBall = library?.ball ?? null
 
@@ -105,13 +104,12 @@ export function YarnEstimate({ name, pattern, onClose }: { name: string; pattern
       title="Yarn & size"
       className="yarn-dialog"
       onClose={onClose}
-      initialFocus={close}
       buttons={
         <>
           <button type="button" className="button" onClick={exportList}>
             Export yarn list
           </button>
-          <button ref={close} type="button" className="button button--primary" onClick={onClose}>
+          <button type="button" className="button button--primary" onClick={onClose}>
             Close
           </button>
         </>
@@ -193,24 +191,6 @@ export function YarnEstimate({ name, pattern, onClose }: { name: string; pattern
           Yarn
         </h3>
         <div className="yarn__inputs">
-          {usage.basis === 'length' && (
-            <NumberField
-              label="Yarn per stitch"
-              unit={cm}
-              value={cmIn(settings.yarnPerStitchCm, units)}
-              places={2}
-              min={POSITIVE}
-              onCommit={(v) => v !== null && set({ yarnPerStitchCm: cmFrom(v, units) })}
-            />
-          )}
-          <NumberField
-            label="Extra"
-            unit="%"
-            value={settings.marginPercent}
-            places={1}
-            min={{ value: 0, inclusive: true }}
-            onCommit={(v) => v !== null && set({ marginPercent: v })}
-          />
           <NumberField
             label="Ball length"
             unit={metric ? 'm' : 'yd'}
@@ -228,6 +208,24 @@ export function YarnEstimate({ name, pattern, onClose }: { name: string; pattern
             min={POSITIVE}
             placeholder="from label"
             onCommit={(v) => set({ ballGrams: v })}
+          />
+          {usage.basis === 'length' && (
+            <NumberField
+              label="Yarn per stitch"
+              unit={cm}
+              value={cmIn(settings.yarnPerStitchCm, units)}
+              places={2}
+              min={POSITIVE}
+              onCommit={(v) => v !== null && set({ yarnPerStitchCm: cmFrom(v, units) })}
+            />
+          )}
+          <NumberField
+            label="Extra"
+            unit="%"
+            value={settings.marginPercent}
+            places={1}
+            min={{ value: 0, inclusive: true }}
+            onCommit={(v) => v !== null && set({ marginPercent: v })}
           />
         </div>
         <p className="yarn__help muted">
