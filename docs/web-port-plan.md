@@ -132,20 +132,28 @@ root. This document covers *how* the app moves to the web, not *what* it does.
     width, the *source image's* shape, at most min(70vh, 720px) tall. The image fills
     its stage; the pattern is fitted into its own, centred, with square whole-pixel
     cells, and the stage's background shows round it. Loading and failure messages sit
-    on a stage-sized box that grows rather than clips. The size ("29 × 31 stitches · 899
-    total") is a caption under the pattern's stage.
+    on a stage-sized box that grows rather than clips. The size ("76 columns × 24 rows") is a
+    caption under the pattern's stage.
   - **Grid:** image, pattern and a 280 px colour sidebar from 1100 px; the sidebar drops
     below from 700 px; narrower, everything stacks. The phone tabs are gone.
   - **Cropping:** outside the grid's outline is dimmed on the image; the handles already
-    moved in whole cells. **Re-detect is "Reset to detected grid"**, under the image
-    beside a helper caption, enabled once a box has been drawn or the outline moved; it
+    moved in whole cells. **Re-detect is "Reset to detected grid"**, under the image,
+    enabled once a box has been drawn or the outline moved; it
     detects the whole image again. A box drawn by hand round the whole image is no
     substitute: on cats.png, whose chart runs to the image's edges, one begun a single
     screen pixel in loses the outermost column and row (99 × 44 for 100 × 45), and
     snapping boxes to the edge would fight cropping off edge numbers.
   - **Colours:** counts end at the dividers' right edge (the × sits over the count on
     hover, beside it on touch), a total at the foot, and "Advanced: match to yarn" is a
-    body-sized disclosure with a chevron and hover state (in Design too).
+    body-sized disclosure with a chevron and hover state (in Design too). **The colour
+    count is a stepper:** − merges the two most alike colours (CIELAB ΔE, the measure
+    Delete uses) by removing the one used less, so its stitches go to the other
+    (`removals.mergeCandidate`); + undoes the last merge. Merges are removals marked
+    `merged`, so they survive moving the outline and are saved like any removal, but
+    they aren't listed under "Removed": + is their undo. On lisa.jpg the first − merges
+    the phantom olive into the charcoal outline (116 stitches into 404), the colour the
+    ΔE 15 note above calls out. `e2e/corrections.spec.ts` checks a merge against the
+    desktop removing that colour.
   - Four text styles only, spacing in 8/16/24/32 px. `e2e/corrections.spec.ts` checks
     the stages' sizes and alignment at 1280, 900 and 400 px, and Reset against the
     desktop's crop then Re-detect.
