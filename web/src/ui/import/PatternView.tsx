@@ -1,6 +1,7 @@
 /**
- * The detected pattern, fitted to its pane: canvas.py's reconstruction_pixmap. Cells in
- * their colours, and black lines between them when the cells are big enough to show them.
+ * The detected pattern, as large as fits its stage and centred on it, cells square:
+ * canvas.py's reconstruction_pixmap. Cells in their colours, and black lines between them
+ * when the cells are big enough to show them.
  * With `spotlight`, the cells of every other colour are faded, to show where that one is
  * used (Palette.tsx).
  */
@@ -44,7 +45,7 @@ export function PatternView({ preview, spotlight = null }: { preview: Preview; s
   const label =
     `The detected pattern: ${preview.cols} columns by ${preview.rows} rows` + (entry ? `, showing where ${entry.name} is used` : '')
   return (
-    <div ref={box} className="pattern" style={{ aspectRatio: `${preview.cols} / ${preview.rows}` }}>
+    <div ref={box} className="pattern">
       <canvas ref={canvas} className="pattern__canvas" role="img" aria-label={label} />
     </div>
   )

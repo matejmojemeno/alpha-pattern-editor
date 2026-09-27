@@ -30,7 +30,7 @@ test('PNG: the saved pattern is exactly what the desktop makes of the same file'
 
   const { save } = await importImage(page, file)
   await expect(save).toBeVisible()
-  await expect(page.getByText(`${want.cols} cols × ${want.rows} rows`)).toBeVisible()
+  await expect(page.locator(".confirm__stats")).toHaveText(`${want.cols} columns × ${want.rows} rows`)
   await saveAs(page, 'Dachshund')
 
   const saved = readAlpha(new Uint8Array(readFileSync(await exportFromLibrary(page, testInfo, 'Dachshund')))).project.pattern
@@ -77,7 +77,7 @@ test('the whole flow: import, save, Design, Row 1, reload, export, and the deskt
   const want = desktopDetect(file)
   const { save } = await importImage(page, file)
   await expect(save).toBeVisible()
-  await expect(page.getByLabel('Name')).toHaveValue('cats')
+  await expect(page.getByRole('textbox', { name: 'Pattern name' })).toHaveAttribute('placeholder', 'Untitled pattern')
 
   // Detection never happens outside the import screen.
   const requests: string[] = []
@@ -150,7 +150,7 @@ test('an image that is not a chart gets the friendly hint', async ({ page }, tes
   await expect(page.getByRole('alert')).toContainText('Detection failed (LOW_RESOLUTION)')
 })
 
-test('a pasted image is imported as “Pasted pattern”', async ({ page }) => {
+test('a pasted image saved without a name is named by the moment it was saved', async ({ page }) => {
   await page.goto('/')
   const bytes = readFileSync(resolve(IMAGES, 'dachshund.png')).toString('base64')
   await page.evaluate(async (b64) => {
@@ -160,7 +160,13 @@ test('a pasted image is imported as “Pasted pattern”', async ({ page }) => {
     document.body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true }))
   }, bytes)
   await expect(page.getByRole('heading', { level: 1, name: 'Import pattern' })).toBeVisible()
-  await expect(page.getByLabel('Name')).toHaveValue('Pasted pattern', { timeout: DETECT_TIMEOUT })
+  const name = page.getByRole('textbox', { name: 'Pattern name' })
+  await expect(name).toHaveValue('')
+  await expect(name).toHaveAttribute('placeholder', 'Untitled pattern')
+  const save = page.getByRole('button', { name: 'Save & edit pattern' })
+  await expect(save).toBeEnabled({ timeout: DETECT_TIMEOUT })
+  await save.click()
+  await expect(page.getByRole('heading', { level: 1, name: /^\d{4}-\d\d-\d\d-\d{6}$/ })).toBeVisible()
 })
 
 test('hovering Import pattern starts the download; the landing screen alone makes no Pyodide requests', async ({ page }) => {

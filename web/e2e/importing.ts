@@ -20,7 +20,7 @@ export async function importImage(page: Page, file: string) {
 
 /** Save the detected pattern under `name`; lands on the Design stage (§7.3). */
 export async function saveAs(page: Page, name: string) {
-  await page.getByLabel('Name').fill(name)
+  await page.getByRole('textbox', { name: 'Pattern name' }).fill(name)
   await page.getByRole('button', { name: 'Save & edit pattern' }).click()
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
 }

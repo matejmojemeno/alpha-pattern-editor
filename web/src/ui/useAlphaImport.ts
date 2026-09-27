@@ -11,7 +11,7 @@
  */
 import { useCallback, useState } from 'react'
 
-import { handOffImage, nameFromFile, type PendingImage } from '../app/pendingImage.ts'
+import { handOffImage, type PendingImage } from '../app/pendingImage.ts'
 import { navigate, paths } from '../app/router.ts'
 import { AlphaFormatError, progressPct, readAlpha } from '../storage/alpha.ts'
 import type { ProjectRepo } from '../storage/repo.ts'
@@ -138,7 +138,7 @@ export function useAlphaImport(
         if (images.length > 1) {
           out.push({ tone: 'info', text: `One image at a time: opened “${image.name}”. Import the others after this one.` })
         }
-        onImage({ file: image, name: nameFromFile(image.name), notices: out })
+        onImage({ file: image, notices: out })
         return
       }
       setNotices(out)

@@ -4,7 +4,7 @@
  *
  * Pointing at a colour, or focusing it, shows where it is used in the pattern (the other
  * colours fade, PatternView.tsx); clicking or tapping it keeps that showing, which is how
- * a phone sees it, the pattern being another tab there. Its × removes it, as Delete does
+ * a phone sees it, the pattern being above the list there. Its × removes it, as Delete does
  * in Design: its stitches take the nearest remaining colour (importer/removals.ts). The
  * colours removed are listed under the rest, each with Restore.
  *
@@ -87,6 +87,10 @@ export function Palette(p: PaletteProps) {
           </li>
         ))}
       </ul>
+      <p className="palette__total">
+        <span>Total</span>
+        <span className="palette__count">{p.palette.reduce((n, e) => n + e.count, 0)} stitches</span>
+      </p>
       {p.removed.length > 0 && (
         <div className="palette__removed" ref={restores}>
           <h3 className="palette__removed-heading">Removed</h3>

@@ -53,29 +53,50 @@
   font-size: var(--text-sm);
 }
 
+/* A control that looks like one: body-sized, a chevron that turns as it opens, and a
+   hover state. */
 .yarn-matching > summary {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  min-height: 2rem;
-  color: var(--muted);
+  gap: 0.5rem;
+  min-height: var(--tap);
+  margin-left: -0.5rem;
+  padding: 0 0.5rem;
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  color: var(--text);
   cursor: pointer;
   list-style: none;
+}
+
+.yarn-matching > summary:hover {
+  background: var(--raised);
+}
+
+.yarn-matching > summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .yarn-matching > summary::-webkit-details-marker {
   display: none;
 }
 
-/* inline-flex drops the browser's own triangle, so draw one. */
+/* inline-flex drops the browser's own triangle, so draw a chevron. */
 .yarn-matching > summary::before {
-  content: '▸';
+  content: '';
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateX(-0.1rem) rotate(-45deg);
+  transition: transform 120ms ease-out;
 }
 
 .yarn-matching[open] > summary::before {
-  content: '▾';
+  transform: translateY(-0.1rem) rotate(45deg);
 }
 
 .yarn-matching[open] > summary {
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.5rem;
 }

@@ -144,7 +144,7 @@ export function SourceView({ file, width, height, grid, canCrop, canResize, onCr
   return (
     <div
       ref={box}
-      className="source"
+      className="source stage"
       style={{ aspectRatio: `${width} / ${height}` }}
       data-crop={canCrop || undefined}
       data-dragging={drag?.kind}
@@ -256,6 +256,13 @@ function Overlay({
       aria-hidden="true"
       data-testid="grid-overlay"
     >
+      {/* Everything outside the outline, dimmed: it won't be part of the pattern. */}
+      <path
+        className="source__outside"
+        fillRule="evenodd"
+        d={`M0 0H${width}V${height}H0Z M${e.x0} ${e.y0}V${e.y1}H${e.x1}V${e.y0}Z`}
+        data-testid="outside-grid"
+      />
       <path className="source__lines" d={d} />
       <rect className="source__extent" x={e.x0} y={e.y0} width={e.x1 - e.x0} height={e.y1 - e.y0} />
     </svg>
