@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { applyRemovals, matchEntry } from '../../src/importer/removals.ts'
+import { applyRemovals, matchEntry, mergeCandidate } from '../../src/importer/removals.ts'
 import { deletePaletteEntryNearest } from '../../src/logic/edit.ts'
 import type { PaletteEntry, Pattern } from '../../src/model/types.ts'
 
@@ -97,5 +97,33 @@ describe('applyRemovals', () => {
   it('returns the same object when nothing is removed', () => {
     const p = preview()
     expect(applyRemovals(p, [], 7.5).result).toBe(p)
+  })
+})
+
+describe('mergeCandidate', () => {
+  it('takes the less used of the two closest colours', () => {
+    // White and cream are the closest pair; cream is used less, so it goes.
+    const palette = [entry('a', '#ffffff', 'White', 5), entry('b', '#f0ece0', 'Cream', 2), entry('c', '#000000', 'Black', 9)]
+    expect(mergeCandidate(palette)?.id).toBe('b')
+    // Used more, cream stays and white goes.
+    expect(mergeCandidate([entry('a', '#ffffff', 'White', 1), palette[1]!, palette[2]!])?.id).toBe('a')
+  })
+
+  it('of two used equally, takes the later; with one colour, nothing', () => {
+    expect(mergeCandidate([entry('a', '#ffffff', 'White', 3), entry('b', '#f0ece0', 'Cream', 3)])?.id).toBe('b')
+    expect(mergeCandidate([entry('a', '#ffffff', 'White', 3)])).toBeNull()
+    expect(mergeCandidate([])).toBeNull()
+  })
+
+  it('merges into the other of the pair: its stitches go to its partner', () => {
+    const p = preview()
+    p.palette[0]!.count = 3 // white used more than cream
+    const drop = mergeCandidate(p.palette)!
+    expect(drop.name).toBe('Cream')
+    const { result } = applyRemovals(p, [{ hex: drop.hex, name: drop.name, merged: true }], 7.5)
+    expect(result.palette.map((e) => [e.hex, e.count])).toEqual([
+      ['#ffffff', 4],
+      ['#000000', 2],
+    ])
   })
 })

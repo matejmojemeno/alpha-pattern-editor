@@ -5,15 +5,15 @@
  */
 import { act, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { handOffImage } from '../../src/app/pendingImage.ts'
+import { handOffImage, timestampName } from '../../src/app/pendingImage.ts'
 import { navigate } from '../../src/app/router.ts'
 import { FAILURE_HINTS } from '../../src/importer/hints.ts'
 import { readAlpha } from '../../src/storage/alpha.ts'
 import { detectingWorker, FakeWorker, makePreview } from '../detect/fakeWorker.ts'
 import { detection } from './fakeDetection.ts'
-import { hashChanged, renderApp, screen } from './helpers.tsx'
+import { hashChanged, renderApp, screen, sizeShown } from './helpers.tsx'
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])
 const photo = (name = 'dog.png') => new File([PNG], name, { type: 'image/png' })
@@ -22,13 +22,14 @@ beforeEach(() => detection.reset())
 
 /** The import screen, lazily loaded, with `name` waiting to be imported. */
 async function openImport(name: string | null = 'dog') {
-  if (name !== null) handOffImage({ file: photo(`${name}.png`), name })
+  if (name !== null) handOffImage({ file: photo(`${name}.png`) })
   const view = await renderApp('#/import')
   await screen.findByRole('heading', { level: 1, name: 'Import pattern' })
   return view
 }
 
 const saveButton = () => screen.findByRole('button', { name: 'Save & edit pattern' })
+const nameField = () => screen.getByRole('textbox', { name: 'Pattern name' }) as HTMLInputElement
 
 describe('Import screen', () => {
   it('shows real download progress while Pyodide boots, then detects', async () => {
@@ -64,8 +65,15 @@ describe('Import screen', () => {
     await saveButton()
     expect(screen.getByRole('img', { name: 'The image being imported' })).toBeTruthy()
     expect(screen.getByRole('img', { name: 'The detected pattern: 4 columns by 3 rows' })).toBeTruthy()
-    // The colour count heads the colour list, not the size summary.
-    expect(screen.getByText('4 cols × 3 rows · 12 stitches · 5 strings needed')).toBeTruthy()
+    // The size under the pattern; the colour count heads the colour list, the total at
+    // its foot, and strings aren't worth the room here.
+    expect(sizeShown()).toBe('4 columns × 3 rows')
+    expect(screen.getByRole('region', { name: 'Pattern' }).contains(document.querySelector('.confirm__stats'))).toBe(true)
+    expect(document.querySelector('.palette__total')?.textContent).toBe('Total12 stitches')
+    expect(screen.queryByText(/strings needed/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Re-detect' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Reset to detected grid' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.queryByText(/Drag the handles/)).toBeNull()
     expect(screen.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeTruthy()
     const list = screen.getByRole('list', { name: 'Colours' })
     expect(within(list).getAllByRole('listitem')).toHaveLength(2)
@@ -86,16 +94,14 @@ describe('Import screen', () => {
       ]),
     )
     expect(within(screen.getByRole('list', { name: 'Warnings' })).getByText('Check the dimensions.')).toBeTruthy()
-    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('dog')
+    expect(nameField()).toMatchObject({ value: '', placeholder: 'Untitled pattern' })
+    expect(screen.getByText('Pattern name').tagName).toBe('LABEL')
   })
 
   it('saves with the source image and opens the Design stage (§7.3)', async () => {
     const { repo } = await openImport()
-    const name = screen.getByLabelText('Name') as HTMLInputElement
     await saveButton()
-    await userEvent.clear(name)
-    expect((await saveButton()).hasAttribute('disabled')).toBe(true) // no empty names
-    await userEvent.type(name, '  My   dog ')
+    await userEvent.type(nameField(), '  My   dog ')
     await userEvent.click(await saveButton())
     await waitFor(() => expect(window.location.hash).toBe('#/design/pattern-1'))
 
@@ -108,6 +114,89 @@ describe('Import screen', () => {
     expect(sourcePng).toEqual(PNG) // a PNG keeps its own bytes
     const exported = readAlpha(new Uint8Array(await (await repo.exportFile('pattern-1')).blob.arrayBuffer()))
     expect(exported.project.pattern.palette.map((e) => e.name)).toEqual(['White', 'Brown'])
+  })
+
+  it('names a pattern saved without a name by the moment it was saved, in local time', async () => {
+    const { repo } = await openImport()
+    await userEvent.type(nameField(), '   ') // nothing but spaces is no name
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(new Date(2026, 8, 27, 12, 15, 30))
+      await userEvent.click(await saveButton())
+      await waitFor(() => expect(window.location.hash).toBe('#/design/pattern-1'))
+    } finally {
+      vi.useRealTimers()
+    }
+    expect(detection.worker.of('commit')[0]).toMatchObject({ name: '2026-09-27-121530' })
+    expect((await repo.open('pattern-1')).project.pattern.name).toBe('2026-09-27-121530')
+  })
+
+  it('pads every part of the timestamp to its width', () => {
+    expect(timestampName(new Date(2027, 0, 3, 9, 5, 7))).toBe('2027-01-03-090507')
+  })
+
+  it('lowers the colour count by merging the two most alike, and raises it by undoing that', async () => {
+    // White twice, cream and black once: white and cream are the most alike.
+    const three = () =>
+      makePreview(1, 1, 4, {
+        cells: new Uint16Array([0, 0, 1, 2]),
+        palette: [
+          { id: 'w', hex: '#ffffff', name: 'White', dmc: null, count: 2 },
+          { id: 'c', hex: '#f0ece0', name: 'Cream', dmc: null, count: 1 },
+          { id: 'k', hex: '#000000', name: 'Black', dmc: null, count: 1 },
+        ],
+      })
+    const worker = detectingWorker()
+    worker.auto = ((auto) => (msg) => {
+      if (msg.type === 'open') return three()
+      const reply = auto(msg)
+      // The committed pattern is built from the same detection.
+      if (msg.type === 'commit') {
+        const { cells, palette } = three()
+        const r = reply as { pattern: object }
+        return { ...r, pattern: { ...r.pattern, rows: 1, cols: 4, row_ids: ['r0'], cells, palette } } as typeof reply
+      }
+      return reply
+    })(worker.auto!)
+    detection.reset(worker)
+    const { repo } = await openImport()
+    await saveButton()
+    const count = within(screen.getByRole('group', { name: 'Number of colours' }))
+    const fewer = count.getByRole('button', { name: 'Fewer colours' })
+    const more = count.getByRole('button', { name: 'More colours' })
+    const names = () => within(screen.getByRole('list', { name: 'Colours' })).getAllByRole('button', { pressed: false }).map((b) => b.getAttribute('aria-label'))
+    expect(count.getByRole('status').textContent).toBe('3')
+    expect(more.hasAttribute('disabled')).toBe(true) // nothing to undo yet
+
+    // Cream goes into white, the one used more.
+    await userEvent.click(fewer)
+    expect(count.getByRole('status').textContent).toBe('2')
+    expect(names()).toEqual(['White, #ffffff, 3 stitches', 'Black, #000000, 1 stitch'])
+    expect(screen.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeTruthy()
+    // A merge isn't listed as a removal: + is its undo.
+    expect(screen.queryByRole('list', { name: 'Removed colours' })).toBeNull()
+
+    // Down to one, and no further.
+    await userEvent.click(fewer)
+    expect(count.getByRole('status').textContent).toBe('1')
+    expect(fewer.hasAttribute('disabled')).toBe(true)
+
+    // Back up, one merge at a time, to exactly what was detected.
+    await userEvent.click(more)
+    expect(names()).toEqual(['White, #ffffff, 3 stitches', 'Black, #000000, 1 stitch'])
+    await userEvent.click(more)
+    expect(names()).toEqual(['White, #ffffff, 2 stitches', 'Cream, #f0ece0, 1 stitch', 'Black, #000000, 1 stitch'])
+    expect(more.hasAttribute('disabled')).toBe(true)
+
+    // What's saved is what's shown.
+    await userEvent.click(fewer)
+    await userEvent.click(await saveButton())
+    await waitFor(() => expect(window.location.hash).toBe('#/design/pattern-1'))
+    const { project } = await repo.open('pattern-1')
+    expect(project.pattern.palette.map((e) => [e.hex, e.count])).toEqual([
+      ['#ffffff', 3],
+      ['#000000', 1],
+    ])
   })
 
   it('shows where a colour is used while it is pointed at, focused, or picked', async () => {
@@ -203,7 +292,7 @@ describe('Import screen', () => {
     detection.worker.auto = ok.auto
     await userEvent.upload(screen.getAllByLabelText('Choose a chart image')[0]!, photo('straight.png'))
     expect(await saveButton()).toBeTruthy()
-    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('straight')
+    expect(nameField()).toMatchObject({ value: '', placeholder: 'Untitled pattern' })
     expect(detection.worker.of('open')).toHaveLength(2)
     // The first image's session was closed.
     expect(detection.worker.of('close').map((c) => c.session)).toEqual([1])
@@ -229,10 +318,10 @@ describe('Import screen', () => {
     expect(detection.worker.sent).toEqual([]) // nothing is loaded until there's an image
     await userEvent.upload(screen.getByLabelText('Choose a chart image'), photo('cat.webp'))
     expect(await saveButton()).toBeTruthy()
-    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('cat')
+    expect(nameField()).toMatchObject({ value: '', placeholder: 'Untitled pattern' })
   })
 
-  it('names a pasted image “Pasted pattern”', async () => {
+  it('imports a pasted image, with the name left empty', async () => {
     await openImport(null)
     const file = photo('image.png')
     act(() => {
@@ -241,7 +330,16 @@ describe('Import screen', () => {
       document.body.dispatchEvent(e)
     })
     expect(await saveButton()).toBeTruthy()
-    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Pasted pattern')
+    expect(nameField()).toMatchObject({ value: '', placeholder: 'Untitled pattern' })
+  })
+
+  it('keeps the name typed when the image is replaced', async () => {
+    await openImport()
+    await saveButton()
+    await userEvent.type(nameField(), 'Dachshund')
+    await userEvent.upload(screen.getAllByLabelText('Choose a chart image')[0]!, photo('other.png'))
+    await waitFor(() => expect(detection.worker.of('open')).toHaveLength(2))
+    expect(nameField().value).toBe('Dachshund')
   })
 
   it('closes the session and releases the worker when leaving', async () => {
