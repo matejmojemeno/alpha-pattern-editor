@@ -36,7 +36,7 @@ async function openImport(worker: FakeWorker = confirmingWorker()) {
   handOffImage({ file: new File([PNG], 'dog.png', { type: 'image/png' }) })
   const view = await renderApp('#/import')
   await screen.findByRole('button', { name: 'Save & edit pattern' })
-  await waitFor(() => expect(sizeShown()).toBe('4 × 3 stitches · 12 total'))
+  await waitFor(() => expect(sizeShown()).toBe('4 columns × 3 rows'))
   return view
 }
 
@@ -137,7 +137,7 @@ describe('the slow path: a box drawn on the image detects again', () => {
     await waitFor(() => expect(detection.worker.of('redetect')).toHaveLength(1))
     expect(detection.worker.of('redetect')[0]).toMatchObject({ crop: [10, 7, 30, 22] })
     expect(detection.worker.of('redetect')[0]).not.toHaveProperty('deltaE')
-    await waitFor(() => expect(sizeShown()).toBe('6 × 5 stitches · 30 total'))
+    await waitFor(() => expect(sizeShown()).toBe('6 columns × 5 rows'))
   })
 
   it('crops with a finger too, and a slip is not a crop', async () => {
@@ -167,7 +167,7 @@ describe('the slow path: a box drawn on the image detects again', () => {
     expect(screen.queryByRole('button', { name: 'Re-detect' })).toBeNull()
     expect(reset().hasAttribute('disabled')).toBe(true)
     drag(layOutSource(), [100, 75], [300, 225])
-    await waitFor(() => expect(sizeShown()).toBe('6 × 5 stitches · 30 total'))
+    await waitFor(() => expect(sizeShown()).toBe('6 columns × 5 rows'))
     await userEvent.click(reset())
     await waitFor(() => expect(detection.worker.of('redetect')).toHaveLength(2))
     expect(detection.worker.of('redetect')[1]).not.toHaveProperty('crop')
@@ -215,7 +215,7 @@ describe('moving the outline', () => {
     detection.reset(worker)
     handOffImage({ file: new File([PNG], 'dog.png', { type: 'image/png' }) })
     await renderApp('#/import')
-    await waitFor(() => expect(sizeShown()).toBe('2 × 2 stitches · 4 total'))
+    await waitFor(() => expect(sizeShown()).toBe('2 columns × 2 rows'))
     return { worker, box: layOutSource() }
   }
   const rect = () => screen.getByTestId('grid-overlay').querySelector('rect')!
@@ -233,7 +233,7 @@ describe('moving the outline', () => {
     expect(box.querySelector('.source__size')!.textContent).toBe('3 × 2')
     fireEvent.pointerUp(box, at(4, 150))
     await waitFor(() => expect(updates()).toEqual([{ extent: { x0: 0, y0: 10, x1: 30, y1: 20 }, rows: 2, cols: 3 }]))
-    await waitFor(() => expect(sizeShown()).toBe('3 × 2 stitches · 6 total'))
+    await waitFor(() => expect(sizeShown()).toBe('3 columns × 2 rows'))
     expect(box.querySelector('.source__size')).toBeNull()
     expect(detection.worker.of('redetect')).toHaveLength(0)
     // Grabbing an edge is not drawing a box.
@@ -257,7 +257,7 @@ describe('moving the outline', () => {
     expect(reset().hasAttribute('disabled')).toBe(true)
     screen.getByRole('slider', { name: 'Left edge of the grid' }).focus()
     await userEvent.keyboard('{ArrowLeft}')
-    await waitFor(() => expect(sizeShown()).toBe('3 × 2 stitches · 6 total'))
+    await waitFor(() => expect(sizeShown()).toBe('3 columns × 2 rows'))
     await userEvent.click(reset())
     await waitFor(() => expect(detection.worker.of('redetect')).toHaveLength(1))
     expect(detection.worker.of('redetect')[0]).not.toHaveProperty('crop')
@@ -279,7 +279,7 @@ describe('moving the outline', () => {
     fireEvent.pointerDown(screen.getByTestId('edge-top'), at(100))
     for (const y of [99, 96, 90, 80, 76, 74, 70]) fireEvent.pointerMove(box, at(y)) // 5 px cells: 9.9 … 7
     fireEvent.pointerUp(box, at(70))
-    await waitFor(() => expect(sizeShown()).toBe('2 × 3 stitches · 6 total'))
+    await waitFor(() => expect(sizeShown()).toBe('2 columns × 3 rows'))
     // Only y0 = 5 (at 7.5 and below) differs from where it started.
     expect(updates()).toEqual([{ extent: { x0: 10, y0: 5, x1: 30, y1: 20 }, rows: 3, cols: 2 }])
   })
@@ -394,7 +394,7 @@ describe('the watchdog', () => {
     const alert = await timedOut()
     await userEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('button', { name: 'Save & edit pattern' })).toBeTruthy()
-    await waitFor(() => expect(sizeShown()).toBe('4 × 3 stitches · 12 total'))
+    await waitFor(() => expect(sizeShown()).toBe('4 columns × 3 rows'))
     expect(detection.worker.of('boot')).toHaveLength(2) // a new worker boots again
     expect(detection.worker.of('open')[1]).not.toHaveProperty('crop')
   })
@@ -424,7 +424,7 @@ describe('with the colours below the pattern (narrower than 1100 px)', () => {
     for (const name of ['Your image', 'Pattern', 'Colours, 2 colours']) expect(screen.getByRole('region', { name })).toBeTruthy()
     expect(screen.getByRole('list', { name: 'Colours' })).toBeTruthy()
     drag(layOutSource(), [100, 75], [300, 225], 'touch')
-    await waitFor(() => expect(sizeShown()).toBe('6 × 5 stitches · 30 total'))
+    await waitFor(() => expect(sizeShown()).toBe('6 columns × 5 rows'))
   })
 
   it('says which colour the pattern is showing, with a way back to all of them', async () => {

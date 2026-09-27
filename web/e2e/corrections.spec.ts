@@ -34,7 +34,7 @@ const stats = (page: Page) => page.locator('.confirm__stats')
 
 /** Wait until nothing is detecting or resampling, and the preview shows cols × rows. */
 async function showing(page: Page, cols: number, rows: number) {
-  await expect(stats(page)).toHaveText(`${cols} × ${rows} stitches · ${cols * rows} total`, { timeout: DETECT_TIMEOUT })
+  await expect(stats(page)).toHaveText(`${cols} columns × ${rows} rows`, { timeout: DETECT_TIMEOUT })
   await expect(page.locator('.confirm__outcome')).toHaveAttribute('aria-busy', 'false')
 }
 
@@ -178,6 +178,40 @@ test('a colour removed before the outline moves stays removed, and matches the d
   await expect(page.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Restore “Beige”' })).toBeVisible()
   const want = await expectDesktop(page, testInfo, 'Cats less beige', CATS, [`extent=${await extentShown(page)}`, 'rows=44', 'cols=100', `remove=${hex}`])
+  expect(want.palette).toHaveLength(2)
+})
+
+test('fewer colours merges the two most alike into the one used more, undoes, and matches the desktop', async ({ page }, testInfo) => {
+  await importImage(page, CATS)
+  await showing(page, 100, 45)
+  const count = page.getByRole('group', { name: 'Number of colours' })
+  const list = page.getByRole('list', { name: 'Colours' })
+  const entries = async () =>
+    (await list.locator('.palette__show').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')!))).map((l) => {
+      const [, name, hex, n] = /^(.+), (#[0-9a-f]{6}), (\d+) stitch/.exec(l)!
+      return { name: name!, hex: hex!, count: Number(n) }
+    })
+  const before = await entries()
+  await expect(count.getByRole('status')).toHaveText('3')
+
+  await count.getByRole('button', { name: 'Fewer colours' }).click()
+  await expect(count.getByRole('status')).toHaveText('2')
+  const after = await entries()
+  const gone = before.find((e) => !after.some((a) => a.hex === e.hex))!
+  // The one that went was the less used of the closest pair, and its stitches all went
+  // to the other of the pair; the third colour is untouched.
+  const kept = after.find((a) => a.count !== before.find((b) => b.hex === a.hex)!.count)!
+  expect(kept.count).toBe(before.find((b) => b.hex === kept.hex)!.count + gone.count)
+  expect(gone.count).toBeLessThanOrEqual(before.find((b) => b.hex === kept.hex)!.count)
+
+  // + gives back exactly what was detected; − again, and it's saved as the desktop
+  // makes it with that colour removed.
+  await count.getByRole('button', { name: 'More colours' }).click()
+  await expect(count.getByRole('status')).toHaveText('3')
+  expect(await entries()).toEqual(before)
+  await count.getByRole('button', { name: 'Fewer colours' }).click()
+  await expect(count.getByRole('status')).toHaveText('2')
+  const want = await expectDesktop(page, testInfo, 'Cats merged', CATS, [`remove=${gone.hex}`])
   expect(want.palette).toHaveLength(2)
 })
 

@@ -26,6 +26,31 @@ type Cells = Pick<Pattern, 'rows' | 'cols' | 'cells' | 'palette'>
 export interface Removal {
   hex: string
   name: string
+  /** Taken away by "fewer colours" (`mergeCandidate`) rather than its own ×: the colour
+   *  count's + puts these back, last first. */
+  merged?: boolean
+}
+
+/**
+ * The colour "fewer colours" takes away: of the two closest colours (CIELAB ΔE, as
+ * `deletePaletteEntryNearest` measures, so its stitches go to the other of the two), the
+ * one used less. Of two used equally, the later goes. Null with one colour or none.
+ */
+export function mergeCandidate(palette: readonly PaletteEntry[]): PaletteEntry | null {
+  const labs = palette.map((e) => hexToLab(e.hex))
+  let pair: [number, number] | null = null
+  let bestD = Infinity
+  for (let i = 0; i < labs.length; i++)
+    for (let j = i + 1; j < labs.length; j++) {
+      const d = deltaE(labs[i]!, labs[j]!)
+      if (d < bestD) {
+        pair = [i, j]
+        bestD = d
+      }
+    }
+  if (!pair) return null
+  const [a, b] = [palette[pair[0]]!, palette[pair[1]]!]
+  return b.count <= a.count ? b : a
 }
 
 /** The index of the entry nearest `hex`, if it is within `tolerance` (CIELAB ΔE). */

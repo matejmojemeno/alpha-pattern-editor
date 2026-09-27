@@ -30,7 +30,7 @@ test('PNG: the saved pattern is exactly what the desktop makes of the same file'
 
   const { save } = await importImage(page, file)
   await expect(save).toBeVisible()
-  await expect(page.locator(".confirm__stats")).toHaveText(`${want.cols} × ${want.rows} stitches · ${want.cols * want.rows} total`)
+  await expect(page.locator(".confirm__stats")).toHaveText(`${want.cols} columns × ${want.rows} rows`)
   await saveAs(page, 'Dachshund')
 
   const saved = readAlpha(new Uint8Array(readFileSync(await exportFromLibrary(page, testInfo, 'Dachshund')))).project.pattern

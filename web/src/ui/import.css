@@ -212,7 +212,7 @@
   color: var(--text);
 }
 
-/* "29 × 31 stitches · 899 total": the numbers a little heavier, not bigger. */
+/* "76 columns × 24 rows": the numbers a little heavier, not bigger. */
 .confirm__stats {
   font-variant-numeric: tabular-nums;
 }
@@ -495,19 +495,59 @@
 
 /* --- colours -------------------------------------------------------------------------- */
 
-/* The colour count beside the Colours heading. */
-.confirm__count {
-  display: inline-grid;
-  place-items: center;
-  min-width: 1.5rem;
-  height: 1.5rem;
-  padding: 0 0.5rem;
+/* The colour count at the right of the Colours heading, over the counts below: − and +
+   either side of it, in one pill. */
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--raised);
+  background: var(--bg);
+}
+
+.stepper__button {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  font: inherit;
+  font-size: 1.125rem;
+  line-height: 1;
   color: var(--text);
-  font-size: var(--t-caption);
-  font-weight: 400;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.stepper__button:hover:not(:disabled) {
+  background: var(--raised);
+}
+
+.stepper__button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.stepper__button:disabled {
+  color: var(--muted);
+  opacity: 0.45;
+  cursor: default;
+}
+
+.stepper__value {
+  min-width: 1.5rem;
+  text-align: center;
   font-variant-numeric: tabular-nums;
+}
+
+/* A fingertip's worth each. */
+@media (pointer: coarse) {
+  .stepper__button {
+    width: var(--tap);
+    height: var(--tap);
+  }
 }
 
 /* The list is part of the page: no box of its own, no scrolling of its own, and nothing

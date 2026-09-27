@@ -67,13 +67,13 @@ describe('Import screen', () => {
     expect(screen.getByRole('img', { name: 'The detected pattern: 4 columns by 3 rows' })).toBeTruthy()
     // The size under the pattern; the colour count heads the colour list, the total at
     // its foot, and strings aren't worth the room here.
-    expect(sizeShown()).toBe('4 × 3 stitches · 12 total')
+    expect(sizeShown()).toBe('4 columns × 3 rows')
     expect(screen.getByRole('region', { name: 'Pattern' }).contains(document.querySelector('.confirm__stats'))).toBe(true)
     expect(document.querySelector('.palette__total')?.textContent).toBe('Total12 stitches')
     expect(screen.queryByText(/strings needed/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Re-detect' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Reset to detected grid' }).hasAttribute('disabled')).toBe(true)
-    expect(screen.getByText('Drag the handles to choose which part becomes the pattern.')).toBeTruthy()
+    expect(screen.queryByText(/Drag the handles/)).toBeNull()
     expect(screen.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeTruthy()
     const list = screen.getByRole('list', { name: 'Colours' })
     expect(within(list).getAllByRole('listitem')).toHaveLength(2)
@@ -133,6 +133,70 @@ describe('Import screen', () => {
 
   it('pads every part of the timestamp to its width', () => {
     expect(timestampName(new Date(2027, 0, 3, 9, 5, 7))).toBe('2027-01-03-090507')
+  })
+
+  it('lowers the colour count by merging the two most alike, and raises it by undoing that', async () => {
+    // White twice, cream and black once: white and cream are the most alike.
+    const three = () =>
+      makePreview(1, 1, 4, {
+        cells: new Uint16Array([0, 0, 1, 2]),
+        palette: [
+          { id: 'w', hex: '#ffffff', name: 'White', dmc: null, count: 2 },
+          { id: 'c', hex: '#f0ece0', name: 'Cream', dmc: null, count: 1 },
+          { id: 'k', hex: '#000000', name: 'Black', dmc: null, count: 1 },
+        ],
+      })
+    const worker = detectingWorker()
+    worker.auto = ((auto) => (msg) => {
+      if (msg.type === 'open') return three()
+      const reply = auto(msg)
+      // The committed pattern is built from the same detection.
+      if (msg.type === 'commit') {
+        const { cells, palette } = three()
+        const r = reply as { pattern: object }
+        return { ...r, pattern: { ...r.pattern, rows: 1, cols: 4, row_ids: ['r0'], cells, palette } } as typeof reply
+      }
+      return reply
+    })(worker.auto!)
+    detection.reset(worker)
+    const { repo } = await openImport()
+    await saveButton()
+    const count = within(screen.getByRole('group', { name: 'Number of colours' }))
+    const fewer = count.getByRole('button', { name: 'Fewer colours' })
+    const more = count.getByRole('button', { name: 'More colours' })
+    const names = () => within(screen.getByRole('list', { name: 'Colours' })).getAllByRole('button', { pressed: false }).map((b) => b.getAttribute('aria-label'))
+    expect(count.getByRole('status').textContent).toBe('3')
+    expect(more.hasAttribute('disabled')).toBe(true) // nothing to undo yet
+
+    // Cream goes into white, the one used more.
+    await userEvent.click(fewer)
+    expect(count.getByRole('status').textContent).toBe('2')
+    expect(names()).toEqual(['White, #ffffff, 3 stitches', 'Black, #000000, 1 stitch'])
+    expect(screen.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeTruthy()
+    // A merge isn't listed as a removal: + is its undo.
+    expect(screen.queryByRole('list', { name: 'Removed colours' })).toBeNull()
+
+    // Down to one, and no further.
+    await userEvent.click(fewer)
+    expect(count.getByRole('status').textContent).toBe('1')
+    expect(fewer.hasAttribute('disabled')).toBe(true)
+
+    // Back up, one merge at a time, to exactly what was detected.
+    await userEvent.click(more)
+    expect(names()).toEqual(['White, #ffffff, 3 stitches', 'Black, #000000, 1 stitch'])
+    await userEvent.click(more)
+    expect(names()).toEqual(['White, #ffffff, 2 stitches', 'Cream, #f0ece0, 1 stitch', 'Black, #000000, 1 stitch'])
+    expect(more.hasAttribute('disabled')).toBe(true)
+
+    // What's saved is what's shown.
+    await userEvent.click(fewer)
+    await userEvent.click(await saveButton())
+    await waitFor(() => expect(window.location.hash).toBe('#/design/pattern-1'))
+    const { project } = await repo.open('pattern-1')
+    expect(project.pattern.palette.map((e) => [e.hex, e.count])).toEqual([
+      ['#ffffff', 3],
+      ['#000000', 1],
+    ])
   })
 
   it('shows where a colour is used while it is pointed at, focused, or picked', async () => {

@@ -42,7 +42,7 @@ import { shrinkNotice } from '../../importer/controls.ts'
 import { decodeImage, ImageDecodeError, sourcePng } from '../../importer/decode.ts'
 import { hintFor, OUT_OF_MEMORY_HINT, TIMEOUT_HINT } from '../../importer/hints.ts'
 import type { Grid } from '../../importer/outline.ts'
-import { applyRemovals, type Removal } from '../../importer/removals.ts'
+import { applyRemovals, mergeCandidate, type Removal } from '../../importer/removals.ts'
 import { emptyProgress } from '../../model/types.ts'
 import { DropOverlay, ImportButton, Notices, TopBar } from '../components.tsx'
 import { useDelayedFlag, useDocumentTitle, useFileDrop, useMediaQuery, usePastedImage } from '../hooks.ts'
@@ -298,7 +298,19 @@ export default function ImportScreen() {
     () => (raw ? applyRemovals(raw, removals, tolerance(raw)) : { result: null, applied: [] }),
     [raw, removals],
   )
-  const removed = removals.flatMap((removal, index) => (applied[index] ? [{ removal, index }] : []))
+  // The colours taken away by their own ×, each with Restore; merges are undone by the
+  // colour count's + instead.
+  const removed = removals.flatMap((removal, index) => (applied[index] && !removal.merged ? [{ removal, index }] : []))
+  /** The merge the count's + undoes: the last one that took a colour away here. */
+  const lastMerge = removals.findLastIndex((r, i) => r.merged && applied[i])
+  const fewer = () => {
+    const drop = display && mergeCandidate(display.palette)
+    if (!drop) return
+    setRemovals((r) => [...r, { hex: drop.hex, name: drop.name, merged: true }])
+    setPointed(null)
+    if (pinned === drop.hex) setPinned(null)
+  }
+  const more = () => setRemovals((r) => r.filter((_, i) => i !== lastMerge))
   const spotHex = pointed ?? pinned
   const spotIndex = display && spotHex !== null ? display.palette.findIndex((e) => e.hex === spotHex) : -1
   const spotlight = spotIndex >= 0 ? spotIndex : null
@@ -334,9 +346,9 @@ export default function ImportScreen() {
   const heading = (id: string, label: string, count?: number) => (
     <h2 id={`${ids}-${id}`} className="confirm__caption" {...countLabel(label, count)}>
       {label}
-      {count !== undefined && <Count n={count} />}
     </h2>
   )
+  const colours = display && hasGrid ? display.palette.length : undefined
 
   return (
     <main className="screen import" {...drop.handlers}>
@@ -371,11 +383,7 @@ export default function ImportScreen() {
               <button type="button" className="button" disabled={!adjusted || !canDetect} onClick={() => redetect()}>
                 Reset to detected grid
               </button>
-              {grid ? (
-                <p className="confirm__note">Drag the handles to choose which part becomes the pattern.</p>
-              ) : (
-                canDetect && <p className="confirm__note confirm__hint">Drag a box around just the squares, then let go.</p>
-              )}
+              {!grid && canDetect && <p className="confirm__note confirm__hint">Drag a box around just the squares, then let go.</p>}
             </div>
           </section>
 
@@ -398,7 +406,12 @@ export default function ImportScreen() {
           </section>
 
           <section className="confirm__col confirm__col--colours" aria-labelledby={`${ids}-colours`}>
-            <div className="confirm__head">{heading('colours', 'Colours', display && hasGrid ? display.palette.length : undefined)}</div>
+            <div className="confirm__head">
+              {heading('colours', 'Colours', colours)}
+              {colours !== undefined && (
+                <ColourCount n={colours} onFewer={fewer} onMore={more} canFewer={colours > 1 && !redetecting} canMore={lastMerge >= 0 && !redetecting} />
+              )}
+            </div>
             {display && hasGrid ? (
               <Palette
                 palette={display.palette}
@@ -429,12 +442,47 @@ export default function ImportScreen() {
  *  the merge threshold, so no two of its colours can both be (importer/removals.ts). */
 const tolerance = (p: { deltaE: number }) => p.deltaE / 2
 
-/** How many colours, beside the colour list's heading; read out through `countLabel`. */
-function Count({ n }: { n: number }) {
+/** How many colours, beside the colour list's heading, with − and + to change it: − merges
+ *  the two most alike (removals.mergeCandidate), + undoes the last merge. */
+function ColourCount({
+  n,
+  onFewer,
+  onMore,
+  canFewer,
+  canMore,
+}: {
+  n: number
+  onFewer: () => void
+  onMore: () => void
+  canFewer: boolean
+  canMore: boolean
+}) {
   return (
-    <span className="confirm__count" aria-hidden="true">
-      {n}
-    </span>
+    <div className="stepper" role="group" aria-label="Number of colours">
+      <button
+        type="button"
+        className="stepper__button"
+        aria-label="Fewer colours"
+        title="Merge the two most alike colours into the one used more"
+        disabled={!canFewer}
+        onClick={onFewer}
+      >
+        <span aria-hidden="true">−</span>
+      </button>
+      <output className="stepper__value" aria-live="polite">
+        {n}
+      </output>
+      <button
+        type="button"
+        className="stepper__button"
+        aria-label="More colours"
+        title="Undo the last merge"
+        disabled={!canMore}
+        onClick={onMore}
+      >
+        <span aria-hidden="true">+</span>
+      </button>
+    </div>
   )
 }
 
@@ -451,12 +499,12 @@ function Stage({ children }: { children: ReactNode }) {
   )
 }
 
-/** The grid's size, under the pattern: "29 × 31 stitches · 899 total". Updated with every
- *  preview, as the outline moves. */
+/** The grid's size, under the pattern: "76 columns × 24 rows". Updated with every preview,
+ *  as the outline moves. */
 function Size({ cols, rows }: { cols: number; rows: number }) {
   return (
     <p className="confirm__note confirm__stats">
-      <strong>{cols}</strong> × <strong>{rows}</strong> stitches · <strong>{cols * rows}</strong> total
+      <strong>{cols}</strong> {cols === 1 ? 'column' : 'columns'} × <strong>{rows}</strong> {rows === 1 ? 'row' : 'rows'}
     </p>
   )
 }
