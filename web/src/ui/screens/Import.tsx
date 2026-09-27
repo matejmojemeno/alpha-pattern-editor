@@ -10,7 +10,7 @@
  *   image again: the desktop's Re-detect, undoing a box and a moved outline alike.
  * While an answer is on its way the last good preview stays up, dimmed after ~200 ms.
  *
- * Layout (import.css): the name and "Save & edit pattern" head the screen. Below, the
+ * Layout (import.css): the name, "Yarn & size" and "Save & edit pattern" head the screen. Below, the
  * image and the pattern each sit on a stage of the same size, shaped like the image, so
  * the two line up whatever the pattern's own shape; the colours are a sidebar beside
  * them, dropping below them on a medium screen, and on a small one the stages stack.
@@ -49,6 +49,7 @@ import { useDelayedFlag, useDocumentTitle, useFileDrop, useMediaQuery, usePasted
 import { Palette } from '../import/Palette.tsx'
 import { PatternView } from '../import/PatternView.tsx'
 import { SourceView } from '../import/SourceView.tsx'
+import { YarnEstimate } from '../import/YarnEstimate.tsx'
 import { cleanName, MAX_NAME_LENGTH } from '../names.ts'
 import { isChartImage, type Notice } from '../useAlphaImport.ts'
 
@@ -120,6 +121,8 @@ export default function ImportScreen() {
   /** The colour pointed at, and the one kept showing, in the colour list: by hex. */
   const [pointed, setPointed] = useState<string | null>(null)
   const [pinned, setPinned] = useState<string | null>(null)
+  /** "Yarn & size" is open. */
+  const [estimating, setEstimating] = useState(false)
 
   const session = useRef<DetectSession | null>(null)
   /** Updates asked for and not yet answered. */
@@ -353,7 +356,13 @@ export default function ImportScreen() {
   return (
     <main className="screen import" {...drop.handlers}>
       <TopBar title="Import pattern" />
-      <SaveBar name={name} onName={setName} disabled={saving || !repo || !hasGrid || redetecting} onSubmit={save} />
+      <SaveBar
+        name={name}
+        onName={setName}
+        disabled={saving || !repo || !hasGrid || redetecting}
+        onSubmit={save}
+        onEstimate={hasGrid && display ? () => setEstimating(true) : null}
+      />
       <Notices notices={notices} />
       <div className="confirm" data-dim={dim || undefined} style={stageShape}>
         {preview && <Summary preview={preview} />}
@@ -433,6 +442,9 @@ export default function ImportScreen() {
           </section>
         </div>
       </div>
+      {estimating && hasGrid && display && (
+        <YarnEstimate name={cleanName(name) ?? 'Untitled pattern'} pattern={display} onClose={() => setEstimating(false)} />
+      )}
       <DropOverlay show={drop.over} text="Drop a chart image to import it" />
     </main>
   )
@@ -671,18 +683,21 @@ function BootStatus({ progress }: { progress: BootProgress | null }) {
   )
 }
 
-/** The pattern's name and Save, at the screen's top. The name starts empty: left so, the
- *  pattern is named by the moment it's saved. */
+/** The pattern's name, "Yarn & size" and Save, at the screen's top. The name starts empty:
+ *  left so, the pattern is named by the moment it's saved. */
 function SaveBar({
   name,
   onName,
   disabled,
   onSubmit,
+  onEstimate,
 }: {
   name: string
   onName: (name: string) => void
   disabled: boolean
   onSubmit: (e: FormEvent) => void
+  /** Open "Yarn & size"; null while there's no pattern to estimate. */
+  onEstimate: (() => void) | null
 }) {
   const id = useId()
   return (
@@ -702,9 +717,20 @@ function SaveBar({
           onChange={(e) => onName(e.target.value)}
         />
       </div>
-      <button type="submit" className="button button--primary savebar__save" disabled={disabled}>
-        Save &amp; edit pattern
-      </button>
+      <div className="savebar__actions">
+        <button
+          type="button"
+          className="button"
+          disabled={!onEstimate}
+          title="How big it comes out, and how much yarn of each colour to buy"
+          onClick={() => onEstimate?.()}
+        >
+          Yarn &amp; size
+        </button>
+        <button type="submit" className="button button--primary" disabled={disabled}>
+          Save &amp; edit pattern
+        </button>
+      </div>
     </form>
   )
 }
