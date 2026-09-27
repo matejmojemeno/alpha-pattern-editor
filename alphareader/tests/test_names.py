@@ -27,10 +27,35 @@ def test_three_of_a_kind():
     assert simple_names(["#232812", "#4b503a", "#333822"]) == ["Dark olive", "Light olive", "Olive"]
 
 
-def test_the_report_that_everything_was_dark_blue():
-    # The palette the owner saw named "Dark Blue" three times (820b in dmc.json).
-    names = simple_names(["#090389", "#d1309e", "#74b9e5", "#c6e3ee", "#513acb", "#7b4fa8"])
-    assert names == ["Dark blue", "Magenta", "Light blue", "Very light blue", "Blue", "Purple"]
+def test_the_chart_that_was_all_dark_blue():
+    # A chart the owner reported, whose palette DMC naming called "Dark Blue" three times.
+    # #5539d3 is on the border of blue and purple (the survey's nearest name for it is
+    # "blurple"); with three clear blues beside it, it is the purple, and the dusty
+    # #834cae beside it is the muted one.
+    names = simple_names(["#0a038f", "#e40ea2", "#5bbbea", "#bfe4f0", "#5539d3", "#834cae"])
+    assert names == ["Dark blue", "Pink", "Blue", "Light blue", "Bright purple", "Muted purple"]
+    # Alone, it is nearest to blue.
+    assert simple_names(["#5539d3"]) == ["Blue"]
+
+
+def test_a_border_colour_only_moves_out_of_a_crowded_name():
+    # Two blues are told apart by their words; the blue-violet stays blue.
+    assert simple_names(["#0a038f", "#5539d3"]) == ["Dark blue", "Blue"]
+    # A pale blue is never moved to grey, however many blues there are.
+    names = simple_names(["#0a038f", "#5bbbea", "#bfe4f0", "#3050c0"])
+    assert "Grey" not in " ".join(names)
+
+
+def test_dull_colours_do_not_move():
+    # A dark olive-grey is near every name, so it isn't "on the border" of teal.
+    names = simple_names(["#232812", "#333822", "#4b503a"])
+    assert names == ["Dark olive", "Olive", "Light olive"]
+
+
+def test_two_differing_in_hue_lean_either_way():
+    assert simple_names(["#009fc6", "#3b98d5"]) == ["Greenish blue", "Purplish blue"]
+    # When lightness differs about as much, Dark and Light are plainer.
+    assert simple_names(["#345b94", "#55a4ba"]) == ["Blue", "Light blue"]
 
 
 def test_neutrals_are_black_white_and_greys():

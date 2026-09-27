@@ -112,8 +112,12 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   everyday names (blue, turquoise, burgundy…) from the nearest anchor in the xkcd colour
   survey's averages (CC0; provenance `web/src/importer/README.md`), by CIEDE2000, and
   shades sharing a name are told apart within the palette: one blue is "Blue", two are
-  "Dark blue" and "Light blue" (rules in `names.py`). No two names in a palette are the
-  same. The DMC code is still stored in `dmc`. The import screen names the colours left
+  "Dark blue" and "Light blue" (rules in `names.py`). Names are chosen for the palette
+  as a whole: a strong border colour leaves a name three or more share for its second
+  name, so a reported chart's blue-violet (#5539d3, the survey's "blurple") is
+  "Bright purple" beside three blues, and its dusty purple "Muted purple". Two of one
+  name that differ mostly in hue lean either way ("Bluish purple", "Pinkish purple").
+  No two names in a palette are the same. The DMC code is still stored in `dmc`. The import screen names the colours left
   again after a removal, so one blue left alone is "Blue". The yarn libraries moved
   behind "Advanced: match to yarn", off by default (`settings.colourLibrary` is null);
   the disclosure starts open when a library is already chosen. Checked against the

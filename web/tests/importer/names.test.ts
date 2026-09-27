@@ -61,4 +61,16 @@ describe('simpleNames', () => {
     expect(simpleNames(['#c6e3ee', '#ffffff'])).toEqual(['Blue', 'White'])
     expect(simpleNames(['#8ab8e8', '#1a2a80'])).toEqual(['Light blue', 'Dark blue'])
   })
+
+  it('names a reported chart’s blue-violet as the purple beside three blues', () => {
+    expect(simpleNames(['#0a038f', '#e40ea2', '#5bbbea', '#bfe4f0', '#5539d3', '#834cae'])).toEqual([
+      'Dark blue',
+      'Pink',
+      'Blue',
+      'Light blue',
+      'Bright purple',
+      'Muted purple',
+    ])
+    expect(simpleNames(['#009fc6', '#3b98d5'])).toEqual(['Greenish blue', 'Purplish blue'])
+  })
 })

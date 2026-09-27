@@ -1,6 +1,7 @@
 /**
- * Everyday names for a palette's colours ("Blue", "Dark blue", "Burgundy"), a port of
- * alphareader/core/detect/names.py, which says how they are chosen. Detection names the
+ * Everyday names for a palette's colours ("Blue", "Dark blue", "Bright purple"), a port
+ * of alphareader/core/detect/names.py, which says how they are chosen, for the whole
+ * palette at once. Detection names the
  * palette in Python; the import screen names it again here whenever a colour is removed
  * or restored, so one blue left alone is "Blue" again. fixtures/colour_names.json proves
  * the two agree.
@@ -15,6 +16,20 @@ const WORDS = ['Very dark', 'Dark', '', 'Light', 'Very light'] as const
 const PLAIN = 2
 const STEP = 10
 const VERY = 25
+const BORDER = 1.75
+const CROWD = 3
+const MOVE_CHROMA = 20
+const CLEAR = 1.5
+/** The hues a name can lean towards, in names.py's `_HUES` order. */
+const HUES: readonly (readonly [family: string, word: string])[] = [
+  ['red', 'Reddish'],
+  ['orange', 'Orangey'],
+  ['yellow', 'Yellowish'],
+  ['green', 'Greenish'],
+  ['blue', 'Bluish'],
+  ['purple', 'Purplish'],
+  ['pink', 'Pinkish'],
+]
 
 interface Anchor {
   readonly family: string
@@ -22,20 +37,20 @@ interface Anchor {
   readonly lab: Lab
 }
 
-let cache: { anchors: Anchor[]; plain: Map<string, number> } | null = null
+let cache: { anchors: Anchor[]; plain: Map<string, Lab>; order: string[] } | null = null
 
 function anchors() {
   if (!cache) {
     const list: Anchor[] = []
-    const plain = new Map<string, number>()
+    const plain = new Map<string, Lab>()
     for (const fam of table.families) {
       fam.anchors.forEach((a, i) => {
         const lab = hexToLab(a.hex)
         list.push({ family: fam.name, name: a.name, lab })
-        if (i === 0) plain.set(fam.name, lab[0])
+        if (i === 0) plain.set(fam.name, lab)
       })
     }
-    cache = { anchors: list, plain }
+    cache = { anchors: list, plain, order: table.families.map((f) => f.name) }
   }
   return cache
 }
@@ -141,17 +156,106 @@ function spread(ideal: readonly number[]): number[] {
 }
 
 const chroma = (lab: Lab) => Math.sqrt(lab[1] * lab[1] + lab[2] * lab[2])
+const hue = (lab: Lab) => mod(deg(Math.atan2(lab[2], lab[1])), 360)
 const cap = (s: string) => s.slice(0, 1).toUpperCase() + s.slice(1)
+
+/** From hue a to hue b, the short way round, in degrees (-180, 180]. */
+function turn(a: number, b: number): number {
+  const d = mod(b - a, 360)
+  return d > 180 ? d - 360 : d
+}
+
+/** Python's tuple order on (turn, family). */
+const before = (x: readonly [number, string], y: readonly [number, string]) => x[0] < y[0] || (x[0] === y[0] && x[1] < y[1])
+
+/** The words for leaning each way round the hue circle from `fam` (names.py, `_leanings`). */
+function leanings(fam: string): [string, string] {
+  const { plain } = anchors()
+  const h = hue(plain.get(fam)!)
+  let below: [number, string] | null = null
+  let above: [number, string] | null = null
+  for (const [f] of HUES) {
+    if (f === fam) continue
+    const t: [number, string] = [turn(h, hue(plain.get(f)!)), f]
+    if (t[0] < 0 && (!below || before(below, t))) below = t
+    if (t[0] > 0 && (!above || before(t, above))) above = t
+  }
+  const word = (f: string) => HUES.find(([g]) => g === f)![1]
+  return [word(below![1]), word(above![1])]
+}
+
+/** What two colours of one name differ in most (names.py, `_axis`). */
+function axis(x: Lab, y: Lab, fam: string): 'lightness' | 'chroma' | 'hue' {
+  const dl = Math.abs(x[0] - y[0])
+  const dc = Math.abs(chroma(x) - chroma(y))
+  const de2 = (x[0] - y[0]) ** 2 + (x[1] - y[1]) ** 2 + (x[2] - y[2]) ** 2
+  const dh = Math.sqrt(Math.max(0, de2 - dl * dl - dc * dc))
+  if (fam === 'grey' || CLEAR * dl >= Math.max(dc, dh)) return 'lightness'
+  return dc >= dh ? 'chroma' : 'hue'
+}
+
+/**
+ * Each colour's name and its nearest anchor, a colour on the border between two names
+ * moving to the other while that leaves a crowded name with fewer (names.py, `_families`).
+ */
+function families(labs: readonly Lab[]): { fams: string[]; near: number[] } {
+  const { anchors: list, order } = anchors()
+  const near: number[] = []
+  const dist: Map<string, number>[] = []
+  for (const lab of labs) {
+    let best = -1
+    let bestD = Infinity
+    const byFam = new Map<string, number>()
+    list.forEach((a, k) => {
+      const d = ciede2000(lab, a.lab)
+      if (d < bestD) {
+        best = k
+        bestD = d
+      }
+      if (d < (byFam.get(a.family) ?? Infinity)) byFam.set(a.family, d)
+    })
+    near.push(best)
+    dist.push(byFam)
+  }
+  const fams = near.map((k) => list[k]!.family)
+  const fixed = near.map((k) => list[k]!.name === 'black' || list[k]!.name === 'white')
+  const borders = labs.map((lab, i) =>
+    fixed[i] || chroma(lab) < MOVE_CHROMA
+      ? []
+      : order.filter(
+          (f) => f !== fams[i] && f !== 'grey' && fams[i] !== 'grey' && dist[i]!.get(f)! <= BORDER * dist[i]!.get(fams[i]!)!,
+        ),
+  )
+  for (;;) {
+    const size = new Map<string, number>()
+    fams.forEach((f, i) => {
+      if (!fixed[i]) size.set(f, (size.get(f) ?? 0) + 1)
+    })
+    let move: { key: [number, number, number]; i: number; f: string } | null = null
+    borders.forEach((alts, i) => {
+      const cur = fams[i]!
+      for (const f of alts) {
+        if (f !== cur && size.get(cur)! >= CROWD && (size.get(f) ?? 0) + 1 < size.get(cur)!) {
+          const key: [number, number, number] = [dist[i]!.get(f)! - dist[i]!.get(cur)!, i, order.indexOf(f)]
+          const k = move?.key
+          if (!k || key[0] < k[0] || (key[0] === k[0] && (key[1] < k[1] || (key[1] === k[1] && key[2] < k[2])))) move = { key, i, f }
+        }
+      }
+    })
+    if (!move) return { fams, near }
+    const { i, f } = move
+    fams[i] = f
+  }
+}
 
 /** A different everyday name for each colour of a palette. */
 export function simpleNames(hexes: readonly string[]): string[] {
   const { anchors: list, plain } = anchors()
   const labs = hexes.map(hexToLab)
-  const near = labs.map((lab) => nearestAnchor(lab).index)
+  const { fams, near } = families(labs)
   const out = hexes.map(() => '')
   const groups = new Map<string, number[]>()
-  near.forEach((a, i) => {
-    const fam = list[a]!.family
+  fams.forEach((fam, i) => {
     const g = groups.get(fam)
     if (g) g.push(i)
     else groups.set(fam, [i])
@@ -167,15 +271,18 @@ export function simpleNames(hexes: readonly string[]): string[] {
     if (n === 0) continue
     if (n === 1 && fam !== 'grey') {
       out[members[0]!] = cap(fam)
-    } else if (
-      n === 2 &&
-      Math.abs(chroma(labs[members[0]!]!) - chroma(labs[members[1]!]!)) > Math.abs(labs[members[0]!]![0] - labs[members[1]!]![0])
-    ) {
+    } else if (n === 2 && axis(labs[members[0]!]!, labs[members[1]!]!, fam) === 'chroma') {
       const [strong, weak] = [...members].sort((i, j) => chroma(labs[j]!) - chroma(labs[i]!) || i - j)
       out[strong!] = `Bright ${fam}`
       out[weak!] = `Muted ${fam}`
+    } else if (n === 2 && axis(labs[members[0]!]!, labs[members[1]!]!, fam) === 'hue') {
+      const [below, above] = leanings(fam)
+      let [a, b] = members as [number, number]
+      if (turn(hue(labs[a]!), hue(labs[b]!)) < 0) [a, b] = [b, a]
+      out[a] = `${below} ${fam}`
+      out[b] = `${above} ${fam}`
     } else if (n <= WORDS.length) {
-      const slots = spread(members.map((i) => idealSlot(labs[i]![0], plain.get(fam)!)))
+      const slots = spread(members.map((i) => idealSlot(labs[i]![0], plain.get(fam)![0])))
       members.forEach((i, k) => {
         const s = slots[k]!
         out[i] = s === PLAIN ? cap(fam) : `${WORDS[s]} ${fam}`
