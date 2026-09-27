@@ -65,7 +65,7 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   gone, and so are the red Xs and the low-confidence warning (`bridge._warnings` no
   longer adds it; the pipeline's copy was already filtered as a sampled warning). A
   wrong size is fixed in Design, with the row and column tools; the shrink notice says
-  so. The controls left are Crop, Re-detect and Colour detail. `set_params` still takes
+  so. The controls left were Crop, Re-detect and Colour detail (since gone or changed). `set_params` still takes
   rows and cols, and previews still carry `confidence`; the UI just doesn't use them.
 - **The grid's outline moves, and Crop is gone** (§7.2's "draggable extent handles …
   snapping to pitch increments"; `web/src/importer/outline.ts`,
@@ -101,7 +101,7 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   showing, which is how a phone sees it on the Pattern tab ("Show all colours" ends it).
   Its × removes it as Design's Delete does (`edit.deletePaletteEntryNearest`); removed
   colours are listed with Restore, which puts back exactly what detection found. Removals
-  survive moving the outline and Re-detect, and are applied to the committed pattern on
+  survive moving the outline and detecting again, and are applied to the committed pattern on
   saving. `scripts/desktop_import.py` takes `remove=#rrggbb`, and
   `e2e/corrections.spec.ts` checks the saved pattern cell for cell against the Python's
   `delete_palette_entry_nearest`.
@@ -122,6 +122,21 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   behind "Advanced: match to yarn", off by default (`settings.colourLibrary` is null);
   the disclosure starts open when a library is already chosen. Checked against the
   owner's 23 saved projects by eye, and `fixtures/colour_names.json` proves the port.
+- **The import screen, rearranged** (`ui/screens/Import.tsx`): the name, "Choose
+  another image" and "Save & edit pattern" head the screen instead of sitting in a bar
+  at the bottom (sticky on a phone). The name field starts empty, with the name it will
+  otherwise get greyed in it: the file name, or for a pasted image "Pattern 27 Sep 2026,
+  14:05" (`pastedName`; it used to be "Pasted pattern", which named every paste the
+  same). The grid's size is the only figure left, set large beside the Pattern heading
+  (above the tabs on a phone, so it shows on the image tab too); stitches and "strings
+  needed" are gone from this screen, still in Design. **Re-detect became "Use the whole
+  image"**, under the image and shown only after a box has been drawn: with the outline
+  movable and no colour setting, the whole image again is all it could do, and before a
+  box it only found what was already found. A box drawn by hand round the whole image is
+  no substitute: on cats.png, whose chart runs to the image's edges, one begun a single
+  screen pixel in loses the outermost column and row (99 × 44 for 100 × 45), and snapping
+  boxes to the edge would fight cropping off edge numbers. `e2e/corrections.spec.ts`
+  checks the button against the desktop's crop then Re-detect.
 - **Hosting** (`web/wrangler.jsonc`, `web/public/_headers`): Cloudflare Workers static
   assets at the free `*.workers.dev` address, deployed by Cloudflare's Git integration on
   every push to `main` (setup in `web/README.md`, "Deploying"). `/assets/*`, `/pyodide/*`
