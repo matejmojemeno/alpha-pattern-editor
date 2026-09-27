@@ -103,5 +103,5 @@ afterEach(() => {
   clearPendingImage()
 })
 
-/** The import screen's grid size as it reads, "4 cols × 3 rows", or null before a grid. */
+/** The import screen's grid size as it reads, "4 × 3 stitches · 12 total", or null before a grid. */
 export const sizeShown = () => document.querySelector('.confirm__stats')?.textContent ?? null

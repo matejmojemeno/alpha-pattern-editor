@@ -5,9 +5,9 @@
  */
 import { act, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { handOffImage, pastedName } from '../../src/app/pendingImage.ts'
+import { handOffImage, timestampName } from '../../src/app/pendingImage.ts'
 import { navigate } from '../../src/app/router.ts'
 import { FAILURE_HINTS } from '../../src/importer/hints.ts'
 import { readAlpha } from '../../src/storage/alpha.ts'
@@ -22,7 +22,7 @@ beforeEach(() => detection.reset())
 
 /** The import screen, lazily loaded, with `name` waiting to be imported. */
 async function openImport(name: string | null = 'dog') {
-  if (name !== null) handOffImage({ file: photo(`${name}.png`), name })
+  if (name !== null) handOffImage({ file: photo(`${name}.png`) })
   const view = await renderApp('#/import')
   await screen.findByRole('heading', { level: 1, name: 'Import pattern' })
   return view
@@ -65,11 +65,15 @@ describe('Import screen', () => {
     await saveButton()
     expect(screen.getByRole('img', { name: 'The image being imported' })).toBeTruthy()
     expect(screen.getByRole('img', { name: 'The detected pattern: 4 columns by 3 rows' })).toBeTruthy()
-    // Only the size: the colour count heads the colour list, and stitches and strings
-    // aren't worth the room here.
-    expect(sizeShown()).toBe('4 cols × 3 rows')
-    expect(screen.queryByText(/stitches ·|strings needed/)).toBeNull()
+    // The size under the pattern; the colour count heads the colour list, the total at
+    // its foot, and strings aren't worth the room here.
+    expect(sizeShown()).toBe('4 × 3 stitches · 12 total')
+    expect(screen.getByRole('region', { name: 'Pattern' }).contains(document.querySelector('.confirm__stats'))).toBe(true)
+    expect(document.querySelector('.palette__total')?.textContent).toBe('Total12 stitches')
+    expect(screen.queryByText(/strings needed/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Re-detect' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Reset to detected grid' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByText('Drag the handles to choose which part becomes the pattern.')).toBeTruthy()
     expect(screen.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeTruthy()
     const list = screen.getByRole('list', { name: 'Colours' })
     expect(within(list).getAllByRole('listitem')).toHaveLength(2)
@@ -90,7 +94,8 @@ describe('Import screen', () => {
       ]),
     )
     expect(within(screen.getByRole('list', { name: 'Warnings' })).getByText('Check the dimensions.')).toBeTruthy()
-    expect(nameField()).toMatchObject({ value: '', placeholder: 'dog' })
+    expect(nameField()).toMatchObject({ value: '', placeholder: 'Untitled pattern' })
+    expect(screen.getByText('Pattern name').tagName).toBe('LABEL')
   })
 
   it('saves with the source image and opens the Design stage (§7.3)', async () => {
@@ -111,13 +116,23 @@ describe('Import screen', () => {
     expect(exported.project.pattern.palette.map((e) => e.name)).toEqual(['White', 'Brown'])
   })
 
-  it('saves under the greyed name when none is typed', async () => {
+  it('names a pattern saved without a name by the moment it was saved, in local time', async () => {
     const { repo } = await openImport()
     await userEvent.type(nameField(), '   ') // nothing but spaces is no name
-    await userEvent.click(await saveButton())
-    await waitFor(() => expect(window.location.hash).toBe('#/design/pattern-1'))
-    expect(detection.worker.of('commit')[0]).toMatchObject({ name: 'dog' })
-    expect((await repo.open('pattern-1')).project.pattern.name).toBe('dog')
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(new Date(2026, 8, 27, 12, 15, 30))
+      await userEvent.click(await saveButton())
+      await waitFor(() => expect(window.location.hash).toBe('#/design/pattern-1'))
+    } finally {
+      vi.useRealTimers()
+    }
+    expect(detection.worker.of('commit')[0]).toMatchObject({ name: '2026-09-27-121530' })
+    expect((await repo.open('pattern-1')).project.pattern.name).toBe('2026-09-27-121530')
+  })
+
+  it('pads every part of the timestamp to its width', () => {
+    expect(timestampName(new Date(2027, 0, 3, 9, 5, 7))).toBe('2027-01-03-090507')
   })
 
   it('shows where a colour is used while it is pointed at, focused, or picked', async () => {
@@ -213,7 +228,7 @@ describe('Import screen', () => {
     detection.worker.auto = ok.auto
     await userEvent.upload(screen.getAllByLabelText('Choose a chart image')[0]!, photo('straight.png'))
     expect(await saveButton()).toBeTruthy()
-    expect(nameField()).toMatchObject({ value: '', placeholder: 'straight' })
+    expect(nameField()).toMatchObject({ value: '', placeholder: 'Untitled pattern' })
     expect(detection.worker.of('open')).toHaveLength(2)
     // The first image's session was closed.
     expect(detection.worker.of('close').map((c) => c.session)).toEqual([1])
@@ -239,10 +254,10 @@ describe('Import screen', () => {
     expect(detection.worker.sent).toEqual([]) // nothing is loaded until there's an image
     await userEvent.upload(screen.getByLabelText('Choose a chart image'), photo('cat.webp'))
     expect(await saveButton()).toBeTruthy()
-    expect(nameField()).toMatchObject({ value: '', placeholder: 'cat' })
+    expect(nameField()).toMatchObject({ value: '', placeholder: 'Untitled pattern' })
   })
 
-  it('names a pasted image by the date and time it was pasted', async () => {
+  it('imports a pasted image, with the name left empty', async () => {
     await openImport(null)
     const file = photo('image.png')
     act(() => {
@@ -251,13 +266,16 @@ describe('Import screen', () => {
       document.body.dispatchEvent(e)
     })
     expect(await saveButton()).toBeTruthy()
-    expect(nameField().value).toBe('')
-    expect(nameField().placeholder).toMatch(/^Pattern \d{1,2} [A-Z][a-z]{2} \d{4}, \d\d:\d\d$/)
+    expect(nameField()).toMatchObject({ value: '', placeholder: 'Untitled pattern' })
   })
 
-  it('spells the date out the same in every locale', () => {
-    expect(pastedName(new Date(2026, 8, 27, 14, 5))).toBe('Pattern 27 Sep 2026, 14:05')
-    expect(pastedName(new Date(2027, 0, 3, 9, 0))).toBe('Pattern 3 Jan 2027, 09:00')
+  it('keeps the name typed when the image is replaced', async () => {
+    await openImport()
+    await saveButton()
+    await userEvent.type(nameField(), 'Dachshund')
+    await userEvent.upload(screen.getAllByLabelText('Choose a chart image')[0]!, photo('other.png'))
+    await waitFor(() => expect(detection.worker.of('open')).toHaveLength(2))
+    expect(nameField().value).toBe('Dachshund')
   })
 
   it('closes the session and releases the worker when leaving', async () => {

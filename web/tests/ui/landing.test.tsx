@@ -124,12 +124,12 @@ describe('Landing screen', () => {
     expect(await repo.list()).toHaveLength(1)
   })
 
-  it('sends a chart image to the import screen, named after the file', async () => {
+  it('sends a chart image to the import screen', async () => {
     const { repo } = await renderApp('#/')
     await userEvent.upload(screen.getByLabelText(pickerLabel), image('My Dog.chart.jpg', 'image/jpeg'))
     await waitFor(() => expect(window.location.hash).toBe('#/import'))
     expect(await screen.findByRole('heading', { level: 1, name: 'Import pattern' })).toBeTruthy()
-    expect(pendingImage()?.name).toBe('My Dog.chart')
+    expect((pendingImage()!.file as File).name).toBe('My Dog.chart.jpg')
     expect(await repo.list()).toEqual([])
   })
 
@@ -137,7 +137,7 @@ describe('Landing screen', () => {
     await renderApp('#/')
     await userEvent.upload(screen.getByLabelText(pickerLabel), image('photo', 'image/webp'), { applyAccept: false })
     await waitFor(() => expect(window.location.hash).toBe('#/import'))
-    expect(pendingImage()?.name).toBe('photo')
+    expect((pendingImage()!.file as File).name).toBe('photo')
   })
 
   it("refuses images it can't read, and anything else that isn't a .alpha file", async () => {
@@ -163,7 +163,7 @@ describe('Landing screen', () => {
     )
     await waitFor(() => expect(window.location.hash).toBe('#/import'))
     expect((await repo.list()).map((s) => s.name)).toEqual(['basic'])
-    expect(pendingImage()?.name).toBe('one')
+    expect((pendingImage()!.file as File).name).toBe('one.png')
     const notes = pendingImage()!.notices!.map((n) => n.text).join(' ')
     expect(notes).toMatch(/Imported “basic”/)
     expect(notes).toMatch(/One image at a time: opened “one\.png”/)
@@ -180,12 +180,12 @@ describe('Landing screen', () => {
     expect(detection.preload).toHaveBeenCalledTimes(2)
   })
 
-  it('opens a pasted image, named by the date and time', async () => {
+  it('opens a pasted image', async () => {
     await renderApp('#/')
     const file = image('image.png')
     fireEvent.paste(document.body, { clipboardData: { files: [file], types: ['Files'] } })
     await waitFor(() => expect(window.location.hash).toBe('#/import'))
-    expect(pendingImage()).toMatchObject({ file, name: expect.stringMatching(/^Pattern \d{1,2} [A-Z][a-z]{2} \d{4}, \d\d:\d\d$/) })
+    expect(pendingImage()).toEqual({ file })
   })
 
   it('leaves pastes without an image, and pastes into text fields, alone', async () => {

@@ -132,7 +132,7 @@ describe('Library', () => {
     const photo = new File([new Uint8Array([1])], 'rose.jpeg', { type: 'image/jpeg' })
     await userEvent.upload(screen.getByLabelText('Choose a pattern file or chart image to import'), photo)
     await waitFor(() => expect(window.location.hash).toBe('#/import'))
-    expect(pendingImage()).toMatchObject({ file: photo, name: 'rose' })
+    expect(pendingImage()).toEqual({ file: photo, notices: [] })
   })
 
   it('imports dropped files', async () => {

@@ -34,7 +34,7 @@ const stats = (page: Page) => page.locator('.confirm__stats')
 
 /** Wait until nothing is detecting or resampling, and the preview shows cols × rows. */
 async function showing(page: Page, cols: number, rows: number) {
-  await expect(stats(page)).toHaveText(new RegExp(`^${cols} cols × ${rows} rows`), { timeout: DETECT_TIMEOUT })
+  await expect(stats(page)).toHaveText(`${cols} × ${rows} stitches · ${cols * rows} total`, { timeout: DETECT_TIMEOUT })
   await expect(page.locator('.confirm__outcome')).toHaveAttribute('aria-busy', 'false')
 }
 
@@ -94,16 +94,16 @@ test('a crop detects again, and matches the desktop', async ({ page }, testInfo)
 // A box drawn by hand round the whole image is no substitute: on cats.png, whose chart
 // runs to the image's edges, one begun a single screen pixel in from the corner loses
 // the outermost column and row (99 × 44).
-test('"Use the whole image" undoes a crop, as the desktop\'s Re-detect does', async ({ page }, testInfo) => {
+test('"Reset to detected grid" undoes a crop, as the desktop\'s Re-detect does', async ({ page }, testInfo) => {
   await importImage(page, CATS)
   await showing(page, 100, 45)
-  const whole = page.getByRole('button', { name: 'Use the whole image' })
+  const reset = page.getByRole('button', { name: 'Reset to detected grid' })
   await expect(page.getByRole('button', { name: 'Re-detect' })).toHaveCount(0)
-  await expect(whole).toHaveCount(0)
+  await expect(reset).toBeDisabled()
   const c = await crop(page, CATS, [0.25, 0.18, 0.75, 0.83])
   const cropped = desktopDetect(CATS, [`crop=${c.join(',')}`])
   await showing(page, cropped.cols, cropped.rows)
-  await whole.click()
+  await reset.click()
   const want = await expectDesktop(page, testInfo, 'Cats whole again', CATS, [`crop=${c.join(',')}`, 'redetect'])
   expect([want.cols, want.rows]).toEqual([100, 45])
 })
@@ -157,8 +157,8 @@ test('a colour removed before the outline moves stays removed, and matches the d
   await showing(page, 100, 45)
   const list = page.getByRole('list', { name: 'Colours' })
   // The list never scrolls or spills sideways, long shade names and all, at the narrowest
-  // width that has three panes.
-  await page.setViewportSize({ width: 900, height: 800 })
+  // width that has it beside the pattern.
+  await page.setViewportSize({ width: 1100, height: 800 })
   expect(await list.evaluate((el) => el.scrollWidth <= el.clientWidth && getComputedStyle(el).overflowX === 'visible')).toBe(true)
 
   // Pointing at a colour shows where it is used.
@@ -181,26 +181,62 @@ test('a colour removed before the outline moves stays removed, and matches the d
   expect(want.palette).toHaveLength(2)
 })
 
+test('the image and the pattern sit on stages of one size that line up, at every width', async ({ page }) => {
+  await importImage(page, CATS)
+  await showing(page, 100, 45)
+  const box = (selector: string) => page.locator(selector).first().boundingBox().then((b) => b!)
+  const within = (a: number, b: number) => expect(Math.abs(a - b)).toBeLessThanOrEqual(0.5)
+  const size = pngSize(CATS)
+  for (const width of [1280, 900, 400]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expect(page.locator('.stage')).toHaveCount(2)
+    const [image, pattern] = [await box('.source.stage'), await box('.confirm__col--pattern .stage')]
+    within(image.width, pattern.width)
+    within(image.height, pattern.height)
+    // The image's shape, within the height cap.
+    within(image.height, Math.min(image.width * (size.height / size.width), Math.min(0.7 * 900, 720)))
+    // The pattern fits inside its stage, centred.
+    const canvas = await box('.pattern__canvas')
+    within(canvas.x - pattern.x, pattern.x + pattern.width - (canvas.x + canvas.width))
+    within(canvas.y - pattern.y, pattern.y + pattern.height - (canvas.y + canvas.height))
+    // Each heading sits over the left edge of what's below it.
+    within((await box('.confirm__col--image .confirm__caption')).x, image.x)
+    within((await box('.confirm__col--pattern .confirm__caption')).x, pattern.x)
+    if (width >= 900) {
+      // Side by side: tops and bottoms level, headings on one baseline, and the size
+      // under the pattern.
+      within(image.y, pattern.y)
+      const heads = await page.locator('.confirm__head').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height))
+      expect(new Set(heads).size).toBe(1)
+      within((await box('.confirm__stats')).x, pattern.x)
+    }
+  }
+  // The counts end where the rows' dividers do.
+  await page.setViewportSize({ width: 1280, height: 900 })
+  const row = await box('.palette__entry')
+  const count = await box('.palette__count')
+  within(count.x + count.width, row.x + row.width)
+  await expect(page.locator('.palette__total')).toHaveText('Total4500 stitches')
+})
+
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 400, height: 860 }, hasTouch: true, isMobile: true })
 
-  test('a colour tapped is shown on the Pattern tab, and its × is there to tap', async ({ page }) => {
+  test('a colour tapped is shown on the pattern above, and its × is there to tap', async ({ page }) => {
     await importImage(page, CATS)
     await showing(page, 100, 45)
-    await page.getByRole('tab', { name: 'Colours, 3 colours' }).tap()
+    await expect(page.getByRole('tablist')).toHaveCount(0)
     const cream = page.getByRole('button', { name: /^Cream,/ })
     await cream.tap()
     await expect(cream).toHaveAttribute('aria-pressed', 'true')
-    await page.getByRole('tab', { name: 'Pattern' }).tap()
-    await expect(page.getByRole('img', { name: /showing where Cream is used$/ })).toBeVisible()
+    await expect(page.getByRole('img', { name: /showing where Cream is used$/ })).toBeAttached()
     await page.getByRole('button', { name: 'Show all colours' }).tap()
-    await expect(page.getByRole('img', { name: /^The detected pattern: 100 columns by 45 rows$/ })).toBeVisible()
+    await expect(page.getByRole('img', { name: /^The detected pattern: 100 columns by 45 rows$/ })).toBeAttached()
 
-    await page.getByRole('tab', { name: /^Colours/ }).tap()
     const remove = page.getByRole('button', { name: 'Remove “Beige”' })
     await expect(remove).toHaveCSS('opacity', '1') // no hover to reveal it on a phone
     await remove.tap()
-    await expect(page.getByRole('tab', { name: 'Colours, 2 colours' })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeVisible()
   })
 
   test('every control is usable, saving stays in reach, and the result matches the desktop', async ({ page }, testInfo) => {
@@ -218,21 +254,17 @@ test.describe('on a phone', () => {
     await noSideways()
     await saveInView()
 
-    // The panes are tabs.
-    await expect(page.getByRole('tab', { name: 'Pattern', selected: true })).toBeVisible()
-    await page.getByRole('tab', { name: 'Colours' }).tap()
-    await expect(page.getByRole('list', { name: 'Colours' })).toBeVisible()
-    await page.getByRole('tab', { name: 'Image' }).tap()
+    // Everything is on the one page, stacked.
     await expect(page.getByTestId('grid-overlay')).toBeVisible()
+    await expect(page.getByRole('list', { name: 'Colours' })).toBeAttached()
 
     // A box drawn on the image. (Not too near the image's edges, where the outline's
     // handles are.)
     const c = await crop(page, CATS, [0.2, 0.18, 0.8, 0.82])
-    await expect(page.getByRole('tab', { name: 'Pattern', selected: true })).toBeVisible()
     const cropped = desktopDetect(CATS, [`crop=${c.join(',')}`])
     await showing(page, cropped.cols, cropped.rows)
 
-    // Scrolled to the bottom of the pane, saving is still on screen.
+    // Scrolled to the bottom of the page, saving is still on screen.
     await page.mouse.wheel(0, 2000)
     await saveInView()
     await noSideways()

@@ -6,9 +6,6 @@ import type { Notice } from '../ui/useAlphaImport.ts'
 
 export interface PendingImage {
   file: Blob
-  /** The name it gets if none is typed, shown greyed in the empty name field: the file
-   *  name without its extension, or, for a pasted image, the date (`pastedName`). */
-  name: string
   /** Anything to tell the user on arrival, such as "only the first image was opened". */
   notices?: Notice[]
 }
@@ -29,19 +26,11 @@ export function clearPendingImage(): void {
   pending = null
 }
 
-/** A project name from a file name: its extension dropped. */
-export function nameFromFile(fileName: string): string {
-  const base = fileName.replace(/\.[^./\\]+$/, '').trim()
-  return base || 'Imported pattern'
-}
+const pad = (n: number) => String(n).padStart(2, '0')
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-/** A pasted image's name, "Pattern 27 Sep 2026, 14:05": a pasted image has no file name
- *  worth keeping, and the time tells two pasted the same day apart. Spelled out rather
- *  than left to the locale, so it reads the same everywhere. */
-export function pastedName(now = new Date()): string {
-  const hh = String(now.getHours()).padStart(2, '0')
-  const mm = String(now.getMinutes()).padStart(2, '0')
-  return `Pattern ${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}, ${hh}:${mm}`
+/** The name of a pattern saved without one: the moment it was saved, in local time,
+ *  "2026-09-27-121530". Sorts by date, and two saved a second apart differ. */
+export function timestampName(now = new Date()): string {
+  const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+  return `${date}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
 }
