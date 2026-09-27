@@ -91,14 +91,21 @@ test('a crop detects again, and matches the desktop', async ({ page }, testInfo)
   expect([want.cols, want.rows]).not.toEqual([100, 45])
 })
 
-test('Re-detect after a crop goes back to the whole image, as the desktop does', async ({ page }, testInfo) => {
+// A box drawn by hand round the whole image is no substitute: on cats.png, whose chart
+// runs to the image's edges, one begun a single screen pixel in from the corner loses
+// the outermost column and row (99 × 44).
+test('"Use the whole image" undoes a crop, as the desktop\'s Re-detect does', async ({ page }, testInfo) => {
   await importImage(page, CATS)
   await showing(page, 100, 45)
+  const whole = page.getByRole('button', { name: 'Use the whole image' })
+  await expect(page.getByRole('button', { name: 'Re-detect' })).toHaveCount(0)
+  await expect(whole).toHaveCount(0)
   const c = await crop(page, CATS, [0.25, 0.18, 0.75, 0.83])
   const cropped = desktopDetect(CATS, [`crop=${c.join(',')}`])
   await showing(page, cropped.cols, cropped.rows)
-  await page.getByRole('button', { name: 'Re-detect' }).click()
-  await expectDesktop(page, testInfo, 'Cats redetected', CATS, [`crop=${c.join(',')}`, 'redetect'])
+  await whole.click()
+  const want = await expectDesktop(page, testInfo, 'Cats whole again', CATS, [`crop=${c.join(',')}`, 'redetect'])
+  expect([want.cols, want.rows]).toEqual([100, 45])
 })
 
 /** Drag one of the outline's handles to a point given as fractions of the image (beyond

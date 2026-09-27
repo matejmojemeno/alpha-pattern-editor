@@ -2,7 +2,7 @@
 /**
  * The confirm screen's corrections (Phase 2, part 2), with the real DetectClient on a fake
  * worker: each control sends the request it should (resample for moving the grid's
- * outline; detect again for a box drawn on the image and Re-detect), the preview stays up
+ * outline; detect again for a box drawn on the image), the preview stays up
  * while an answer is on its way, the watchdog's failure is recoverable, and the phone
  * layout's tabs.
  */
@@ -14,7 +14,7 @@ import { handOffImage } from '../../src/app/pendingImage.ts'
 import type { Preview, Request } from '../../src/detect/protocol.ts'
 import { detectingWorker, FakeWorker, makePreview } from '../detect/fakeWorker.ts'
 import { detection } from './fakeDetection.ts'
-import { renderApp, screen } from './helpers.tsx'
+import { renderApp, screen, sizeShown } from './helpers.tsx'
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])
 
@@ -36,7 +36,7 @@ async function openImport(worker: FakeWorker = confirmingWorker()) {
   handOffImage({ file: new File([PNG], 'dog.png', { type: 'image/png' }), name: 'dog' })
   const view = await renderApp('#/import')
   await screen.findByRole('button', { name: 'Save & edit pattern' })
-  await waitFor(() => expect(screen.getByText(/^4 cols × 3 rows/)).toBeTruthy())
+  await waitFor(() => expect(sizeShown()).toBe('4 cols × 3 rows'))
   return view
 }
 
@@ -128,7 +128,7 @@ describe('what the screen shows', () => {
   })
 })
 
-describe('the slow path: a box drawn on the image, and Re-detect, detect again', () => {
+describe('the slow path: a box drawn on the image detects again', () => {
   it('has no Crop button: a box drawn on the image crops, in image pixels', async () => {
     await openImport()
     expect(screen.queryByRole('button', { name: 'Crop' })).toBeNull()
@@ -137,7 +137,7 @@ describe('the slow path: a box drawn on the image, and Re-detect, detect again',
     await waitFor(() => expect(detection.worker.of('redetect')).toHaveLength(1))
     expect(detection.worker.of('redetect')[0]).toMatchObject({ crop: [10, 7, 30, 22] })
     expect(detection.worker.of('redetect')[0]).not.toHaveProperty('deltaE')
-    await waitFor(() => expect(screen.getByText(/^6 cols × 5 rows/)).toBeTruthy())
+    await waitFor(() => expect(sizeShown()).toBe('6 cols × 5 rows'))
   })
 
   it('crops with a finger too, and a slip is not a crop', async () => {
@@ -154,18 +154,24 @@ describe('the slow path: a box drawn on the image, and Re-detect, detect again',
     const auto = worker.auto!
     worker.auto = (msg) => (msg.type === 'redetect' ? undefined : auto(msg)) // never answers
     await openImport(worker)
-    await userEvent.click(screen.getByRole('button', { name: 'Re-detect' }))
+    const box = layOutSource()
+    drag(box, [100, 75], [300, 225])
     await waitFor(() => expect(detection.worker.of('redetect')).toHaveLength(1))
-    drag(layOutSource(), [100, 75], [300, 225])
+    drag(box, [50, 50], [350, 250])
     expect(detection.worker.of('redetect')).toHaveLength(1)
   })
 
-  it('Re-detect detects the whole image again', async () => {
+  it('has no Re-detect; "Use the whole image" undoes a box, and only then is offered', async () => {
     await openImport()
-    await userEvent.click(screen.getByRole('button', { name: 'Re-detect' }))
-    await waitFor(() => expect(detection.worker.of('redetect')).toHaveLength(1))
-    expect(detection.worker.of('redetect')[0]).not.toHaveProperty('crop')
-    await waitFor(() => expect(screen.getByText(/^6 cols × 5 rows/)).toBeTruthy())
+    const whole = () => screen.queryByRole('button', { name: 'Use the whole image' })
+    expect(screen.queryByRole('button', { name: 'Re-detect' })).toBeNull()
+    expect(whole()).toBeNull()
+    drag(layOutSource(), [100, 75], [300, 225])
+    await waitFor(() => expect(sizeShown()).toBe('6 cols × 5 rows'))
+    await userEvent.click(whole()!)
+    await waitFor(() => expect(detection.worker.of('redetect')).toHaveLength(2))
+    expect(detection.worker.of('redetect')[1]).not.toHaveProperty('crop')
+    await waitFor(() => expect(whole()).toBeNull())
   })
 
   it('after NO_GRIDLINES, the hint says to draw a box on the image, and one recovers', async () => {
@@ -209,7 +215,7 @@ describe('moving the outline', () => {
     detection.reset(worker)
     handOffImage({ file: new File([PNG], 'dog.png', { type: 'image/png' }), name: 'dog' })
     await renderApp('#/import')
-    await waitFor(() => expect(screen.getByText(/^2 cols × 2 rows/)).toBeTruthy())
+    await waitFor(() => expect(sizeShown()).toBe('2 cols × 2 rows'))
     return { worker, box: layOutSource() }
   }
   const rect = () => screen.getByTestId('grid-overlay').querySelector('rect')!
@@ -227,7 +233,7 @@ describe('moving the outline', () => {
     expect(box.querySelector('.source__size')!.textContent).toBe('3 × 2')
     fireEvent.pointerUp(box, at(4, 150))
     await waitFor(() => expect(updates()).toEqual([{ extent: { x0: 0, y0: 10, x1: 30, y1: 20 }, rows: 2, cols: 3 }]))
-    await waitFor(() => expect(screen.getByText(/^3 cols × 2 rows/)).toBeTruthy())
+    await waitFor(() => expect(sizeShown()).toBe('3 cols × 2 rows'))
     expect(box.querySelector('.source__size')).toBeNull()
     expect(detection.worker.of('redetect')).toHaveLength(0)
     // Grabbing an edge is not drawing a box.
@@ -249,7 +255,7 @@ describe('moving the outline', () => {
     fireEvent.pointerDown(screen.getByTestId('edge-top'), at(100))
     for (const y of [99, 96, 90, 80, 76, 74, 70]) fireEvent.pointerMove(box, at(y)) // 5 px cells: 9.9 … 7
     fireEvent.pointerUp(box, at(70))
-    await waitFor(() => expect(screen.getByText(/^2 cols × 3 rows/)).toBeTruthy())
+    await waitFor(() => expect(sizeShown()).toBe('2 cols × 3 rows'))
     // Only y0 = 5 (at 7.5 and below) differs from where it started.
     expect(updates()).toEqual([{ extent: { x0: 10, y0: 5, x1: 30, y1: 20 }, rows: 3, cols: 2 }])
   })
@@ -333,7 +339,8 @@ describe('moving the outline', () => {
     handOffImage({ file: new File([PNG], 'dog.png', { type: 'image/png' }), name: 'dog' })
     await renderApp('#/import')
     await waitFor(() => expect(screen.getByTestId('edge-top')).toBeTruthy())
-    await userEvent.click(screen.getByRole('button', { name: 'Re-detect' }))
+    drag(layOutSource(), [5, 5], [395, 295])
+    await waitFor(() => expect(detection.worker.of('redetect')).toHaveLength(1))
     await waitFor(() => expect(screen.queryByTestId('edge-top')).toBeNull())
   })
 })
@@ -363,7 +370,7 @@ describe('the watchdog', () => {
     const alert = await timedOut()
     await userEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('button', { name: 'Save & edit pattern' })).toBeTruthy()
-    await waitFor(() => expect(screen.getByText(/^4 cols × 3 rows/)).toBeTruthy())
+    await waitFor(() => expect(sizeShown()).toBe('4 cols × 3 rows'))
     expect(detection.worker.of('boot')).toHaveLength(2) // a new worker boots again
     expect(detection.worker.of('open')[1]).not.toHaveProperty('crop')
   })

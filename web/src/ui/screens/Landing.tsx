@@ -6,14 +6,14 @@ import { useCallback, useState } from 'react'
 
 import { useRepo } from '../../app/context.ts'
 import { preloadDetection } from '../../app/detection.ts'
-import { PASTED_NAME } from '../../app/pendingImage.ts'
+import { pastedName } from '../../app/pendingImage.ts'
 import { href, navigate, paths } from '../../app/router.ts'
 import { CellsIcon, DropOverlay, ImportButton, Notices, ReplaceDialog } from '../components.tsx'
 import { useDocumentTitle, useFileDrop, usePastedImage, useProjects } from '../hooks.ts'
 import { NewPatternDialog } from '../NewPattern.tsx'
 import { openImageImport, useAlphaImport } from '../useAlphaImport.ts'
 
-const openPasted = (file: File) => openImageImport({ file, name: PASTED_NAME })
+const openPasted = (file: File) => openImageImport({ file, name: pastedName() })
 
 export function Landing() {
   useDocumentTitle('')

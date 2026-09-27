@@ -10,7 +10,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useRepo } from '../../app/context.ts'
 import { preloadDetection } from '../../app/detection.ts'
 import { downloadBlob } from '../../app/download.ts'
-import { PASTED_NAME } from '../../app/pendingImage.ts'
+import { pastedName } from '../../app/pendingImage.ts'
 import { href, navigate, paths } from '../../app/router.ts'
 import type { ProjectSummary } from '../../storage/repo.ts'
 import {
@@ -29,7 +29,7 @@ import { NewPatternDialog } from '../NewPattern.tsx'
 import { openImageImport, useAlphaImport, type Notice } from '../useAlphaImport.ts'
 import { StorageUnavailable } from './Landing.tsx'
 
-const openPasted = (file: File) => openImageImport({ file, name: PASTED_NAME })
+const openPasted = (file: File) => openImageImport({ file, name: pastedName() })
 
 export function Library() {
   useDocumentTitle('Library')

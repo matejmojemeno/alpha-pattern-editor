@@ -180,12 +180,12 @@ describe('Landing screen', () => {
     expect(detection.preload).toHaveBeenCalledTimes(2)
   })
 
-  it('opens a pasted image as “Pasted pattern”', async () => {
+  it('opens a pasted image, named by the date and time', async () => {
     await renderApp('#/')
     const file = image('image.png')
     fireEvent.paste(document.body, { clipboardData: { files: [file], types: ['Files'] } })
     await waitFor(() => expect(window.location.hash).toBe('#/import'))
-    expect(pendingImage()).toMatchObject({ file, name: 'Pasted pattern' })
+    expect(pendingImage()).toMatchObject({ file, name: expect.stringMatching(/^Pattern \d{1,2} [A-Z][a-z]{2} \d{4}, \d\d:\d\d$/) })
   })
 
   it('leaves pastes without an image, and pastes into text fields, alone', async () => {

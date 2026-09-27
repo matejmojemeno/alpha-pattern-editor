@@ -3,7 +3,7 @@
  * remaining colour, as Delete does in Design (edit.ts, `deletePaletteEntryNearest`).
  *
  * A removal is remembered by its colour, not its palette id: every resample (moving the
- * outline, Re-detect) builds a fresh palette with fresh ids (core/detect/palette.py). So
+ * outline, detecting again) builds a fresh palette with fresh ids (core/detect/palette.py). So
  * each preview is kept as detection answered it, and the removals are applied to it in
  * the order they were made; each finds the entry nearest its colour, if one is within
  * `tolerance` (half the merge threshold, so it can only be one entry). A colour a new

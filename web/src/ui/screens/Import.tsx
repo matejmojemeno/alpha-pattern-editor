@@ -5,12 +5,15 @@
  * The desktop's fast/slow split is kept (docs/web-port-plan.md, Phase 2):
  * - moving the grid's outline only resamples (`DetectSession.update`),
  *   which folds a burst of changes into one pending request and drops stale answers;
- * - a box drawn on the image (a crop) and Re-detect detect again
- *   (`DetectSession.redetect`), under the client's watchdog.
+ * - a box drawn on the image (a crop) detects again (`DetectSession.redetect`), under
+ *   the client's watchdog, and so does "Use the whole image", which undoes one.
  * While an answer is on its way the last good preview stays up, dimmed after ~200 ms.
+ * The desktop's Re-detect is that button, shown only once there's a box to undo: before
+ * then it could only find what was already found.
  *
- * Under 900 px the image, the pattern and the colours are tabs; wider, they're the
- * desktop's three panes side by side. "Save & edit pattern" stays in view either way.
+ * The name and "Save & edit pattern" head the screen. Under 900 px the image, the
+ * pattern and the colours are tabs, with the grid's size above them; wider, they're the
+ * desktop's three panes side by side, the size beside the pattern's heading.
  *
  * Loaded lazily (App.tsx), and the only screen that starts the detection worker. Leaving
  * it terminates the worker (App.tsx), which frees Pyodide's memory.
@@ -22,7 +25,7 @@ import { downloadBytes } from 'virtual:detect-assets'
 
 import { useRepo } from '../../app/context.ts'
 import { loadDetection } from '../../app/detection.ts'
-import { nameFromFile, PASTED_NAME, pendingImage, type PendingImage } from '../../app/pendingImage.ts'
+import { nameFromFile, pastedName, pendingImage, type PendingImage } from '../../app/pendingImage.ts'
 import { navigate, paths } from '../../app/router.ts'
 import type { DetectSession } from '../../detect/client.ts'
 import {
@@ -35,7 +38,7 @@ import {
   type Params,
   type Preview,
 } from '../../detect/protocol.ts'
-import { importStats, shrinkNotice } from '../../importer/controls.ts'
+import { shrinkNotice } from '../../importer/controls.ts'
 import { decodeImage, ImageDecodeError, sourcePng } from '../../importer/decode.ts'
 import { hintFor, OUT_OF_MEMORY_HINT, TIMEOUT_HINT } from '../../importer/hints.ts'
 import type { Grid } from '../../importer/outline.ts'
@@ -43,7 +46,6 @@ import { applyRemovals, type Removal } from '../../importer/removals.ts'
 import { emptyProgress } from '../../model/types.ts'
 import { DropOverlay, ImportButton, Notices, TopBar } from '../components.tsx'
 import { useDelayedFlag, useDocumentTitle, useFileDrop, useMediaQuery, usePastedImage } from '../hooks.ts'
-import { Controls } from '../import/Controls.tsx'
 import { Palette } from '../import/Palette.tsx'
 import { PatternView } from '../import/PatternView.tsx'
 import { SourceView } from '../import/SourceView.tsx'
@@ -56,7 +58,7 @@ export type ImportState =
   | { phase: 'booting'; progress: BootProgress | null }
   | { phase: 'detecting' }
   | { phase: 'result'; preview: Preview }
-  /** Detection found no chart; the session is open, so Crop and Re-detect can retry. */
+  /** Detection found no chart; the session is open, so a box drawn on the image can retry. */
   | { phase: 'failed'; code: DetectionErrorCode }
   /** Detection ran past its budget and the worker was terminated: no session. */
   /** The worker was terminated: the watchdog stopped it, or its memory ran out. */
@@ -94,7 +96,8 @@ export default function ImportScreen() {
 
   const [image, setImage] = useState<PendingImage | null>(pendingImage)
   const [state, setState] = useState<ImportState>(image ? { phase: 'decoding' } : { phase: 'choose' })
-  const [name, setName] = useState(image?.name ?? '')
+  /** The name typed; left empty, the pattern takes the image's (`PendingImage.name`). */
+  const [name, setName] = useState('')
   const [notices, setNotices] = useState<Notice[]>(image?.notices ?? [])
   const [saving, setSaving] = useState(false)
   const [run, setRun] = useState<Run>({ attempt: 0 })
@@ -109,6 +112,9 @@ export default function ImportScreen() {
   const [shown, setShown] = useState<Preview | null>(null)
   const [updating, setUpdating] = useState(0)
   const [redetecting, setRedetecting] = useState(false)
+  /** Whether the last detection was of a box drawn on the image, which "Use the whole
+   *  image" undoes. */
+  const [cropped, setCropped] = useState(false)
   const dim = useDelayedFlag(updating > 0 || redetecting, DIM_AFTER_MS)
 
   /** Colours removed before saving, in order (importer/removals.ts). */
@@ -130,11 +136,12 @@ export default function ImportScreen() {
 
   const choose = useCallback((file: File, fileName = nameFromFile(file.name)) => {
     setImage({ file, name: fileName })
-    setName(fileName)
+    setName('')
     setNotices([])
     setShown(null)
     setSize(null)
     setRun({ attempt: 0 })
+    setCropped(false)
     setRemovals([])
     setPointed(null)
     setPinned(null)
@@ -149,7 +156,7 @@ export default function ImportScreen() {
     [choose],
   )
   const drop = useFileDrop(onFiles)
-  usePastedImage(useCallback((file: File) => choose(file, PASTED_NAME), [choose]))
+  usePastedImage(useCallback((file: File) => choose(file, pastedName()), [choose]))
 
   /** Show what a detection (open or redetect) found. */
   const detected = useCallback((result: Outcome<Preview>) => {
@@ -245,11 +252,13 @@ export default function ImportScreen() {
 
   // --- the slow path: detect again ------------------------------------------------------
 
+  /** Detect again inside a box drawn on the image, or, with none, in the whole image. */
   const redetect = (crop?: Crop) => {
+    setCropped(crop !== undefined)
     const s = session.current
     if (!s) {
       // Nothing to detect again in: the worker was stopped (the watchdog, or memory ran
-      // out). Start over, with the crop if there is one.
+      // out). Start over, with the box if there is one.
       setRun((r) => ({ attempt: r.attempt + 1, ...(crop ? { crop } : {}) }))
       return
     }
@@ -347,8 +356,19 @@ export default function ImportScreen() {
             onCrop={(crop) => redetect(crop)}
             onResize={onResize}
           />
-          {/* The save bar has no room for it on a phone. */}
-          {!wide && <p className="import__actions">{another('Choose another image')}</p>}
+          {(cropped || !wide) && (
+            <p className="import__actions">
+              {/* Undoes a box exactly: one drawn by hand round the whole image can miss
+                  a chart's outermost row by a pixel. */}
+              {cropped && (
+                <button type="button" className="button button--small" disabled={!canDetect} onClick={() => redetect()}>
+                  Use the whole image
+                </button>
+              )}
+              {/* The save bar has no room for it on a phone. */}
+              {!wide && another('Choose another image')}
+            </p>
+          )}
         </>
       ) : (
         <p className="muted">Reading the image…</p>
@@ -365,7 +385,10 @@ export default function ImportScreen() {
             spotlight={spotlight}
             {...(pinned !== null && spotlight !== null && !wide ? { onShowAll: () => setPinned(null) } : {})}
             redetecting={redetecting}
-            onRetry={() => setRun((r) => ({ attempt: r.attempt + 1 }))}
+            onRetry={() => {
+              setCropped(false)
+              setRun((r) => ({ attempt: r.attempt + 1 }))
+            }}
             {...(wide ? {} : { onShowImage: () => setTab('image') })}
             another={another}
           />
@@ -398,12 +421,24 @@ export default function ImportScreen() {
     },
   ]
 
+  // The grid's size, beside the pattern's heading, or above the tabs on a phone, where it
+  // stays in view on the image tab too.
+  const sized = preview && <Size cols={preview.cols} rows={preview.rows} />
+
   return (
     <main className="screen import" {...drop.handlers}>
       <TopBar title="Import pattern" />
+      <SaveBar
+        name={name}
+        placeholder={image.name}
+        onName={setName}
+        disabled={saving || !repo || !hasGrid || redetecting}
+        onSubmit={save}
+        another={another}
+      />
       <Notices notices={notices} />
       <div className="confirm" data-dim={dim || undefined}>
-        <Controls canDetect={canDetect} onRedetect={() => redetect()} />
+        {!wide && sized}
         {preview && <Summary preview={preview} />}
         {!wide && (
           <div className="confirm__tabs" role="tablist" aria-label="Show">
@@ -436,22 +471,18 @@ export default function ImportScreen() {
                 : { role: 'tabpanel', 'aria-labelledby': `${tabsId}-${p.tab}-tab`, hidden: tab !== p.tab })}
             >
               {wide && (
-                <h2 className="confirm__caption" {...countLabel(p.label, p.count)}>
-                  {p.label}
-                  {p.count !== undefined && <Count n={p.count} />}
-                </h2>
+                <div className="confirm__head">
+                  <h2 className="confirm__caption" {...countLabel(p.label, p.count)}>
+                    {p.label}
+                    {p.count !== undefined && <Count n={p.count} />}
+                  </h2>
+                  {p.tab === 'pattern' && sized}
+                </div>
               )}
               {p.body}
             </section>
           ))}
         </div>
-        <SaveBar
-          name={name}
-          onName={setName}
-          disabled={saving || !repo || !hasGrid || redetecting}
-          onSubmit={save}
-          another={another}
-        />
       </div>
       <DropOverlay show={drop.over} text="Drop a chart image to import it" />
     </main>
@@ -475,13 +506,22 @@ function Count({ n }: { n: number }) {
 const countLabel = (label: string, n: number | undefined) =>
   n === undefined ? {} : { 'aria-label': `${label}, ${n} ${n === 1 ? 'colour' : 'colours'}` }
 
-/** The size, stitches and strings; the shrink notice; the warnings. Recomputed with
- *  every preview. */
+/** The grid's size, the one number to check against the chart, so set large. Updated
+ *  with every preview, as the outline moves. */
+function Size({ cols, rows }: { cols: number; rows: number }) {
+  return (
+    <p className="confirm__stats">
+      <strong>{cols}</strong> cols × <strong>{rows}</strong> rows
+    </p>
+  )
+}
+
+/** The warnings, and the shrink notice. Recomputed with every preview. */
 function Summary({ preview }: { preview: Preview }) {
   const shrunk = shrinkNotice(preview)
+  if (preview.warnings.length === 0 && !shrunk) return null
   return (
     <div className="confirm__summary">
-      <p className="confirm__stats">{importStats(preview.cols, preview.rows)}</p>
       {preview.warnings.length > 0 && (
         <ul className="confirm__warnings" aria-label="Warnings">
           {preview.warnings.map((w, i) => (
@@ -631,38 +671,39 @@ export function BootStatus({ progress }: { progress: BootProgress | null }) {
   )
 }
 
+/** The pattern's name and the screen's actions, at its top. The name field starts empty,
+ *  with the name it will get otherwise shown greyed in it: click and type to change it. */
 function SaveBar({
   name,
+  placeholder,
   onName,
   disabled,
   onSubmit,
   another,
 }: {
   name: string
+  placeholder: string
   onName: (name: string) => void
   disabled: boolean
   onSubmit: (e: FormEvent) => void
   another: (label: string, primary?: boolean) => ReactNode
 }) {
-  const id = useId()
   return (
     <form className="savebar" onSubmit={onSubmit}>
-      <label htmlFor={`${id}-name`} className="savebar__label">
-        Name
-      </label>
       <input
-        id={`${id}-name`}
+        aria-label="Pattern name"
         className="savebar__name"
         value={name}
+        placeholder={placeholder}
         maxLength={MAX_NAME_LENGTH}
         autoComplete="off"
         enterKeyHint="done"
         onChange={(e) => onName(e.target.value)}
       />
-      <button type="submit" className="button button--primary savebar__save" disabled={disabled || cleanName(name) === null}>
+      <span className="savebar__another">{another('Choose another image')}</span>
+      <button type="submit" className="button button--primary savebar__save" disabled={disabled}>
         Save &amp; edit pattern
       </button>
-      <span className="savebar__another">{another('Choose another image')}</span>
     </form>
   )
 }
