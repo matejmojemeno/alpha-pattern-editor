@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { carriesByRun, carryPlan, type Carry } from '../../src/logic/carry.ts'
+import { carriedStitches, carriesByRun, carryPlan, type Carry } from '../../src/logic/carry.ts'
 import { encodeRow, rowDirection } from '../../src/logic/readout.ts'
 import { workSequence } from '../../src/logic/work.ts'
-import type { Pattern } from '../../src/model/types.ts'
+import { SKIP_INDEX, type Pattern } from '../../src/model/types.ts'
 import { carryNote } from '../../src/ui/work/segments.ts'
 
 /** Rows given top to bottom as strings of palette digits, e.g. '0011'. */
@@ -222,5 +222,28 @@ describe('carryNote', () => {
     expect(carryNote('Black', { count: 4, part: 'all', pickUp: false })).toBe('carry Black over all 4')
     expect(carryNote('Black', { count: 3, part: 'last', pickUp: true })).toBe('pick up Black, carry over the last 3')
     expect(carryNote('Black', { count: 2, part: 'all', pickUp: true })).toBe('pick up Black, carry over all 2')
+  })
+})
+
+describe('carriedStitches', () => {
+  it('counts each colour carried between its runs in a row, and on to the next row', () => {
+    // Bottom row, left to right: White (0, 1, 5–9) is carried over Black's 3, and Black is
+    // carried on over column 5, where the row above starts it. Top row, right to left:
+    // White over Black's columns 2, 3 and 5; Black over White's column 4.
+    const p = pattern(['0011010000', '0011100000'])
+    expect(carryPlan(p)[1]).toEqual([{ palette_index: 1, from: 5, to: 6, kind: 'on' }])
+    expect(carriedStitches(p)).toEqual([6, 2, 0, 0])
+  })
+
+  it('counts nothing for a colour in one run a row that the next row starts where it ended', () => {
+    // Black at both ends of each row: carried over the two whites between, in both rows.
+    expect(carriedStitches(pattern(['1001', '1001']))).toEqual([0, 4, 0, 0])
+    // Stripes: nothing is carried.
+    expect(carriedStitches(pattern(['1111', '0000']))).toEqual([0, 0, 0, 0])
+  })
+
+  it('counts skip cells and indices past the palette for no colour, but carries over them', () => {
+    const p = pattern(['0000'], { cells: Uint16Array.from([1, SKIP_INDEX, 9, 1]) })
+    expect(carriedStitches(p)).toEqual([0, 2, 0, 0])
   })
 })

@@ -71,7 +71,10 @@
   min-width: 0;
 }
 
-.savebar__save {
+.savebar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   margin-left: auto;
 }
 
