@@ -5,13 +5,15 @@
  * The cells are drawn once, one pixel per cell, into an offscreen image whenever the
  * pattern changes (`buildCellImage`). Each frame then scales bands of that image onto
  * the visible canvas with smoothing off, and draws the few things that depend on
- * progress and scroll position over it: gridlines, the done-wash and strike line (over
- * done rows and the part of the current row already worked), the current-row outline and the axis numbers. Nothing fills cells one at a time per frame,
+ * progress and scroll position over it: gridlines, the strands to carry (when asked
+ * for), the done-wash and strike line (over done rows and the part of the current row
+ * already worked), the current-row outline and the axis numbers. Nothing fills cells one at a time per frame,
  * which is what keeps an 88×194 chart scrolling smoothly on a phone.
  *
  * The visible canvas is the size of the chart area, not of the chart: a scrolled chart
  * is drawn from an offset, so a long pattern never needs a canvas taller than the screen.
  */
+import type { Carry } from '../logic/carry.ts'
 import { workingNumber } from '../logic/readout.ts'
 import type { Pattern } from '../model/types.ts'
 import { contrastOn, hexToRgb } from '../theme/contrast.ts'
@@ -114,6 +116,8 @@ export interface DrawInput {
   completed: ReadonlySet<number>
   /** Your place in the current row: the stitches before it are washed as done. */
   place?: RowPlace | null
+  /** Strands to draw carried inside stitches, per image row (logic/carry.ts), or none. */
+  carries?: readonly (readonly Carry[])[] | null
   scrollX: number
   scrollY: number
   /** The canvas size in CSS pixels. */
@@ -132,6 +136,57 @@ export function bands(heights: readonly number[], from: number, to: number): { s
     else out.push({ start: i, count: 1 })
   }
   return out
+}
+
+/** Rows shorter than this get no carried strands: there's no room to see one. */
+export const CARRY_MIN_ROW = 6
+
+/** The edge of a carried strand: dark along a pale yarn, pale along a dark one, so a
+ *  white strand shows through white stitches and a black one through navy. */
+export function carryEdge(hex: string): string {
+  try {
+    const [r, g, b] = hexToRgb(hex)
+    return r + g + b > 180 ? '#888888' : '#cccccc'
+  } catch {
+    return '#888888'
+  }
+}
+
+/** Each carried strand as a band of its colour along the middle of the stitches it's
+ *  carried in, open at the ends, so it runs on out of the colour's own stitches. Several
+ *  strands in one row are stacked, one lane per colour. */
+function drawCarries(
+  ctx: CanvasRenderingContext2D,
+  d: DrawInput,
+  carries: readonly (readonly Carry[])[],
+  from: number,
+  to: number,
+  ox: number,
+  oy: number,
+): void {
+  const { layout: l, dpr, pattern } = d
+  for (let i = from; i < to; i++) {
+    const row = carries[l.range.start + i]
+    const h = l.heights[i]!
+    if (!row?.length || h < CARRY_MIN_ROW) continue
+    const lanes = [...new Set(row.map((c) => c.palette_index))]
+    // About a third of the row, and never so thick that the lanes, each with its 1 px
+    // edges, overflow it.
+    const t = Math.min(Math.max(2, Math.min(8, Math.round(h * 0.3))), Math.floor((h - 2) / lanes.length) - 2)
+    if (t < 1) continue
+    const pitch = t + 2
+    const top = oy + l.offsets[i]! + h / 2 - (lanes.length * pitch - 2) / 2
+    for (const c of row) {
+      const hex = pattern.palette[c.palette_index]?.hex ?? '#c8c8c8'
+      const x = ox + c.from * l.cell
+      const w = (c.to - c.from) * l.cell
+      const y = px(top + lanes.indexOf(c.palette_index) * pitch, dpr)
+      ctx.fillStyle = carryEdge(hex)
+      ctx.fillRect(x, y - 1, w, t + 2)
+      ctx.fillStyle = hex
+      ctx.fillRect(x, y, w, t)
+    }
+  }
 }
 
 /** Snap a CSS length to whole device pixels. */
@@ -180,6 +235,8 @@ export function drawChart(ctx: CanvasRenderingContext2D, d: DrawInput): void {
   for (let c = c0; c <= c1; c++) ctx.rect(Math.min(ox + c * l.cell, ox + gw - lw), top, lw, bottom - top)
   for (let i = from; i <= to; i++) ctx.rect(ox, Math.min(oy + l.offsets[i]!, oy + l.gridHeight - lw), gw, lw)
   ctx.fill()
+
+  if (d.carries) drawCarries(ctx, d, d.carries, from, to, ox, oy)
 
   const markDone = (i: number, x: number, w: number) => {
     const y = oy + l.offsets[i]!

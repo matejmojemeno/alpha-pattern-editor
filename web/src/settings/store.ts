@@ -23,6 +23,9 @@ export interface Settings {
   readonly highContrast: boolean
   /** Draw only the rows around the current one. */
   readonly focusMode: boolean
+  /** Show where to carry each colour on to the next row, for tapestry crochet worked
+   *  over the strands (logic/carry.ts). */
+  readonly showCarries: boolean
   /** The library each palette colour is matched to (yarn/libraries.ts), or null for none. */
   readonly colourLibrary: LibraryId | null
   /** Yarn one stitch uses, in centimetres (yarn/usage.ts). */
@@ -39,6 +42,7 @@ export const DEFAULT_SETTINGS: Settings = {
   emphasiseRows: true,
   highContrast: false,
   focusMode: false,
+  showCarries: false,
   colourLibrary: DEFAULT_LIBRARY,
   yarnPerStitchCm: 2.5,
   ballMetres: null,
@@ -53,6 +57,7 @@ const VALID: { [K in keyof Settings]: (v: unknown) => boolean } = {
   emphasiseRows: (v) => typeof v === 'boolean',
   highContrast: (v) => typeof v === 'boolean',
   focusMode: (v) => typeof v === 'boolean',
+  showCarries: (v) => typeof v === 'boolean',
   colourLibrary: (v) => v === null || isLibraryId(v),
   yarnPerStitchCm: positive,
   ballMetres: (v) => v === null || positive(v),

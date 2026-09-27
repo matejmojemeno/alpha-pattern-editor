@@ -74,7 +74,9 @@ files.
   and `edit.py`. The Python is the spec. `tests/golden.test.ts` replays
   `../fixtures/logic_golden.json`, and `tests/edit.golden.test.ts`
   `../fixtures/edit_golden.json`. `progress.ts` (not in the Python) keeps Work-stage
-  progress sound across structural edits.
+  progress sound across structural edits, and `carry.ts` (not in the Python either)
+  works out where to carry each colour on to the next row, for the Work stage's "Show
+  where to carry yarn".
 - `src/design/`: the Design stage's editing state as pure functions: the tools' pointer
   logic and the current colour (`editor.ts`), undo (`history.ts`), and the structural
   panel's previews and form (`structure.ts`, `structureForm.ts`).

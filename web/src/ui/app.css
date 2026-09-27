@@ -733,6 +733,17 @@ code {
   overflow-wrap: anywhere;
 }
 
+/* A colour to carry inside this segment's stitches: a line of its own under the count. */
+.chip__carry {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--muted);
+}
+
 .chip__mark {
   margin-left: auto;
   padding-left: 0.5rem;
@@ -749,6 +760,11 @@ code {
   height: 1.75rem;
   border: 1px solid;
   border-radius: var(--radius-sm);
+}
+
+.swatch--carry {
+  width: 0.9rem;
+  height: 0.9rem;
 }
 
 .swatch--lg {
