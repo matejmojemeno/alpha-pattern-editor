@@ -65,7 +65,14 @@ default skein length in the yarn estimate (the user can change it):
 
 ## DMC
 
-`dmc.json` is `alphareader/core/detect/dmc.json` (the table detection names colours
-from), converted to this format so the app can match against it without Pyodide.
-`web/tests/yarn/data.test.ts` fails if the two drift apart. Its provenance predates this
-file and isn't recorded in the repository.
+`dmc.json` is `alphareader/core/detect/dmc.json` (the table detection takes each
+colour's nearest DMC code from, for the `dmc` field), converted to this format so the app
+can match against it without Pyodide. `web/tests/yarn/data.test.ts` fails if the two
+drift apart. Its provenance predates this file and isn't recorded in the repository.
+
+It has at least one entry that isn't DMC's: `820b`, "Dark Blue", #003399. DMC 820 is
+Very Dark Royal Blue (also in the table), and DMC has no 820b. Being the only saturated
+blue, it was the nearest entry to most vivid blues, violets and purples, which is why
+detection used to call them all "Dark Blue". Colours are no longer named from this table
+(`web/src/importer/README.md`), but the table should be replaced by one with a real,
+cited source before DMC matching is relied on.

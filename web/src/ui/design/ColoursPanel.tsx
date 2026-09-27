@@ -11,7 +11,7 @@ import { contrastOn } from '../../theme/contrast.ts'
 import type { Library } from '../../yarn/libraries.ts'
 import type { Match } from '../../yarn/match.ts'
 import { RenameForm } from '../components.tsx'
-import { LibraryCredit, LibraryPicker, ShadeMatch } from '../yarn/ShadeViews.tsx'
+import { ShadeMatch, YarnMatching } from '../yarn/ShadeViews.tsx'
 import { matchName } from '../yarn/useShades.ts'
 
 /**
@@ -110,8 +110,7 @@ export function ColoursPanel({
         ))}
       </ul>
 
-      <LibraryPicker className="library-picker colours__library" />
-      <LibraryCredit library={library} />
+      <YarnMatching className="colours__library" library={library} />
 
       {entry && (
         <div className="colours__selected" aria-label="Selected colour" role="group">

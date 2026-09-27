@@ -47,3 +47,35 @@
   font-size: var(--text-sm);
   line-height: 1.35;
 }
+
+/* "Advanced: match to yarn": the picker and credit, closed until wanted. */
+.yarn-matching {
+  font-size: var(--text-sm);
+}
+
+.yarn-matching > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.yarn-matching > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* inline-flex drops the browser's own triangle, so draw one. */
+.yarn-matching > summary::before {
+  content: '▸';
+}
+
+.yarn-matching[open] > summary::before {
+  content: '▾';
+}
+
+.yarn-matching[open] > summary {
+  margin-bottom: 0.35rem;
+}

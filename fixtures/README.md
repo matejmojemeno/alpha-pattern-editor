@@ -150,3 +150,19 @@ Lab conversion; `alphareader/tests/test_yarn_fixture.py` fails if it is stale.
 { about, shades: {library: count}, colours: ["#rrggbb"], lab: [[L, a, b]],
   nearest: {library: [index per colour]} }
 ```
+
+# `colour_names.json`: everyday colour names
+
+What `alphareader/core/detect/names.py` makes of 2,000 random colours from a fixed seed
+and a grey ramp (each one's nearest anchor, as an index into `colour_names.json`'s
+anchors in order, and its CIEDE2000 distance), and the names it gives 600 palettes: 300
+random ones of 1 to 40 colours, 200 made of shades of one colour, and 100 of near-greys,
+so every way of telling shades apart is exercised. `web/tests/importer/names.test.ts`
+reproduces every anchor and every name, and every distance to within 1e-9. Regenerate
+with `python scripts/gen_names_fixture.py` after changing `names.py`, the name table or
+the Lab conversion; `alphareader/tests/test_names_fixture.py` fails if it is stale.
+
+```text
+{ about, colours: ["#rrggbb"], nearest: [[anchor index, ΔE2000]],
+  palettes: [{ hexes: ["#rrggbb"], names: [string] }] }
+```

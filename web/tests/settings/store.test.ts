@@ -27,7 +27,7 @@ describe('parseSettings', () => {
       emphasiseRows: true,
       highContrast: false,
       focusMode: false,
-      colourLibrary: 'dmc',
+      colourLibrary: null,
       yarnPerStitchCm: 2.5,
       ballMetres: null,
       marginPercent: 10,

@@ -1,8 +1,9 @@
 /**
  * The colour library's pieces of UI: a colour's nearest shade, the picker, and the
- * credit the data's licence asks for. The hooks are in useShades.ts.
+ * credit the data's licence asks for, which sit together in an "Advanced" disclosure.
+ * The hooks are in useShades.ts.
  */
-import { useId } from 'react'
+import { useId, useState } from 'react'
 
 import '../yarn.css'
 
@@ -22,7 +23,7 @@ export function ShadeMatch({ library, match, className = 'shade' }: { library: L
   )
 }
 
-/** Choose the library colours are matched to. Changing it goes back to its own ball. */
+/** Choose the library colours are matched to, or none. Changing it goes back to its own ball. */
 export function LibraryPicker({ className = 'library-picker' }: { className?: string }) {
   const [settings, set] = useSettings()
   const id = useId()
@@ -31,9 +32,10 @@ export function LibraryPicker({ className = 'library-picker' }: { className?: st
       <label htmlFor={id}>Match colours to</label>
       <select
         id={id}
-        value={settings.colourLibrary}
-        onChange={(e) => set({ colourLibrary: e.target.value as LibraryId, ballMetres: null })}
+        value={settings.colourLibrary ?? ''}
+        onChange={(e) => set({ colourLibrary: (e.target.value || null) as LibraryId | null, ballMetres: null })}
       >
+        <option value="">Nothing</option>
         {LIBRARY_IDS.map((l) => (
           <option key={l} value={l}>
             {LIBRARY_LABELS[l]}
@@ -41,6 +43,24 @@ export function LibraryPicker({ className = 'library-picker' }: { className?: st
         ))}
       </select>
     </div>
+  )
+}
+
+/**
+ * Matching colours to a yarn range, tucked away: everyday names are enough to work a
+ * pattern, and shade names and numbers are for choosing what to buy. Starts open when a
+ * library is already chosen, so its shades aren't shown without the way to turn them off;
+ * after that it opens and closes only when the user says, not as the choice changes.
+ */
+export function YarnMatching({ library, className }: { library: Library | null; className: string }) {
+  const [settings] = useSettings()
+  const [open] = useState(settings.colourLibrary !== null)
+  return (
+    <details className={`yarn-matching ${className}`} open={open}>
+      <summary>Advanced: match to yarn</summary>
+      <LibraryPicker />
+      <LibraryCredit library={library} />
+    </details>
   )
 }
 

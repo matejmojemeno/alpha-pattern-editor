@@ -102,8 +102,9 @@ files.
   a module worker; `client.ts` is the app's side of it; `protocol.ts` the messages.
 - `src/importer/`: the import screen's logic: decoding images, the failure hints, the
   letterboxed crop mapping (`letterbox.ts`), moving the grid's outline in whole cells
-  (`outline.ts`), the controls' ranges (`controls.ts`) and the colours removed before
-  saving (`removals.ts`).
+  (`outline.ts`), the controls' ranges (`controls.ts`), the colours removed before
+  saving (`removals.ts`) and naming the colours left (`names.ts`, from
+  `colour-names.json`; provenance in its `README.md`).
   Its components are in `src/ui/import/`.
 
 Routing uses the URL hash (`#/library`, `#/work/<id>`, `#/design/<id>`): the part after

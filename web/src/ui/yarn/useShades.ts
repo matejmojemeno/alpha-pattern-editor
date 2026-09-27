@@ -15,10 +15,11 @@ const matcherFor = (lib: Library) => {
   return m
 }
 
-/** The library `id`, or null while it loads (or if it couldn't be). */
-export function useLibrary(id: LibraryId): Library | null {
+/** The library `id`, or null when there is none, while it loads, or if it couldn't be. */
+export function useLibrary(id: LibraryId | null): Library | null {
   const [loaded, setLoaded] = useState<Library | null>(null)
   useEffect(() => {
+    if (id === null) return
     let live = true
     loadLibrary(id).then(
       (lib) => live && setLoaded(lib),
@@ -28,7 +29,7 @@ export function useLibrary(id: LibraryId): Library | null {
       live = false
     }
   }, [id])
-  return loaded?.id === id ? loaded : null
+  return id !== null && loaded?.id === id ? loaded : null
 }
 
 /** The nearest shade of `library` to each colour, or null while the library loads. */

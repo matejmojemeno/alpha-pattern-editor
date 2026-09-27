@@ -34,11 +34,16 @@ const rows = () =>
     .map((r) => [r.querySelector('th')!.textContent, ...[...r.querySelectorAll('td')].map((td) => td.textContent)])
 
 describe('colour library', () => {
-  it('matches each colour to DMC by default, and to the library chosen, remembered app-wide', async () => {
+  it('matches nothing by default, then the library chosen, remembered app-wide', async () => {
     const { storage } = await openDesign()
-    await waitFor(() => expect(shades()).toEqual(['White', '801 Dark Coffee Brown', '350 Medium Coral']))
+    expect(shades()).toEqual([null, null, null])
+    expect(screen.queryByRole('button', { name: 'Use shade' })).toBeNull()
     const picker = screen.getByRole('combobox', { name: 'Match colours to' }) as HTMLSelectElement
-    expect(picker.value).toBe('dmc')
+    expect(picker.value).toBe('')
+    expect(picker.closest('details')!.open).toBe(false)
+
+    await userEvent.selectOptions(picker, 'dmc')
+    await waitFor(() => expect(shades()).toEqual(['White', '801 Dark Coffee Brown', '350 Medium Coral']))
     expect(screen.queryByText(/temperature-blanket\.com/)).toBeNull()
 
     await userEvent.selectOptions(picker, 'stylecraft-special-dk')
@@ -49,6 +54,23 @@ describe('colour library', () => {
 
     await userEvent.selectOptions(picker, 'paintbox-simply-dk')
     await waitFor(() => expect(shades()).toEqual(['Paper White', 'Coffee Bean', 'Rose Red']))
+
+    await userEvent.selectOptions(picker, '')
+    await waitFor(() => expect(shades()).toEqual([null, null, null]))
+    expect(createSettingsStore(() => storage).get().colourLibrary).toBeNull()
+  })
+
+  it('starts with "Advanced: match to yarn" open when a library is already chosen', async () => {
+    const repo = await freshRepo()
+    const { project } = readAlpha(fixture('basic.alpha'))
+    await repo.importFile(fixture('basic.alpha'))
+    const storage = memoryStorage()
+    const settings = createSettingsStore(() => storage)
+    settings.set({ colourLibrary: 'stylecraft-special-dk' })
+    await renderApp(`#/design/${project.pattern.id}`, { repo, settings })
+    await screen.findByRole('heading', { level: 1, name: project.pattern.name }, { timeout: 3000 })
+    expect(screen.getByText('Advanced: match to yarn').closest('details')!.open).toBe(true)
+    await waitFor(() => expect(shades()).toEqual(['1807 Hint of Silver', '1054 Walnut', '1723 Tomato']))
   })
 
   it('"Use shade" recolours the selected colour to its nearest shade, as one undo step', async () => {

@@ -1,8 +1,9 @@
 /**
  * Yarn colour libraries and the yarn estimate in real Chromium, on a pattern imported
  * from a photo with real Pyodide (dachshund.png: 605 white, 331 dark topaz, 22 medium
- * topaz and 2 black stitches, as the desktop detects them). Choosing Stylecraft Special
- * DK shows each colour's nearest shade on the import screen and in the Design stage;
+ * topaz and 2 black stitches, as the desktop detects them). No library is matched, or
+ * fetched, until one is chosen under "Advanced: match to yarn"; choosing Stylecraft
+ * Special DK shows each colour's nearest shade on the import screen and in the Design stage;
  * changing the estimate's inputs changes its numbers; a reload keeps the choices. The
  * libraries load only when shown, and Design and Work make no Pyodide request.
  */
@@ -41,15 +42,20 @@ test('pick a yarn library, see its shades on an imported pattern, change the est
     if (m) data.push(m[1]!)
   })
 
-  // The import screen: DMC by default, then Stylecraft.
+  // The import screen: everyday names and no library, until Stylecraft is chosen.
   await importImage(page, IMAGE)
-  const colours = page.getByRole('list', { name: 'Colours' }).locator('.shade__label')
-  await expect(colours).toHaveCount(4)
-  expect(data).toEqual(['dmc'])
-  await page.getByRole('combobox', { name: 'Match colours to' }).selectOption('stylecraft-special-dk')
+  const list = page.getByRole('list', { name: 'Colours' })
+  await expect(list.getByRole('listitem')).toHaveCount(4)
+  const colours = list.locator('.shade__label')
+  await expect(colours).toHaveCount(0)
+  const picker = page.getByRole('combobox', { name: 'Match colours to' })
+  await expect(picker).toBeHidden()
+  await page.getByText('Advanced: match to yarn').click()
+  await expect(picker).toHaveValue('')
+  await picker.selectOption('stylecraft-special-dk')
   await expect(colours).toHaveText(shades)
   await expect(page.getByRole('link', { name: 'temperature-blanket.com' })).toBeVisible()
-  expect(data).toEqual(['dmc', 'stylecraft-special-dk'])
+  expect(data).toEqual(['stylecraft-special-dk'])
 
   // From here on, nothing may reach Pyodide.
   const pyodide: string[] = []
