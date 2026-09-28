@@ -10,6 +10,7 @@
 import { expect, test, type CDPSession, type Page } from '@playwright/test'
 
 import { computeLayout, followCurrent } from '../src/render/layout.ts'
+import { addColour, palette } from './colours.ts'
 
 const AXIS_LEFT = 34
 const AXIS_TOP = 22
@@ -30,7 +31,6 @@ async function touch(cdp: CDPSession, type: 'touchStart' | 'touchMove' | 'touchE
 }
 
 const scroller = (page: Page) => page.getByTestId('design-scroller')
-const palette = (page: Page) => page.getByRole('list', { name: 'Palette' }).getByRole('button')
 const undo = (page: Page) => page.getByRole('button', { name: 'Undo', exact: true })
 
 async function centre(page: Page, r: number, c: number): Promise<Point> {
@@ -55,14 +55,9 @@ async function newDesign(page: Page) {
   await dialog.getByLabel('Colour').fill('#ffffff')
   await dialog.getByRole('button', { name: 'Create' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Touchy' })).toBeVisible()
-  await page.getByLabel('Colour to add').fill('#000000')
-  await page.getByRole('button', { name: 'Add colour' }).click()
-  await palette(page).last().click()
-  await page.getByRole('button', { name: 'Rename' }).click()
-  await page.getByLabel('Colour name').fill('Black')
-  await page.getByLabel('Colour name').press('Enter')
+  await addColour(page, '#000000', 'Black')
   await expect(page.getByText('Saved', { exact: true })).toBeVisible()
-  // Start from an empty history: adding and renaming the colour were two steps.
+  // Start from an empty history.
   await page.reload()
   await expect(undo(page)).toBeDisabled()
   await palette(page).filter({ hasText: 'Black' }).click()

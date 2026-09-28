@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 
 import { readAlpha } from '../src/storage/alpha.ts'
+import { addColour, palette } from './colours.ts'
 import { desktopLoad } from './desktop.ts'
 
 const AXIS_LEFT = 34
@@ -21,7 +22,6 @@ const RED = '#d93a3a'
 
 const scroller = (page: Page) => page.getByTestId('design-scroller')
 const stats = (page: Page) => page.locator('.design__stats')
-const palette = (page: Page) => page.getByRole('list', { name: 'Palette' }).getByRole('button')
 const clockwise = (page: Page) => page.getByRole('button', { name: 'Rotate ↻ 90°' })
 const anticlockwise = (page: Page) => page.getByRole('button', { name: 'Rotate ↺ 90°' })
 
@@ -81,10 +81,7 @@ async function wide(page: Page) {
   await dialog.getByLabel('Colour').fill(WHITE)
   await dialog.getByRole('button', { name: 'Create' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Wide' })).toBeVisible()
-  for (const hex of [BLACK, RED]) {
-    await page.getByLabel('Colour to add').fill(hex)
-    await page.getByRole('button', { name: 'Add colour' }).click()
-  }
+  for (const hex of [BLACK, RED]) await addColour(page, hex)
   await expect(palette(page)).toHaveCount(3)
   await page.keyboard.press('b')
   for (const [letter, hex] of [['B', BLACK], ['R', RED]] as const) {

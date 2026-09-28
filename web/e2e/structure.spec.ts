@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 
 import { readAlpha } from '../src/storage/alpha.ts'
+import { addColour } from './colours.ts'
 import { desktopLoad, desktopPngMatches } from './desktop.ts'
 
 const AXIS_LEFT = 34
@@ -40,8 +41,7 @@ async function banner(page: Page) {
   const drawer = page.getByRole('button', { name: 'Colours', exact: true })
   const compact = await drawer.isVisible()
   if (compact) await drawer.click()
-  await page.getByLabel('Colour to add').fill('#000000')
-  await page.getByRole('button', { name: 'Add colour' }).click()
+  await addColour(page, '#000000')
   if (compact) await page.getByRole('button', { name: 'Close' }).click()
   await page.keyboard.press('h')
   for (const r of [1, 4, 8]) {

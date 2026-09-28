@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 
 import { readAlpha } from '../src/storage/alpha.ts'
+import { addColour, palette } from './colours.ts'
 import { desktopLoad } from './desktop.ts'
 
 const AXIS_LEFT = 34
@@ -21,7 +22,6 @@ const BLACK = '#000000'
 const RED = '#d93a3a'
 
 const scroller = (page: Page) => page.getByTestId('design-scroller')
-const palette = (page: Page) => page.getByRole('list', { name: 'Palette' }).getByRole('button')
 /** A tool button; its name is the label and the shortcut key ("Fill row H"). */
 const tool = (page: Page, name: string) =>
   page.getByRole('group', { name: 'Tool' }).getByRole('button', { name: new RegExp(`^${name}\\s*[A-Z]$`) })
@@ -115,11 +115,12 @@ test('design a pattern with every tool, undo, colours, reload, and Work and back
   await expect(page.locator('.zoom__label')).toHaveText(/^\d+ px per cell$/)
 
   // --- colours: add black and red -------------------------------------------------------------
-  await page.getByLabel('Colour to add').fill(BLACK)
-  await page.getByRole('button', { name: 'Add colour' }).click()
-  await page.getByLabel('Colour to add').fill(RED)
-  await page.getByRole('button', { name: 'Add colour' }).click()
+  // Each named after what it looks like, until a name is typed.
+  await addColour(page, BLACK)
+  await addColour(page, RED, 'Poppy')
   await expect(palette(page)).toHaveCount(3)
+  await expect(palette(page).nth(1)).toHaveAccessibleName('Black, #000000, 0 cells')
+  await expect(palette(page).nth(2)).toHaveAccessibleName('Poppy, #d93a3a, 0 cells')
   await expect(palette(page).nth(2)).toHaveAttribute('aria-pressed', 'true')
 
   // --- every tool can be chosen by shortcut and by mouse -------------------------------------------
@@ -203,18 +204,56 @@ test('design a pattern with every tool, undo, colours, reload, and Work and back
   expect(await grid(page)).toEqual(final)
   const counts = { black: 6 + 12 + 9, red: 15 }
 
-  // --- colours: recolour and delete ------------------------------------------------------------------------------------
-  // Recolour red to a darker red, then delete it: its cells go to the nearest (black).
-  await select(page, /#d93a3a/)
-  await page.getByLabel('Recolour “New colour”').fill('#b02020')
-  await expect(palette(page).nth(2)).toHaveAccessibleName(`New colour, #b02020, ${counts.red} cells`)
-  await page.getByRole('button', { name: 'Rename' }).click()
-  await page.getByLabel('Colour name').fill('Brick')
-  await page.keyboard.press('Enter')
+  // --- colours: a colour's menu, then its × -----------------------------------------------------------------------------
+  // Clicking red opens its menu; a colour typed there shows on the chart at once.
+  await palette(page).nth(2).click()
+  const menu = page.getByRole('dialog', { name: 'Edit “Poppy”' })
+  await menu.getByLabel('Hex').fill('#2040c0')
+  expect((await shown(page))[7]![4]).toBe('#2040c0')
+  await expect(palette(page).nth(2)).toHaveAccessibleName(`Poppy, #2040c0, ${counts.red} cells`)
+  // Cancel takes it back, and records nothing.
+  await menu.getByRole('button', { name: 'Cancel' }).click()
+  await expect(menu).toHaveCount(0)
+  expect(await grid(page)).toEqual(final)
+  // Dragging in the picker's square shows each colour as it goes.
+  await palette(page).nth(2).click()
+  const square = (await menu.getByRole('slider', { name: 'Saturation and brightness' }).boundingBox())!
+  await page.mouse.move(square.x + square.width - 2, square.y + 2)
+  await page.mouse.down()
+  expect((await shown(page))[7]![4]).not.toBe(RED)
+  // Past its corner, it stops at the corner: black.
+  await page.mouse.move(square.x - 20, square.y + square.height + 20, { steps: 4 })
+  expect((await shown(page))[7]![4]).toBe('#000000')
+  await page.mouse.up()
+  await menu.getByRole('button', { name: 'Cancel' }).click()
+  // Recolour red to a darker red and rename it, then Save: one step.
+  await palette(page).nth(2).click()
+  await menu.getByLabel('Hex').fill('#b02020')
+  await menu.getByLabel('Name').fill('Brick')
+  await menu.getByRole('button', { name: 'Save' }).click()
+  await expect(palette(page).nth(2)).toHaveAccessibleName(`Brick, #b02020, ${counts.red} cells`)
+  await page.keyboard.press('ControlOrMeta+z')
+  await expect(palette(page).nth(2)).toHaveAccessibleName(`Poppy, #d93a3a, ${counts.red} cells`)
+  await page.keyboard.press('ControlOrMeta+Shift+z')
+  await expect(palette(page).nth(2)).toHaveAccessibleName(`Brick, #b02020, ${counts.red} cells`)
+  // A press on the chart closes a menu, keeping its change, and still paints.
+  await tool(page, 'Paint').click()
+  await palette(page).nth(2).click()
+  await page.getByRole('dialog', { name: 'Edit “Brick”' }).getByLabel('Hex').fill('#a01818')
+  await click(page, 0, 0)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  expect((await shown(page))[0]![0]).toBe('#a01818')
+  expect((await shown(page))[7]![4]).toBe('#a01818')
+  await page.keyboard.press('ControlOrMeta+z') // the paint
+  await page.keyboard.press('ControlOrMeta+z') // the colour
+  expect((await shown(page))[0]![0]).toBe(WHITE)
+  expect((await shown(page))[7]![4]).toBe('#b02020')
+  // Its ×: its cells go to the nearest remaining colour (black).
+  await palette(page).nth(2).hover()
   await page.getByRole('button', { name: 'Delete “Brick”' }).click()
   await expect(palette(page)).toHaveCount(2)
-  await expect(page.locator('.design__message')).toHaveText(`Deleted “Brick”; its ${counts.red} cells are now “New colour”.`)
-  await expect(palette(page).nth(1)).toHaveAccessibleName(`New colour, #000000, ${counts.black + counts.red} cells`)
+  await expect(page.locator('.design__message')).toHaveText(`Deleted “Brick”; its ${counts.red} cells are now “Black”.`)
+  await expect(palette(page).nth(1)).toHaveAccessibleName(`Black, #000000, ${counts.black + counts.red} cells`)
   // Undo brings it back with its cells.
   await page.keyboard.press('ControlOrMeta+z')
   await expect(palette(page)).toHaveCount(3)
@@ -328,7 +367,9 @@ test('editing a desktop-written file keeps its photo, and the desktop still open
   await page.goto(`/#/design/${p.id}`)
   await expect(page.getByRole('heading', { level: 1, name: p.name })).toBeVisible()
   // Recolour the first colour and fill the top row with the last.
-  await page.getByLabel(`Recolour “${p.palette[0]!.name}”`).fill('#123456')
+  await palette(page).first().click()
+  await page.getByRole('dialog').getByLabel('Hex').fill('#123456')
+  await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click()
   await select(page, new RegExp(p.palette.at(-1)!.hex))
   await tool(page, 'Fill row').click()
   const box = (await scroller(page).boundingBox())!

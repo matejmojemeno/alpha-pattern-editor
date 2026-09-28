@@ -135,7 +135,7 @@ test('match to a yarn range on import, estimate yarn and size there, and see no 
 
   // The Design stage: the colours, and no yarn.
   const palette = page.getByRole('list', { name: 'Palette' })
-  await expect(palette.getByRole('button')).toHaveCount(4)
+  await expect(palette.locator('button.colour')).toHaveCount(4)
   await expect(page.locator('.shade')).toHaveCount(0)
   await expect(page.getByText('Advanced: match to yarn')).toHaveCount(0)
   await expect(page.getByRole('table', { name: 'Yarn for each colour' })).toHaveCount(0)
