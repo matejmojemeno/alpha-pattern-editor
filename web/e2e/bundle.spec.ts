@@ -35,6 +35,11 @@ test('the main entry chunk has no Pyodide and is within budget', () => {
   expect(assets().some((f) => /^Design-.*\.js$/.test(f))).toBe(true)
   // Nor any colour library (src/yarn/data/): each is its own chunk, fetched when shown.
   expect(html).not.toMatch(/dmc-|stylecraft-|paintbox-|scheepjes-/)
+  // Nor any chunk at all: what the page needs at first is the entry chunk, whole. A lazy
+  // chunk imported from another lazy one once made the bundler split what it shared with
+  // the entry into a chunk preloaded here, so the size counted below looked smaller while
+  // the page loaded more (docs/web-port-plan.md, Rules).
+  expect(html).not.toMatch(/modulepreload/)
   for (const [lib, shade] of [
     ['dmc', 'Dark Coffee Brown'],
     ['stylecraft-special-dk', 'Hint of Silver'],

@@ -12,6 +12,7 @@
  * property. Every access is guarded, and with nothing stored the defaults apply.
  */
 
+import { isStitchId, type StitchId } from '../stitch/ids.ts'
 import { DEFAULT_LIBRARY, isLibraryId, type LibraryId } from '../yarn/libraries.ts'
 
 export type Units = 'metric' | 'imperial'
@@ -47,6 +48,12 @@ export interface Settings {
   readonly marginPercent: number
   /** Show lengths in metres and centimetres, or yards and inches. */
   readonly units: Units
+  /** "Visualize": the stitch, whether rows are turned or always right side facing, the
+   *  carried yarn shown, and the swatch's proportions in place of the typical ones. */
+  readonly visualStitch: StitchId
+  readonly visualRows: 'turned' | 'rs'
+  readonly visualCarried: boolean
+  readonly visualSwatch: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -67,6 +74,10 @@ export const DEFAULT_SETTINGS: Settings = {
   countCarried: false,
   marginPercent: 10,
   units: 'metric',
+  visualStitch: 'sc',
+  visualRows: 'turned',
+  visualCarried: false,
+  visualSwatch: false,
 }
 
 const positive = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v > 0
@@ -91,6 +102,10 @@ const VALID: { [K in keyof Settings]: (v: unknown) => boolean } = {
   countCarried: (v) => typeof v === 'boolean',
   marginPercent: (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0,
   units: (v) => v === 'metric' || v === 'imperial',
+  visualStitch: isStitchId,
+  visualRows: (v) => v === 'turned' || v === 'rs',
+  visualCarried: (v) => typeof v === 'boolean',
+  visualSwatch: (v) => typeof v === 'boolean',
 }
 
 export const SETTINGS_KEY = 'alpha-pattern-editor:settings'
