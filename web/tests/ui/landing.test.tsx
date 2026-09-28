@@ -16,13 +16,15 @@ const image = (name: string, type = 'image/png') => new File([new Uint8Array([1,
 beforeEach(() => detection.reset())
 
 describe('Landing screen', () => {
-  it('offers the four entry points', async () => {
+  it('offers a drop zone to import, and the other ways in beside it', async () => {
     await renderApp('#/')
     expect(screen.getByRole('heading', { level: 1, name: 'Alpha Pattern Editor' })).toBeTruthy()
 
     const importTile = screen.getByRole('button', { name: /Import pattern/ })
+    expect(importTile.className).toContain('drop-zone')
     expect(importTile.textContent).toMatch(/\.alpha/)
     expect(importTile.textContent).toMatch(/photo or screenshot of a chart/)
+    expect(importTile.textContent).toMatch(/Drop it here, paste it, or click to choose a file/)
     const accept = (screen.getByLabelText(pickerLabel) as HTMLInputElement).accept
     for (const t of ['.alpha', '.png', '.jpg', '.webp', 'image/jpeg']) expect(accept).toContain(t)
 
@@ -31,6 +33,32 @@ describe('Landing screen', () => {
 
     expect(screen.getByRole('link', { name: /Library/ }).getAttribute('href')).toBe('#/library')
     expect(screen.getByRole('link', { name: /Settings/ }).getAttribute('href')).toBe('#/settings')
+
+    // No backend: feedback goes to the public repo's issues, in a new tab.
+    const feedback = screen.getByRole('link', { name: /Feedback/ })
+    expect(feedback.getAttribute('href')).toBe('https://github.com/matejmojemeno/alpha-pattern-editor/issues/new')
+    expect(feedback.getAttribute('target')).toBe('_blank')
+    expect(feedback.getAttribute('rel')).toContain('noopener')
+
+    // Stacked beside the drop zone in the sketch's order.
+    const tiles = within(screen.getByRole('list')).getAllByRole('listitem').map((li) => li.textContent)
+    expect(tiles.map((t) => /^(Library|Design pattern|Settings|Feedback)/.exec(t ?? '')?.[1])).toEqual([
+      'Library',
+      'Design pattern',
+      'Settings',
+      'Feedback',
+    ])
+  })
+
+  it('highlights the drop zone while a file is dragged over the page', async () => {
+    await renderApp('#/')
+    const zone = screen.getByRole('button', { name: /Import pattern/ })
+    const dataTransfer = { types: ['Files'], files: [], dropEffect: 'none' }
+    expect(zone.className).not.toContain('drop-zone--over')
+    fireEvent.dragEnter(screen.getByRole('main'), { dataTransfer })
+    expect(zone.className).toContain('drop-zone--over')
+    fireEvent.dragLeave(screen.getByRole('main'), { dataTransfer })
+    expect(zone.className).not.toContain('drop-zone--over')
   })
 
   it('designs a new pattern: size and colour, saved, then opened in the Design stage', async () => {
