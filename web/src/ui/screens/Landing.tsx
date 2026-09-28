@@ -1,5 +1,6 @@
 /**
- * The first screen: four ways in. The desktop opened straight onto the Library; the web
+ * The first screen: a large drop zone to import a chart, with the other ways in beside
+ * it (Library, Design pattern, Settings, Feedback). The desktop opened straight onto the Library; the web
  * app starts here instead (docs/web-port-plan.md, "Landing screen").
  */
 import { useCallback, useState } from 'react'
@@ -13,6 +14,9 @@ import { NewPatternDialog } from '../NewPattern.tsx'
 import { openImageImport, useAlphaImport } from '../useAlphaImport.ts'
 
 const openPasted = (file: File) => openImageImport({ file })
+
+/** There is no backend to send feedback to, so it goes to the public repo's issues. */
+export const FEEDBACK_URL = 'https://github.com/matejmojemeno/alpha-pattern-editor/issues/new'
 
 export function Landing() {
   useDocumentTitle('')
@@ -38,50 +42,63 @@ export function Landing() {
         <p className="muted">Follow a crochet alpha chart row by row, and keep your place.</p>
       </header>
 
-      <ul className="tiles">
-        <li>
-          <ImportButton
-            className="tile"
-            onFiles={(f) => void importFiles(f)}
-            onPreload={preloadDetection}
-            disabled={!repo || busy}
-          >
-            <CellsIcon filled={[[0, 1], [1, 0], [1, 1], [1, 2], [2, 1]]} />
-            <span className="tile__title">Import pattern</span>
-            <span className="tile__text">
-              From a photo or screenshot of a chart (PNG, JPEG or WebP), or a <code>.alpha</code> file. You can also
-              drop or paste one on this page.
-            </span>
-          </ImportButton>
-        </li>
-        <li>
-          <button type="button" className="tile" onClick={() => setCreating(true)} disabled={!repo}>
-            <CellsIcon filled={[[1, 1]]} />
-            <span className="tile__title">Design pattern</span>
-            <span className="tile__text">Start from a blank grid, and paint your own chart.</span>
-          </button>
-        </li>
-        <li>
-          <a className="tile" href={href(paths.library)}>
-            <CellsIcon filled={[[0, 0], [0, 1], [1, 0], [1, 1]]} />
-            <span className="tile__title">Library</span>
-            <span className="tile__text">
-              {count === null
-                ? 'Your saved projects.'
-                : count === 0
-                  ? 'No projects yet.'
-                  : `${count} project${count === 1 ? '' : 's'} saved in this browser.`}
-            </span>
-          </a>
-        </li>
-        <li>
-          <a className="tile" href={href(paths.settings)}>
-            <CellsIcon filled={[[1, 0], [1, 1], [1, 2]]} />
-            <span className="tile__title">Settings</span>
-            <span className="tile__text">Display preferences: row emphasis, high contrast, focus mode.</span>
-          </a>
-        </li>
-      </ul>
+      <div className="home">
+        <ImportButton
+          className={`drop-zone${drop.over ? ' drop-zone--over' : ''}`}
+          onFiles={(f) => void importFiles(f)}
+          onPreload={preloadDetection}
+          disabled={!repo || busy}
+        >
+          <CellsIcon filled={[[0, 1], [1, 0], [1, 1], [1, 2], [2, 1]]} />
+          <span className="drop-zone__title">Import pattern</span>
+          <span className="drop-zone__text">
+            From a photo or screenshot of a chart (PNG, JPEG or WebP), or a <code>.alpha</code> file.
+          </span>
+          <span className="drop-zone__how drop-zone__how--pointer">
+            Drop it here, paste it, or click to choose a file.
+          </span>
+          <span className="drop-zone__how drop-zone__how--touch">Tap to choose a file.</span>
+        </ImportButton>
+
+        <ul className="tiles">
+          <li>
+            <a className="tile" href={href(paths.library)}>
+              <CellsIcon filled={[[0, 0], [0, 1], [1, 0], [1, 1]]} />
+              <span className="tile__title">Library</span>
+              <span className="tile__text">
+                {count === null
+                  ? 'Your saved projects.'
+                  : count === 0
+                    ? 'No projects yet.'
+                    : `${count} project${count === 1 ? '' : 's'} saved in this browser.`}
+              </span>
+            </a>
+          </li>
+          <li>
+            <button type="button" className="tile" onClick={() => setCreating(true)} disabled={!repo}>
+              <CellsIcon filled={[[1, 1]]} />
+              <span className="tile__title">Design pattern</span>
+              <span className="tile__text">Start from a blank grid, and paint your own chart.</span>
+            </button>
+          </li>
+          <li>
+            <a className="tile" href={href(paths.settings)}>
+              <CellsIcon filled={[[1, 0], [1, 1], [1, 2]]} />
+              <span className="tile__title">Settings</span>
+              <span className="tile__text">Display preferences: row emphasis, high contrast, focus mode.</span>
+            </a>
+          </li>
+          <li>
+            <a className="tile" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">
+              <CellsIcon filled={[[0, 0], [0, 1], [0, 2], [1, 0]]} />
+              <span className="tile__title">Feedback</span>
+              <span className="tile__text">
+                Report a problem or suggest an idea, on GitHub (needs a free account). Opens in a new tab.
+              </span>
+            </a>
+          </li>
+        </ul>
+      </div>
 
       {state.status === 'error' && <StorageUnavailable />}
       <Notices notices={notices} />

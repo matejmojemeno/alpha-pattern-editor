@@ -200,6 +200,13 @@ root. This document covers *how* the app moves to the web, not *what* it does.
     old ones). "Export yarn list" is in the dialog, named after the typed name.
   - Tier A: main entry chunk 104.3 KB gzipped (Vite's figure; `bundle.spec.ts` counts
     100.7 KB), Design 14.6 KB (from 16.7), Import 17.1 KB.
+- **Home screen** (`ui/screens/Landing.tsx`): "Import pattern" is a large dashed drop
+  zone on the left (click it, drop on it or anywhere on the page, or paste), and
+  **Library**, **Design pattern**, **Settings** and **Feedback** are stacked beside it;
+  one column under 44rem, drop zone first. The zone highlights while a file is dragged
+  over the page, and on touch screens (`hover: none` and `pointer: coarse`) says "Tap to
+  choose a file" instead of drop or paste. There is no backend, so **Feedback** opens
+  the public repo's GitHub "New issue" page in a new tab (needs a GitHub account).
 - **Hosting** (`web/wrangler.jsonc`, `web/public/_headers`): Cloudflare Workers static
   assets at the free `*.workers.dev` address, deployed by Cloudflare's Git integration on
   every push to `main` (setup in `web/README.md`, "Deploying"). `/assets/*`, `/pyodide/*`
@@ -755,7 +762,8 @@ It works *with* the row and column following, not around it:
 
 **Landing screen.** The first screen offers four entry points instead of opening straight
 onto the project grid: **Import pattern**, **Design pattern** (start from blank),
-**Library** and **Settings**. On the desktop, the Library *is* the landing screen, with
+**Library** and **Settings**. (Since reshaped: Import is a large drop zone with the
+others, plus Feedback, beside it; see "Home screen" under Status.) On the desktop, the Library *is* the landing screen, with
 only "Import new chart…" and "Refresh". The web app gets this from the start rather than
 porting that. Two parts need real work:
 - **Designing from blank has no code path yet.** Every `Project` today comes from loading
