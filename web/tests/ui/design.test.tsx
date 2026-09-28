@@ -21,7 +21,14 @@ async function openDesign(name: string) {
   return { ...view, project }
 }
 
-const palette = () => within(screen.getByRole('list', { name: 'Palette' })).getAllByRole('button')
+const palette = () =>
+  within(screen.getByRole('list', { name: 'Palette' }))
+    .getAllByRole('button')
+    .filter((b) => b.classList.contains('colour'))
+const menu = () => screen.getByRole('dialog', { name: /^(Edit “|New colour)/ })
+const hexField = () => within(menu()).getByLabelText('Hex')
+const nameField = () => within(menu()).getByLabelText('Name')
+const undoButton = () => screen.getByRole('button', { name: 'Undo' }) as HTMLButtonElement
 const swatches = () => palette().map((b) => b.getAttribute('aria-label'))
 const settle = () => new Promise((r) => setTimeout(r, 450))
 
@@ -39,28 +46,40 @@ describe('Design stage', () => {
     expect(screen.queryByText(/rows? into this project/)).toBeNull()
   })
 
-  it('adds, recolours, renames and deletes colours, each one undo step, and saves them', async () => {
+  it('adds, recolours, renames and deletes colours from their menus, each one undo step, and saves them', async () => {
     const { repo, project } = await openDesign('basic.alpha')
     const user = userEvent.setup()
     const n = project.pattern.palette.length
 
-    fireEvent.change(screen.getByLabelText('Colour to add'), { target: { value: '#00ff00' } })
-    await user.click(screen.getByRole('button', { name: 'Add colour' }))
+    // + Add colour opens a menu; the new colour shows at the end of the list while chosen.
+    await user.click(screen.getByRole('button', { name: '+ Add colour' }))
+    fireEvent.change(hexField(), { target: { value: '#00ff00' } })
+    expect(document.querySelector('.colours__entry--new .colour__hex')!.textContent).toBe('#00ff00')
+    expect(palette()).toHaveLength(n)
+    await user.clear(nameField())
+    await user.type(nameField(), 'Sprout')
+    await user.click(within(menu()).getByRole('button', { name: 'Add' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
     expect(palette()).toHaveLength(n + 1)
     expect(palette()[n]!.getAttribute('aria-pressed')).toBe('true')
-    expect(swatches()[n]).toBe('New colour, #00ff00, 0 cells')
+    expect(swatches()[n]).toBe('Sprout, #00ff00, 0 cells')
 
-    fireEvent.change(screen.getByLabelText('Recolour “New colour”'), { target: { value: '#11aa11' } })
-    expect(swatches()[n]).toBe('New colour, #11aa11, 0 cells')
+    // Clicking a colour opens its menu; the change shows at once, and Cancel drops it.
+    await user.click(palette()[n]!)
+    fireEvent.change(hexField(), { target: { value: '#11aa11' } })
+    expect(swatches()[n]).toBe('Sprout, #11aa11, 0 cells')
+    await user.click(within(menu()).getByRole('button', { name: 'Cancel' }))
+    expect(swatches()[n]).toBe('Sprout, #00ff00, 0 cells')
 
-    await user.click(screen.getByRole('button', { name: 'Rename' }))
-    const name = screen.getByLabelText('Colour name')
-    await user.clear(name)
-    await user.type(name, 'Leaf{Enter}')
+    // Recolour and rename, then Save: one step.
+    await user.click(palette()[n]!)
+    fireEvent.change(hexField(), { target: { value: '11AA11' } })
+    await user.clear(nameField())
+    await user.type(nameField(), 'Leaf{Enter}')
+    expect(screen.queryByRole('dialog')).toBeNull()
     expect(swatches()[n]).toBe('Leaf, #11aa11, 0 cells')
 
-    // Delete an existing colour: its cells go to the nearest one, counts follow.
-    await user.click(palette()[0]!)
+    // Delete an existing colour with its ×: its cells go to the nearest one, counts follow.
     const first = project.pattern.palette[0]!
     await user.click(screen.getByRole('button', { name: `Delete “${first.name}”` }))
     expect(palette()).toHaveLength(n)
@@ -73,16 +92,70 @@ describe('Design stage', () => {
     expect(saved.stage).toBe('design')
     expect(saved.pattern.palette.map((e) => e.name)).toEqual([...project.pattern.palette.slice(1).map((e) => e.name), 'Leaf'])
 
-    // Four steps back with Cmd/Ctrl+Z, and one forward with Shift.
-    for (let i = 0; i < 4; i++) fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true })
+    // Three steps back with Cmd/Ctrl+Z, and one forward with Shift.
+    for (let i = 0; i < 3; i++) fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true })
     expect(swatches()).toHaveLength(n)
-    expect((screen.getByRole('button', { name: 'Undo' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(undoButton().disabled).toBe(true)
     fireEvent.keyDown(document.body, { key: 'Z', ctrlKey: true, shiftKey: true })
-    expect(swatches()).toHaveLength(n + 1)
+    expect(swatches()[n]).toBe('Sprout, #00ff00, 0 cells')
     fireEvent.keyDown(document.body, { key: 'y', ctrlKey: true })
-    expect(swatches()[n]).toBe('New colour, #11aa11, 0 cells')
-    await user.click(screen.getByRole('button', { name: 'Redo' }))
     expect(swatches()[n]).toBe('Leaf, #11aa11, 0 cells')
+  })
+
+  it('keeps a change on a press elsewhere, drops it on Escape, and adds no untouched colour', async () => {
+    const { project } = await openDesign('basic.alpha')
+    const user = userEvent.setup()
+    const n = project.pattern.palette.length
+    const [a, b] = project.pattern.palette
+
+    // A press on the page outside the menu keeps the change, as one undo step.
+    await user.click(palette()[0]!)
+    fireEvent.change(hexField(), { target: { value: '#123456' } })
+    await user.click(screen.getByRole('heading', { name: 'Colours' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(swatches()[0]).toBe(`${a!.name}, #123456, ${a!.count} cells`)
+    expect(undoButton().disabled).toBe(false)
+
+    // Pressing another colour keeps this one's change and opens that one's menu.
+    await user.click(palette()[0]!)
+    fireEvent.change(hexField(), { target: { value: '#654321' } })
+    await user.click(palette()[1]!)
+    expect(swatches()[0]).toBe(`${a!.name}, #654321, ${a!.count} cells`)
+    expect(menu().getAttribute('aria-label')).toBe(`Edit “${b!.name}”`)
+    expect(palette()[1]!.getAttribute('aria-pressed')).toBe('true')
+
+    // Escape drops the change, wherever the focus is.
+    fireEvent.change(hexField(), { target: { value: '#abcdef' } })
+    expect(swatches()[1]).toBe(`${b!.name}, #abcdef, ${b!.count} cells`)
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(swatches()[1]).toBe(`${b!.name}, ${b!.hex}, ${b!.count} cells`)
+
+    // Pressing a colour whose menu is open closes it.
+    await user.click(palette()[1]!)
+    await user.click(palette()[1]!)
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    // A new colour's menu closed untouched adds nothing; changed, it adds.
+    await user.click(screen.getByRole('button', { name: '+ Add colour' }))
+    await user.click(screen.getByRole('heading', { name: 'Colours' }))
+    expect(palette()).toHaveLength(n)
+    await user.click(screen.getByRole('button', { name: '+ Add colour' }))
+    fireEvent.change(hexField(), { target: { value: '#ff0000' } })
+    await user.click(screen.getByRole('heading', { name: 'Colours' }))
+    expect(palette()).toHaveLength(n + 1)
+    expect(swatches()[n]).toMatch(/, #ff0000, 0 cells$/)
+  })
+
+  it('opens the menu with the focus in it from the keyboard, and gives it back', async () => {
+    await openDesign('basic.alpha')
+    const user = userEvent.setup()
+    palette()[0]!.focus()
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(document.activeElement).toBe(nameField()))
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(palette()[0])
   })
 
   it('refuses to delete the last colour', async () => {
@@ -90,8 +163,7 @@ describe('Design stage', () => {
     const { project } = await openDesign('basic.alpha')
     const user = userEvent.setup()
     for (let i = project.pattern.palette.length; i > 1; i--) {
-      await user.click(palette()[0]!)
-      await user.click(screen.getByRole('button', { name: /^Delete “/ }))
+      await user.click(screen.getAllByRole('button', { name: /^Delete “/ })[0]!)
     }
     expect(palette()).toHaveLength(1)
     const del = screen.getByRole('button', { name: /^Delete “/ }) as HTMLButtonElement
@@ -107,8 +179,8 @@ describe('Design stage', () => {
       fireEvent.keyDown(document.body, { key })
       expect(pressed()).toMatch(new RegExp(`^${label}`))
     }
-    await userEvent.click(screen.getByRole('button', { name: 'Rename' }))
-    await userEvent.type(screen.getByLabelText('Colour name'), 'f')
+    await userEvent.click(palette()[0]!)
+    await userEvent.type(nameField(), 'f')
     expect(pressed()).toMatch(/^Paint/)
   })
 
@@ -134,8 +206,7 @@ describe('Design stage', () => {
 
     // A colour edit that changes cells: delete one.
     const user = userEvent.setup()
-    await user.click(palette()[1]!)
-    await user.click(screen.getByRole('button', { name: /^Delete “/ }))
+    await user.click(screen.getAllByRole('button', { name: /^Delete “/ })[1]!)
     await user.click(screen.getByRole('button', { name: 'Dismiss' }))
     expect(screen.queryByText(/rows into this project/)).toBeNull()
 

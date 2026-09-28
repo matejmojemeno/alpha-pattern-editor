@@ -33,7 +33,7 @@ describe('the Design stage', () => {
     // Give a library, were one loading, the time to arrive.
     await act(async () => {})
 
-    const palette = within(screen.getByRole('list', { name: 'Palette' })).getAllByRole('button')
+    const palette = within(screen.getByRole('list', { name: 'Palette' })).getAllByRole('button').filter((b) => b.classList.contains('colour'))
     expect(palette.map((b) => b.getAttribute('aria-label'))).toEqual([
       'White, #ffffff, 10 cells',
       'Brown, #6b3e26, 16 cells',

@@ -36,9 +36,8 @@ import {
   pointerDown,
   pointerMove,
   pointerUp,
-  recolour,
+  editColour,
   redo,
-  renameColour,
   selectColour,
   setTool,
   structural,
@@ -460,7 +459,16 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
     [adding?.kind, adding?.at, justAdded, p, editor.colour], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const fitted = preview?.pattern ?? p
-  const shownPattern = preview?.pattern ?? addPreview ?? p
+  // A colour being chosen in its menu, shown on the chart before it is saved.
+  const [colourPreview, setColourPreview] = useState<{ id: string; hex: string } | null>(null)
+  const shownBase = preview?.pattern ?? addPreview ?? p
+  const shownPattern = useMemo(
+    () =>
+      colourPreview && shownBase.palette.some((e) => e.id === colourPreview.id)
+        ? { ...shownBase, palette: shownBase.palette.map((e) => (e.id === colourPreview.id ? { ...e, hex: colourPreview.hex } : e)) }
+        : shownBase,
+    [shownBase, colourPreview],
+  )
   const fit = useMemo(
     () => (viewport ? fitCell(fitted.cols, fitted.rows, viewport.width, viewport.height) : null),
     [viewport, fitted.cols, fitted.rows],
@@ -529,7 +537,8 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
 
   const d = editor.drag
   const rectPreview = d?.tool === 'rect' ? { a: d.start, b: d.end, hex: p.palette[editor.colour]?.hex ?? '#000000' } : null
-  const current = p.palette[editor.colour]
+  // As shown: a colour being chosen in its menu shows in "Painting with" too.
+  const current = shownPattern.palette[editor.colour] ?? p.palette[editor.colour]
   const line = (kind: 'row' | 'col', i: number, q: Pattern) =>
     kind === 'row' ? { r0: i, r1: i + 1, c0: 0, c1: q.cols } : { r0: 0, r1: q.rows, c0: i, c1: i + 1 }
   const overlay: Overlay | null = preview
@@ -588,10 +597,10 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       palette={p.palette}
       current={editor.colour}
       onSelect={(i) => update((s) => selectColour(s, i))}
-      onAdd={(hex) => update((s) => addColour(s, hex))}
-      onRecolour={(i, hex) => update((s) => recolour(s, i, hex))}
-      onRename={(i, name) => update((s) => renameColour(s, i, name))}
+      onAdd={(hex, name) => update((s) => addColour(s, hex, name))}
+      onEdit={(i, hex, name) => update((s) => editColour(s, i, hex, name))}
       onDelete={onDelete}
+      onPreview={setColourPreview}
     />
   )
   const structure = (

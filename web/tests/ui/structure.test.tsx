@@ -527,7 +527,7 @@ describe('Add row and Add column', () => {
     fireEvent.keyDown(document.body, { key: 'V', shiftKey: true })
     expect(screen.getByRole('button', { name: /^Add column/, pressed: true })).toBeTruthy()
     // Painting with the palette's second colour.
-    await user.click(within(screen.getByRole('list', { name: 'Palette' })).getAllByRole('button')[1]!)
+    await user.click(within(screen.getByRole('list', { name: 'Palette' })).getAllByRole('button').filter((b) => b.classList.contains('colour'))[1]!)
     const { sc } = chart()
     const t = (c: number) => ({ ...onCol(c), type: 'touch' })
     fireEvent.pointerDown(sc, ev(t(0)))
