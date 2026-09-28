@@ -126,7 +126,8 @@ root. This document covers *how* the app moves to the web, not *what* it does.
     it's saved, `YYYY-MM-DD-HHMMSS` in local time (`timestampName`); file names are no
     longer used, and a typed name survives "Replace image" (in the image's header).
   - **Stages:** the image and the pattern each sit on a stage of one size: the column's
-    width, the *source image's* shape, at most min(70vh, 720px) tall. The image fills
+    width, the *source image's* shape, at most min(70vh, 720px) tall (on a wide screen,
+    fitted to the window instead: "The import screen fits the window" below). The image fills
     its stage; the pattern is fitted into its own, centred, with square whole-pixel
     cells, and the stage's background shows round it. Loading and failure messages sit
     on a stage-sized box that grows rather than clips. The size ("76 columns × 24 rows") is a
@@ -241,6 +242,29 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   - Tier A: main entry chunk 104.5 KB gzipped, Design 16.5 KB (+2.6 KB CSS); the colour
     name table is now a 3.3 KB chunk the import screen and Design share, loaded with
     either.
+- **The import screen fits the window** (`ui/import.css`, `ui/screens/Import.tsx`): from
+  1100 px wide and 600 px tall (a laptop, a monitor), the screen is the window's height
+  and its full width (the 72rem cap is gone there), and the page doesn't scroll.
+  - **The stages are the largest box of the image's shape** that fits both half the
+    width left beside the 280 px colour column and the height left under the save bar,
+    less a column's header and the row under the stage. The columns take the stages'
+    width and the three are centred, so a tall image on a wide monitor sits in the middle
+    rather than being letterboxed in a wide stage. No narrower than 16rem: past that (a
+    very tall, thin image), the height cap letterboxes it as before.
+  - **The colour list scrolls on its own**, under the Colours heading and its count,
+    which stay put; the total, the removed colours and "Advanced: match to yarn" scroll
+    with it.
+  - Narrower or shorter windows (tablet, phone, a squat browser window) keep the layout
+    as it was: the page scrolls and the colours drop below or stack.
+  - Before, the screen was at most 72rem (1152 px) wide and each stage at most
+    min(70vh, 720px) tall: a tall image scrolled on a laptop, and a monitor left most of
+    its area empty. On 1920 × 1000 the stages of a landscape chart went from about
+    390 px wide to 770 px.
+  - `e2e/corrections.spec.ts` checks the stages keep the image's shape and the page
+    doesn't scroll at 1280 × 900 and 1920 × 1000, and, with a made-up 24 × 30 chart of 23
+    colours at 1440 × 800, that the page doesn't scroll, "Reset to detected grid" is in
+    view, and the list scrolls to its total while its heading stays put. The last test
+    fails on the old layout (the page was 1324 px tall in an 800 px window).
 - **Hosting** (`web/wrangler.jsonc`, `web/public/_headers`): Cloudflare Workers static
   assets at the free `*.workers.dev` address, deployed by Cloudflare's Git integration on
   every push to `main` (setup in `web/README.md`, "Deploying"). `/assets/*`, `/pyodide/*`
@@ -486,6 +510,13 @@ break without noticing.
   inside its stage instead. A stage holding words (`.stage--message`) keeps the size
   from an invisible stand-in, so it grows rather than clips. `e2e/corrections.spec.ts`
   measures both at three widths.
+- **On a wide screen the import grid is a size container** (`container-type: size` on
+  `.confirm__grid`), and the stage width (`--stage-w`, from `cqw`/`cqh` and the numeric
+  `--source-aspect`) is applied to the *columns*, never to the grid's own
+  `grid-template-columns`: a container's own properties can't use its container units
+  (they resolve against an ancestor, here the window), and the grid then ran off the
+  right edge. If the column header or the row under a stage changes height, change
+  `--col-chrome` with it, or the stages overflow the window.
 
 - **The import overlay is drawn from the extent, rows and cols** (`outline.gridLines`),
   not from the preview's `rowLines`/`colLines`, so a dragged outline shows its lines
