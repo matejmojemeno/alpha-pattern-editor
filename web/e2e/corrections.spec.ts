@@ -9,7 +9,7 @@
  *
  * Needs the repo's Python (.venv, or $PYTHON) with numpy and Pillow for the reference.
  */
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { expect, test, type Page, type TestInfo } from '@playwright/test'
@@ -17,6 +17,7 @@ import { expect, test, type Page, type TestInfo } from '@playwright/test'
 import type { Crop } from '../src/detect/protocol.ts'
 import { cropFromDrag, fitRect } from '../src/importer/letterbox.ts'
 import { readAlpha } from '../src/storage/alpha.ts'
+import { encodePngRgba } from '../src/storage/thumbnail.ts'
 import { desktopDetect, ROOT, type Correction } from './desktop.ts'
 import { DETECT_TIMEOUT, exportFromLibrary, importImage, saveAs } from './importing.ts'
 
@@ -221,14 +222,25 @@ test('the image and the pattern sit on stages of one size that line up, at every
   const box = (selector: string) => page.locator(selector).first().boundingBox().then((b) => b!)
   const within = (a: number, b: number) => expect(Math.abs(a - b)).toBeLessThanOrEqual(0.5)
   const size = pngSize(CATS)
-  for (const width of [1280, 900, 400]) {
-    await page.setViewportSize({ width, height: 900 })
+  for (const [width, height] of [
+    [1280, 900],
+    [1920, 1000],
+    [900, 900],
+    [400, 900],
+  ] as const) {
+    await page.setViewportSize({ width, height })
     await expect(page.locator('.stage')).toHaveCount(2)
     const [image, pattern] = [await box('.source.stage'), await box('.confirm__col--pattern .stage')]
     within(image.width, pattern.width)
     within(image.height, pattern.height)
-    // The image's shape, within the height cap.
-    within(image.height, Math.min(image.width * (size.height / size.width), Math.min(0.7 * 900, 720)))
+    if (width >= 1100) {
+      // Fitted to the window: the image's own shape, and nothing below the window.
+      within(image.height, image.width * (size.height / size.width))
+      expect(await page.evaluate(() => document.querySelector('.screen')!.scrollHeight)).toBeLessThanOrEqual(height)
+    } else {
+      // The image's shape, within the height cap.
+      within(image.height, Math.min(image.width * (size.height / size.width), Math.min(0.7 * height, 720)))
+    }
     // The pattern fits inside its stage, centred.
     const canvas = await box('.pattern__canvas')
     within(canvas.x - pattern.x, pattern.x + pattern.width - (canvas.x + canvas.width))
@@ -251,6 +263,60 @@ test('the image and the pattern sit on stages of one size that line up, at every
   const count = await box('.palette__count')
   within(count.x + count.width, row.x + row.width)
   await expect(page.locator('.palette__total')).toHaveText('Total4500 stitches')
+})
+
+/** A made-up chart, `cols` × `rows` cells of 16 px on dark 1 px lines, each cell one of
+ *  24 colours far enough apart to be told apart (12 hues, dark and light), by a fixed
+ *  pseudo-random sequence. */
+function manyColours(file: string, cols: number, rows: number) {
+  const cell = 16
+  const [w, h] = [cols * cell + 1, rows * cell + 1]
+  const hsl = (hue: number, s: number, l: number) => {
+    const a = s * Math.min(l, 1 - l)
+    const f = (n: number) => {
+      const k = (n + hue / 30) % 12
+      return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))))
+    }
+    return [f(0), f(8), f(4)]
+  }
+  const colours = [0, 30, 55, 90, 140, 175, 200, 225, 260, 290, 320, 345].flatMap((hue) => [hsl(hue, 0.8, 0.35), hsl(hue, 0.7, 0.7)])
+  let seed = 7
+  const next = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31), seed / 2 ** 31)
+  const cells = Array.from({ length: rows * cols }, () => colours[Math.floor(next() * colours.length)]!)
+  const rgba = new Uint8Array(w * h * 4)
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const line = x % cell === 0 || y % cell === 0
+      rgba.set([...(line ? [60, 60, 60] : cells[Math.floor(y / cell) * cols + Math.floor(x / cell)]!), 255], (y * w + x) * 4)
+    }
+  writeFileSync(file, encodePngRgba(w, h, rgba))
+}
+
+test('on a laptop, a tall chart with many colours fits the window, and only the colours scroll', async ({ page }, testInfo) => {
+  const file = testInfo.outputPath('many-colours.png')
+  manyColours(file, 24, 30)
+  await page.setViewportSize({ width: 1440, height: 800 })
+  await importImage(page, file)
+  await showing(page, 24, 30)
+  const list = page.locator('.palette-pane')
+  const scroll = (selector: string) =>
+    page.locator(selector).evaluate((e) => ({ height: e.scrollHeight, shown: e.clientHeight, top: e.getBoundingClientRect().top }))
+
+  // The page doesn't scroll; the stages and "Reset to detected grid" under them are in view.
+  const screen = await scroll('.screen')
+  expect(screen.height).toBeLessThanOrEqual(800)
+  const reset = (await page.getByRole('button', { name: 'Reset to detected grid' }).boundingBox())!
+  expect(reset.y + reset.height).toBeLessThanOrEqual(800)
+  // The colour list does, under its heading, which stays put.
+  expect(await page.locator('.palette__entry').count()).toBeGreaterThan(15)
+  const pane = await scroll('.palette-pane')
+  expect(pane.height).toBeGreaterThan(pane.shown)
+  const heading = (await page.locator('.confirm__col--colours .confirm__head').boundingBox())!
+  await list.hover()
+  await page.mouse.wheel(0, 2000)
+  await expect(page.locator('.palette__total')).toBeInViewport()
+  expect((await page.locator('.confirm__col--colours .confirm__head').boundingBox())!.y).toBe(heading.y)
+  expect(await page.evaluate(() => document.querySelector('.screen')!.scrollTop)).toBe(0)
 })
 
 test.describe('on a phone', () => {
