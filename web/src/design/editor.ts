@@ -257,6 +257,16 @@ export function renameColour(s: EditorState, index: number, name: string): Edito
   return e ? commit(s, renamePaletteEntry(s.pattern, e.id, name)) : s
 }
 
+/** Recolour and rename a colour at once: one undo step, as its menu's Save is one act. */
+export function editColour(s: EditorState, index: number, hex: string, name: string): EditorState {
+  const e = s.pattern.palette[index]
+  if (!e) return s
+  let next = s.pattern
+  if (hex.toLowerCase() !== e.hex) next = recolorPaletteEntry(next, e.id, hex.toLowerCase())
+  if (name !== e.name) next = renamePaletteEntry(next, e.id, name)
+  return commit(s, next)
+}
+
 /**
  * Delete a colour; its cells take the perceptually nearest remaining one
  * (`delete_palette_entry_nearest`). The last colour can't go: this returns the state

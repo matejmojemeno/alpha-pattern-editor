@@ -10,6 +10,7 @@ import {
   canUndo,
   commit,
   deleteColour,
+  editColour,
   initialEditor,
   lineCells,
   pointerDown,
@@ -193,6 +194,18 @@ describe('colours', () => {
     expect(recolour(s, 3, '#00aa00')).toBe(s) // the same colour: nothing
     s = undo(undo(s))
     expect(s.pattern.palette[3]).toMatchObject({ hex: '#00ff00', name: 'Green' })
+  })
+
+  it('edit recolours and renames as one step, and nothing when nothing changed', () => {
+    const s0 = start()
+    const e = s0.pattern.palette[1]!
+    expect(editColour(s0, 1, e.hex.toUpperCase(), e.name)).toBe(s0)
+    expect(editColour(s0, 9, '#123456', 'x')).toBe(s0)
+    const s = editColour(s0, 1, '#12AB34', 'Moss')
+    expect(s.pattern.palette[1]).toMatchObject({ id: e.id, hex: '#12ab34', name: 'Moss' })
+    expect(s.history.past).toHaveLength(1)
+    expect(undo(s).pattern.palette[1]).toMatchObject({ hex: e.hex, name: e.name })
+    expect(editColour(s0, 1, e.hex, 'Only the name').pattern.palette[1]).toMatchObject({ hex: e.hex, name: 'Only the name' })
   })
 
   it("delete repaints with the nearest colour, and the current colour follows", () => {
