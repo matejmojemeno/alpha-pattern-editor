@@ -20,7 +20,7 @@
  */
 import '../import.css'
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { downloadBytes } from 'virtual:detect-assets'
 
 import { useRepo } from '../../app/context.ts'
@@ -52,6 +52,9 @@ import { SourceView } from '../import/SourceView.tsx'
 import { YarnEstimate } from '../import/YarnEstimate.tsx'
 import { cleanName, MAX_NAME_LENGTH } from '../names.ts'
 import { isChartImage, type Notice } from '../useAlphaImport.ts'
+
+/** "Visualize" and its stitch renderer, fetched when first opened. */
+const Visualize = lazy(() => import('../import/Visualize.tsx'))
 
 export type ImportState =
   | { phase: 'choose' }
@@ -123,6 +126,8 @@ export default function ImportScreen() {
   const [pinned, setPinned] = useState<string | null>(null)
   /** "Yarn & size" is open. */
   const [estimating, setEstimating] = useState(false)
+  /** "Visualize" is open. */
+  const [visualizing, setVisualizing] = useState(false)
 
   const session = useRef<DetectSession | null>(null)
   /** Updates asked for and not yet answered. */
@@ -362,6 +367,7 @@ export default function ImportScreen() {
         disabled={saving || !repo || !hasGrid || redetecting}
         onSubmit={save}
         onEstimate={hasGrid && display ? () => setEstimating(true) : null}
+        onVisualize={hasGrid && display ? () => setVisualizing(true) : null}
       />
       <Notices notices={notices} />
       <div className="confirm" data-dim={dim || undefined} style={stageShape}>
@@ -444,6 +450,11 @@ export default function ImportScreen() {
       </div>
       {estimating && hasGrid && display && (
         <YarnEstimate name={cleanName(name) ?? 'Untitled pattern'} pattern={display} onClose={() => setEstimating(false)} />
+      )}
+      {visualizing && hasGrid && display && (
+        <Suspense fallback={null}>
+          <Visualize pattern={display} onClose={() => setVisualizing(false)} />
+        </Suspense>
       )}
       <DropOverlay show={drop.over} text="Drop a chart image to import it" />
     </main>
@@ -683,7 +694,7 @@ function BootStatus({ progress }: { progress: BootProgress | null }) {
   )
 }
 
-/** The pattern's name, "Yarn & size" and Save, at the screen's top. The name starts empty:
+/** The pattern's name, "Yarn & size", "Visualize" and Save, at the screen's top. The name starts empty:
  *  left so, the pattern is named by the moment it's saved. */
 function SaveBar({
   name,
@@ -691,6 +702,7 @@ function SaveBar({
   disabled,
   onSubmit,
   onEstimate,
+  onVisualize,
 }: {
   name: string
   onName: (name: string) => void
@@ -698,6 +710,8 @@ function SaveBar({
   onSubmit: (e: FormEvent) => void
   /** Open "Yarn & size"; null while there's no pattern to estimate. */
   onEstimate: (() => void) | null
+  /** Open "Visualize"; null while there's no pattern to show. */
+  onVisualize: (() => void) | null
 }) {
   const id = useId()
   return (
@@ -726,6 +740,15 @@ function SaveBar({
           onClick={() => onEstimate?.()}
         >
           Yarn &amp; size
+        </button>
+        <button
+          type="button"
+          className="button"
+          disabled={!onVisualize}
+          title="See the pattern as crocheted fabric, in the stitch you choose"
+          onClick={() => onVisualize?.()}
+        >
+          Visualize
         </button>
         <button type="submit" className="button button--primary" disabled={disabled}>
           Save &amp; edit pattern

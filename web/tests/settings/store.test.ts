@@ -40,8 +40,25 @@ describe('parseSettings', () => {
       countCarried: false,
       marginPercent: 10,
       units: 'metric',
+      visualStitch: 'sc',
+      visualRows: 'turned',
+      visualCarried: false,
+      visualSwatch: false,
     })
     expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS)
+  })
+
+  it('keeps the Visualize choices only when they name a stitch and a way of working', () => {
+    expect(parseSettings('{"visualStitch":"c2c","visualRows":"rs","visualCarried":true,"visualSwatch":true}')).toEqual({
+      ...DEFAULT_SETTINGS,
+      visualStitch: 'c2c',
+      visualRows: 'rs',
+      visualCarried: true,
+      visualSwatch: true,
+    })
+    expect(parseSettings('{"visualStitch":"tr","visualRows":"round","visualCarried":1,"visualSwatch":"yes"}')).toEqual(
+      DEFAULT_SETTINGS,
+    )
   })
 
   it('keeps the swatch only when it makes sense: whole stitches and rows, positive measures', () => {
