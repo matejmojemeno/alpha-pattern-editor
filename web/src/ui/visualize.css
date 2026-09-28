@@ -1,0 +1,114 @@
+/* "Visualize" on the import screen (ui/import/Visualize.tsx). */
+
+.visualize-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 72rem);
+  height: calc(100dvh - 2rem);
+}
+
+.visualize-dialog .dialog__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.viz__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 24px;
+}
+
+.viz__field {
+  display: grid;
+  gap: 4px;
+  font-size: var(--text-sm);
+}
+
+.viz__field select {
+  min-height: var(--tap);
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-md);
+}
+
+.viz__choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.viz__choice legend {
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 0;
+  font-size: var(--text-sm);
+}
+
+.viz__choice label,
+.viz__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap);
+}
+
+.viz__choice:disabled label,
+.viz__check:has(input:disabled),
+.viz__choice label:has(input:disabled) {
+  color: var(--muted);
+}
+
+.viz__note {
+  margin: 8px 0;
+  font-size: var(--text-sm);
+}
+
+.viz__stage {
+  position: relative;
+  flex: 1;
+  min-height: 12rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--raised);
+  cursor: grab;
+  touch-action: none;
+}
+
+.viz__stage:active {
+  cursor: grabbing;
+}
+
+.viz__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.viz__zoom {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 4px;
+}
+
+.viz__zoom .button {
+  background: var(--bg);
+}
+
+.viz__shape {
+  margin: 8px 0 0;
+  font-size: var(--text-sm);
+}

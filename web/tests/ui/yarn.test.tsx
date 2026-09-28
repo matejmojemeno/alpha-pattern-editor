@@ -84,7 +84,9 @@ describe('Yarn & size, on the import screen', () => {
   it('sits beside Save, opens a dialog, and closes back to the button', async () => {
     await openImport()
     const button = screen.getByRole('button', { name: 'Yarn & size' })
-    expect(button.nextElementSibling?.textContent).toBe('Save & edit pattern')
+    // Then "Visualize", then Save.
+    expect(button.nextElementSibling?.textContent).toBe('Visualize')
+    expect(button.nextElementSibling?.nextElementSibling?.textContent).toBe('Save & edit pattern')
     const dialog = await openDialog()
     expect(within(dialog).getByRole('heading', { level: 3, name: 'Your swatch' })).toBeTruthy()
     await userEvent.keyboard('{Escape}')
