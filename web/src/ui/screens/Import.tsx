@@ -13,7 +13,9 @@
  * Layout (import.css): the name, "Yarn & size" and "Save & edit pattern" head the screen. Below, the
  * image and the pattern each sit on a stage of the same size, shaped like the image, so
  * the two line up whatever the pattern's own shape; the colours are a sidebar beside
- * them, dropping below them on a medium screen, and on a small one the stages stack.
+ * them, dropping below them on a medium screen, and on a small one the stages stack. On a
+ * wide screen the whole of it fits the window: the stages as big as the room left allows,
+ * and the colour list scrolling on its own.
  *
  * Loaded lazily (App.tsx), and the only screen that starts the detection worker. Leaving
  * it terminates the worker (App.tsx), which frees Pyodide's memory.
@@ -344,8 +346,9 @@ export default function ImportScreen() {
   const canDetect = !loading && !redetecting && state.phase !== 'error' && size !== null
   const preview = state.phase === 'result' ? display : null
   const grid = hasGrid && shown ? (outline ?? { extent: shown.extent, rows: shown.rows, cols: shown.cols }) : null
-  // Both stages take the image's shape (import.css).
-  const stageShape = (size ? { '--source-ratio': `${size.width} / ${size.height}` } : {}) as CSSProperties
+  // Both stages take the image's shape (import.css); the aspect as a number too, to size
+  // them from the height left on a wide screen.
+  const stageShape = (size ? { '--source-ratio': `${size.width} / ${size.height}`, '--source-aspect': size.width / size.height } : {}) as CSSProperties
   const heading = (id: string, label: string, count?: number) => (
     <h2 id={`${ids}-${id}`} className="confirm__caption" {...countLabel(label, count)}>
       {label}

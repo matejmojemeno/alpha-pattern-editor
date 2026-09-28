@@ -3,8 +3,9 @@
 
    The save bar (the name, Save) heads the screen, and stays at the top as it scrolls.
    Below it a grid: the image and the pattern, each on a stage of the same size, and the
-   colours in a sidebar. From 1100 px all three side by side; from 700 px the colours
-   drop below the two stages; narrower, everything stacks.
+   colours in a sidebar. From 1100 px all three side by side, fitted to the window's
+   height (with 600 px of it or more), the colour list scrolling on its own; from 700 px
+   the colours drop below the two stages; narrower, everything stacks.
 
    Four text styles only: the page title, section headers, body (inputs, buttons, colour
    names, counts), and captions (the field's label, helper text, the size, the back
@@ -155,6 +156,71 @@
 
   .confirm__col--colours {
     grid-column: auto;
+  }
+}
+
+/* A wide screen with room to spare in height (a laptop, a monitor): the screen is the
+   window's height and its whole width (no 72rem cap), and nothing on it scrolls but the
+   colour list. The grid is a size
+   container, so the stages can be the largest box of the image's shape that fits both
+   half its width (less the sidebar) and its height (less a column's header and the row
+   under the stage); the columns take the stages' width, and the grid is centred. No
+   narrower than 16rem, where a stage is letterboxed by the height cap instead. Only if
+   something above the grid runs long (warnings, a wrapped hint) does the screen scroll. */
+@media (min-width: 1100px) and (min-height: 600px) {
+  .screen.import {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    max-width: none;
+    padding-bottom: 1rem;
+    overflow-y: auto;
+  }
+
+  .import > * {
+    flex: none;
+  }
+
+  .import > .confirm {
+    flex: 1 0 0;
+    min-height: 20rem;
+    margin-top: 1rem;
+  }
+
+  .confirm__grid {
+    --col-chrome: calc(2 * var(--tap) + 1.5rem); /* .confirm__head and .confirm__below */
+    --stage-max: calc(100cqh - var(--col-chrome));
+    --stage-w: max(16rem, min((100cqw - 280px - 4rem) / 2, (100cqh - var(--col-chrome)) * var(--source-aspect, 1.333)));
+    flex: 1 0 0;
+    container-type: size;
+    grid-template-columns: auto auto 280px;
+    grid-template-rows: minmax(0, 1fr);
+    justify-content: center;
+  }
+
+  /* Set on the columns, not the grid's tracks: a container's own properties can't use its
+     container units (they'd measure the window), its children's can. */
+  .confirm__col--image,
+  .confirm__col--pattern {
+    width: var(--stage-w);
+  }
+
+  /* The colours fill the column's height, their list scrolling under the heading. */
+  .confirm__col--colours {
+    align-self: stretch;
+    min-height: 0;
+  }
+
+  .confirm__col--colours > .palette-pane {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* Room for a focus ring at the edges, without moving the rows. */
+    margin: -3px;
+    padding: 3px;
   }
 }
 
@@ -553,8 +619,8 @@
   }
 }
 
-/* The list is part of the page: no box of its own, no scrolling of its own, and nothing
-   wider than the column (a long shade name wraps). */
+/* The list is part of the page: no box of its own, and nothing wider than the column (a
+   long shade name wraps). It scrolls on its own only where the screen fits the window. */
 .palette {
   list-style: none;
   padding: 0;
