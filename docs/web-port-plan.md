@@ -207,6 +207,40 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   over the page, and on touch screens (`hover: none` and `pointer: coarse`) says "Tap to
   choose a file" instead of drop or paste. There is no backend, so **Feedback** opens
   the public repo's GitHub "New issue" page in a new tab (needs a GitHub account).
+- **A menu for each colour in Design** (`ui/design/ColoursPanel.tsx`,
+  `ui/design/ColourPicker.tsx`, `editor.editColour`): the Recolour, Rename and Delete
+  buttons and the colour well beside "Add colour" are gone.
+  - **Clicking a colour** picks it to paint with and opens its menu under it, as wide as
+    the list (above it when there's no room). It covers the panel, never the chart: a
+    first version sat beside the panel, over the chart's right edge, and swallowed the
+    presses meant for the last columns there. The menu holds its name, and a picker drawn on the page (a saturation–brightness square, a hue
+    slider, a hex field) in place of the browser's own, which on Chrome for macOS is a
+    separate window that reports only when closed and ignores clicks on the page. Every
+    move shows on the chart and in the list at once, as a preview (Design's
+    `colourPreview`), not an edit. **Save** (or Enter) keeps it as one undo step, colour
+    and name together; **Cancel** or **Escape** drops it.
+  - **A press anywhere else keeps the change**, as the platform's popovers do: a kept
+    change is one Undo away, a dropped one would be gone. The press still does its job,
+    so a press on the chart closes the menu and paints with the colour just made, and a
+    press on another colour opens that one's menu. Pressing the open colour again closes
+    it. Opened by a press, the focus stays on the colour (tool shortcuts still work, and
+    a phone raises no keyboard); opened from the keyboard, it goes to the name field and
+    comes back on Save, Cancel or Escape.
+  - **Each colour has a ×**, as on the import screen (over the count on hover or focus,
+    beside it on touch): Delete as before, its cells taking the nearest remaining colour.
+  - **"+ Add colour" opens the same menu** for a new colour, rather than choosing a colour
+    first and then pressing Add: one act instead of two, the name is set at the same
+    time, and the colour can be judged in the list before it exists. It starts as the
+    colour being painted with and is named after what it looks like (`simpleNames`
+    against the palette, so a second green is "Light green"), until a name is typed. It
+    shows at the end of the list (dashed) while chosen; **Add** keeps it; a press
+    elsewhere adds it only if something was changed, so opening and leaving it adds no
+    copy of the current colour.
+  - Differs from the desktop, which recolours through Qt's colour dialog and renames and
+    deletes with buttons; the `.alpha` file is unchanged.
+  - Tier A: main entry chunk 104.5 KB gzipped, Design 16.5 KB (+2.6 KB CSS); the colour
+    name table is now a 3.3 KB chunk the import screen and Design share, loaded with
+    either.
 - **Hosting** (`web/wrangler.jsonc`, `web/public/_headers`): Cloudflare Workers static
   assets at the free `*.workers.dev` address, deployed by Cloudflare's Git integration on
   every push to `main` (setup in `web/README.md`, "Deploying"). `/assets/*`, `/pyodide/*`

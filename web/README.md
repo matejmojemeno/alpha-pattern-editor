@@ -107,8 +107,8 @@ files.
   letterboxed crop mapping (`letterbox.ts`), moving the grid's outline in whole cells
   (`outline.ts`), the controls' ranges (`controls.ts`), the colours removed before
   saving (`removals.ts`) and naming the colours left (`names.ts`, from
-  `colour-names.json`; provenance in its `README.md`).
-  Its components are in `src/ui/import/`.
+  `colour-names.json`; provenance in its `README.md`; the Design stage names a colour
+  being added with it too). Its components are in `src/ui/import/`.
 
 Routing uses the URL hash (`#/library`, `#/work/<id>`, `#/design/<id>`): the part after
 `#` never reaches the server, so deep links survive a refresh on any static host with no
