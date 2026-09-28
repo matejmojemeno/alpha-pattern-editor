@@ -3,8 +3,7 @@
  * Pyodide (dachshund.png, 40 × 24): the button sits between "Yarn & size" and Save, and
  * opens the pattern as fabric in the stitch chosen. The fabric's shape follows the
  * stitch's proportions (single crochet 0.8 as tall as wide, double 2), its colours are the
- * pattern's, the choice survives closing and reopening, and the renderer is its own chunk,
- * fetched only when opened.
+ * pattern's, and the choice survives closing and reopening.
  */
 import { resolve } from 'node:path'
 
@@ -48,10 +47,6 @@ const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 
 const near = (a: string, b: string, tol: number) => rgb(a).every((v, i) => Math.abs(v - rgb(b)[i]!) <= tol)
 
 test('see the pattern crocheted, in single and double crochet', async ({ page }) => {
-  const chunks: string[] = []
-  page.on('request', (r) => {
-    if (/\/assets\/Visualize-[\w-]+\.js$/.test(r.url())) chunks.push(r.url())
-  })
   await importImage(page, IMAGE)
   await expect(page.locator('.confirm__stats')).toContainText('40 columns × 24 rows')
   // Each colour's button names its hex.
@@ -62,19 +57,17 @@ test('see the pattern crocheted, in single and double crochet', async ({ page })
   const palette = labels.map((l) => /#[0-9a-f]{6}/i.exec(l)![0].toLowerCase())
   expect(palette).toHaveLength(4)
 
-  // Between "Yarn & size" and Save, on one line; nothing fetched until it's opened.
+  // Between "Yarn & size" and Save, on one line.
   const [yarn, open, save] = await Promise.all(
     ['Yarn & size', 'Visualize', 'Save & edit pattern'].map((name) => page.getByRole('button', { name }).boundingBox()),
   )
   expect(Math.abs(open!.y - save!.y)).toBeLessThan(1)
   expect(yarn!.x).toBeLessThan(open!.x)
   expect(open!.x).toBeLessThan(save!.x)
-  expect(chunks).toEqual([])
 
   await page.getByRole('button', { name: 'Visualize' }).click()
   const dialog = page.getByRole('dialog', { name: 'Visualize' })
   await expect(dialog).toBeVisible()
-  expect(chunks).toHaveLength(1)
   const stitch = dialog.getByRole('combobox', { name: 'Stitch' })
   await expect(stitch).toHaveValue('sc')
   await expect(dialog).toContainText('Stitches are 80% as tall as they are wide')

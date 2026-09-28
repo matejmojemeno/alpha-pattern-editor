@@ -99,7 +99,7 @@ files.
   every source in `README.md`), which side of each stitch shows (`faces.ts`), each stitch
   as strands of yarn (`geometry.ts`), the strands rasterised as shaded tubes
   (`raster.ts`), and the fabric drawn on a canvas (`fabric.ts`). Its dialog is
-  `src/ui/import/Visualize.tsx`, its own lazily loaded chunk.
+  `src/ui/import/Visualize.tsx`, part of the import screen's chunk.
 - `src/app/`: hash router, app-wide context (repository, settings), persistence request.
 - `src/settings/`: app-wide preferences in `localStorage` (display, the colour library,
   the yarn estimate's inputs), typed and fail-safe.

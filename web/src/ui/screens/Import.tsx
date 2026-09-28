@@ -20,7 +20,7 @@
  */
 import '../import.css'
 
-import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { downloadBytes } from 'virtual:detect-assets'
 
 import { useRepo } from '../../app/context.ts'
@@ -49,12 +49,10 @@ import { useDelayedFlag, useDocumentTitle, useFileDrop, useMediaQuery, usePasted
 import { Palette } from '../import/Palette.tsx'
 import { PatternView } from '../import/PatternView.tsx'
 import { SourceView } from '../import/SourceView.tsx'
+import { Visualize } from '../import/Visualize.tsx'
 import { YarnEstimate } from '../import/YarnEstimate.tsx'
 import { cleanName, MAX_NAME_LENGTH } from '../names.ts'
 import { isChartImage, type Notice } from '../useAlphaImport.ts'
-
-/** "Visualize" and its stitch renderer, fetched when first opened. */
-const Visualize = lazy(() => import('../import/Visualize.tsx'))
 
 export type ImportState =
   | { phase: 'choose' }
@@ -451,11 +449,7 @@ export default function ImportScreen() {
       {estimating && hasGrid && display && (
         <YarnEstimate name={cleanName(name) ?? 'Untitled pattern'} pattern={display} onClose={() => setEstimating(false)} />
       )}
-      {visualizing && hasGrid && display && (
-        <Suspense fallback={null}>
-          <Visualize pattern={display} onClose={() => setVisualizing(false)} />
-        </Suspense>
-      )}
+      {visualizing && hasGrid && display && <Visualize pattern={display} onClose={() => setVisualizing(false)} />}
       <DropOverlay show={drop.over} text="Drop a chart image to import it" />
     </main>
   )

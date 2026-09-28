@@ -7,7 +7,11 @@
  * drawn from how each is made. The choices are app-wide settings, like the swatch: they
  * describe how the crocheter works, not the chart.
  *
- * Loaded lazily from the import screen: its renderer is only fetched when opened.
+ * Part of the import screen's chunk, as "Yarn & size" is. A lazy chunk of its own, loaded
+ * from the lazily loaded import screen, made the bundler split what it shares with the
+ * main chunk (the Work stage's logic, the shared components) into chunks the page then
+ * preloads: about 2 KB more up front and an extra request, to save 7 KB on a screen that
+ * downloads Pyodide.
  */
 import '../visualize.css'
 
@@ -33,7 +37,7 @@ interface ViewState {
 /** The largest stitch the view zooms to, in CSS pixels. */
 const MAX_STITCH = 120
 
-export default function Visualize({ pattern, onClose }: { pattern: EstimatedPattern; onClose: () => void }) {
+export function Visualize({ pattern, onClose }: { pattern: EstimatedPattern; onClose: () => void }) {
   const [settings, set] = useSettings()
   const ids = useId()
   const stitch = stitchById(settings.visualStitch)
