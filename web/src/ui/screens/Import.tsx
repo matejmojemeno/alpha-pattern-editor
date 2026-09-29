@@ -10,7 +10,11 @@
  *   image again: the desktop's Re-detect, undoing a box and a moved outline alike.
  * While an answer is on its way the last good preview stays up, dimmed after ~200 ms.
  *
- * Layout (import.css): the name, "Yarn & size" and "Save & edit pattern" head the screen. Below, the
+ * It is for getting the grid right and nothing else: the colour list shows what was found
+ * and its count merges colours detection split, but removing a colour, "Yarn & size" and
+ * "Visualize" are the Design stage's, where the pattern is saved and edited.
+ *
+ * Layout (import.css): the name and "Save & edit pattern" head the screen. Below, the
  * image and the pattern each sit on a stage of the same size, shaped like the image, so
  * the two line up whatever the pattern's own shape; the colours are a sidebar beside
  * them, dropping below them on a medium screen, and on a small one the stages stack. On a
@@ -51,8 +55,6 @@ import { useDelayedFlag, useDocumentTitle, useFileDrop, useMediaQuery, usePasted
 import { Palette } from '../import/Palette.tsx'
 import { PatternView } from '../import/PatternView.tsx'
 import { SourceView } from '../import/SourceView.tsx'
-import { Visualize } from '../import/Visualize.tsx'
-import { YarnEstimate } from '../import/YarnEstimate.tsx'
 import { cleanName, MAX_NAME_LENGTH } from '../names.ts'
 import { isChartImage, type Notice } from '../useAlphaImport.ts'
 
@@ -119,15 +121,12 @@ export default function ImportScreen() {
   const [adjusted, setAdjusted] = useState(false)
   const dim = useDelayedFlag(updating > 0 || redetecting, DIM_AFTER_MS)
 
-  /** Colours removed before saving, in order (importer/removals.ts). */
+  /** The colour count's merges, in order (importer/removals.ts): replayed on every preview,
+   *  so they survive moving the outline. */
   const [removals, setRemovals] = useState<Removal[]>([])
   /** The colour pointed at, and the one kept showing, in the colour list: by hex. */
   const [pointed, setPointed] = useState<string | null>(null)
   const [pinned, setPinned] = useState<string | null>(null)
-  /** "Yarn & size" is open. */
-  const [estimating, setEstimating] = useState(false)
-  /** "Visualize" is open. */
-  const [visualizing, setVisualizing] = useState(false)
 
   const session = useRef<DetectSession | null>(null)
   /** Updates asked for and not yet answered. */
@@ -306,9 +305,6 @@ export default function ImportScreen() {
     () => (raw ? applyRemovals(raw, removals, tolerance(raw)) : { result: null, applied: [] }),
     [raw, removals],
   )
-  // The colours taken away by their own ×, each with Restore; merges are undone by the
-  // colour count's + instead.
-  const removed = removals.flatMap((removal, index) => (applied[index] && !removal.merged ? [{ removal, index }] : []))
   /** The merge the count's + undoes: the last one that took a colour away here. */
   const lastMerge = removals.findLastIndex((r, i) => r.merged && applied[i])
   const fewer = () => {
@@ -367,8 +363,6 @@ export default function ImportScreen() {
         onName={setName}
         disabled={saving || !repo || !hasGrid || redetecting}
         onSubmit={save}
-        onEstimate={hasGrid && display ? () => setEstimating(true) : null}
-        onVisualize={hasGrid && display ? () => setVisualizing(true) : null}
       />
       <Notices notices={notices} />
       <div className="confirm" data-dim={dim || undefined} style={stageShape}>
@@ -429,30 +423,13 @@ export default function ImportScreen() {
               )}
             </div>
             {display && hasGrid ? (
-              <Palette
-                palette={display.palette}
-                shown={spotlight === null ? null : spotHex}
-                pinned={pinned}
-                onPoint={setPointed}
-                onPin={setPinned}
-                onRemove={(e) => {
-                  setRemovals((r) => [...r, { hex: e.hex, name: e.name }])
-                  setPointed(null)
-                  if (pinned === e.hex) setPinned(null)
-                }}
-                removed={removed}
-                onRestore={(index) => setRemovals((r) => r.filter((_, i) => i !== index))}
-              />
+              <Palette palette={display.palette} shown={spotlight === null ? null : spotHex} pinned={pinned} onPoint={setPointed} onPin={setPinned} />
             ) : (
               <p className="confirm__note">The colours appear once the grid is found.</p>
             )}
           </section>
         </div>
       </div>
-      {estimating && hasGrid && display && (
-        <YarnEstimate name={cleanName(name) ?? 'Untitled pattern'} pattern={display} onClose={() => setEstimating(false)} />
-      )}
-      {visualizing && hasGrid && display && <Visualize pattern={display} onClose={() => setVisualizing(false)} />}
       <DropOverlay show={drop.over} text="Drop a chart image to import it" />
     </main>
   )
@@ -691,24 +668,18 @@ function BootStatus({ progress }: { progress: BootProgress | null }) {
   )
 }
 
-/** The pattern's name, "Yarn & size", "Visualize" and Save, at the screen's top. The name starts empty:
- *  left so, the pattern is named by the moment it's saved. */
+/** The pattern's name and Save, at the screen's top. The name starts empty: left so, the
+ *  pattern is named by the moment it's saved. */
 function SaveBar({
   name,
   onName,
   disabled,
   onSubmit,
-  onEstimate,
-  onVisualize,
 }: {
   name: string
   onName: (name: string) => void
   disabled: boolean
   onSubmit: (e: FormEvent) => void
-  /** Open "Yarn & size"; null while there's no pattern to estimate. */
-  onEstimate: (() => void) | null
-  /** Open "Visualize"; null while there's no pattern to show. */
-  onVisualize: (() => void) | null
 }) {
   const id = useId()
   return (
@@ -729,24 +700,6 @@ function SaveBar({
         />
       </div>
       <div className="savebar__actions">
-        <button
-          type="button"
-          className="button"
-          disabled={!onEstimate}
-          title="How big it comes out, and how much yarn of each colour to buy"
-          onClick={() => onEstimate?.()}
-        >
-          Yarn &amp; size
-        </button>
-        <button
-          type="button"
-          className="button"
-          disabled={!onVisualize}
-          title="See the pattern as crocheted fabric, in the stitch you choose"
-          onClick={() => onVisualize?.()}
-        >
-          Visualize
-        </button>
         <button type="submit" className="button button--primary" disabled={disabled}>
           Save &amp; edit pattern
         </button>

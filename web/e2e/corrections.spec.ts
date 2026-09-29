@@ -153,12 +153,12 @@ test('dragging the outline takes in the rows and columns a detection left out, a
   expect(pairs.size).toBe(new Set(whole.cells).size)
 })
 
-test('a colour removed before the outline moves stays removed, and matches the desktop deleting it', async ({ page }, testInfo) => {
+test('a colour pointed at is shown on the pattern; the list is for checking, with no ×', async ({ page }) => {
   await importImage(page, CATS)
   await showing(page, 100, 45)
   const list = page.getByRole('list', { name: 'Colours' })
-  // The list never scrolls or spills sideways, long shade names and all, at the narrowest
-  // width that has it beside the pattern.
+  // The list never scrolls or spills sideways at the narrowest width that has it beside
+  // the pattern.
   await page.setViewportSize({ width: 1100, height: 800 })
   expect(await list.evaluate((el) => el.scrollWidth <= el.clientWidth && getComputedStyle(el).overflowX === 'visible')).toBe(true)
 
@@ -166,20 +166,9 @@ test('a colour removed before the outline moves stays removed, and matches the d
   const beige = list.getByRole('button', { name: /^Beige, #[0-9a-f]{6}, 1129 stitches/ })
   await beige.hover()
   await expect(page.getByRole('img', { name: /showing where Beige is used$/ })).toBeVisible()
-  const hex = /#[0-9a-f]{6}/.exec((await beige.getAttribute('aria-label'))!)![0]
-
-  await page.getByRole('button', { name: 'Remove “Beige”' }).click()
-  await expect(page.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeVisible()
-  await expect(list.getByRole('button', { name: /^Cream, #[0-9a-f]{6}, 2353 stitches/ })).toBeVisible()
-
-  // The outline moves (a fresh palette, fresh ids), and the colour stays removed.
-  await page.getByRole('slider', { name: 'Top edge of the grid' }).focus()
-  await page.keyboard.press('ArrowDown')
-  await showing(page, 100, 44)
-  await expect(page.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Restore “Beige”' })).toBeVisible()
-  const want = await expectDesktop(page, testInfo, 'Cats less beige', CATS, [`extent=${await extentShown(page)}`, 'rows=44', 'cols=100', `remove=${hex}`])
-  expect(want.palette).toHaveLength(2)
+  // Removing a colour is the Design stage's Delete; here, each colour is one button.
+  await expect(page.getByRole('button', { name: /^Remove “/ })).toHaveCount(0)
+  await expect(list.getByRole('button')).toHaveCount(3)
 })
 
 test('fewer colours merges the two most alike into the one used more, undoes, and matches the desktop', async ({ page }, testInfo) => {
@@ -322,7 +311,7 @@ test('on a laptop, a tall chart with many colours fits the window, and only the 
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 400, height: 860 }, hasTouch: true, isMobile: true })
 
-  test('a colour tapped is shown on the pattern above, and its × is there to tap', async ({ page }) => {
+  test('a colour tapped is shown on the pattern above, until "Show all colours"', async ({ page }) => {
     await importImage(page, CATS)
     await showing(page, 100, 45)
     await expect(page.getByRole('tablist')).toHaveCount(0)
@@ -332,11 +321,7 @@ test.describe('on a phone', () => {
     await expect(page.getByRole('img', { name: /showing where Cream is used$/ })).toBeAttached()
     await page.getByRole('button', { name: 'Show all colours' }).tap()
     await expect(page.getByRole('img', { name: /^The detected pattern: 100 columns by 45 rows$/ })).toBeAttached()
-
-    const remove = page.getByRole('button', { name: 'Remove “Beige”' })
-    await expect(remove).toHaveCSS('opacity', '1') // no hover to reveal it on a phone
-    await remove.tap()
-    await expect(page.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeVisible()
+    await expect(cream).toHaveAttribute('aria-pressed', 'false')
   })
 
   test('every control is usable, saving stays in reach, and the result matches the desktop', async ({ page }, testInfo) => {

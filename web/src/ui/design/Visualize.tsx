@@ -1,17 +1,17 @@
 /**
- * "Visualize", beside "Yarn & size" on the import screen: the pattern as it would look
- * crocheted, in the stitch chosen (stitch/), for the pattern as it will be saved.
+ * "Visualize", beside "Yarn & size" in the Design stage's header: the pattern as it would
+ * look crocheted, in the stitch chosen (stitch/), as it is now, edits and all.
  *
  * What's measured and what's drawn: each stitch's proportions come from published gauges
  * (stitch/README.md), or from the swatch entered in "Yarn & size"; the stitches' look is
  * drawn from how each is made. The choices are app-wide settings, like the swatch: they
  * describe how the crocheter works, not the chart.
  *
- * Part of the import screen's chunk, as "Yarn & size" is. A lazy chunk of its own, loaded
- * from the lazily loaded import screen, made the bundler split what it shares with the
- * main chunk (the Work stage's logic, the shared components) into chunks the page then
- * preloads: about 2 KB more up front and an extra request, to save 7 KB on a screen that
- * downloads Pyodide.
+ * Part of the Design stage's chunk, as "Yarn & size" is, imported statically. A lazy
+ * chunk of its own, loaded from a lazily loaded screen, made the bundler split what it
+ * shares with the main chunk (the Work stage's logic, the shared components) into chunks
+ * the page then preloads: about 2 KB more up front and an extra request
+ * (docs/web-port-plan.md, Rules).
  */
 import '../visualize.css'
 
@@ -25,7 +25,6 @@ import { carriedCells, FabricPainter, type Fabric } from '../../stitch/fabric.ts
 import { TwoFingers } from '../gestures.ts'
 import { Modal } from '../components.tsx'
 import { useElementSize } from '../hooks.ts'
-import type { EstimatedPattern } from './YarnEstimate.tsx'
 
 interface ViewState {
   /** A stitch's width, in CSS pixels. */
@@ -37,7 +36,7 @@ interface ViewState {
 /** The largest stitch the view zooms to, in CSS pixels. */
 const MAX_STITCH = 120
 
-export function Visualize({ pattern, onClose }: { pattern: EstimatedPattern; onClose: () => void }) {
+export function Visualize({ pattern, onClose }: { pattern: Pattern; onClose: () => void }) {
   const [settings, set] = useSettings()
   const ids = useId()
   const stitch = stitchById(settings.visualStitch)
@@ -54,16 +53,10 @@ export function Visualize({ pattern, onClose }: { pattern: EstimatedPattern; onC
 
   const carried = useMemo(() => {
     if (!showCarried) return null
-    const p = {
-      ...PATTERN_DEFAULTS,
-      ...pattern,
-      alternate_direction: turns === 'turned',
-      id: '',
-      name: '',
-      created_at: 0,
-      updated_at: 0,
-      row_ids: [],
-    } as unknown as Pattern
+    // The directions the drawing assumes (stitch/faces.ts: the first row at the bottom,
+    // worked facing the right side), not the pattern's own, so the carried yarn lies where
+    // the stitches are drawn.
+    const p: Pattern = { ...pattern, ...PATTERN_DEFAULTS, alternate_direction: turns === 'turned' }
     return carriedCells(pattern.rows, pattern.cols, pattern.cells, carryPlan(p))
   }, [pattern, showCarried, turns])
 

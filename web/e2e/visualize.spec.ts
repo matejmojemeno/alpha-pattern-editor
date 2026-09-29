@@ -1,20 +1,29 @@
 /**
- * "Visualize" on the import screen, in real Chromium on a pattern imported with real
- * Pyodide (dachshund.png, 40 × 24): the button sits between "Yarn & size" and Save, and
- * opens the pattern as fabric in the stitch chosen. The fabric's shape follows the
- * stitch's proportions (single crochet 0.8 as tall as wide, double 2), its colours are the
- * pattern's, and the choice survives closing and reopening.
+ * "Visualize" in the Design stage, in real Chromium on a pattern imported with real
+ * Pyodide (dachshund.png, 40 × 24) and saved: the button sits between "Yarn & size" and
+ * Export PNG, and opens the pattern as fabric in the stitch chosen. The fabric's shape
+ * follows the stitch's proportions (single crochet 0.8 as tall as wide, double 2), its
+ * colours are the pattern's, and the choice survives closing and reopening. The import
+ * screen has no Visualize.
  */
 import { resolve } from 'node:path'
 
-import { expect, test, type Locator } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 
 import { ROOT } from './desktop.ts'
-import { importImage } from './importing.ts'
+import { importImage, saveAs } from './importing.ts'
 
 test.describe.configure({ timeout: 5 * 60_000 })
 
 const IMAGE = resolve(ROOT, 'test_images/dachshund.png')
+
+/** Import the dachshund and save it: the Design stage. */
+async function designDachshund(page: Page) {
+  await importImage(page, IMAGE)
+  await expect(page.locator('.confirm__stats')).toContainText('40 columns × 24 rows')
+  await expect(page.getByRole('button', { name: 'Visualize' })).toHaveCount(0)
+  await saveAs(page, 'Dachshund')
+}
 
 /** The painted part of the canvas: its bounding box in canvas pixels, whether it touches
  *  the canvas's edge, and the colours seen, as #rrggbb, with how many pixels each. */
@@ -47,23 +56,22 @@ const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 
 const near = (a: string, b: string, tol: number) => rgb(a).every((v, i) => Math.abs(v - rgb(b)[i]!) <= tol)
 
 test('see the pattern crocheted, in single and double crochet', async ({ page }) => {
-  await importImage(page, IMAGE)
-  await expect(page.locator('.confirm__stats')).toContainText('40 columns × 24 rows')
+  await designDachshund(page)
   // Each colour's button names its hex.
   const labels = await page
-    .getByRole('list', { name: 'Colours' })
-    .locator('.palette__show')
+    .getByRole('list', { name: 'Palette' })
+    .locator('button.colour')
     .evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? ''))
   const palette = labels.map((l) => /#[0-9a-f]{6}/i.exec(l)![0].toLowerCase())
   expect(palette).toHaveLength(4)
 
-  // Between "Yarn & size" and Save, on one line.
-  const [yarn, open, save] = await Promise.all(
-    ['Yarn & size', 'Visualize', 'Save & edit pattern'].map((name) => page.getByRole('button', { name }).boundingBox()),
+  // Between "Yarn & size" and Export PNG, on one line.
+  const [yarn, open, png] = await Promise.all(
+    ['Yarn & size', 'Visualize', 'Export PNG'].map((name) => page.getByRole('button', { name }).boundingBox()),
   )
-  expect(Math.abs(open!.y - save!.y)).toBeLessThan(1)
+  expect(Math.abs(open!.y - png!.y)).toBeLessThan(1)
   expect(yarn!.x).toBeLessThan(open!.x)
-  expect(open!.x).toBeLessThan(save!.x)
+  expect(open!.x).toBeLessThan(png!.x)
 
   await page.getByRole('button', { name: 'Visualize' }).click()
   const dialog = page.getByRole('dialog', { name: 'Visualize' })
@@ -118,7 +126,7 @@ test('see the pattern crocheted, in single and double crochet', async ({ page })
 })
 
 test('the swatch from "Yarn & size" sets the proportions', async ({ page }) => {
-  await importImage(page, IMAGE)
+  await designDachshund(page)
   await page.getByRole('button', { name: 'Yarn & size' }).click()
   const yarn = page.getByRole('dialog', { name: 'Yarn & size' })
   // 10 stitches in 10 cm, 10 rows in 15 cm: 1.5 times as tall as wide.

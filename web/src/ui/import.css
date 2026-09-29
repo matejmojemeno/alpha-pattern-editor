@@ -620,7 +620,7 @@
 }
 
 /* The list is part of the page: no box of its own, and nothing wider than the column (a
-   long shade name wraps). It scrolls on its own only where the screen fits the window. */
+   long name wraps). It scrolls on its own only where the screen fits the window. */
 .palette {
   list-style: none;
   padding: 0;
@@ -656,7 +656,7 @@
   min-width: 0;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-areas: 'swatch name count' 'swatch shade shade';
+  grid-template-areas: 'swatch name count';
   align-items: center;
   gap: 0 0.5rem;
   padding: 0.5rem 0 0.5rem 0.5rem;
@@ -697,85 +697,6 @@
   color: var(--muted);
 }
 
-.palette__shade {
-  grid-area: shade;
-  min-width: 0;
-  align-items: baseline;
-  font-size: var(--t-caption);
-  color: var(--muted);
-}
-
-/* The whole shade name, wrapped, rather than cut short. */
-.palette__shade .shade__label {
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-/* Remove: over the count at the row's end, shown on the row pointed at or focused, so
-   the counts keep their edge; always shown, beside the count, where nothing hovers. */
-.palette__remove {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 2.5rem;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  font: inherit;
-  font-size: 1.25rem;
-  line-height: 1;
-  color: var(--muted);
-  background: var(--raised);
-  border: 0;
-  cursor: pointer;
-  opacity: 0;
-}
-
-.palette__entry:hover .palette__remove,
-.palette__entry:focus-within .palette__remove {
-  opacity: 1;
-}
-
-.palette__remove:hover:not(:disabled) {
-  color: var(--danger);
-}
-
-.palette__remove:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
-.palette__remove:disabled {
-  cursor: not-allowed;
-}
-
-.palette__entry:hover .palette__remove:disabled {
-  opacity: 0.35;
-}
-
-@media (hover: none) {
-  .palette__entry {
-    display: flex;
-    align-items: stretch;
-  }
-
-  .palette__show {
-    flex: 1;
-  }
-
-  .palette__remove {
-    position: static;
-    width: var(--tap);
-    background: none;
-    opacity: 1;
-  }
-
-  .palette__remove:disabled {
-    opacity: 0.35;
-  }
-}
-
 /* The total, under the last divider, its number on the counts' edge. */
 .palette__total {
   display: flex;
@@ -784,50 +705,6 @@
   margin: 0;
   padding: 0.5rem 0 0 0.5rem;
   border-top: 1px solid var(--border);
-}
-
-/* The colours removed, each with Restore. */
-.palette__removed {
-  margin-top: 1.5rem;
-}
-
-.palette__removed-heading {
-  margin: 0 0 0.5rem;
-  font-size: var(--t-caption);
-  font-weight: 400;
-  color: var(--muted);
-}
-
-.palette__removed ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 0.5rem;
-}
-
-.palette__removed li {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-  padding-left: 0.5rem;
-}
-
-.palette__removed .palette__swatch {
-  width: 1rem;
-  height: 1rem;
-  opacity: 0.6;
-}
-
-.palette__removed .palette__name {
-  flex: 1;
-  color: var(--muted);
-  text-decoration: line-through;
-}
-
-.palette__library {
-  margin-top: 1.5rem;
 }
 
 /* --- status and failures -------------------------------------------------------------- */

@@ -1,11 +1,12 @@
 /**
  * Yarn libraries and "Yarn & size" in real Chromium, on a pattern imported from a photo
  * with real Pyodide (dachshund.png: 40 × 24, 605 white, 331 dark topaz, 22 medium topaz
- * and 2 black stitches, as the desktop detects them). No library is matched, or fetched,
- * until one is chosen under "Advanced: match to yarn"; choosing Stylecraft Special DK
- * shows each colour's nearest shade on the import screen and gives "Yarn & size" its
- * ball; the dialog's swatch gives the finished size and the estimate; the Design stage
- * shows no yarn at all, and Design and Work make no Pyodide request.
+ * and 2 black stitches, as the desktop detects them). The import screen has no yarn at
+ * all; in the Design stage "Yarn & size" opens the dialog, where no library is matched,
+ * or fetched, until one is chosen under "Advanced: match to yarn". Choosing Stylecraft
+ * Special DK shows each colour's nearest shade in the estimate and gives it its ball; the
+ * swatch gives the finished size and the estimate; and Design and Work make no Pyodide
+ * request.
  */
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -32,7 +33,7 @@ const estimate = (page: Page) =>
     .locator('tr')
     .evaluateAll((rows) => rows.map((r) => [...r.querySelectorAll('th, td')].map((c) => c.textContent)))
 
-test('match to a yarn range on import, estimate yarn and size there, and see no yarn in Design', async ({ page }) => {
+test('no yarn on import; in Design, match to a yarn range and estimate yarn and size', async ({ page }) => {
   const want = desktopDetect(IMAGE)
   expect([want.cols, want.rows]).toEqual([40, 24])
   expect(want.palette.map(([, , n]) => n)).toEqual([605, 331, 22, 2])
@@ -46,40 +47,55 @@ test('match to a yarn range on import, estimate yarn and size there, and see no 
     if (m) data.push(m[1]!)
   })
 
-  // The import screen: everyday names and no library, until Stylecraft is chosen.
+  // The import screen: everyday names, and no yarn anywhere.
   await importImage(page, IMAGE)
   const list = page.getByRole('list', { name: 'Colours' })
   await expect(list.getByRole('listitem')).toHaveCount(4)
-  const colours = list.locator('.shade__label')
-  await expect(colours).toHaveCount(0)
-  const picker = page.getByRole('combobox', { name: 'Match colours to' })
-  await expect(picker).toBeHidden()
-  await page.getByText('Advanced: match to yarn').click()
-  await expect(picker).toHaveValue('')
-  await picker.selectOption('stylecraft-special-dk')
-  await expect(colours).toHaveText(shades)
-  await expect(page.getByRole('link', { name: 'temperature-blanket.com' })).toBeVisible()
-  expect(data).toEqual(['stylecraft-special-dk'])
+  await expect(page.locator('.shade')).toHaveCount(0)
+  await expect(page.getByText('Advanced: match to yarn')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Yarn & size' })).toHaveCount(0)
 
-  // "Yarn & size", beside Save, with the defaults: 2.5 cm a stitch, 10% extra, and
-  // Stylecraft's ball, 295 m in 100 g.
-  const save = page.getByRole('button', { name: 'Save & edit pattern' })
+  // From here on, nothing may reach Pyodide.
+  const pyodide: string[] = []
+  page.on('request', (r) => /pyodide|alphareader-core/i.test(r.url()) && pyodide.push(r.url()))
+  await saveAs(page, 'Dachshund')
+  await expect(page).toHaveURL(/#\/design\//)
+
+  // "Yarn & size", in the Design stage's header beside Visualize and Export PNG.
   const open = page.getByRole('button', { name: 'Yarn & size' })
-  const [a, b] = await Promise.all([open.boundingBox(), save.boundingBox()])
+  const exportPng = page.getByRole('button', { name: 'Export PNG' })
+  const [a, b] = await Promise.all([open.boundingBox(), exportPng.boundingBox()])
   expect(Math.abs(a!.y - b!.y)).toBeLessThan(1) // side by side
   expect(a!.x).toBeLessThan(b!.x)
   await open.click()
   const dialog = page.getByRole('dialog', { name: 'Yarn & size' })
   await expect(dialog).toBeVisible()
+
+  // No library until Stylecraft is chosen, under "Advanced".
+  const colours = dialog.locator('.shade__label')
+  await expect(colours).toHaveCount(0)
+  const picker = dialog.getByRole('combobox', { name: 'Match colours to' })
+  await expect(picker).toBeHidden()
+  await dialog.getByText('Advanced: match to yarn').click()
+  await expect(picker).toHaveValue('')
+  expect(data).toEqual([])
+  await picker.selectOption('stylecraft-special-dk')
+  await expect(colours).toHaveText(shades)
+  await expect(dialog.getByRole('link', { name: 'temperature-blanket.com' })).toBeVisible()
+  expect(data).toEqual(['stylecraft-special-dk'])
+
+  // The defaults: 2.5 cm a stitch, 10% extra, and Stylecraft's ball, 295 m in 100 g.
   await expect(dialog.getByRole('textbox', { name: 'Ball length' })).toHaveValue('295')
   await expect(dialog.getByRole('textbox', { name: 'Ball weight' })).toHaveValue('100')
-  // White: 605 × 2.5 cm × 1.1 = 16.64 m, 5.64 g.
+  // White: 605 × 2.5 cm × 1.1 = 16.64 m, 5.64 g. Each colour's cell holds its name, then
+  // its nearest shade.
+  const named = names.map((n, i) => `${n}Nearest shade: ${shades[i]}`)
   expect(await estimate(page)).toEqual([
     ['Colour', 'Stitches', 'Metres', 'Grams', 'Balls'],
-    [names[0], '605', '17', '6', '1'],
-    [names[1], '331', '10', '4', '1'],
-    [names[2], '22', '1', '1', '1'],
-    [names[3], '2', '1', '1', '1'],
+    [named[0], '605', '17', '6', '1'],
+    [named[1], '331', '10', '4', '1'],
+    [named[2], '22', '1', '1', '1'],
+    [named[3], '2', '1', '1', '1'],
     ['Total', '960', '27', '9', '4'],
   ])
 
@@ -87,10 +103,10 @@ test('match to a yarn range on import, estimate yarn and size there, and see no 
   await dialog.getByRole('textbox', { name: 'Yarn per stitch' }).fill('50')
   await expect.poll(() => estimate(page)).toEqual([
     ['Colour', 'Stitches', 'Metres', 'Grams', 'Balls'],
-    [names[0], '605', '333', '113', '2'],
-    [names[1], '331', '183', '62', '1'],
-    [names[2], '22', '13', '5', '1'],
-    [names[3], '2', '2', '1', '1'],
+    [named[0], '605', '333', '113', '2'],
+    [named[1], '331', '183', '62', '1'],
+    [named[2], '22', '13', '5', '1'],
+    [named[3], '2', '2', '1', '1'],
     ['Total', '960', '528', '179', '5'],
   ])
 
@@ -99,7 +115,8 @@ test('match to a yarn range on import, estimate yarn and size there, and see no 
   await dialog.getByRole('textbox', { name: 'Height' }).fill('8')
   await expect(dialog.getByText('Finished size:')).toHaveText('Finished size: 40 × 19.2 cm, before any border')
 
-  // Carried yarn, as the Work stage would show it on the desktop's detection.
+  // Carried yarn, as the Work stage shows it on the desktop's detection, saved with the
+  // directions a new pattern gets.
   const pattern = { ...PATTERN_DEFAULTS, id: '', name: '', created_at: 0, updated_at: 0, row_ids: [], rows: 24, cols: 40 }
   const carried = carriedStitches({
     ...pattern,
@@ -114,32 +131,27 @@ test('match to a yarn range on import, estimate yarn and size there, and see no 
   const white = Math.ceil(605 * 0.55 + carried[0]! * 0.01 * 1.1 - 1e-9)
   await expect.poll(async () => (await estimate(page))[1]![2]).toBe(String(white))
 
-  // On a phone, the dialog fits the width and scrolls inside itself.
-  await page.setViewportSize({ width: 400, height: 700 })
-  const fits = await dialog.evaluate((el) => ({ over: el.scrollWidth - el.clientWidth, right: el.getBoundingClientRect().right }))
+  // On the smallest screen the Design stage takes (a squat tablet window; under 700 px it
+  // says it needs a larger one), the dialog fits and scrolls inside itself.
+  await page.setViewportSize({ width: 720, height: 500 })
+  await expect(dialog).toBeVisible()
+  const fits = await dialog.evaluate((el) => {
+    const box = el.getBoundingClientRect()
+    return { over: el.scrollWidth - el.clientWidth, right: box.right, bottom: box.bottom, scrolls: el.scrollHeight > el.clientHeight }
+  })
   expect(fits.over).toBeLessThanOrEqual(0)
-  expect(fits.right).toBeLessThanOrEqual(400)
+  expect(fits.right).toBeLessThanOrEqual(720)
+  expect(fits.bottom).toBeLessThanOrEqual(500)
+  expect(fits.scrolls).toBe(true)
   await page.setViewportSize({ width: 1280, height: 720 })
 
   // Export yarn list.
   const [download] = await Promise.all([page.waitForEvent('download'), dialog.getByRole('button', { name: 'Export yarn list' }).click()])
-  expect(download.suggestedFilename()).toBe('Untitled pattern yarn.txt')
+  expect(download.suggestedFilename()).toBe('Dachshund yarn.txt')
   await dialog.getByRole('button', { name: 'Close' }).click()
   await expect(dialog).toBeHidden()
-
-  // From here on, nothing may reach Pyodide.
-  const pyodide: string[] = []
-  page.on('request', (r) => /pyodide|alphareader-core/i.test(r.url()) && pyodide.push(r.url()))
-  await saveAs(page, 'Dachshund')
-  await expect(page).toHaveURL(/#\/design\//)
-
-  // The Design stage: the colours, and no yarn.
-  const palette = page.getByRole('list', { name: 'Palette' })
-  await expect(palette.locator('button.colour')).toHaveCount(4)
+  // The Design stage's own colour list shows no shades: they are for buying.
   await expect(page.locator('.shade')).toHaveCount(0)
-  await expect(page.getByText('Advanced: match to yarn')).toHaveCount(0)
-  await expect(page.getByRole('table', { name: 'Yarn for each colour' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Export yarn list' })).toHaveCount(0)
 
   // And the Work stage, which shows no library at all.
   await page.getByRole('button', { name: 'Start working →' }).click()

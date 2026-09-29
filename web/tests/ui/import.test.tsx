@@ -10,10 +10,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { handOffImage, timestampName } from '../../src/app/pendingImage.ts'
 import { navigate } from '../../src/app/router.ts'
 import { FAILURE_HINTS } from '../../src/importer/hints.ts'
+import { createSettingsStore } from '../../src/settings/store.ts'
 import { readAlpha } from '../../src/storage/alpha.ts'
 import { detectingWorker, FakeWorker, makePreview } from '../detect/fakeWorker.ts'
 import { detection } from './fakeDetection.ts'
-import { hashChanged, renderApp, screen, sizeShown } from './helpers.tsx'
+import { hashChanged, memoryStorage, renderApp, screen, sizeShown } from './helpers.tsx'
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])
 const photo = (name = 'dog.png') => new File([PNG], name, { type: 'image/png' })
@@ -77,22 +78,10 @@ describe('Import screen', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeTruthy()
     const list = screen.getByRole('list', { name: 'Colours' })
     expect(within(list).getAllByRole('listitem')).toHaveLength(2)
-    // No yarn shades until a range is chosen under "Advanced: match to yarn".
     expect(within(list).getAllByRole('button', { pressed: false }).map((b) => b.getAttribute('aria-label'))).toEqual([
       'White, #ffffff, 6 stitches',
       'Brown, #8b4513, 6 stitches',
     ])
-    expect(list.querySelector('.shade')).toBeNull()
-    const advanced = screen.getByText('Advanced: match to yarn').closest('details')!
-    expect(advanced.open).toBe(false)
-    expect(screen.getByRole('combobox', { name: 'Match colours to' })).toHaveProperty('value', '')
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Match colours to' }), 'dmc')
-    await waitFor(() =>
-      expect(within(list).getAllByRole('button', { pressed: false }).map((b) => b.getAttribute('aria-label'))).toEqual([
-        'White, #ffffff, 6 stitches, nearest DMC stranded cotton White',
-        'Brown, #8b4513, 6 stitches, nearest DMC stranded cotton 975 Dark Golden Brown',
-      ]),
-    )
     expect(within(screen.getByRole('list', { name: 'Warnings' })).getByText('Check the dimensions.')).toBeTruthy()
     expect(nameField()).toMatchObject({ value: '', placeholder: 'Untitled pattern' })
     expect(screen.getByText('Pattern name').tagName).toBe('LABEL')
@@ -231,41 +220,38 @@ describe('Import screen', () => {
     expect(pattern()).toBe('The detected pattern: 4 columns by 3 rows')
   })
 
-  it('removes a colour into the nearest one, restores it, and saves what is shown', async () => {
-    const { repo } = await openImport()
+  it('is for checking the grid: no removing colours, no yarn, no Visualize (those are the Design stage’s)', async () => {
+    // Even with a yarn range chosen: shades are for buying, in "Yarn & size".
+    const storage = memoryStorage()
+    const settings = createSettingsStore(() => storage)
+    settings.set({ colourLibrary: 'dmc' })
+    handOffImage({ file: photo() })
+    await renderApp('#/import', { settings })
     await saveButton()
-    await userEvent.click(screen.getByRole('button', { name: 'Remove “Brown”' }))
-
-    expect(screen.getByRole('heading', { level: 2, name: 'Colours, 1 colour' })).toBeTruthy()
     const list = screen.getByRole('list', { name: 'Colours' })
-    expect(within(list).getAllByRole('listitem')).toHaveLength(1)
-    expect(within(list).getByRole('button', { name: /^White, #ffffff, 12 stitches/ })).toBeTruthy()
-    // The last colour can't go.
-    expect(screen.getByRole('button', { name: 'Remove “White”' }).hasAttribute('disabled')).toBe(true)
-    // Focus lands on Restore, so a slip is one key away from undone.
-    const restore = screen.getByRole('button', { name: 'Restore “Brown”' })
-    expect(document.activeElement).toBe(restore)
-
-    await userEvent.click(restore)
-    expect(screen.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeTruthy()
+    // Each colour is one button, to show where it is used; nothing else in the list.
+    expect(within(list).getAllByRole('button')).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: /^Remove/ })).toBeNull()
     expect(screen.queryByRole('list', { name: 'Removed colours' })).toBeNull()
-
-    await userEvent.click(screen.getByRole('button', { name: 'Remove “Brown”' }))
-    await userEvent.click(await saveButton())
-    await waitFor(() => expect(window.location.hash).toBe('#/design/pattern-1'))
-    const { project } = await repo.open('pattern-1')
-    expect(project.pattern.palette.map((e) => [e.name, e.count])).toEqual([['White', 12]])
-    expect(new Set(project.pattern.cells)).toEqual(new Set([0]))
-    expect(project.pattern.row_ids).toEqual(['r0', 'r1', 'r2'])
+    expect(screen.queryByText('Advanced: match to yarn')).toBeNull()
+    expect(screen.queryByRole('combobox', { name: 'Match colours to' })).toBeNull()
+    expect(document.querySelector('.shade')).toBeNull()
+    expect(screen.queryByText(/Nearest/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Yarn & size' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Visualize' })).toBeNull()
+    // The bar at the top is the name and Save.
+    const bar = document.querySelector('.savebar')!
+    expect([...bar.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Save & edit pattern'])
   })
 
   it('starts a new image with every colour', async () => {
     await openImport()
     await saveButton()
-    await userEvent.click(screen.getByRole('button', { name: 'Remove “Brown”' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Fewer colours' }))
+    expect(screen.getByRole('heading', { level: 2, name: 'Colours, 1 colour' })).toBeTruthy()
     await userEvent.upload(screen.getAllByLabelText('Choose a chart image')[0]!, photo('cat.png'))
     await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeTruthy())
-    expect(screen.queryByRole('button', { name: /^Restore/ })).toBeNull()
+    expect(screen.getByRole('button', { name: 'More colours' }).hasAttribute('disabled')).toBe(true)
   })
 
   it.each(Object.entries(FAILURE_HINTS))('explains a %s failure and offers another image', async (code, hint) => {

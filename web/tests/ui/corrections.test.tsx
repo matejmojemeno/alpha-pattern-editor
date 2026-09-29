@@ -325,7 +325,7 @@ describe('moving the outline', () => {
     await waitFor(() => expect(screen.queryByText(/don't closely match/)).toBeNull())
   })
 
-  it('keeps a colour removed through a resample, which gives the palette new ids', async () => {
+  it('keeps a merge through a resample, which gives the palette new ids', async () => {
     // Each resample's palette has fresh ids, and Brown a shade off, as a real one can.
     let n = 0
     await openFound((p) => {
@@ -333,16 +333,16 @@ describe('moving the outline', () => {
       n++
       return { ...preview, palette: preview.palette.map((e, i) => ({ ...e, id: `r${n}-${i}`, hex: i === 1 ? '#8a4412' : e.hex })) }
     })
-    await userEvent.click(screen.getByRole('button', { name: 'Remove “Brown”' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Fewer colours' }))
     expect(screen.getByRole('heading', { level: 2, name: 'Colours, 1 colour' })).toBeTruthy()
     screen.getByRole('slider', { name: 'Top edge of the grid' }).focus()
     await userEvent.keyboard('{ArrowUp}')
     await waitFor(() => expect(patternLabel()).toMatch(/2 columns by 3 rows/))
     expect(n).toBe(1)
     expect(screen.getByRole('heading', { level: 2, name: 'Colours, 1 colour' })).toBeTruthy()
-    expect(within(screen.getByRole('list', { name: 'Colours' })).getByRole('button', { name: /^White, #ffffff, 6 stitches/ })).toBeTruthy()
-    // Restored, it is the resample's own Brown.
-    await userEvent.click(screen.getByRole('button', { name: 'Restore “Brown”' }))
+    expect(within(screen.getByRole('list', { name: 'Colours' })).getAllByRole('listitem')).toHaveLength(1)
+    // Undone, it is the resample's own Brown.
+    await userEvent.click(screen.getByRole('button', { name: 'More colours' }))
     expect(screen.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeTruthy()
     expect(screen.getByRole('button', { name: /^Brown, #8a4412/ })).toBeTruthy()
   })
