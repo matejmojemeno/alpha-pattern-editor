@@ -146,7 +146,7 @@ describe('Landing screen', () => {
     const main = screen.getByRole('main')
     const dataTransfer = { types: ['Files'], files: [alphaFile('basic.alpha')], dropEffect: 'none' }
     fireEvent.dragEnter(main, { dataTransfer })
-    expect(screen.getByText('Drop a chart image or .alpha files to import them')).toBeTruthy()
+    expect(screen.getByText('Drop an image or .alpha files to import them')).toBeTruthy()
     fireEvent.drop(main, { dataTransfer })
     await waitFor(() => expect(window.location.hash).toBe(`#/work/${basicId()}`))
     expect(await repo.list()).toHaveLength(1)

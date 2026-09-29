@@ -52,7 +52,7 @@ export function Landing() {
           <CellsIcon filled={[[0, 1], [1, 0], [1, 1], [1, 2], [2, 1]]} />
           <span className="drop-zone__title">Import pattern</span>
           <span className="drop-zone__text">
-            From a photo or screenshot of a chart (PNG, JPEG or WebP), or a <code>.alpha</code> file.
+            From a photo or screenshot of a chart, or any picture to turn into a pattern (PNG, JPEG or WebP), or a <code>.alpha</code> file.
           </span>
           <span className="drop-zone__how drop-zone__how--pointer">
             Drop it here, paste it, or click to choose a file.
