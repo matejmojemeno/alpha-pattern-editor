@@ -24,7 +24,7 @@ This document is the implementation brief. Read the whole thing before writing c
 | Case | Behavior |
 | --- | --- |
 | Staggered / brick-offset rows | Reject: "Staggered charts aren't supported yet." |
-| Gridless charts (color blocks, no lines) | Reject: "Couldn't find gridlines." |
+| Gridless charts (color blocks, no lines) | Reject: "Couldn't find gridlines." (Web: turned into a pattern as a picture, §5a.) |
 | Symbol charts (glyphs not colors) | Will fail naturally at the palette step. Acceptable. |
 | Photographs of paper or screens, perspective skew | Reject via rotation check. |
 | Rotation beyond ±1.5° | Reject: "Image looks rotated." |
@@ -264,6 +264,50 @@ Build a debug window early — not last — rendering: dark mask, `run_h`/`run_v
 
 ---
 
+## 5a. Pictures (web only)
+
+The web import takes any image. A **chart** is read (§5); anything else is a **picture**,
+turned into a pattern. There is no choice to make up front: the app decides, says which,
+and the other reading is one click away. The desktop app stays chart-only.
+
+### Chart or picture (`core/kind.py`)
+
+Detection's success or failure doesn't decide it: most photos fail as LOW_RESOLUTION
+(texture fits 3–5 px squares), and so does a real chart with 5 px squares; a picture can
+also fit a nonsense grid. A detected grid is a chart when its squares are within 1.5:1,
+it spans at least 60% of each side, its edge strength on the lattice is at least twice
+that half a square off it, and no more than 60% of its cells are unsure. With more than
+15% unsure it is a chart **with doubts**, and the picture reading is offered prominently.
+A LOW_RESOLUTION or ROTATED refusal stays a chart's refusal only if a fit below the
+minimum square size still looks like a grid (square to 1.2:1, contrast 1.25, 70% of the
+lattice on detected lines); then the screen gives the advice to fix it, and "turn it into
+a pattern anyway". Everything else is a picture.
+
+Calibrated on every chart in `test_images/` and 25 CC0 pictures in
+`test_images/pictures/` (animals, landscapes, drawings, and grid-like photos: tiles, brick,
+knitting, chessboards). `test_kind.py` asserts each one.
+
+### Turning a picture into a pattern (`core/convert.py`)
+
+The aim is the best pattern, not the most faithful shrink:
+
+- **Size:** width in stitches (default 60, up to 400 or one per pixel); the rows follow
+  from the picture's shape and the stitch's, a stitch's height over its width, from the
+  swatch. A crop (the outline) chooses what of the picture is used.
+- **Colours** (default 6, up to 24): a weighted k-means in Lab, favouring stitches with
+  detail and vivid colour, capped at 4× so a large plain area still keeps its colour. A
+  group of at least 2 stitches' samples further than ΔE 25 from every colour (an eye,
+  a dot) is then given one, taken from the colour that suffers least without it.
+- **Stitches:** each colour's cost is the mean ΔE of all the stitch's samples (up to 4×4),
+  so thin lines pull; a colour change to a neighbour costs up to ΔE 100 along a row
+  (a yarn change) and half that up a column, scaled by the Detail slider (0 = smooth
+  to 1 = no smoothing). Minimised by iterated conditional modes.
+- Deterministic (no random seeds, Lab and costs rounded to 6 decimals), so the desktop
+  Python and Pyodide give identical patterns (`scripts/parity`).
+- A transparent background is white.
+
+---
+
 ## 6. The two stages
 
 The central UI decision: **Design and Work are separate stages, not a toolbar toggle.** They have different layouts, different information density, and different input models. A project is in exactly one stage at a time.
@@ -312,6 +356,9 @@ Minimal, high-contrast, glanceable. The design goal is that a person mid-row can
 ### 7.1 Import
 
 File dialog, drag-and-drop, and **paste from clipboard** (`Ctrl+V` of a screenshot is the most common real-world path — support it via `QGuiApplication.clipboard().image()`).
+
+(Web: any image, not only a chart. It is read as a chart or turned into a pattern as a
+picture, §5a, and the screen says which.)
 
 ### 7.2 Confirmation — the reliability gate
 

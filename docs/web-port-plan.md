@@ -323,6 +323,28 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   - Tier A (Vite's figures, gzipped, measured before and after): main entry chunk
     104.7 KB (unchanged), Import 9.0 KB (from 20.3) + 2.4 KB CSS (from 3.7), Design
     27.4 KB (from 16.5) + 3.5 KB CSS (from 2.6); nothing else loaded up front.
+- **Picture import, part 1: the Python** (`core/kind.py`, `core/convert.py`, the
+  bridge; plan.md §5a). Any image can be imported: a chart is read, anything else is
+  turned into a pattern. The import screen doesn't use it yet (part 2).
+  - **Why not just "detection failed = picture":** of 25 CC0 pictures in
+    `test_images/pictures/` (fetched with provenance by `scripts/fetch_test_pictures.py`),
+    11 fail as LOW_RESOLUTION, like `garment.png`, a real chart; 12 fit a grid, the dice
+    10×4 at 78% unsure. `kind.py` asks whether the grid looks like one: square-ish cells,
+    spanning the image, edge strength on the lattice at least twice that between lines
+    (every chart 5.8–108, every picture 1.5 or less). All 9 charts and 25 pictures come out
+    right; `bunny.jpg` (34% unsure) is a chart with doubts.
+  - **Why not the other tools' method:** research (Stitch Fiddle, ArtPatt, Stitchmate and
+    others; users' #1 complaint is confetti, lone stitches) and a prototype showed that
+    shrinking, reducing colours by area and a majority filter erase eyes and dots with the
+    noise. `convert.py` scores each stitch against all the pixels it covers, charges for
+    colour changes (twice as much along a row as up a column), and gives a colour to any
+    small group far from every colour. Tests: a pupil in a gradient keeps its colour, a
+    white half keeps white, a one-stitch line survives, speckle drops by over 3×.
+  - Bridge: `open_session(cell_aspect=)`, `set_mode`, picture parameters in `set_params`
+    (width, colours, detail, cell_aspect, extent), `mode`/`reading`/`picture` in every
+    preview; a chart's refusal carries `reading` so the screen can offer the picture.
+  - Speed (desktop, 60 wide): first conversion 0.2–0.6 s, Detail 0.01 s, colours
+    0.15–0.6 s, 120 wide 0.3–0.9 s. Pyodide runs detection and conversion about 2.1× slower.
 - **Hosting** (`web/wrangler.jsonc`, `web/public/_headers`): Cloudflare Workers static
   assets at the free `*.workers.dev` address, deployed by Cloudflare's Git integration on
   every push to `main` (setup in `web/README.md`, "Deploying"). `/assets/*`, `/pyodide/*`
@@ -619,9 +641,26 @@ break without noticing.
 - **Settings saved before the yarn libraries went off by default still say `"dmc"`.**
   The store writes every field whenever one changes, so an old `"dmc"` can't be told
   from a choice. Such a browser keeps showing DMC shades until "Nothing" is picked.
-- **After any change to `alphareader/core/detect`, run `python scripts/parity/check.py`.**
-  It must report 89/89 bit-identical. It exits non-zero otherwise. Run `npm install` in
-  `scripts/parity/` once first.
+- **After any change to `alphareader/core/detect`, `kind.py` or `convert.py`, run
+  `python scripts/parity/check.py`.** It must report 114/114 bit-identical (89 charts and
+  25 pictures, each also read by `kind.py` and converted twice). It exits non-zero
+  otherwise. Run `npm install` in `scripts/parity/` once first.
+- **A detection failure is not a picture, and a detected grid is not a chart.** Most
+  photos fail as LOW_RESOLUTION, as real charts with small squares do; pictures can fit a
+  nonsense grid. `kind.py` decides from what the grid looks like, and `test_kind.py`
+  names every corpus image with its kind. Add an image there before moving a threshold.
+- **The converter must stay deterministic to the last bit.** No random seeds (the
+  colours are seeded by splits and power iteration, not LAPACK), and Lab values and
+  stitch costs are rounded to 6 decimals: without the rounding, 5 of 114 images put a
+  few stitches differently in Pyodide, stitches halfway between two colours.
+- **A picture's extent is its edges; a chart's is its outer gridlines.** A chart's
+  extent is clamped to W − 1 and scaled as pixel centres (`to_image`); a picture's runs
+  0 to W and is scaled by the shrink factor alone (`edge_to_image`, `convert.clamp_edges`),
+  so its outline reaches the image's own edges.
+- **A picture's colours are weighted towards detail, capped at 4×.** Uncapped (squared,
+  as first tried), a white background filling half a picture weighed 1/156 of the rest
+  and lost its colour. Small distinct areas are protected by the "unexplained samples"
+  step instead, which compares worst errors, not squared error (an area measure).
 - **The Python is the spec for readout, progress and editing.** If `readout.ts`/`work.ts`
   disagree with `fixtures/logic_golden.json`, or `edit.ts` with `fixtures/edit_golden.json`,
   the TypeScript is wrong. If you change `readout.py`, `work.py` or `edit.py`, run
