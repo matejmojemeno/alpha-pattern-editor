@@ -47,7 +47,8 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   done in Work it asks first ("Rotating gives every row a new place, so your progress in
   the Work stage (N rows done) starts again from the first row. Undo brings it all
   back."), and undo does. Each click is one undo step; the pad-to-size target turns with
-  the pattern (undo too), and dragged offsets go back to centred. Fixtures: 166 calls.
+  the pattern (undo too), and dragged offsets go back to centred (since "Border & size",
+  the four sides turn instead, placement kept). Fixtures: 166 calls.
   Tier A: main chunk 102.6 KB gzipped, Design 16.3 KB (+2.5 KB CSS).
 - **Add row and Add column tools** (`editor.ts` `addLine`, `render/design.ts`
   `insertAt`), `Shift+H` and `Shift+V` beside fill row and fill column, in place of the
@@ -323,6 +324,30 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   - Tier A (Vite's figures, gzipped, measured before and after): main entry chunk
     104.7 KB (unchanged), Import 9.0 KB (from 20.3) + 2.4 KB CSS (from 3.7), Design
     27.4 KB (from 16.5) + 3.5 KB CSS (from 2.6); nothing else loaded up front.
+- **Border & size** (`ui/design/StructurePanel.tsx`, `design/structure.ts`,
+  `design/structureForm.ts`): the Design stage's "Border" and "Pad to size" sections are
+  one. Padding was always a border (`pad_to_size` calls `add_border`), and its Left and
+  Top fields, locked at 0 until the size grew, said nothing the four sides don't.
+  - **Width and Height** sit above Top/Right/Bottom/Left and are worked out from them.
+    Typing a size shares the change between the two opposite sides (half each, the odd
+    one right or down), so from no border it centres exactly as `pad_to_size` does, and
+    from a placed pattern it keeps the pattern where it was. A size smaller than the
+    pattern crops, through the border's "Remove part of the pattern?" question.
+  - **Dragging the pattern** on the preview moves it a cell at a time, the size kept:
+    what one side gains the other loses. It stops at an edge: where cells are only added
+    it never starts removing any, and the other way round. "Centre the pattern" shows
+    when it isn't centred.
+  - When only cells are added, the preview outlines where the pattern sits (it was the
+    whole result, which the preview already is); when cells go, the result, as before.
+  - A size past 2000 on a side is refused (the desktop's pad-to-size limit, which the
+    web's padding had; the border had none). A quarter turn swaps the sides across, so
+    a size set turns with the pattern, as the pad target did.
+  - The Python is unchanged: `pad_to_size` stays in `edit.py`/`edit.ts` and the
+    fixtures; the panel calls `addBorder`, and a unit test checks every size up to 12 × 11
+    gives exactly what `padToSize` gives.
+  - Differs from the desktop, which keeps separate Border and Pad to size boxes.
+  - Tier A (Vite's figures, gzipped): main entry chunk 104.5 KB, Design 27.1 KB
+    (104.7 and 27.4 were recorded for "A focused import screen"; not rebuilt here).
 - **Hosting** (`web/wrangler.jsonc`, `web/public/_headers`): Cloudflare Workers static
   assets at the free `*.workers.dev` address, deployed by Cloudflare's Git integration on
   every push to `main` (setup in `web/README.md`, "Deploying"). `/assets/*`, `/pyodide/*`
@@ -351,7 +376,8 @@ What Phase 3, part 2 delivered:
     one that leaves nothing is refused with the Python's message.
   - **Pad to size:** width and height (at least the current size), the colour, and
     left/top offsets (0..added, centred by default); on the preview the pattern can be
-    dragged into place a whole cell at a time, kept in step with the fields.
+    dragged into place a whole cell at a time, kept in step with the fields. (Now part
+    of "Border & size"; see "After the port".)
   - **Scale ×2–×12**, showing the size first and warning above 999 on a side.
   - **Mirror ⇄, Flip ⇅, Rotate 180°, Trim edges** (all four). (Rotate 180° is now two
     quarter-turn buttons; see "After the port".)
@@ -562,6 +588,12 @@ Tasks that can safely run in parallel, in dependency order:
 These are the non-obvious constraints. Each one was learned the hard way or is easy to
 break without noticing.
 
+- **In "Border & size" the four sides are the only truth; Width and Height are worked out
+  from them.** While a size is being typed, the text is kept with the sides typing began
+  from (`structureForm.ts`, `border.size`), and each keystroke sets the sides afresh from
+  those. Resizing from the current sides instead makes typing "70" pass through a
+  7-wide pattern and leaves the pattern off-centre. Blurring the field, or the pattern
+  changing shape, drops the typed text.
 - **The import screen's two stages both take the source image's shape** (`--source-ratio`
   on `.confirm`), never the pattern's: that is what makes them the same size and line
   up, whatever a crop or a border does to the pattern's own shape. The pattern is fitted

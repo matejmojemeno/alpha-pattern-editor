@@ -1,9 +1,11 @@
 /**
- * The structural panel's geometry, as pure functions (§9): what a border or a padding
- * would do, drawn before it is applied, and what needs asking first.
+ * The structural panel's geometry, as pure functions (§9): what a border would do, drawn
+ * before it is applied, and what needs asking first.
  *
  * Previews are drawn in the frame of the pattern being edited: a border that adds cells
  * grows the preview outwards, one that removes them shows the cells going, hatched.
+ * Setting a size is a border too (what `pad_to_size` does, and cropping as well): the
+ * four sides are what's kept, and the size is worked out from them.
  */
 import { EditError, MAX_SIDE, addBorder, type Border } from '../logic/edit.ts'
 import type { Pattern } from '../model/types.ts'
@@ -91,7 +93,7 @@ export function tryBorder(p: Pattern, s: Sides, paletteIndex: number): Pattern |
 /**
  * What the canvas shows while a border is being set up: the pattern grown by whatever
  * is added, in the border colour, with whatever is removed still there but marked, and
- * the result's edges outlined. Null when there is nothing to show (all sides zero), and
+ * the result's edges outlined (or, when nothing is removed, the pattern's place in it). Null when there is nothing to show (all sides zero), and
  * for the degenerate case where removal runs past the far edge, the result alone.
  */
 export function borderPreview(p: Pattern, s: Sides, paletteIndex: number): Preview | null {
@@ -124,47 +126,63 @@ export function borderPreview(p: Pattern, s: Sides, paletteIndex: number): Previ
   const mr1 = Math.min(P.r1, out.r1)
   if (out.c0 > P.c0) removed.push({ r0: mr0, r1: mr1, c0: P.c0, c1: out.c0 })
   if (out.c1 < P.c1) removed.push({ r0: mr0, r1: mr1, c0: out.c1, c1: P.c1 })
-  return { pattern: shown(p, rows, cols, cells), removed, outline: out }
+  // Only added: the result is the whole preview, so the outline shows where the pattern
+  // sits in it (the part dragged to move it).
+  return { pattern: shown(p, rows, cols, cells), removed, outline: removed.length ? out : P }
 }
 
-// --- pad to size ------------------------------------------------------------------------------
+// --- the size, and moving the pattern within it ----------------------------------------------
 
-/** Where padding places the pattern: offsets clamped to 0..added, centred when unset
- *  (the extra one going right and down, as `pad_to_size`). */
-export function padOffsets(
-  p: Pick<Pattern, 'cols' | 'rows'>,
-  width: number,
-  height: number,
-  left: number | null,
-  top: number | null,
-): { left: number; top: number; addedCols: number; addedRows: number } {
-  const addedCols = Math.max(0, width - p.cols)
-  const addedRows = Math.max(0, height - p.rows)
-  const clamp = (v: number | null, max: number) => (v === null ? Math.floor(max / 2) : Math.max(0, Math.min(max, Math.round(v))))
-  return { left: clamp(left, addedCols), top: clamp(top, addedRows), addedCols, addedRows }
+/** The largest a border may make either side: the desktop's pad-to-size spin boxes stop
+ *  at 2000 (design_window.py). */
+export const MAX_BORDERED = 2000
+
+/** The size a border with these sides gives, whether or not it can be made. */
+export function sizeWith(p: Pick<Pattern, 'cols' | 'rows'>, s: Sides): { width: number; height: number } {
+  return { width: p.cols + s.left + s.right, height: p.rows + s.top + s.bottom }
 }
 
-/** The padded pattern, with the artwork's place outlined; null when nothing is added. */
-export function padPreview(p: Pattern, width: number, height: number, left: number, top: number, paletteIndex: number): Preview | null {
-  if (width <= p.cols && height <= p.rows) return null
-  const cols = Math.max(width, p.cols)
-  const rows = Math.max(height, p.rows)
-  const cells = new Uint16Array(rows * cols).fill(paletteIndex)
-  for (let r = 0; r < p.rows; r++) cells.set(p.cells.subarray(r * p.cols, (r + 1) * p.cols), (r + top) * cols + left)
-  return { pattern: shown(p, rows, cols, cells), removed: [], outline: { r0: top, r1: top + p.rows, c0: left, c1: left + p.cols } }
+/** Share `change` cells between two opposite sides: half each, the odd one going to the
+ *  second (right, or bottom). From nothing, that centres as `pad_to_size` does. */
+function share(a: number, b: number, change: number): [number, number] {
+  const half = Math.floor(change / 2)
+  return [a + half, b + change - half]
 }
 
-/** The pattern dragged by (dr, dc) cells from where it was picked up. */
-export function dragOffsets(
-  from: { left: number; top: number },
-  dr: number,
-  dc: number,
-  added: { cols: number; rows: number },
-): { left: number; top: number } {
-  return {
-    left: Math.max(0, Math.min(added.cols, from.left + dc)),
-    top: Math.max(0, Math.min(added.rows, from.top + dr)),
+/**
+ * The sides that give this size, from the sides it started from: the change is shared
+ * between the two opposite sides, so the pattern stays where it was. A size left null
+ * keeps that axis as it was.
+ */
+export function resizeSides(p: Pick<Pattern, 'cols' | 'rows'>, from: Sides, width: number | null, height: number | null): Sides {
+  const was = sizeWith(p, from)
+  const [left, right] = width === null ? [from.left, from.right] : share(from.left, from.right, width - was.width)
+  const [top, bottom] = height === null ? [from.top, from.bottom] : share(from.top, from.bottom, height - was.height)
+  return { top, right, bottom, left }
+}
+
+/** The same size, with the pattern centred in it. */
+export function centreSides(s: Sides): Sides {
+  const [left, right] = share(0, 0, s.left + s.right)
+  const [top, bottom] = share(0, 0, s.top + s.bottom)
+  return { top, right, bottom, left }
+}
+
+/**
+ * The pattern dragged by (dr, dc) cells from where it was picked up: what one side gains
+ * the other loses, so the size stays. It stops at an edge: where cells are only added it
+ * never starts removing any, and where they are only removed it never adds (nor does it
+ * jump from where it started).
+ */
+export function shiftSides(from: Sides, dr: number, dc: number): Sides {
+  const along = (a: number, b: number, d: number): [number, number] => {
+    const total = a + b
+    const moved = Math.max(Math.min(0, total, a), Math.min(Math.max(0, total, a), a + d))
+    return [moved, total - moved]
   }
+  const [left, right] = along(from.left, from.right, dc)
+  const [top, bottom] = along(from.top, from.bottom, dr)
+  return { top, right, bottom, left }
 }
 
 // --- scale --------------------------------------------------------------------------------------------

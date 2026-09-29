@@ -47,16 +47,17 @@ import {
   type Tool,
 } from '../../design/editor.ts'
 import {
+  MAX_BORDERED,
   borderPreview,
-  dragOffsets,
-  padOffsets,
-  padPreview,
   removedCount,
   removesArtwork,
+  shiftSides,
+  sizeWith,
   tryBorder,
   type Preview,
+  type Sides,
 } from '../../design/structure.ts'
-import { formSides, initialForm, keepPadValid, parseWhole, turnPad, type StructureForm } from '../../design/structureForm.ts'
+import { endSize, formSides, initialForm, parseWhole, turnSides, withSides, type StructureForm } from '../../design/structureForm.ts'
 import {
   EditError,
   addBorder,
@@ -67,7 +68,6 @@ import {
   majorBorderIndex,
   mirrorH,
   mirrorV,
-  padToSize,
   rotate90,
   samePattern,
   scale,
@@ -112,9 +112,6 @@ function ownsKeys(target: EventTarget | null): boolean {
 }
 
 const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+'
-
-/** The desktop's spin boxes stop at 2000 (design_window.py). */
-const MAX_PAD = 2000
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 const sizeOf = (p: Pattern) => `${p.cols} × ${p.rows}`
@@ -218,7 +215,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   }
 
   // --- the structural panel's form, and the preview it drives ------------------------------------
-  const [form, setForm] = useState<StructureForm>(() => initialForm(initial.pattern))
+  const [form, setForm] = useState<StructureForm>(initialForm)
   const borderIndex = useMemo(() => {
     const i = majorBorderIndex(p)
     return i < p.palette.length ? i : 0
@@ -226,48 +223,42 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   const pick = (i: number | null) => (i !== null && i < p.palette.length ? i : borderIndex)
   const sides = formSides(form.border)
   const borderColour = pick(form.border.colour)
+  const typed = form.border.size
+  const sizeUnset = typed !== null && (parseWhole(typed.width) === null || parseWhole(typed.height) === null)
   const borderResult = useMemo(() => {
-    if (form.open !== 'border' || Object.values(sides).every((v) => v === 0)) return null
+    if (form.open !== 'border') return null
+    if (sizeUnset) return { error: 'Enter a width and a height.' }
+    if (Object.values(sides).every((v) => v === 0)) return null
+    const { width, height } = sizeWith(p, sides)
+    if (width > MAX_BORDERED || height > MAX_BORDERED) return { error: `At most ${MAX_BORDERED} on a side.` }
     const r = tryBorder(p, sides, borderColour)
     return r instanceof EditError ? { error: r.message } : { cols: r.cols, rows: r.rows }
     // `sides` is rebuilt every render; its fields are what matter.
-  }, [form.open, p, sides.top, sides.right, sides.bottom, sides.left, borderColour]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [form.open, sizeUnset, p, sides.top, sides.right, sides.bottom, sides.left, borderColour]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const padW = parseWhole(form.pad.width)
-  const padH = parseWhole(form.pad.height)
-  const padError =
-    padW === null || padH === null
-      ? 'Enter a width and a height.'
-      : padW < p.cols || padH < p.rows
-        ? 'Target must be at least the current size: this adds a border, it doesn’t crop.'
-        : padW > MAX_PAD || padH > MAX_PAD
-          ? `At most ${MAX_PAD} on a side.`
-          : null
-  const pad = padOffsets(p, padError ? p.cols : padW!, padError ? p.rows : padH!, form.pad.left, form.pad.top)
-  const padColour = pick(form.pad.colour)
-
-  // Keep the pad target valid (at least the size) whenever the size changes, without
-  // clobbering a larger one typed, as the desktop's _after_edit does. A quarter turn (or
-  // undoing one) swaps width and height: the target turns with the pattern, and offsets
-  // dragged for the old shape go back to centred.
+  // A size being typed is kept over the sides it began from, for this pattern: when the
+  // pattern changes shape, the fields show the size the sides give again. A quarter turn
+  // (or undoing one) swaps width and height, and the sides turn with it.
   const [sizeSeen, setSizeSeen] = useState({ cols: p.cols, rows: p.rows })
   if (sizeSeen.cols !== p.cols || sizeSeen.rows !== p.rows) {
     const turned = sizeSeen.cols === p.rows && sizeSeen.rows === p.cols
     setSizeSeen({ cols: p.cols, rows: p.rows })
-    setForm((f) => keepPadValid(turned ? turnPad(f) : f, p))
+    setForm(turned ? turnSides : endSize)
   }
 
-
-  // Dragging the pattern on the padding preview: offsets from where it was picked up.
-  const dragFrom = useRef<{ left: number; top: number } | null>(null)
+  // Dragging the pattern on the preview: the sides from when it was picked up, shifted.
+  const dragFrom = useRef<Sides | null>(null)
   const onShift = (delta: { dr: number; dc: number } | null) => {
     if (!delta) {
       dragFrom.current = null
       return
     }
-    dragFrom.current ??= { left: pad.left, top: pad.top }
-    const to = dragOffsets(dragFrom.current, delta.dr, delta.dc, { cols: pad.addedCols, rows: pad.addedRows })
-    setForm((f) => (f.pad.left === to.left && f.pad.top === to.top ? f : { ...f, pad: { ...f.pad, left: to.left, top: to.top } }))
+    dragFrom.current ??= sides
+    const to = shiftSides(dragFrom.current, delta.dr, delta.dc)
+    setForm((f) => {
+      const now = formSides(f.border)
+      return now.top === to.top && now.left === to.left && now.bottom === to.bottom && now.right === to.right ? f : withSides(f, to)
+    })
   }
 
   // --- structural edits: one undo step each, asking first when something would be lost -----------
@@ -335,13 +326,6 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
         title: artwork ? 'Remove part of the pattern?' : undefined,
         confirmLabel: artwork ? 'Remove cells' : undefined,
       })
-    })
-
-  const onPad = () =>
-    guarded(() => {
-      if (padError) return
-      const next = padToSize(p, padW!, padH!, { offsetLeft: pad.left, offsetTop: pad.top, paletteIndex: padColour })
-      attempt(next, `Padded to ${sizeOf(next)}.`, { after: closeSection })
     })
 
   const onScale = () =>
@@ -439,14 +423,14 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
     hidden.current = tooSmall
   }, [tooSmall])
 
-  // A border or a padding is previewed while its section is open and in view (on a
-  // tablet, while the structure drawer is).
+  // A border is previewed while its section is open and in view (on a tablet, while the
+  // structure drawer is), unless its size is unset or past the limit.
   const previewing = form.open !== null && (!compact || drawer === 'structure') ? form.open : null
+  const tooBig = Math.max(sizeWith(p, sides).width, sizeWith(p, sides).height) > MAX_BORDERED
   const preview: Preview | null = useMemo(() => {
-    if (previewing === 'border') return borderPreview(p, sides, borderColour)
-    if (previewing === 'pad' && !padError) return padPreview(p, padW!, padH!, pad.left, pad.top, padColour)
-    return null
-  }, [previewing, p, sides.top, sides.right, sides.bottom, sides.left, borderColour, padError, padW, padH, pad.left, pad.top, padColour]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (previewing !== 'border' || sizeUnset || tooBig) return null
+    return borderPreview(p, sides, borderColour)
+  }, [previewing, sizeUnset, tooBig, p, sides.top, sides.right, sides.bottom, sides.left, borderColour]) // eslint-disable-line react-hooks/exhaustive-deps
   // The row or column the Add tool would add, shown in place, in the colour it will be.
   // It doesn't change the fit: the zoom would jump under the pointer as it moved.
   const addKind = ADD_TOOLS[editor.tool]
@@ -554,7 +538,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
           ? { highlight: line(adding.kind, adding.at, p) }
           : { outline: line(adding.kind, adding.at, shownPattern) }
         : null
-  const mode = preview ? (previewing === 'pad' ? 'move' : 'view') : 'edit'
+  const mode = preview ? (preview.outline ? 'move' : 'view') : 'edit'
 
   // The same controls, laid out for the screen: side columns on a desktop; on a tablet a
   // toolbar over the chart, and the colours and the structural panel in drawers.
@@ -614,10 +598,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       onForm={setForm}
       borderIndex={borderIndex}
       borderResult={borderResult}
-      pad={pad}
-      padError={form.open === 'pad' ? padError : null}
       onBorder={onBorder}
-      onPad={onPad}
       onScale={onScale}
       transforms={transforms}
     />
@@ -793,7 +774,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
           />
           {preview && (
             <p className="design__previewing" role="status">
-              {previewing === 'pad' ? 'Previewing the padding: drag the pattern to place it.' : 'Previewing the border.'}
+              Previewing: drag the pattern to move it.
             </p>
           )}
         </section>
