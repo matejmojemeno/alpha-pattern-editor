@@ -28,13 +28,18 @@ HERE = os.path.join(ROOT, "scripts", "parity")
 
 # Everything the digest reports except timings, which legitimately differ.
 COMPARED = ("ok", "code", "rows", "cols", "cells_sha", "palette", "warnings",
-            "pitch_x", "pitch_y", "x0", "y0", "conf_mean")
+            "pitch_x", "pitch_y", "x0", "y0", "conf_mean",
+            # kind.py's verdict and convert.py's pattern at two settings (digest.py).
+            "kind", "picture", "picture_small")
 
 
 def _decode_real(dest: str) -> int:
-    """Decode the committed chart images once, here, so both runtimes see identical bytes."""
+    """Decode the committed images once, here, so both runtimes see identical bytes: the
+    charts, and the pictures the import turns into patterns (test_images/pictures)."""
     from PIL import Image
-    patterns = ("test_images/*.png", "test_images/*.jpg", "test_images/failed/*.jpg")
+    patterns = ("test_images/*.png", "test_images/*.jpg", "test_images/failed/*.jpg",
+                "test_images/pictures/*.jpg", "test_images/pictures/*.png",
+                "test_images/pictures/*.webp")
     files = sorted(f for p in patterns for f in glob.glob(os.path.join(ROOT, p)))
     for f in files:
         arr = np.asarray(Image.open(f).convert("RGB"), dtype=np.uint8)
