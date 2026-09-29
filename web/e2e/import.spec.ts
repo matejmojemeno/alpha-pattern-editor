@@ -10,11 +10,11 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { expect, test } from '@playwright/test'
+import { expect, test, type TestInfo } from '@playwright/test'
 
 import { readAlpha } from '../src/storage/alpha.ts'
 import { encodePngRgba } from '../src/storage/thumbnail.ts'
-import { desktopDetect, desktopLoad, ROOT } from './desktop.ts'
+import { desktopDetect, desktopLoad, desktopPicture, ROOT, type DesktopPattern } from './desktop.ts'
 import { DETECT_TIMEOUT, exportFromLibrary, importImage, saveAs } from './importing.ts'
 
 const IMAGES = resolve(ROOT, 'test_images')
@@ -126,28 +126,121 @@ test('a JPEG is kept as a full-size PNG the desktop can read', async ({ page }, 
   expect(got.source).toEqual([716, 430, 3])
 })
 
-test('an image that is not a chart gets the friendly hint', async ({ page }, testInfo) => {
-  // A smooth left-to-right gradient: nothing periodic to find (as in test_bridge.py).
-  const [w, h] = [320, 240]
+/** An opaque picture with no grid in it: smooth colour gradients and a small dark disc
+ *  (a 'pupil'), as in test_convert.py. Written as a PNG, so the browser and Pillow decode
+ *  the same pixels. */
+function pictureFile(testInfo: TestInfo, name = 'picture.png', [w, h] = [320, 240]): string {
   const rgba = new Uint8Array(w * h * 4)
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
-      const v = Math.round((255 * x) / (w - 1))
-      rgba.set([v, v, v, 255], (y * w + x) * 4)
+      const disc = (x - 200) ** 2 + (y - 100) ** 2 < 81
+      const px = disc ? [20, 20, 30] : [120 + (100 * x) / w, 90 + (120 * y) / h, 160 - (60 * x) / w].map(Math.round)
+      rgba.set([...px, 255], (y * w + x) * 4)
     }
-  const file = testInfo.outputPath('gradient.png')
+  const file = testInfo.outputPath(name)
   writeFileSync(file, encodePngRgba(w, h, rgba))
+  return file
+}
 
+/** A saved pattern's size, cells and colours, to compare with `desktopPicture`'s. */
+const cellsOf = (p: { cols: number; rows: number; cells: ArrayLike<number>; palette: readonly { hex: string; count: number }[] }) => ({
+  size: [p.cols, p.rows],
+  cells: Array.from(p.cells),
+  palette: p.palette.map((e) => [e.hex, e.count]),
+})
+const desktopCells = (d: DesktopPattern) => ({
+  size: [d.cols, d.rows],
+  cells: d.cells,
+  palette: d.palette.map(([hex, , count]) => [hex, count]),
+})
+
+test('an image that is not a chart is turned into a pattern, exactly as the Python makes it', async ({ page }, testInfo) => {
+  const file = pictureFile(testInfo)
+  const want = desktopPicture(file)
+  expect(want.kind).toBe('picture')
+
+  const { save } = await importImage(page, file)
+  await expect(save).toBeEnabled()
+  await expect(page.locator('.confirm__kind')).toContainText('This looks like a picture, not a chart, so it was turned into a pattern.')
+  const settings = page.getByRole('group', { name: 'Picture settings' })
+  await expect(settings).toContainText('60 stitches')
+  await expect(page.locator('.confirm__stats')).toHaveText(`${want.cols} columns × ${want.rows} rows`)
+  await saveAs(page, 'Gradient')
+
+  const saved = readAlpha(new Uint8Array(readFileSync(await exportFromLibrary(page, testInfo, 'Gradient')))).project.pattern
+  expect(cellsOf(saved)).toEqual(desktopCells(want))
+})
+
+test("a picture's width, colours and detail give what the Python gives", async ({ page }, testInfo) => {
+  const file = pictureFile(testInfo)
+  const want = desktopPicture(file, ['width=40', 'colours=5', 'detail=0.2'])
+
+  await importImage(page, file)
+  const settings = page.getByRole('group', { name: 'Picture settings' })
+  await settings.getByLabel('Width').fill('40')
+  await expect(page.locator('.confirm__stats')).toHaveText('40 columns × 30 rows', { timeout: DETECT_TIMEOUT })
+  await page.getByRole('button', { name: 'Fewer colours' }).click()
+  await expect(page.getByRole('heading', { level: 2, name: /^Colours, 5 colours$/ })).toBeVisible({ timeout: DETECT_TIMEOUT })
+  await settings.getByLabel('Detail').fill('0.2')
+  await expect(settings).toContainText('Smoothest')
+  await saveAs(page, 'Settings')
+
+  const saved = readAlpha(new Uint8Array(readFileSync(await exportFromLibrary(page, testInfo, 'Settings')))).project.pattern
+  expect(cellsOf(saved)).toEqual(desktopCells(want))
+})
+
+test('a chart can be turned into a pattern and back, and is saved as read', async ({ page }, testInfo) => {
+  const file = resolve(IMAGES, 'dachshund.png')
+  const want = desktopDetect(file)
+  const { save } = await importImage(page, file)
+  await expect(save).toBeEnabled()
+  const kind = page.locator('.confirm__kind')
+  await expect(kind).toContainText('Read from the squares of your chart.')
+  await kind.getByRole('button', { name: 'Turn it into a pattern instead' }).click()
+  await expect(page.getByRole('group', { name: 'Picture settings' })).toBeVisible({ timeout: DETECT_TIMEOUT })
+  await expect(page.getByRole('button', { name: 'Use the whole picture' })).toBeVisible()
+  await kind.getByRole('button', { name: 'Read it as a chart instead' }).click()
+  await expect(page.getByRole('group', { name: 'Picture settings' })).toBeHidden({ timeout: DETECT_TIMEOUT })
+  await expect(page.locator('.confirm__stats')).toHaveText(`${want.cols} columns × ${want.rows} rows`)
+  await saveAs(page, 'Back')
+  const saved = readAlpha(new Uint8Array(readFileSync(await exportFromLibrary(page, testInfo, 'Back')))).project.pattern
+  expect([...saved.cells]).toEqual(want.cells)
+})
+
+test("a chart too fine to read keeps its hint, and can be turned into a pattern anyway", async ({ page }, testInfo) => {
+  const file = resolve(IMAGES, 'garment.png')
   const { alert } = await importImage(page, file)
-  await expect(alert).toContainText("I couldn't find the grid in this image.")
-  await expect(alert).toContainText('Detection failed (NO_GRIDLINES)')
-  await expect(alert.getByRole('button', { name: 'Try another image' })).toBeVisible()
+  await expect(alert).toContainText('This image is too small to read reliably.')
+  await expect(alert).toContainText('Detection failed (LOW_RESOLUTION)')
   await expect(page.getByRole('img', { name: 'The image being imported' })).toBeVisible()
+  await alert.getByRole('button', { name: 'Turn it into a pattern anyway' }).click()
+  await expect(page.getByRole('group', { name: 'Picture settings' })).toBeVisible({ timeout: DETECT_TIMEOUT })
+  await saveAs(page, 'Garment')
+  const want = desktopPicture(file)
+  const saved = readAlpha(new Uint8Array(readFileSync(await exportFromLibrary(page, testInfo, 'Garment')))).project.pattern
+  expect(cellsOf(saved)).toEqual(desktopCells(want))
 
-  // Trying another image from there works, and a too-coarse chart gets its own hint.
-  await page.getByLabel('Choose a chart image').first().setInputFiles(resolve(IMAGES, 'garment.png'))
-  await expect(page.getByRole('alert')).toContainText('This image is too small to read reliably.', { timeout: DETECT_TIMEOUT })
-  await expect(page.getByRole('alert')).toContainText('Detection failed (LOW_RESOLUTION)')
+  // Trying another image from there works.
+  await page.goto('/')
+  const next = await importImage(page, pictureFile(testInfo, 'next.png'))
+  await expect(next.save).toBeEnabled()
+})
+
+test('a transparent picture is on white, as the Python flattens it', async ({ page }, testInfo) => {
+  const file = resolve(IMAGES, 'pictures', 'smiley.png')
+  const want = desktopPicture(file)
+  const { save } = await importImage(page, file)
+  await expect(save).toBeEnabled()
+  await saveAs(page, 'Smiley')
+  const saved = readAlpha(new Uint8Array(readFileSync(await exportFromLibrary(page, testInfo, 'Smiley')))).project.pattern
+  expect([saved.cols, saved.rows]).toEqual([want.cols, want.rows])
+  const differ = [...saved.cells].filter((c, i) => saved.palette[c]!.hex !== want.palette[want.cells[i]!]![0]).length
+  testInfo.annotations.push({ type: 'smiley stitches that differ', description: String(differ) })
+  // The background is a white colour of its own (not pure #ffffff: the anti-aliased edge
+  // is averaged into it), as the Python makes it, stitch for stitch.
+  expect(saved.palette.map((e) => [e.hex, e.name])).toEqual(want.palette.map(([hex, name]) => [hex, name]))
+  expect(saved.palette.map((e) => e.name)).toContain('White')
+  expect(differ).toBe(0)
 })
 
 test('a pasted image saved without a name is named by the moment it was saved', async ({ page }) => {

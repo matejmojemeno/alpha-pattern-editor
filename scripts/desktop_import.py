@@ -2,6 +2,7 @@
 browser against (web/e2e/desktop.ts).
 
     python scripts/desktop_import.py detect <image> [correction ...]
+    python scripts/desktop_import.py picture <image> [setting ...]   # the web's picture import
     python scripts/desktop_import.py load <file.alpha>   # as the desktop opens a project
     python scripts/desktop_import.py png <file.alpha> <exported.png>
                                             # whether the PNG is the desktop's Export PNG
@@ -118,6 +119,46 @@ def _remove(p, hex_str: str, tolerance: float):
     return edit.delete_palette_entry_nearest(p, p.palette[i].id) if d[i] <= tolerance else p
 
 
+def picture(path: str, *settings: str) -> dict:
+    """What the web app makes of `path` as a picture (the desktop app has no picture
+    import; this is core/convert.py, as bridge.py runs it): kind.py's verdict, then the
+    conversion with `settings` applied in order, each one of
+
+        width=N  colours=N  detail=X  aspect=X   the picture's controls, and the stitch
+        extent=x0,y0,x1,y1                        a crop, in image pixels (edges)
+
+    A transparent background is white, as in bridge._on_white. Images over 4 MP aren't
+    supported here (the browser shrinks them first)."""
+    from alphareader.core.bridge import _on_white
+    from alphareader.core.convert import PictureState, whole
+    from alphareader.core.kind import read_image
+
+    with Image.open(path) as im:
+        rgba = np.array(im.convert("RGBA"), dtype=np.uint8)
+    h, w = rgba.shape[:2]
+    rgb = np.ascontiguousarray(rgba[:, :, :3])
+    reading = read_image(rgb)
+    flat = _on_white(rgba.tobytes(), w, h)
+    img = rgb if flat is None else flat
+    state = PictureState(img=img, extent=whole(img))
+    for s in settings:
+        op, _, arg = s.partition("=")
+        if op == "width":
+            state.set_width(int(arg))
+        elif op == "colours":
+            state.set_colours(int(arg))
+        elif op == "detail":
+            state.set_detail(float(arg))
+        elif op == "aspect":
+            state.set_cell_aspect(float(arg))
+        elif op == "extent":
+            state.set_extent(Extent(*(float(v) for v in arg.split(","))))
+        else:
+            raise SystemExit(f"unknown setting {s!r}")
+    p = pattern_from_preview(state.preview(), "x")
+    return {"ok": True, "kind": reading.kind, **_pattern(p)}
+
+
 def load(path: str) -> dict:
     project = io.load_project(path)
     source = io.load_source_image(path)
@@ -150,4 +191,4 @@ def png(path: str, exported: str) -> dict:
 
 if __name__ == "__main__":
     mode, path, *rest = sys.argv[1:]
-    print(json.dumps({"detect": detect, "load": load, "png": png}[mode](path, *rest)))
+    print(json.dumps({"detect": detect, "picture": picture, "load": load, "png": png}[mode](path, *rest)))
