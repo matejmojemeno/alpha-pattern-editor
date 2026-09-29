@@ -93,13 +93,13 @@ files.
   its own `import()`, never in the main chunk. `match.ts` finds the nearest shade as
   detection does (`../fixtures/yarn_nearest.json` proves it), `usage.ts` does the
   estimate's arithmetic (swatch, finished size, yarn by weight or length). Their UI is in
-  `src/ui/yarn/` and `src/ui/import/YarnEstimate.tsx` ("Yarn & size" on the import screen).
-- `src/stitch/`: "Visualize" on the import screen, the pattern drawn as crocheted
+  `src/ui/yarn/` and `src/ui/design/YarnEstimate.tsx` ("Yarn & size" in the Design stage).
+- `src/stitch/`: "Visualize" in the Design stage, the pattern drawn as crocheted
   fabric: the stitches and their proportions from published gauges (`catalogue.ts`, with
   every source in `README.md`), which side of each stitch shows (`faces.ts`), each stitch
   as strands of yarn (`geometry.ts`), the strands rasterised as shaded tubes
   (`raster.ts`), and the fabric drawn on a canvas (`fabric.ts`). Its dialog is
-  `src/ui/import/Visualize.tsx`, part of the import screen's chunk.
+  `src/ui/design/Visualize.tsx`, part of the Design stage's chunk.
 - `src/app/`: hash router, app-wide context (repository, settings), persistence request.
 - `src/settings/`: app-wide preferences in `localStorage` (display, the colour library,
   the yarn estimate's inputs), typed and fail-safe.
