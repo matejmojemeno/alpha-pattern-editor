@@ -103,7 +103,8 @@ test('a quarter turn each way, undo and redo, and a reload', async ({ page }) =>
   const pyodide: string[] = []
   page.on('request', (r) => /pyodide|alphareader-core/i.test(r.url()) && pyodide.push(r.url()))
   const id = await wide(page)
-  await page.getByRole('button', { name: 'Pad to size', expanded: false }).click()
+  await page.getByRole('button', { name: 'Border & size', expanded: false }).click()
+  await page.getByRole('button', { name: 'Clear' }).click() // no preview: the grid is read off the chart
   await expect(page.getByLabel('Width', { exact: true })).toHaveValue('12')
 
   // Clockwise: the top row becomes the right-hand column. No progress: no question.
@@ -114,7 +115,7 @@ test('a quarter turn each way, undo and redo, and a reload', async ({ page }) =>
   await expect(page.getByRole('img', { name: 'Pattern, 5 by 12' })).toBeVisible()
   expect(CW[0]).toBe('...BB') // the top-left black, now top right
   expect(await grid(page, 5, 12)).toEqual(CW)
-  // The pad-to-size fields follow the new shape.
+  // The size fields follow the new shape.
   await expect(page.getByLabel('Width', { exact: true })).toHaveValue('5')
   await expect(page.getByLabel('Height', { exact: true })).toHaveValue('12')
 
