@@ -43,8 +43,9 @@ before it moved a quantised cell index.
 
 ## Baseline
 
-As of 2026-09-29, **114/114 bit-identical** (the 89 below and 25 pictures, each also
-through kind.py and convert.py), 2.1x slower under WASM, same versions as below.
+As of 2026-09-29, **122/122 bit-identical** (the 89 below, 25 pictures and 8 pixel
+images, each also through kind.py, pixels.py and convert.py), 2.0x slower under WASM,
+same versions as below.
 
 As of 2026-09-22, with **89/89 bit-identical**:
 
