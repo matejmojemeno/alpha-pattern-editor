@@ -18,6 +18,8 @@ export type FailureCode =
   | 'NO_DETECTION'
   /** bridge.py: the pixels don't match the stated size. */
   | 'BAD_IMAGE'
+  /** bridge.py: set_mode was given neither "chart" nor "picture". */
+  | 'BAD_MODE'
   /** Pyodide failed to load. */
   | 'BOOT_FAILED'
   /** Python raised something unexpected. A bug. */
@@ -41,6 +43,38 @@ export interface Failure {
   /** Pyodide suffered a fatal error and can't run anything again: the client terminates
    *  the worker. */
   fatal?: true
+  /** A chart detection refused (LOW_RESOLUTION, ROTATED): what the image was read as,
+   *  so the screen can offer to turn it into a pattern anyway. */
+  reading?: Reading
+}
+
+/** How an image is read: as a chart (its squares read) or a picture (turned into a
+ *  pattern). core/kind.py decides; the user can switch (bridge.set_mode). */
+export type Mode = 'chart' | 'picture'
+
+/** What the image was read as, and what else it can be (bridge._reading_payload). */
+export interface Reading {
+  kind: Mode
+  /** False for a chart read with doubts: the picture reading is offered prominently. */
+  sure: boolean
+  /** A grid was found, so the chart reading is available. */
+  canChart: boolean
+  /** A chart's refusal, when the image looks like a chart that can't be read. */
+  failure: DetectionErrorCode | null
+}
+
+/** A picture's settings (convert.PictureState), in a picture's preview. */
+export interface PictureSettings {
+  /** Stitches across; the rows follow from the picture's shape and the stitch's. */
+  width: number
+  /** The widest it can be: 400 stitches, or one per detected pixel. */
+  maxWidth: number
+  /** The number of colours asked for (the palette may have fewer). */
+  colours: number
+  /** 0 = smooth (few colour changes) … 1 = every stitch its nearest colour. */
+  detail: number
+  /** A stitch's height over its width. */
+  cellAspect: number
 }
 
 export const DETECTION_ERROR_CODES: readonly DetectionErrorCode[] = [
@@ -65,6 +99,11 @@ export interface Extent {
 export interface Preview {
   ok: true
   session: number
+  /** Read as a chart, or turned into a pattern as a picture. */
+  mode: Mode
+  reading: Reading
+  /** A picture's settings; null for a chart. */
+  picture: PictureSettings | null
   rows: number
   cols: number
   /** Palette indices, row-major, rows * cols. */
@@ -89,11 +128,17 @@ export interface Preview {
 
 export type Outcome<T> = T | Failure
 
-/** Settings a preview can be adjusted by (bridge.set_params). */
+/** Settings a preview can be adjusted by (bridge.set_params). A chart takes rows, cols
+ *  and extent; a picture takes extent (what of the image is used), width, colours,
+ *  detail and cellAspect. */
 export interface Params {
   rows?: number
   cols?: number
   extent?: Extent
+  width?: number
+  colours?: number
+  detail?: number
+  cellAspect?: number
 }
 
 // --- messages -------------------------------------------------------------------------------
@@ -112,11 +157,23 @@ interface Delay {
 
 export type Request =
   | { id: number; type: 'boot' }
-  | ({ id: number; type: 'open'; rgba: Uint8Array; width: number; height: number; maxPixels?: number; crop?: Crop } & Delay)
+  | ({
+      id: number
+      type: 'open'
+      rgba: Uint8Array
+      width: number
+      height: number
+      maxPixels?: number
+      crop?: Crop
+      /** A stitch's height over its width, for a picture (the swatch). */
+      cellAspect?: number
+    } & Delay)
   /** Detect again, on the whole image or a crop. */
   | ({ id: number; type: 'redetect'; session: number; crop?: Crop } & Delay)
   /** bridge.set_params then bridge.preview, in one round trip. */
   | { id: number; type: 'update'; session: number; params: Params }
+  /** bridge.set_mode: read as a chart, or turn into a pattern as a picture. */
+  | { id: number; type: 'mode'; session: number; mode: Mode }
   | { id: number; type: 'preview'; session: number }
   | { id: number; type: 'commit'; session: number; name: string }
   | { id: number; type: 'close'; session: number }
@@ -137,6 +194,7 @@ export interface Answers {
   open: Preview
   redetect: Preview
   update: Preview
+  mode: Preview
   preview: Preview
   commit: { ok: true; pattern: Pattern }
   close: { ok: true }

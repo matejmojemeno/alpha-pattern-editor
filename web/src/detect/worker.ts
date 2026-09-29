@@ -35,7 +35,7 @@ interface PyResult {
   destroy(): void
 }
 type Bridge = Record<
-  'open_session' | 'redetect' | 'set_params' | 'preview' | 'commit' | 'close_session',
+  'open_session' | 'redetect' | 'set_params' | 'set_mode' | 'preview' | 'commit' | 'close_session',
   PyFn
 >
 
@@ -179,6 +179,7 @@ async function handle(req: Request): Promise<Outcome<Answers[Request['type']]>> 
           b.open_session.callKwargs(req.rgba, req.width, req.height, {
             ...(req.maxPixels ? { max_pixels: req.maxPixels } : {}),
             ...(req.crop ? { crop: toPy(req.crop) } : {}),
+            ...(req.cellAspect ? { cell_aspect: req.cellAspect } : {}),
           }),
         ) as never
       case 'redetect':
@@ -190,15 +191,21 @@ async function handle(req: Request): Promise<Outcome<Answers[Request['type']]>> 
           }),
         ) as never
       case 'update': {
-        const { rows, cols, extent } = req.params
+        const { rows, cols, extent, width, colours, detail, cellAspect } = req.params
         const kwargs: Record<string, unknown> = {}
         if (rows !== undefined) kwargs.rows = rows
         if (cols !== undefined) kwargs.cols = cols
         if (extent !== undefined) kwargs.extent = toPy(extent)
+        if (width !== undefined) kwargs.width = width
+        if (colours !== undefined) kwargs.colours = colours
+        if (detail !== undefined) kwargs.detail = detail
+        if (cellAspect !== undefined) kwargs.cell_aspect = cellAspect
         const set = plain(b.set_params.callKwargs(req.session, kwargs))
         if (set.ok !== true) return set as unknown as Failure
         return plain(b.preview(req.session)) as never
       }
+      case 'mode':
+        return plain(b.set_mode(req.session, req.mode)) as never
       case 'preview':
         return plain(b.preview(req.session)) as never
       case 'commit':
