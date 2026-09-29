@@ -200,7 +200,8 @@ def test_a_charts_refusal_is_returned_not_raised(monkeypatch, code):
 
     monkeypatch.setattr(kind, "detect_pattern", failing)
     out = _open(_chart())
-    reading = {"kind": "chart", "sure": True, "canChart": False, "failure": code}
+    reading = {"kind": "chart", "sure": True, "canChart": False, "canPixels": False,
+               "failure": code}
     assert out == {"ok": False, "code": code, "message": f"failed with {code}",
                    "session": out["session"], "reading": reading}
     # The session stays open so the user can crop and try again; the retry fails the same way.
@@ -226,7 +227,8 @@ def test_an_image_without_a_chart_becomes_a_picture(monkeypatch, code):
     gradient = np.linspace(0, 255, 320)[None, :, None].repeat(240, 0).repeat(3, 2)
     out = _open(gradient.astype(np.uint8))
     assert out["ok"] is True and out["mode"] == "picture"
-    assert out["reading"] == {"kind": "picture", "sure": True, "canChart": False, "failure": None}
+    assert out["reading"] == {"kind": "picture", "sure": True, "canChart": False,
+                              "canPixels": False, "failure": None}
     assert out["warnings"] == [] and out["picture"]["width"] == 60
 
 
@@ -489,7 +491,8 @@ def _photo(h: int = 240, w: int = 320) -> np.ndarray:
 def test_a_chart_is_read_as_a_chart():
     p = _open(_chart())
     assert p["mode"] == "chart" and p["picture"] is None
-    assert p["reading"] == {"kind": "chart", "sure": True, "canChart": True, "failure": None}
+    assert p["reading"] == {"kind": "chart", "sure": True, "canChart": True,
+                            "canPixels": False, "failure": None}
 
 
 def test_a_picture_opens_as_a_picture_and_saves_what_convert_makes():
@@ -588,3 +591,63 @@ def test_a_bad_stitch_shape_is_ignored():
     assert bridge.preview(sid)["picture"]["cellAspect"] == 1.0
     bridge.set_params(sid, cell_aspect=-3)
     assert bridge.preview(sid)["picture"]["cellAspect"] == 1.0
+
+
+# --- pixel images (pixels.py) ---------------------------------------------------------------
+
+def _pixel_art(k: int = 6) -> tuple[np.ndarray, np.ndarray]:
+    """A 20 × 14 sprite of 4 colours, and the same enlarged k× with no gridlines."""
+    rng = np.random.default_rng(2)
+    colours = np.array([(255, 255, 255), (20, 20, 30), (200, 40, 40), (40, 90, 200)], np.uint8)
+    sprite = colours[rng.integers(0, 4, size=(14, 20))]
+    return sprite, np.repeat(np.repeat(sprite, k, axis=0), k, axis=1)
+
+
+def test_pixel_art_is_read_block_by_block_and_saved_exactly():
+    sprite, img = _pixel_art()
+    p = _open(img)
+    assert (p["mode"], p["reading"]["kind"], p["reading"]["canPixels"]) == ("pixels", "pixels", True)
+    assert (p["cols"], p["rows"]) == (20, 14)
+    assert p["extent"] == {"x0": 0.0, "y0": 0.0, "x1": 120.0, "y1": 84.0}
+    assert p["warnings"] == [] and p["picture"] is None
+    saved = bridge.commit(p["session"], "Sprite")["pattern"]
+    colours = np.array([[int(e["hex"][i:i + 2], 16) for i in (1, 3, 5)] for e in saved["palette"]])
+    assert np.array_equal(colours[saved["cells"].reshape(14, 20)], sprite)
+
+
+def test_pixel_art_can_be_turned_into_a_pattern_and_back():
+    _, img = _pixel_art()
+    sid = _open(img)["session"]
+    pic = bridge.set_mode(sid, "picture")
+    assert pic["mode"] == "picture" and pic["reading"]["canPixels"] is True
+    back = bridge.set_mode(sid, "pixels")
+    assert (back["mode"], back["cols"]) == ("pixels", 20)
+    # Nothing to adjust: the settings of the other modes are ignored.
+    assert bridge.set_params(sid, rows=3, width=50, extent={"x0": 0, "y0": 0, "x1": 10, "y1": 10}) == {"ok": True}
+    assert bridge.preview(sid)["cols"] == 20
+
+
+def test_only_pixel_art_can_be_read_pixel_by_pixel():
+    sid = _open(_chart())["session"]
+    assert bridge.set_mode(sid, "pixels")["code"] == "NO_DETECTION"
+
+
+def test_pixel_art_in_a_crop_is_placed_in_the_whole_image():
+    _, art = _pixel_art(4)
+    img = np.full((art.shape[0] + 40, art.shape[1] + 60, 3), 90, np.uint8)
+    img[20:20 + art.shape[0], 30:30 + art.shape[1]] = art
+    sid = _open(img)["session"]
+    p = bridge.redetect(sid, crop=(30, 20, 30 + art.shape[1], 20 + art.shape[0]))
+    assert (p["mode"], p["cols"], p["rows"]) == ("pixels", 20, 14)
+    assert p["extent"] == {"x0": 30.0, "y0": 20.0, "x1": 110.0, "y1": 76.0}
+
+
+def test_transparent_pixel_art_is_read_on_white():
+    _, img = _pixel_art(3)
+    h, w = img.shape[:2]
+    alpha = np.full((h, w, 1), 255, np.uint8)
+    alpha[:, :9] = 0                                  # the first three columns of stitches
+    p = bridge.open_session(np.concatenate([img, alpha], axis=2).tobytes(), w, h)
+    assert p["mode"] == "pixels"
+    cells = p["cells"].reshape(p["rows"], p["cols"])
+    assert {p["palette"][i]["hex"] for i in np.unique(cells[:, :3])} == {"#ffffff"}
