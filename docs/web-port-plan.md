@@ -323,9 +323,26 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   - Tier A (Vite's figures, gzipped, measured before and after): main entry chunk
     104.7 KB (unchanged), Import 9.0 KB (from 20.3) + 2.4 KB CSS (from 3.7), Design
     27.4 KB (from 16.5) + 3.5 KB CSS (from 2.6); nothing else loaded up front.
-- **Picture import, part 1: the Python** (`core/kind.py`, `core/convert.py`, the
-  bridge; plan.md §5a). Any image can be imported: a chart is read, anything else is
-  turned into a pattern. The import screen doesn't use it yet (part 2).
+- **Picture import** (`core/kind.py`, `core/convert.py`, the bridge,
+  `ui/screens/Import.tsx`, `importer/picture.ts`; plan.md §5a). Any image can be
+  imported, from the same drop zone, paste or picker: a chart is read, anything else is
+  turned into a pattern, and there is no choice to make up front.
+  - **The screen:** one line above the stages says what was read ("Read from the squares
+    of your chart." / "This looks like a picture, not a chart, so it was turned into a
+    pattern."), in muted text, with a small button to the other reading ("Turn it into a
+    pattern instead" / "Read it as a chart instead", the latter only if a grid was
+    found). A chart read with doubts (over 15% unsure) says "Not sure this is a chart" in
+    the warning colour. A chart detection refuses as too fine or tilted keeps its advice
+    and adds "Turn it into a pattern anyway": such an image is never converted unasked.
+    For a chart, that one line is all that changes.
+  - **A picture's controls:** Width (a slider, stitches across; rows follow; "60 × 45
+    stitches, about 38 × 28 cm" once the swatch is measured) and Detail (Smoothest …
+    Every stitch) sit above the colour list, so the stages' chrome (`--col-chrome`) is
+    unchanged. The colour count's − and + make it again with one colour fewer or more
+    (from what's shown, 2–24). The outline and a box drawn on the image crop what's used,
+    the width staying; "Reset to detected grid" becomes "Use the whole picture". No
+    warnings or shrink notice. The stitch shape is the swatch's (square until measured).
+  - Behaviour that differs from the desktop: the desktop imports charts only.
   - **Why not just "detection failed = picture":** of 25 CC0 pictures in
     `test_images/pictures/` (fetched with provenance by `scripts/fetch_test_pictures.py`),
     11 fail as LOW_RESOLUTION, like `garment.png`, a real chart; 12 fit a grid, the dice
@@ -345,6 +362,14 @@ root. This document covers *how* the app moves to the web, not *what* it does.
     preview; a chart's refusal carries `reading` so the screen can offer the picture.
   - Speed (desktop, 60 wide): first conversion 0.2–0.6 s, Detail 0.01 s, colours
     0.15–0.6 s, 120 wide 0.3–0.9 s. Pyodide runs detection and conversion about 2.1× slower.
+  - e2e (`import.spec.ts`): a generated picture, and the same at 40 wide, 5 colours and
+    detail 0.2 set through the controls, save exactly the cells `scripts/desktop_import.py
+    picture` makes; so does garment.png turned into a pattern anyway; a chart switched to a
+    picture and back saves the desktop's chart.
+  - Tier A: the main entry chunk 104.7 KB gzipped (unchanged), Import 10.6 KB (from 9.0)
+    + 2.6 KB CSS, Design 27.4 KB (unchanged). `importer/picture.ts` repeats usage.ts's
+    four-line stitch size instead of importing it, which split usage.ts into a shared
+    4.8 KB chunk.
 - **Hosting** (`web/wrangler.jsonc`, `web/public/_headers`): Cloudflare Workers static
   assets at the free `*.workers.dev` address, deployed by Cloudflare's Git integration on
   every push to `main` (setup in `web/README.md`, "Deploying"). `/assets/*`, `/pyodide/*`
@@ -657,6 +682,13 @@ break without noticing.
   extent is clamped to W − 1 and scaled as pixel centres (`to_image`); a picture's runs
   0 to W and is scaled by the shrink factor alone (`edge_to_image`, `convert.clamp_edges`),
   so its outline reaches the image's own edges.
+- **A picture's controls live above the colour list, never under a stage.** The column
+  chrome under the stages is a measured constant (`--col-chrome`); anything added there
+  must change it too, or the stages overflow the window.
+- **A chart the detector refuses is never converted unasked.** LOW_RESOLUTION and ROTATED
+  on an image with a grid's structure stay failures with their advice, and the picture
+  reading is a button ("Turn it into a pattern anyway"): a converted chart looks
+  plausible and is wrong.
 - **A picture's colours are weighted towards detail, capped at 4×.** Uncapped (squared,
   as first tried), a white background filling half a picture weighed 1/156 of the rest
   and lost its colour. Small distinct areas are protected by the "unexplained samples"

@@ -114,7 +114,9 @@ files.
   (`outline.ts`), the controls' ranges (`controls.ts`), the colours removed before
   saving (`removals.ts`) and naming the colours left (`names.ts`, from
   `colour-names.json`; provenance in its `README.md`; the Design stage names a colour
-  being added with it too). Its components are in `src/ui/import/`.
+  being added with it too), and what the screen says and allows for a chart or a picture
+  (`picture.ts`; the deciding and converting are `core/kind.py` and `core/convert.py`).
+  Its components are in `src/ui/import/`.
 
 Routing uses the URL hash (`#/library`, `#/work/<id>`, `#/design/<id>`): the part after
 `#` never reaches the server, so deep links survive a refresh on any static host with no
