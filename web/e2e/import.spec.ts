@@ -14,7 +14,7 @@ import { expect, test, type TestInfo } from '@playwright/test'
 
 import { readAlpha } from '../src/storage/alpha.ts'
 import { encodePngRgba } from '../src/storage/thumbnail.ts'
-import { desktopDetect, desktopLoad, desktopPicture, ROOT, type DesktopPattern } from './desktop.ts'
+import { desktopDetect, desktopLoad, desktopPicture, desktopPixels, ROOT, type DesktopPattern } from './desktop.ts'
 import { DETECT_TIMEOUT, exportFromLibrary, importImage, saveAs } from './importing.ts'
 
 const IMAGES = resolve(ROOT, 'test_images')
@@ -241,6 +241,55 @@ test('a transparent picture is on white, as the Python flattens it', async ({ pa
   expect(saved.palette.map((e) => [e.hex, e.name])).toEqual(want.palette.map(([hex, name]) => [hex, name]))
   expect(saved.palette.map((e) => e.name)).toContain('White')
   expect(differ).toBe(0)
+})
+
+test('pixel art without gridlines is read block by block, exactly', async ({ page }, testInfo) => {
+  // A 20 × 14 sprite of 4 colours, enlarged 7× with no lines between the blocks: what
+  // detection's lattice read with its plain borders dropped, or refused under 6 px.
+  const colours = [
+    [255, 255, 255],
+    [20, 20, 30],
+    [200, 40, 40],
+    [40, 90, 200],
+  ]
+  const [cols, rows, k] = [20, 14, 7]
+  const sprite = Array.from({ length: rows * cols }, (_, i) => ((i * 7919) % 97) % 4)
+  sprite[0] = 0
+  sprite[1] = 1
+  const rgba = new Uint8Array(cols * k * rows * k * 4)
+  for (let y = 0; y < rows * k; y++)
+    for (let x = 0; x < cols * k; x++) rgba.set([...colours[sprite[Math.floor(y / k) * cols + Math.floor(x / k)]!]!, 255], (y * cols * k + x) * 4)
+  const file = testInfo.outputPath('sprite.png')
+  writeFileSync(file, encodePngRgba(cols * k, rows * k, rgba))
+
+  const { save } = await importImage(page, file)
+  await expect(save).toBeEnabled()
+  await expect(page.locator('.confirm__kind')).toContainText('Read pixel by pixel: each block of your image is one stitch.')
+  await expect(page.locator('.confirm__stats')).toHaveText(`${cols} columns × ${rows} rows`)
+  await expect(page.getByRole('slider', { name: /edge of the grid/ })).toHaveCount(0)
+  await saveAs(page, 'Sprite')
+
+  const saved = readAlpha(new Uint8Array(readFileSync(await exportFromLibrary(page, testInfo, 'Sprite')))).project.pattern
+  const hex = (c: number[]) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('')
+  expect([saved.cols, saved.rows]).toEqual([cols, rows])
+  expect([...saved.cells].map((c) => saved.palette[c]!.hex)).toEqual(sprite.map((i) => hex(colours[i]!)))
+})
+
+test('real pixel art is saved exactly as the Python reads it', async ({ page }, testInfo) => {
+  const file = resolve(IMAGES, 'pixels', 'city-8x.png')
+  const want = desktopPixels(file)
+  expect(want.kind).toBe('pixels')
+  const { save } = await importImage(page, file)
+  await expect(save).toBeEnabled()
+  await expect(page.locator('.confirm__stats')).toHaveText(`${want.cols} columns × ${want.rows} rows`)
+  // A picture and back, then saved.
+  await page.locator('.confirm__kind').getByRole('button', { name: 'Turn it into a pattern instead' }).click()
+  await expect(page.getByRole('group', { name: 'Picture settings' })).toBeVisible({ timeout: DETECT_TIMEOUT })
+  await page.locator('.confirm__kind').getByRole('button', { name: 'Read it pixel by pixel instead' }).click()
+  await expect(page.getByRole('group', { name: 'Picture settings' })).toBeHidden({ timeout: DETECT_TIMEOUT })
+  await saveAs(page, 'City')
+  const saved = readAlpha(new Uint8Array(readFileSync(await exportFromLibrary(page, testInfo, 'City')))).project.pattern
+  expect(cellsOf(saved)).toEqual(desktopCells(want))
 })
 
 test('a pasted image saved without a name is named by the moment it was saved', async ({ page }) => {
