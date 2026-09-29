@@ -1,13 +1,57 @@
+# Repo-wide ignores. web/.gitignore adds the web app's own build output.
+
+# --- OS and editors ---------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+
+# --- Secrets and local config ----------------------------------------------
+.env
+.env.*
+!.env.example
+*.local
+
+# --- Claude Code: per-machine settings and task worktrees -------------------
+.claude/settings.local.json
+.claude/worktrees/
+
+# --- Python -----------------------------------------------------------------
 .venv/
+venv/
 __pycache__/
-*.pyc
+*.py[cod]
+*.egg-info/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# --- Node -------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+# Only the web app pins its dependency tree.
+package-lock.json
+!web/package-lock.json
+
+# --- Test output ------------------------------------------------------------
+# Playwright writes here when run from the repo root as well as from web/.
+test-results/
+playwright-report/
+coverage/
+
+# --- Project data -----------------------------------------------------------
+# The owner's real projects: read them for testing, never commit them.
+saved/
+# Debug images written by detect_cli.py.
 *_overlay.png
 *_reconstruct.png
-saved/
-node_modules/
-package-lock.json
-# The web app pins its dependency tree.
-!web/package-lock.json
 # scripts/downscale_study.py extracts saved/ sources here.
 scripts/.downscale_study/
