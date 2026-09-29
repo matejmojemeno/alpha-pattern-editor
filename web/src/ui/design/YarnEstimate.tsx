@@ -1,12 +1,13 @@
 /**
- * "Yarn & size", beside Save on the import screen: a dialog that turns one swatch into
- * the finished size and how much yarn of each colour to buy (yarn/usage.ts), for the
- * pattern as it will be saved (the colours removed and merged here already applied).
+ * "Yarn & size", in the Design stage's header: a dialog that turns one swatch into the
+ * finished size and how much yarn of each colour to buy (yarn/usage.ts), for the pattern
+ * as it is now, edits and all.
  *
  * The inputs are app-wide settings: they describe the crocheter's yarn, hook and hands,
- * not the chart, so they carry from pattern to pattern and survive a reload. The ball
- * defaults to the chosen yarn range's own, when one is chosen under "Advanced: match to
- * yarn".
+ * not the chart, so they carry from pattern to pattern and survive a reload. Under
+ * "Advanced: match to yarn" a yarn range can be chosen: each colour then shows its
+ * nearest shade, which the exported list names too, and the ball defaults to the range's
+ * own.
  */
 import { useId, useMemo } from 'react'
 
@@ -15,7 +16,7 @@ import '../yarn.css'
 import { useSettings } from '../../app/context.ts'
 import { downloadBlob } from '../../app/download.ts'
 import { carriedStitches } from '../../logic/carry.ts'
-import { PATTERN_DEFAULTS, type PaletteEntry, type Pattern } from '../../model/types.ts'
+import type { Pattern } from '../../model/types.ts'
 import type { Units } from '../../settings/store.ts'
 import { LIBRARY_LABELS } from '../../yarn/libraries.ts'
 import {
@@ -33,19 +34,13 @@ import {
 } from '../../yarn/usage.ts'
 import { Modal } from '../components.tsx'
 import { NumberField } from '../yarn/NumberField.tsx'
+import { ShadeMatch, YarnMatching } from '../yarn/ShadeViews.tsx'
 import { matchName, useChosenMatches } from '../yarn/useShades.ts'
-
-export interface EstimatedPattern {
-  readonly rows: number
-  readonly cols: number
-  readonly cells: Uint16Array
-  readonly palette: readonly PaletteEntry[]
-}
 
 const UNIT_NAMES: Record<Units, string> = { metric: 'Metric (cm, m)', imperial: 'Imperial (in, yd)' }
 const POSITIVE = { value: 0, inclusive: false }
 
-export function YarnEstimate({ name, pattern, onClose }: { name: string; pattern: EstimatedPattern; onClose: () => void }) {
+export function YarnEstimate({ name, pattern, onClose }: { name: string; pattern: Pattern; onClose: () => void }) {
   const [settings, set] = useSettings()
   const { units } = settings
   const metric = units === 'metric'
@@ -54,11 +49,8 @@ export function YarnEstimate({ name, pattern, onClose }: { name: string; pattern
   const { library, matches } = useChosenMatches(pattern.palette.map((e) => e.hex))
   const libraryBall = library?.ball ?? null
 
-  // Carried as the Work stage will show it, with the directions a new pattern gets.
-  const carried = useMemo(
-    () => carriedStitches({ ...PATTERN_DEFAULTS, ...pattern, id: '', name: '', created_at: 0, updated_at: 0, row_ids: [] } as Pattern),
-    [pattern],
-  )
+  // Carried as the Work stage shows it, with the pattern's own row directions.
+  const carried = useMemo(() => carriedStitches(pattern), [pattern])
   const swatch = {
     stitches: settings.swatchStitches,
     rows: settings.swatchRows,
@@ -252,6 +244,8 @@ export function YarnEstimate({ name, pattern, onClose }: { name: string; pattern
         )}
       </section>
 
+      <YarnMatching className="yarn__matching" library={library} />
+
       <table className="yarn__table">
         <caption className="visually-hidden">Yarn for each colour</caption>
         <thead>
@@ -264,18 +258,22 @@ export function YarnEstimate({ name, pattern, onClose }: { name: string; pattern
           </tr>
         </thead>
         <tbody>
-          {usage.colours.map((c) => (
-            <tr key={c.entry.id}>
-              <th scope="row" title={c.entry.name || undefined}>
-                <span className="yarn__swatch" style={{ background: c.entry.hex }} aria-hidden="true" />
-                {c.entry.name || 'Unnamed'}
-              </th>
-              <td title={c.carried ? `And carried inside ${n(c.carried)}` : undefined}>{n(c.stitches)}</td>
-              {showMetres && <td>{formatLength(c.metres!, units).replace(/ (m|yd)$/, '')}</td>}
-              {showGrams && <td>{formatWeight(c.grams!).replace(/ g$/, '')}</td>}
-              {showBalls && <td>{c.balls}</td>}
-            </tr>
-          ))}
+          {usage.colours.map((c) => {
+            const shade = matches?.[c.index]
+            return (
+              <tr key={c.entry.id}>
+                <th scope="row" title={c.entry.name || undefined}>
+                  <span className="yarn__swatch" style={{ background: c.entry.hex }} aria-hidden="true" />
+                  {c.entry.name || 'Unnamed'}
+                  {library && shade && <ShadeMatch className="shade yarn__shade" library={library} match={shade} />}
+                </th>
+                <td title={c.carried ? `And carried inside ${n(c.carried)}` : undefined}>{n(c.stitches)}</td>
+                {showMetres && <td>{formatLength(c.metres!, units).replace(/ (m|yd)$/, '')}</td>}
+                {showGrams && <td>{formatWeight(c.grams!).replace(/ g$/, '')}</td>}
+                {showBalls && <td>{c.balls}</td>}
+              </tr>
+            )
+          })}
         </tbody>
         <tfoot>
           <tr>

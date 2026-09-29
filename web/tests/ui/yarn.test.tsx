@@ -1,65 +1,37 @@
 // @vitest-environment jsdom
 /**
- * Yarn in the UI. The Design stage has none: matching colours to a yarn range and the
- * estimate are the import screen's. There, "Yarn & size" opens a dialog that turns a
- * swatch into the finished size and the yarn for each colour of the pattern as it will be
- * saved, and the colour library, under "Advanced: match to yarn", gives its ball.
+ * Yarn in the UI: "Yarn & size", in the Design stage's header. It opens a dialog that
+ * turns a swatch into the finished size and the yarn for each colour of the pattern as it
+ * is now, and under "Advanced: match to yarn" a colour library gives each colour its
+ * nearest shade and the ball. The import screen has none of it (tests/ui/import.test.tsx).
  *
- * The import screen's pattern is fakeWorker's makePreview(1, 3, 4): a 4 × 3 checkerboard,
- * White ×6 and Brown ×6. basic.alpha's colours: White ×10, Brown ×16, Red ×9.
+ * The pattern is the one the import tests detect (fakeWorker's makePreview(1, 3, 4)),
+ * saved: a 4 × 3 checkerboard, White ×6 and Brown ×6, worked from the bottom row right
+ * to left, as a new pattern is.
  */
-import { act, waitFor, within } from '@testing-library/react'
+import { waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { handOffImage } from '../../src/app/pendingImage.ts'
+import { addPaletteEntry, newPattern, setCells } from '../../src/logic/edit.ts'
+import { emptyProgress } from '../../src/model/types.ts'
 import { createSettingsStore } from '../../src/settings/store.ts'
-import { readAlpha } from '../../src/storage/alpha.ts'
 import { detection } from './fakeDetection.ts'
-import { fixture, freshRepo, memoryStorage, renderApp, screen } from './helpers.tsx'
+import { freshRepo, memoryStorage, renderApp, screen } from './helpers.tsx'
 
 beforeEach(() => detection.reset())
 
-describe('the Design stage', () => {
-  it('has no yarn matching and no yarn estimate, even with a yarn range chosen', async () => {
-    const repo = await freshRepo()
-    const { project } = readAlpha(fixture('basic.alpha'))
-    await repo.importFile(fixture('basic.alpha'))
-    const storage = memoryStorage()
-    const settings = createSettingsStore(() => storage)
-    settings.set({ colourLibrary: 'stylecraft-special-dk' })
-    await renderApp(`#/design/${project.pattern.id}`, { repo, settings })
-    await screen.findByRole('heading', { level: 1, name: project.pattern.name }, { timeout: 3000 })
-    // Give a library, were one loading, the time to arrive.
-    await act(async () => {})
-
-    const palette = within(screen.getByRole('list', { name: 'Palette' })).getAllByRole('button').filter((b) => b.classList.contains('colour'))
-    expect(palette.map((b) => b.getAttribute('aria-label'))).toEqual([
-      'White, #ffffff, 10 cells',
-      'Brown, #6b3e26, 16 cells',
-      'Red, #d93a3a, 9 cells',
-    ])
-    expect(document.querySelector('.shade')).toBeNull()
-    expect(screen.queryByText('Advanced: match to yarn')).toBeNull()
-    expect(screen.queryByRole('combobox', { name: 'Match colours to' })).toBeNull()
-    await userEvent.click(palette[2]!)
-    expect(screen.queryByRole('button', { name: 'Use shade' })).toBeNull()
-    expect(screen.queryByText(/Nearest/)).toBeNull()
-    expect(screen.queryByRole('heading', { name: 'Yarn estimate' })).toBeNull()
-    expect(screen.queryByRole('table', { name: 'Yarn for each colour' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Export yarn list' })).toBeNull()
-  })
-})
-
-/** The import screen with a detected pattern, and its settings. */
-async function openImport(preset: Parameters<ReturnType<typeof createSettingsStore>['set']>[0] = {}) {
-  handOffImage({ file: new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], 'dog.png', { type: 'image/png' }) })
+/** The Design stage on the checkerboard, and its settings. */
+async function openDesign(preset: Parameters<ReturnType<typeof createSettingsStore>['set']>[0] = {}) {
+  const repo = await freshRepo()
+  const blank = addPaletteEntry(newPattern(4, 3, '#ffffff', { name: 'Dog', colourName: 'White' }), '#8b4513', 'Brown')
+  const odd = [0, 1, 2].flatMap((r) => [0, 1, 2, 3].filter((c) => (r + c) % 2 === 1).map((c) => [r, c] as const))
+  const saved = await repo.save({ pattern: setCells(blank, odd, 1), progress: emptyProgress(), stage: 'design' }, { sourcePng: null })
   const storage = memoryStorage()
   const settings = createSettingsStore(() => storage)
   settings.set(preset)
-  const view = await renderApp('#/import', { settings })
-  await screen.findByRole('button', { name: 'Save & edit pattern' })
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Yarn & size' }).hasAttribute('disabled')).toBe(false))
+  const view = await renderApp(`#/design/${saved.pattern.id}`, { repo, settings })
+  await screen.findByRole('heading', { level: 1, name: 'Dog' }, { timeout: 3000 })
   return { ...view, stored: () => createSettingsStore(() => storage).get() }
 }
 
@@ -80,13 +52,11 @@ const type = async (name: string, text: string) => {
 }
 const sizeLine = () => document.querySelector('.yarn__size')!.textContent
 
-describe('Yarn & size, on the import screen', () => {
-  it('sits beside Save, opens a dialog, and closes back to the button', async () => {
-    await openImport()
+describe('Yarn & size, in the Design stage', () => {
+  it('sits in the header, then Visualize, opens a dialog, and closes back to the button', async () => {
+    await openDesign()
     const button = screen.getByRole('button', { name: 'Yarn & size' })
-    // Then "Visualize", then Save.
     expect(button.nextElementSibling?.textContent).toBe('Visualize')
-    expect(button.nextElementSibling?.nextElementSibling?.textContent).toBe('Save & edit pattern')
     const dialog = await openDialog()
     expect(within(dialog).getByRole('heading', { level: 3, name: 'Your swatch' })).toBeTruthy()
     await userEvent.keyboard('{Escape}')
@@ -98,7 +68,7 @@ describe('Yarn & size, on the import screen', () => {
   })
 
   it('starts from a 10 × 10 swatch, unmeasured, and yarn per stitch', async () => {
-    await openImport()
+    await openDesign()
     await openDialog()
     expect([field('Stitches').value, field('Rows').value, field('Width').value, field('Height').value]).toEqual(['10', '10', '', ''])
     expect(field('Weight (optional)').value).toBe('')
@@ -117,7 +87,7 @@ describe('Yarn & size, on the import screen', () => {
   })
 
   it('gives the finished size from the swatch, in cm or inches', async () => {
-    const { stored } = await openImport()
+    const { stored } = await openDesign()
     await openDialog()
     // 1 cm a stitch and 0.8 cm a row: 4 columns × 3 rows is 4 × 2.4 cm.
     await type('Width', '10')
@@ -132,7 +102,7 @@ describe('Yarn & size, on the import screen', () => {
   })
 
   it('estimates by length, then by the swatch’s weight once it is weighed', async () => {
-    const { stored } = await openImport()
+    const { stored } = await openDesign()
     await openDialog()
     // A metre a stitch: 6 × 1 m × 1.1 = 6.6 m; a 5 m ball, 2 balls a colour.
     await type('Yarn per stitch', '100')
@@ -163,7 +133,7 @@ describe('Yarn & size, on the import screen', () => {
   })
 
   it('counts carried yarn, one stitch’s width a stitch, when asked and measured', async () => {
-    await openImport({ swatchGrams: 500, ballMetres: 5, ballGrams: 20 })
+    await openDesign({ swatchGrams: 500, ballMetres: 5, ballGrams: 20 })
     await openDialog()
     const carry = screen.getByRole('checkbox', { name: 'Count yarn carried inside the stitches (tapestry crochet)' })
     await userEvent.click(carry)
@@ -180,9 +150,9 @@ describe('Yarn & size, on the import screen', () => {
     expect(screen.getByText('Enter the ball’s length and weight to count carried yarn by weight.')).toBeTruthy()
   })
 
-  it('estimates the pattern as it will be saved: removed colours are gone', async () => {
-    await openImport()
-    await userEvent.click(screen.getByRole('button', { name: 'Remove “Brown”' }))
+  it('estimates the pattern as it is now: a colour deleted in Design is gone', async () => {
+    await openDesign()
+    await userEvent.click(screen.getByRole('button', { name: 'Delete “Brown”' }))
     await openDialog()
     expect(rows().slice(1).map((r) => r.slice(0, 2))).toEqual([
       ['White', '12'],
@@ -190,9 +160,15 @@ describe('Yarn & size, on the import screen', () => {
     ])
   })
 
-  it('takes the chosen yarn range’s ball, until one is typed', async () => {
-    await openImport({ colourLibrary: 'stylecraft-special-dk' })
-    await openDialog()
+  it('matches each colour to a yarn range under "Advanced", and takes its ball until one is typed', async () => {
+    await openDesign()
+    const dialog = await openDialog()
+    expect(document.querySelector('.shade')).toBeNull()
+    await userEvent.click(within(dialog).getByText('Advanced: match to yarn'))
+    await userEvent.selectOptions(within(dialog).getByRole('combobox', { name: 'Match colours to' }), 'stylecraft-special-dk')
+    // Each colour's nearest shade, under its name.
+    await waitFor(() => expect(within(table()).getAllByText(/Nearest shade:/)).toHaveLength(2))
+    expect(within(dialog).getByText(/temperature-blanket\.com/)).toBeTruthy()
     await waitFor(() => expect(field('Ball length').value).toBe('295'))
     expect(field('Ball weight').value).toBe('100')
     expect(screen.getByText(/Ball: Stylecraft Special DK\./)).toBeTruthy()
@@ -203,7 +179,7 @@ describe('Yarn & size, on the import screen', () => {
   })
 
   it('keeps a half-typed number and ignores nonsense', async () => {
-    const { stored } = await openImport()
+    const { stored } = await openDesign()
     await openDialog()
     const perStitch = field('Yarn per stitch')
     await userEvent.clear(perStitch)
@@ -227,10 +203,10 @@ describe('Yarn & size, on the import screen', () => {
     expect(stored().swatchWidthCm).toBeNull()
   })
 
-  it('exports the estimate as text, under the name typed', async () => {
-    await openImport({ swatchWidthCm: 10, swatchHeightCm: 8 })
-    await userEvent.type(screen.getByRole('textbox', { name: 'Pattern name' }), 'Dog')
+  it('exports the estimate as text, under the pattern’s name, with the shades when matched', async () => {
+    await openDesign({ swatchWidthCm: 10, swatchHeightCm: 8, colourLibrary: 'stylecraft-special-dk' })
     await openDialog()
+    await waitFor(() => expect(within(table()).getAllByText(/Nearest shade:/)).toHaveLength(2))
     await userEvent.click(screen.getByRole('button', { name: 'Export yarn list' }))
     const blob = vi.mocked(URL.createObjectURL).mock.calls.at(-1)![0] as Blob
     const text = await blob.text()
@@ -240,6 +216,7 @@ describe('Yarn & size, on the import screen', () => {
       'Pattern: 4 columns × 3 rows. Finished size: 4 × 2.4 cm.',
       'Swatch: 10 stitches × 10 rows, 10 × 8 cm.',
     ])
-    expect(text).toContain('White (#ffffff): 6 stitches, 1 m\n')
+    // The range's ball (295 m, 100 g) gives grams and balls too.
+    expect(text).toContain('\nWhite (#ffffff), nearest Stylecraft Special DK 1807 Hint of Silver: 6 stitches, 1 m, 1 g, 1 ball\n')
   })
 })

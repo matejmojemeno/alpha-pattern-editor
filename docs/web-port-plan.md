@@ -24,12 +24,14 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   Scheepjes shade numbers from scheepjes.com; three contradictory Scheepjes entries are
   left out. Provenance: `web/src/yarn/data/README.md`. Each table is its own lazily
   loaded chunk (`e2e/bundle.spec.ts`). The nearest shade is the Python's
-  (`fixtures/yarn_nearest.json`). Shown on the import screen only: the Design stage's
-  shades and "Use shade" went with "Yarn and size" (below). The choice is app-wide (the
-  settings store): it describes the crocheter's yarn, not the chart, and nothing new goes
-  into `.alpha` files.
+  (`fixtures/yarn_nearest.json`). Shown in the "Yarn & size" dialog only, in the Design
+  stage (since "A focused import screen", below; before, in the import screen's colour
+  list): the Design stage's shade chips and "Use shade" went with "Yarn and size"
+  (below). The choice is app-wide (the settings store): it describes the crocheter's
+  yarn, not the chart, and nothing new goes into `.alpha` files.
 - **Yarn estimate:** first a panel in the Design stage (stitches × yarn per stitch ×
-  (1 + extra %)); since "Yarn and size" (below), a dialog on the import screen.
+  (1 + extra %)); since "Yarn and size" (below), a dialog, on the import screen and now
+  in the Design stage's header.
 - Tier A: the main entry chunk is 102.9 KB gzipped (Vite's figure); the Design chunk
   16.7 KB (+2.5 KB CSS); the Import chunk 11.7 KB, with the colour name table; each
   library 1.1–2.1 KB, fetched on first use.
@@ -96,11 +98,13 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   contrasts with it (dark grey behind a light colour, light grey behind a dark one, so
   white and black both stand out; `chart.spotlightPixels`); a click or tap keeps it
   showing, which is how a phone sees it on the Pattern tab ("Show all colours" ends it).
-  Its × removes it as Design's Delete does (`edit.deletePaletteEntryNearest`); removed
-  colours are listed with Restore, which puts back exactly what detection found. Removals
-  survive moving the outline and detecting again, and are applied to the committed pattern on
-  saving. `scripts/desktop_import.py` takes `remove=#rrggbb`, and
-  `e2e/corrections.spec.ts` checks the saved pattern cell for cell against the Python's
+  Its × removed it as Design's Delete does (`edit.deletePaletteEntryNearest`), with
+  Restore, until "A focused import screen" (below) took the × and the nearest shade away:
+  removing a colour is Design's Delete now, and the import screen's only colour
+  correction is the count's merge. Removals (merges now) survive moving the outline and
+  detecting again, and are applied to the committed pattern on saving.
+  `scripts/desktop_import.py` takes `remove=#rrggbb`, and `e2e/corrections.spec.ts`
+  checks a merge's saved pattern cell for cell against the Python's
   `delete_palette_entry_nearest`.
 - **Everyday colour names** (`core/detect/names.py`, ported as `importer/names.ts`):
   detection used to name colours after the nearest of 119 DMC flosses, a table with
@@ -172,11 +176,13 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   in the Python: the desktop never showed it, and it only reads the pattern. Tested
   against the strands themselves: over 800 random patterns, every strand enters a row
   where it left the one before when rows alternate, carried exactly |q − p|.
-- **Yarn and size** (`yarn/usage.ts`, `ui/import/YarnEstimate.tsx`): the Design stage's
+- **Yarn and size** (`yarn/usage.ts`, `ui/design/YarnEstimate.tsx`): the Design stage's
   "Advanced: match to yarn", its shade chips, "Use shade" and the yarn estimate panel
-  are gone. Beside "Save & edit pattern" on the import screen, **"Yarn & size"** opens a
-  dialog for the pattern as it will be saved (removals and merges applied). The method
-  follows how crocheters estimate, from one swatch in their own yarn, hook and stitch:
+  are gone. **"Yarn & size"** opens a dialog: first beside "Save & edit pattern" on the
+  import screen, for the pattern as it would be saved; since "A focused import screen"
+  (below), in the Design stage's header, for the pattern as it is, with "Advanced: match
+  to yarn" and each colour's nearest shade inside it. The method follows how crocheters
+  estimate, from one swatch in their own yarn, hook and stitch:
   - **Swatch:** stitches × rows (10 × 10 to start, the swatch Magic Yarn Pixels'
     calculators ask for, <https://magicyarnpixels.com/finished-size-yarn-quantity-calculators/>),
     its width and height, and optionally its weight.
@@ -194,11 +200,12 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   - **Carried yarn** (tapestry crochet, off by default): `carry.carriedStitches` counts,
     per colour, the stitches it is carried inside when worked as the Work stage's carry
     hints say (between its runs in a row, and to or from the next row), with the
-    directions a new pattern gets (`PATTERN_DEFAULTS`). Each takes one stitch's width of
+    pattern's own row directions (on the import screen, before saving, the ones a new
+    pattern gets, `PATTERN_DEFAULTS`). Each takes one stitch's width of
     yarn (a strand runs straight through): geometry, not a published figure, as none was
     found. By weight it needs the ball's grams per metre, and says so when missing.
   - Inputs are app-wide settings (`swatch*`, `ballGrams`, `countCarried` beside the
-    old ones). "Export yarn list" is in the dialog, named after the typed name.
+    old ones). "Export yarn list" is in the dialog, named after the pattern.
   - Tier A: main entry chunk 104.3 KB gzipped (Vite's figure; `bundle.spec.ts` counts
     100.7 KB), Design 14.6 KB (from 16.7), Import 17.1 KB.
 - **Home screen** (`ui/screens/Landing.tsx`): "Import pattern" is a large dashed drop
@@ -242,8 +249,9 @@ root. This document covers *how* the app moves to the web, not *what* it does.
   - Tier A: main entry chunk 104.5 KB gzipped, Design 16.5 KB (+2.6 KB CSS); the colour
     name table is now a 3.3 KB chunk the import screen and Design share, loaded with
     either.
-- **Visualize** (`web/src/stitch/`, `ui/import/Visualize.tsx`; Tier A, in the import
-  screen's chunk): beside "Yarn & size" on the import screen, a dialog showing the pattern as
+- **Visualize** (`web/src/stitch/`, `ui/design/Visualize.tsx`; Tier A, in the Design
+  stage's chunk since "A focused import screen", below, the import screen's before): beside
+  "Yarn & size", a dialog showing the pattern as
   crocheted fabric, in single crochet, single crochet back or front loop only, half
   double, double, waistcoat stitch or C2C, with rows turned at each end or the right side
   always facing, and optionally the carried yarn. What is data and what is drawn:
@@ -282,8 +290,7 @@ root. This document covers *how* the app moves to the web, not *what* it does.
     rather than being letterboxed in a wide stage. No narrower than 16rem: past that (a
     very tall, thin image), the height cap letterboxes it as before.
   - **The colour list scrolls on its own**, under the Colours heading and its count,
-    which stay put; the total, the removed colours and "Advanced: match to yarn" scroll
-    with it.
+    which stay put; the total scrolls with it.
   - Narrower or shorter windows (tablet, phone, a squat browser window) keep the layout
     as it was: the page scrolls and the colours drop below or stack.
   - Before, the screen was at most 72rem (1152 px) wide and each stage at most
@@ -295,6 +302,27 @@ root. This document covers *how* the app moves to the web, not *what* it does.
     colours at 1440 × 800, that the page doesn't scroll, "Reset to detected grid" is in
     view, and the list scrolls to its total while its heading stays put. The last test
     fails on the old layout (the page was 1324 px tall in an 800 px window).
+- **A focused import screen** (`ui/screens/Import.tsx`, `ui/import/Palette.tsx`): the
+  import screen is for getting the grid right, and the Design stage for changing the
+  pattern, so nothing on the import screen duplicates Design any more.
+  - **Kept:** the image and its outline, "Reset to detected grid", "Replace image", the
+    pattern and its size, the warnings, the name and "Save & edit pattern", the colour
+    list's spotlight (pointing at a colour shows where it is: checking, not editing), and
+    the colour count's − and + (merging colours detection split is correcting detection,
+    and it has to survive moving the outline, which Design can't do).
+  - **Gone:** each colour's × and the "Removed" list with Restore. It called Design's own
+    Delete (`edit.deletePaletteEntryNearest`), so the result is the same one click later,
+    in Design, with Design's undo.
+  - **Moved to the Design stage's header**, beside Export PNG: **"Yarn & size"** and
+    **"Visualize"**. Neither needs the photo, and both now show the pattern as edited.
+    "Advanced: match to yarn" and each colour's nearest shade moved into "Yarn & size",
+    with buying: they were the only place a yarn range was chosen, and the dialog already
+    used it for the ball and the exported list.
+  - Before, "Yarn & size" counted carried yarn with a new pattern's directions; in Design
+    it has the saved pattern's own (Rules). Visualize still draws with the defaults.
+  - Tier A (Vite's figures, gzipped, measured before and after): main entry chunk
+    104.7 KB (unchanged), Import 9.0 KB (from 20.3) + 2.4 KB CSS (from 3.7), Design
+    27.4 KB (from 16.5) + 3.5 KB CSS (from 2.6); nothing else loaded up front.
 - **Hosting** (`web/wrangler.jsonc`, `web/public/_headers`): Cloudflare Workers static
   assets at the free `*.workers.dev` address, deployed by Cloudflare's Git integration on
   every push to `main` (setup in `web/README.md`, "Deploying"). `/assets/*`, `/pyodide/*`
@@ -554,12 +582,14 @@ break without noticing.
   divides the extent evenly (`np.linspace`). If resampling ever follows an uneven
   lattice, draw the preview's lines again.
 
-- **"Yarn & size" counts carried yarn with `PATTERN_DEFAULTS`' row directions**, the ones
-  `bridge.commit` gives a new pattern, because the pattern isn't saved yet. How much is
-  carried depends on which way each row runs; if imports ever get other directions,
-  pass them to `carriedStitches` in `ui/import/YarnEstimate.tsx` too. "Visualize"
-  assumes the same: the first row worked is the bottom one and faces the right side
-  (`stitch/faces.ts`), and its carried yarn comes from `carryPlan` with those directions.
+- **"Yarn & size" counts carried yarn with the pattern's own row directions, and
+  "Visualize" with `PATTERN_DEFAULTS`'.** How much is carried depends on which way each
+  row runs. "Yarn & size" (`ui/design/YarnEstimate.tsx`) is given the saved pattern, so it
+  counts as the Work stage's carry hints show. "Visualize" draws the first row worked as
+  the bottom one, facing the right side (`stitch/faces.ts`), so it lays its defaults
+  (`bottom_up`, `start_direction`) over the pattern's before `carryPlan`, or the carried
+  strands would lie where the stitches aren't drawn. To show a pattern worked top down or
+  from the left, teach `faces.ts` first, then drop that override.
 - **Don't lazily import a chunk from inside a lazily loaded chunk.** Visualize, first
   loaded by `import()` from the (lazy) import screen, made Rollup split whatever it
   shared with the entry chunk (the Work stage's logic, then the shared components) into
@@ -567,7 +597,7 @@ break without noticing.
   page loaded 2 KB more, in two requests. Code only a lazy screen uses belongs in that
   screen's chunk, imported statically. `e2e/bundle.spec.ts` fails if `index.html`
   preloads anything.
-- **A colour removed on the import screen is remembered by its hex, never its id.**
+- **A colour merged on the import screen is remembered by its hex, never its id.**
   Every resample builds a fresh palette with fresh `uuid4` ids
   (`palette.build_palette`), so each preview is kept as detection answered it and the
   removals are replayed on it in order, each taking the entry nearest its hex within half

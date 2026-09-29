@@ -83,6 +83,8 @@ import { CellsIcon, ConfirmDialog } from '../components.tsx'
 import { ColoursPanel } from '../design/ColoursPanel.tsx'
 import { DesignCanvas } from '../design/DesignCanvas.tsx'
 import { StructurePanel, type TransformAction } from '../design/StructurePanel.tsx'
+import { Visualize } from '../design/Visualize.tsx'
+import { YarnEstimate } from '../design/YarnEstimate.tsx'
 import { useDocumentTitle, useMediaQuery } from '../hooks.ts'
 import { ProjectGate } from '../ProjectGate.tsx'
 
@@ -430,6 +432,8 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   const compact = useMediaQuery('(max-width: 1099.98px)')
   const tooSmall = useMediaQuery('(max-width: 699.98px)')
   const [drawer, setDrawer] = useState<'colours' | 'structure' | null>(null)
+  /** "Yarn & size" or "Visualize" is open, for the pattern as it is now. */
+  const [dialog, setDialog] = useState<'yarn' | 'visualize' | null>(null)
   const hidden = useRef(tooSmall)
   useEffect(() => {
     hidden.current = tooSmall
@@ -679,6 +683,22 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
         </div>
         <button
           type="button"
+          className="button button--small"
+          title="How big it comes out, and how much yarn of each colour to buy"
+          onClick={() => setDialog('yarn')}
+        >
+          Yarn &amp; size
+        </button>
+        <button
+          type="button"
+          className="button button--small"
+          title="See the pattern as crocheted fabric, in the stitch you choose"
+          onClick={() => setDialog('visualize')}
+        >
+          Visualize
+        </button>
+        <button
+          type="button"
           className="button button--small design__export"
           title="Save the chart as an image, as the desktop's Export PNG does"
           onClick={() => {
@@ -817,6 +837,9 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
           }}
         />
       )}
+
+      {dialog === 'yarn' && <YarnEstimate name={p.name} pattern={p} onClose={() => setDialog(null)} />}
+      {dialog === 'visualize' && <Visualize pattern={p} onClose={() => setDialog(null)} />}
 
       {pending && (
         <ConfirmDialog

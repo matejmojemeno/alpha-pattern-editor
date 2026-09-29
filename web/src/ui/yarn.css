@@ -1,4 +1,4 @@
-/* The colour library's pieces (ui/yarn/ShadeViews.tsx) and "Yarn & size", on the import screen. */
+/* The colour library's pieces (ui/yarn/ShadeViews.tsx) and "Yarn & size", in the Design stage. */
 
 .shade {
   display: inline-flex;
@@ -101,7 +101,7 @@
   margin-bottom: 0.5rem;
 }
 
-/* --- "Yarn & size" (ui/import/YarnEstimate.tsx) ------------------------------------------- */
+/* --- "Yarn & size" (ui/design/YarnEstimate.tsx) ------------------------------------------- */
 
 /* Wider than a question, and scrolling inside itself on a short screen. */
 .yarn-dialog {
@@ -232,6 +232,17 @@
 .yarn__table tfoot td {
   border-top: 1px solid var(--border);
   font-weight: 600;
+}
+
+/* The nearest shade, on a line of its own under the colour's name. */
+.yarn__shade {
+  display: flex;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.yarn__matching {
+  margin-top: 1rem;
 }
 
 .yarn__swatch {

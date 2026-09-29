@@ -1,6 +1,8 @@
 /**
- * Colours removed on the import screen before saving: each one's cells take the nearest
- * remaining colour, as Delete does in Design (edit.ts, `deletePaletteEntryNearest`).
+ * Colours removed on the import screen before saving, by the colour count's "fewer
+ * colours": each one's cells take the nearest remaining colour, as Delete does in Design
+ * (edit.ts, `deletePaletteEntryNearest`). (Each colour once had its own × too; removing a
+ * colour by hand is Design's now, so every removal the screen makes is a merge.)
  *
  * A removal is remembered by its colour, not its palette id: every resample (moving the
  * outline, detecting again) builds a fresh palette with fresh ids (core/detect/palette.py). So
