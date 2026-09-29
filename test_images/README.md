@@ -1,9 +1,10 @@
 # Test images
 
-`pictures/` holds images that are *not* charts, which the import turns into patterns:
-CC0 files from Wikimedia Commons with their provenance in `pictures/README.md`, fetched
+`pictures/` holds images that are *not* charts, which the import turns into patterns,
+and `pixels/` pixel art without gridlines, read block by block: CC0 and public-domain
+files from Wikimedia Commons with their provenance in each folder's `README.md`, fetched
 by `scripts/fetch_test_pictures.py`. `alphareader/tests/test_kind.py` checks that every
-chart here and every picture there is read as what it is.
+chart here and every picture and pixel image there is read as what it is.
 
 **Drop your alpha-pattern chart images here** (`.png`, `.jpg`, `.jpeg`, `.webp`) to try
 the detector on them.
