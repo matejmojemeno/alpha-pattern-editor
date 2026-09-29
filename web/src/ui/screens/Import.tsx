@@ -19,7 +19,9 @@
  * which, with a button to the other reading. For a chart nothing else changes. For a
  * picture the outline and a box drawn on the image crop what's used (the width in
  * stitches stays), the colour count asks for one colour fewer or more, and Width and
- * Detail sit above the colour list, so the stages' own chrome is unchanged.
+ * Detail sit above the colour list, so the stages' own chrome is unchanged. Pixel art
+ * without gridlines is read block by block, exactly: nothing to adjust but its colours
+ * (merged as a chart's), and no outline or box.
  *
  * Layout (import.css): the name and "Save & edit pattern" head the screen. Below, the
  * image and the pattern each sit on a stage of the same size, shaped like the image, so
@@ -441,6 +443,8 @@ export default function ImportScreen() {
   const hasGrid = state.phase === 'result'
   const loading = state.phase === 'decoding' || state.phase === 'booting' || state.phase === 'detecting'
   const busy = redetecting || switching
+  /** Pixel art read block by block: exact, so there's no outline to move or box to draw. */
+  const pixels = state.phase === 'result' && (shown ?? state.preview).mode === 'pixels'
   const canDetect = !loading && !busy && state.phase !== 'error' && size !== null
   const preview = state.phase === 'result' ? display : null
   const grid = hasGrid && shown ? (outline ?? { extent: shown.extent, rows: shown.rows, cols: shown.cols }) : null
@@ -479,8 +483,8 @@ export default function ImportScreen() {
                 width={size.width}
                 height={size.height}
                 grid={grid}
-                canCrop={canDetect}
-                canResize={hasGrid && !busy}
+                canCrop={canDetect && !pixels}
+                canResize={hasGrid && !busy && !pixels}
                 onCrop={(crop) => redetect(crop)}
                 onResize={onResize}
               />

@@ -51,13 +51,26 @@ export interface KindLine {
 }
 
 export function kindLine(mode: Mode, reading: Reading): KindLine {
+  if (mode === 'pixels') {
+    return {
+      text: 'Read pixel by pixel: each block of your image is one stitch.',
+      action: { label: 'Turn it into a pattern instead', mode: 'picture' },
+      prominent: false,
+    }
+  }
   if (mode === 'picture') {
     return {
       text:
         reading.kind === 'picture'
           ? 'This looks like a picture, not a chart, so it was turned into a pattern.'
           : 'Turned into a pattern from your picture.',
-      action: reading.canChart ? { label: 'Read it as a chart instead', mode: 'chart' } : null,
+      // Back to how it was read; pixel art is read block by block, not as a chart.
+      action:
+        reading.kind === 'pixels' && reading.canPixels
+          ? { label: 'Read it pixel by pixel instead', mode: 'pixels' }
+          : reading.canChart
+            ? { label: 'Read it as a chart instead', mode: 'chart' }
+            : null,
       prominent: false,
     }
   }

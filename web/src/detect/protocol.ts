@@ -48,9 +48,10 @@ export interface Failure {
   reading?: Reading
 }
 
-/** How an image is read: as a chart (its squares read) or a picture (turned into a
- *  pattern). core/kind.py decides; the user can switch (bridge.set_mode). */
-export type Mode = 'chart' | 'picture'
+/** How an image is read: as a chart (its squares read), a picture (turned into a
+ *  pattern), or pixel art read block by block (core/pixels.py). core/kind.py decides; the
+ *  user can switch (bridge.set_mode). */
+export type Mode = 'chart' | 'picture' | 'pixels'
 
 /** What the image was read as, and what else it can be (bridge._reading_payload). */
 export interface Reading {
@@ -59,6 +60,8 @@ export interface Reading {
   sure: boolean
   /** A grid was found, so the chart reading is available. */
   canChart: boolean
+  /** Pixel art without gridlines (core/pixels.py), so it can be read block by block. */
+  canPixels: boolean
   /** A chart's refusal, when the image looks like a chart that can't be read. */
   failure: DetectionErrorCode | null
 }

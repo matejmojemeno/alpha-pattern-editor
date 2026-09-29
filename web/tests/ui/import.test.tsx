@@ -341,15 +341,15 @@ describe('Import screen', () => {
 
 /** A worker that reads every image as `first` ('chart' or 'picture'), and answers mode
  *  switches and a picture's settings as bridge.py does. */
-function readingWorker(first: 'chart' | 'picture', { sure = true, canChart = first === 'chart' } = {}) {
+function readingWorker(first: 'chart' | 'picture' | 'pixels', { sure = true, canChart = first === 'chart' } = {}) {
   const w = detectingWorker()
   const auto = w.auto!
   const s = { mode: first, width: 8, colours: 6, detail: 0.5, extent: { x0: 0, y0: 0, x1: 400, y1: 300 } }
-  const reading = { kind: first, sure, canChart, failure: null }
+  const reading = { kind: first, sure, canChart, canPixels: first === 'pixels', failure: null }
   const answer = (session: number) =>
     s.mode === 'picture'
       ? { ...makePicturePreview(session, { ...s, canChart, kind: first }), reading }
-      : makePreview(session, 3, 4, { reading })
+      : makePreview(session, 3, 4, { reading, mode: s.mode })
   w.auto = (msg) => {
     switch (msg.type) {
       case 'open':
@@ -373,14 +373,31 @@ function readingWorker(first: 'chart' | 'picture', { sure = true, canChart = fir
 
 const kindLineText = () => document.querySelector('.confirm__kind')?.textContent ?? null
 
+/** Open the import screen with every box 400×300 (jsdom measures everything as 0), so
+ *  the image and its outline are drawn (as corrections.test.tsx does). */
+async function openLaidOut() {
+  const proto = Element.prototype
+  const saved = [Object.getOwnPropertyDescriptor(proto, 'clientWidth')!, Object.getOwnPropertyDescriptor(proto, 'clientHeight')!]
+  Object.defineProperty(proto, 'clientWidth', { configurable: true, get: () => 400 })
+  Object.defineProperty(proto, 'clientHeight', { configurable: true, get: () => 300 })
+  try {
+    await openImport()
+    await saveButton()
+  } finally {
+    Object.defineProperty(proto, 'clientWidth', saved[0]!)
+    Object.defineProperty(proto, 'clientHeight', saved[1]!)
+  }
+}
+const edgeHandles = () => screen.queryAllByRole('slider', { name: /edge of the grid/ })
+
 describe('Import screen: charts and pictures', () => {
   it('says quietly that a chart was read as one, with the way to a picture', async () => {
     detection.reset(readingWorker('chart'))
-    await openImport()
-    await saveButton()
+    await openLaidOut()
     expect(kindLineText()).toMatch(/^Read from the squares of your chart\./)
     expect(document.querySelector('.confirm__kind')!.hasAttribute('data-prominent')).toBe(false)
-    // Nothing else changes for a chart.
+    // Nothing else changes for a chart: its outline has its four edges to drag.
+    expect(edgeHandles()).toHaveLength(4)
     expect(screen.queryByRole('group', { name: 'Picture settings' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Reset to detected grid' })).toBeTruthy()
   })
@@ -456,7 +473,7 @@ describe('Import screen: charts and pictures', () => {
             code: 'LOW_RESOLUTION',
             message: 'too fine',
             session: 1,
-            reading: { kind: 'chart', sure: true, canChart: false, failure: 'LOW_RESOLUTION' },
+            reading: { kind: 'chart', sure: true, canChart: false, canPixels: false, failure: 'LOW_RESOLUTION' },
           }
         : auto(msg)
     detection.reset(worker)
@@ -467,6 +484,23 @@ describe('Import screen: charts and pictures', () => {
     await screen.findByRole('group', { name: 'Picture settings' })
     expect(detection.worker.of('mode')[0]).toMatchObject({ session: 1, mode: 'picture' })
     expect((await saveButton()).hasAttribute('disabled')).toBe(false)
+  })
+
+  it('reads pixel art block by block, with nothing to adjust, and switches to a picture and back', async () => {
+    detection.reset(readingWorker('pixels'))
+    await openLaidOut()
+    expect(kindLineText()).toMatch(/^Read pixel by pixel: each block of your image is one stitch\./)
+    // Exact: no outline to move (a chart's has four edges, above), no picture settings.
+    expect(screen.getByTestId('grid-overlay')).toBeTruthy()
+    expect(edgeHandles()).toHaveLength(0)
+    expect(screen.queryByRole('group', { name: 'Picture settings' })).toBeNull()
+    expect(sizeShown()).toBe('4 columns × 3 rows')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Turn it into a pattern instead' }))
+    await screen.findByRole('group', { name: 'Picture settings' })
+    await userEvent.click(screen.getByRole('button', { name: 'Read it pixel by pixel instead' }))
+    await waitFor(() => expect(screen.queryByRole('group', { name: 'Picture settings' })).toBeNull())
+    expect(detection.worker.of('mode').map((m) => m.mode)).toEqual(['picture', 'pixels'])
   })
 
   it('sends the stitch shape from the swatch, once it is measured', async () => {
