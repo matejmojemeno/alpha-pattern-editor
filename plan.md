@@ -24,7 +24,7 @@ This document is the implementation brief. Read the whole thing before writing c
 | Case | Behavior |
 | --- | --- |
 | Staggered / brick-offset rows | Reject: "Staggered charts aren't supported yet." |
-| Gridless charts (color blocks, no lines) | Reject: "Couldn't find gridlines." (Web: turned into a pattern as a picture, §5a.) |
+| Gridless charts (color blocks, no lines) | Reject: "Couldn't find gridlines." (Web: read block by block when lossless, otherwise turned into a pattern as a picture, §5a.) |
 | Symbol charts (glyphs not colors) | Will fail naturally at the palette step. Acceptable. |
 | Photographs of paper or screens, perspective skew | Reject via rotation check. |
 | Rotation beyond ±1.5° | Reject: "Image looks rotated." |
@@ -305,6 +305,19 @@ The aim is the best pattern, not the most faithful shrink:
 - Deterministic (no random seeds, Lab and costs rounded to 6 decimals), so the desktop
   Python and Pyodide give identical patterns (`scripts/parity`).
 - A transparent background is white.
+
+### Pixel images (`core/pixels.py`)
+
+Pixel art without gridlines is read exactly, a stitch per block, when the image is
+exactly a nearest-neighbour enlargement of a smaller one: by a whole factor, or not
+(resized from 32 to 300 pixels: blocks of 9 and 10), the same across and down, with 2–64
+colours and at most 400 blocks each way. Enlargements under 2× count as one pixel per
+stitch. An enlargement is read as pixels unless it is a chart (read, or refused as too
+fine) whose squares aren't its blocks: a crisp chart drawn with 2 px lines is a 2×
+enlargement too, and its lines would become stitches. One pixel per stitch is read so only
+when detection finds no chart at all. Nothing is adjusted: no outline or crop; colours
+merge as a chart's. Lossy copies (JPEG) aren't exact, and are read as a chart or a
+picture.
 
 ---
 

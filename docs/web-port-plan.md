@@ -343,6 +343,21 @@ root. This document covers *how* the app moves to the web, not *what* it does.
     the width staying; "Reset to detected grid" becomes "Use the whole picture". No
     warnings or shrink notice. The stitch shape is the swatch's (square until measured).
   - Behaviour that differs from the desktop: the desktop imports charts only.
+- **Pixel images** (`core/pixels.py`, `kind.py`, the bridge's `pixels` mode; plan.md
+  §5a). Pixel art without gridlines is read exactly, a stitch per block: "Read pixel by
+  pixel: each block of your image is one stitch.", with "Turn it into a pattern instead"
+  and back ("Read it pixel by pixel instead"). No outline or box; colours merge as a
+  chart's. Before, an 8× sprite came out cropped (60×60 as 51×58), 4× and 1:1 were
+  refused, and a real 8× city (137×126) was a "sure chart" spanning 69% of it.
+  - Found by testing real CC0 pixel art (`test_images/pixels/`, fetched with provenance by
+    `scripts/fetch_test_pictures.py`): images resized by a fraction (32 → 300 px, blocks
+    of 9 and 10) are common, and tools round the block edges differently (Pillow rounds a
+    half down), so a colour change within a pixel of each ideal edge is accepted and the
+    image must then be exactly its blocks. A 1:1 sprite with two equal rows once read as
+    63 rows stretched by 64/63, and a crisp chart with 2 px lines as a 1.5× enlargement:
+    hence the 2× minimum.
+  - All 7 pixel images, 9 charts and 25 pictures are read as what they are; the real city
+    and a generated 7× sprite save exactly in the browser (e2e). Parity 122/122.
   - **Why not just "detection failed = picture":** of 25 CC0 pictures in
     `test_images/pictures/` (fetched with provenance by `scripts/fetch_test_pictures.py`),
     11 fail as LOW_RESOLUTION, like `garment.png`, a real chart; 12 fit a grid, the dice
@@ -666,9 +681,9 @@ break without noticing.
 - **Settings saved before the yarn libraries went off by default still say `"dmc"`.**
   The store writes every field whenever one changes, so an old `"dmc"` can't be told
   from a choice. Such a browser keeps showing DMC shades until "Nothing" is picked.
-- **After any change to `alphareader/core/detect`, `kind.py` or `convert.py`, run
-  `python scripts/parity/check.py`.** It must report 114/114 bit-identical (89 charts and
-  25 pictures, each also read by `kind.py` and converted twice). It exits non-zero
+- **After any change to `alphareader/core/detect`, `kind.py`, `pixels.py` or `convert.py`, run
+  `python scripts/parity/check.py`.** It must report 122/122 bit-identical (89 charts, 25
+  pictures and 8 pixel images, each also read by `kind.py` and converted twice). It exits non-zero
   otherwise. Run `npm install` in `scripts/parity/` once first.
 - **A detection failure is not a picture, and a detected grid is not a chart.** Most
   photos fail as LOW_RESOLUTION, as real charts with small squares do; pictures can fit a
@@ -682,6 +697,10 @@ break without noticing.
   extent is clamped to W − 1 and scaled as pixel centres (`to_image`); a picture's runs
   0 to W and is scaled by the shrink factor alone (`edge_to_image`, `convert.clamp_edges`),
   so its outline reaches the image's own edges.
+- **Pixel art is read as pixels only when it can't be a chart.** A crisp chart is
+  itself an exact enlargement (2 px lines: 2×; any chart at 1:1), so an enlargement loses
+  to a chart, read or refused, whose squares aren't its blocks, and 1:1 wins only where
+  detection finds no chart. Enlargements under 2× are 1:1 (`pixels._MIN_SCALE`).
 - **A picture's controls live above the colour list, never under a stage.** The column
   chrome under the stages is a measured constant (`--col-chrome`); anything added there
   must change it too, or the stages overflow the window.
