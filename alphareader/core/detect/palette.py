@@ -167,24 +167,33 @@ def build_palette(
     for new_idx, old_idx in enumerate(order):
         remap[old_idx] = new_idx
     index_grid = remap[nearest].reshape(rows, cols).astype(np.uint16)
+    return index_grid, palette_entries(centroids[order], counts[order])
 
-    # Named in everyday words, told apart within the palette (names.py). The nearest DMC
-    # floss is still recorded in `dmc`, as .alpha files have always carried it.
+
+def palette_entries(centroids: np.ndarray, counts: np.ndarray) -> list[PaletteEntry]:
+    """Palette entries for sRGB centroids (n, 3), floats 0–255, already in palette order.
+
+    Named in everyday words, told apart within the palette (names.py). The nearest DMC
+    floss is still recorded in `dmc`, as .alpha files have always carried it: measured from
+    the unrounded centroid, so the hex's rounding can't change it."""
+    centroids = np.asarray(centroids, dtype=np.float64).reshape(-1, 3)
+    if centroids.shape[0] == 0:
+        return []
     dmc_lab, dmc_entries = _load_dmc()
-    hexes = ["#{:02x}{:02x}{:02x}".format(*np.clip(np.round(centroids[old_idx]), 0, 255).astype(int))
-             for old_idx in order]
+    centroids_lab = srgb_to_lab(centroids)
+    hexes = ["#{:02x}{:02x}{:02x}".format(*np.clip(np.round(c), 0, 255).astype(int))
+             for c in centroids]
     palette: list[PaletteEntry] = []
-    for old_idx, hex_str, name in zip(order, hexes, simple_names(hexes)):
-        dmc = _nearest_dmc(centroids_lab[old_idx], dmc_lab, dmc_entries)
+    for i, (hex_str, name) in enumerate(zip(hexes, simple_names(hexes))):
+        dmc = _nearest_dmc(centroids_lab[i], dmc_lab, dmc_entries)
         palette.append(PaletteEntry(
             id=uuid.uuid4().hex,
             hex=hex_str,
             name=name,
             dmc=dmc["code"],
-            count=int(counts[old_idx]),
+            count=int(counts[i]),
         ))
-
-    return index_grid, palette
+    return palette
 
 
 def count_unmatched(colors: np.ndarray, cells: np.ndarray, palette: list[PaletteEntry],
