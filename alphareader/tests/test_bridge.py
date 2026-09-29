@@ -6,7 +6,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from ..core import bridge
+from ..core import bridge, convert, kind
 from ..core.confirm import ConfirmState, pattern_from_preview
 from ..core.detect import detect_pattern
 from ..core.model import DetectionError
@@ -82,7 +82,8 @@ def count_detections(monkeypatch):
         calls.append(kw)
         return detect_pattern(img, **kw)
 
-    monkeypatch.setattr(bridge, "detect_pattern", counting)
+    # The bridge detects through kind.read_image, which decides chart or picture.
+    monkeypatch.setattr(kind, "detect_pattern", counting)
     return calls
 
 
@@ -104,9 +105,16 @@ def test_every_payload_is_plain_data_without_debug_layers():
         bridge.redetect(sid),
         bridge.redetect(sid, crop=(5, 5, img.shape[1] - 5, img.shape[0] - 5)),
         bridge.commit(sid, "Test"),
+        bridge.set_mode(sid, "picture"),
+        bridge.set_params(sid, width=30, colours=4, detail=0.2, cell_aspect=0.9,
+                          extent={"x0": 10, "y0": 10, "x1": 200, "y1": 150}),
+        bridge.preview(sid),
+        bridge.commit(sid, "Picture"),
+        bridge.set_mode(sid, "chart"),
+        bridge.set_mode(sid, "sideways"),           # BAD_MODE
         bridge.close_session(sid),
         bridge.preview(sid),                        # NO_SESSION
-        _open(np.full((8, 8, 3), 255, np.uint8)),   # TOO_SMALL
+        _open(np.full((8, 8, 3), 255, np.uint8)),   # too small for a chart: a picture
     ]
     for p in payloads:
         _assert_plain(p)
@@ -183,20 +191,43 @@ def test_no_low_confidence_warning_even_when_cells_are_unsure():
 
 # --- errors as data -----------------------------------------------------------------------
 
-@pytest.mark.parametrize("code", DetectionError.CODES)
-def test_each_detection_error_is_returned_not_raised(monkeypatch, code):
+@pytest.mark.parametrize("code", ["LOW_RESOLUTION", "ROTATED"])
+def test_a_charts_refusal_is_returned_not_raised(monkeypatch, code):
+    """A chart detection refuses (too fine, rotated) stays a chart's failure, with the
+    picture reading one step away: the image has a grid's structure."""
     def failing(img, **kw):
         raise DetectionError(code, f"failed with {code}")
 
-    monkeypatch.setattr(bridge, "detect_pattern", failing)
+    monkeypatch.setattr(kind, "detect_pattern", failing)
     out = _open(_chart())
+    reading = {"kind": "chart", "sure": True, "canChart": False, "failure": code}
     assert out == {"ok": False, "code": code, "message": f"failed with {code}",
-                   "session": out["session"]}
+                   "session": out["session"], "reading": reading}
     # The session stays open so the user can crop and try again; the retry fails the same way.
     again = bridge.redetect(out["session"], crop=(0, 0, 100, 100))
     assert again["ok"] is False and again["code"] == code
     assert bridge.preview(out["session"])["code"] == "NO_DETECTION"
     assert bridge.commit(out["session"], "x")["code"] == "NO_DETECTION"
+    assert bridge.set_mode(out["session"], "chart")["code"] == "NO_DETECTION"
+    # "Turn it into a pattern anyway".
+    anyway = bridge.set_mode(out["session"], "picture")
+    assert anyway["ok"] is True and anyway["mode"] == "picture"
+    assert bridge.commit(out["session"], "x")["ok"] is True
+
+
+@pytest.mark.parametrize("code", DetectionError.CODES)
+def test_an_image_without_a_chart_becomes_a_picture(monkeypatch, code):
+    """Whatever detection says of an image with no grid in it, the import still makes a
+    pattern of it: as a picture."""
+    def failing(img, **kw):
+        raise DetectionError(code, f"failed with {code}")
+
+    monkeypatch.setattr(kind, "detect_pattern", failing)
+    gradient = np.linspace(0, 255, 320)[None, :, None].repeat(240, 0).repeat(3, 2)
+    out = _open(gradient.astype(np.uint8))
+    assert out["ok"] is True and out["mode"] == "picture"
+    assert out["reading"] == {"kind": "picture", "sure": True, "canChart": False, "failure": None}
+    assert out["warnings"] == [] and out["picture"]["width"] == 60
 
 
 def test_running_out_of_memory_is_returned_not_raised(monkeypatch):
@@ -205,7 +236,7 @@ def test_running_out_of_memory_is_returned_not_raised(monkeypatch):
         raise MemoryError("Unable to allocate 1.72 GiB for an array")
 
     sid = _open(_chart())["session"]
-    monkeypatch.setattr(bridge, "detect_pattern", exhausted)
+    monkeypatch.setattr(kind, "detect_pattern", exhausted)
     for out in (_open(_chart()), bridge.redetect(sid)):
         assert out["ok"] is False and out["code"] == "OUT_OF_MEMORY"
         assert "1.72 GiB" in out["message"]
@@ -219,12 +250,15 @@ def test_running_out_of_memory_is_returned_not_raised(monkeypatch):
     assert bridge.commit(sid, "x")["code"] == "OUT_OF_MEMORY"
 
 
-def test_real_failures_come_back_as_data():
+def test_real_images_without_a_chart_are_pictures():
+    """Too small for a chart, or no grid at all: both are turned into a pattern, the tiny
+    one no wider than its pixels."""
     tiny = _open(np.full((10, 10, 3), 200, np.uint8))
-    assert (tiny["ok"], tiny["code"]) == (False, "TOO_SMALL")
+    assert (tiny["ok"], tiny["mode"], tiny["cols"]) == (True, "picture", 10)
     gradient = np.linspace(0, 255, 320)[None, :, None].repeat(240, 0).repeat(3, 2)
     blank = _open(gradient.astype(np.uint8))
-    assert (blank["ok"], blank["code"]) == (False, "NO_GRIDLINES")
+    assert (blank["ok"], blank["mode"]) == (True, "picture")
+    assert blank["reading"]["canChart"] is False
 
 
 def test_bad_input_and_unknown_sessions():
@@ -236,10 +270,13 @@ def test_bad_input_and_unknown_sessions():
         assert call()["code"] == "NO_SESSION"
 
 
-def test_a_crop_that_misses_the_image_is_too_small():
+def test_a_crop_that_misses_the_image_leaves_a_tiny_picture():
+    """Too small to hold a chart; what's left of it is turned into a pattern of at most
+    one stitch per pixel."""
     sid = _open(_chart())["session"]
     out = bridge.redetect(sid, crop=(-50, -50, 3, 3))
-    assert (out["ok"], out["code"]) == (False, "TOO_SMALL")
+    assert (out["ok"], out["mode"]) == (True, "picture")
+    assert out["cols"] <= 3 and out["rows"] <= 3
 
 
 # --- the fast/slow split --------------------------------------------------------------------
@@ -339,7 +376,8 @@ def test_a_failed_open_still_has_a_session_to_close():
 def test_no_detection_result_is_kept_with_its_debug_layers(count_detections):
     sid = _open(_chart())["session"]
     s = bridge._sessions[sid]
-    held = [v for v in vars(s).values()] + [v for v in vars(s.state).values()]
+    held = ([v for v in vars(s).values()] + [v for v in vars(s.state).values()]
+            + [v for v in vars(s.reading).values()])
     assert not any(type(v).__name__ in ("DebugLayers", "DetectionResult") for v in held)
 
 
@@ -436,3 +474,117 @@ def test_redetect_can_set_the_colour_detail_first():
     want = ConfirmState.from_detection(img, detect_pattern(img, delta_e_threshold=11.0), delta_e=11.0).preview()
     assert np.array_equal(p["cells"], want.cells.ravel())
     assert bridge.redetect(sid)["deltaE"] == 11.0          # and it stays
+
+
+# --- pictures (kind.py, convert.py) ---------------------------------------------------------
+
+def _photo(h: int = 240, w: int = 320) -> np.ndarray:
+    """A picture, not a chart: smooth gradients with a small dark disc (a 'pupil')."""
+    y, x = np.mgrid[0:h, 0:w].astype(np.float64)
+    img = np.stack([120 + 100 * x / w, 90 + 120 * y / h, 160 - 60 * x / w], axis=2)
+    img[(x - 200) ** 2 + (y - 100) ** 2 < 9 ** 2] = (20, 20, 30)
+    return np.clip(img, 0, 255).astype(np.uint8)
+
+
+def test_a_chart_is_read_as_a_chart():
+    p = _open(_chart())
+    assert p["mode"] == "chart" and p["picture"] is None
+    assert p["reading"] == {"kind": "chart", "sure": True, "canChart": True, "failure": None}
+
+
+def test_a_picture_opens_as_a_picture_and_saves_what_convert_makes():
+    img = _photo()
+    p = _open(img)
+    assert (p["mode"], p["reading"]["kind"]) == ("picture", "picture")
+    assert p["picture"] == {"width": 60, "maxWidth": 320, "colours": 6, "detail": 0.5,
+                            "cellAspect": 1.0}
+    assert (p["cols"], p["rows"]) == (60, 45)
+    assert p["confidence"].min() == 1.0 and p["lowConfidenceFraction"] == 0.0
+    want = convert.convert_picture(img)
+    saved = bridge.commit(p["session"], "x")["pattern"]
+    assert np.array_equal(saved["cells"].reshape(want.rows, want.cols), want.cells)
+    assert [e["hex"] for e in saved["palette"]] == [e.hex for e in want.palette]
+
+
+def test_picture_settings_change_the_pattern_without_detecting_again(count_detections):
+    sid = _open(_photo())["session"]
+    bridge.set_params(sid, width=40)
+    p = bridge.preview(sid)
+    assert (p["cols"], p["rows"]) == (40, 30)
+    bridge.set_params(sid, cell_aspect=0.75)          # stitches wider than tall: more rows
+    assert bridge.preview(sid)["rows"] == 40
+    bridge.set_params(sid, colours=3)
+    assert len(bridge.preview(sid)["palette"]) <= 3
+    bridge.set_params(sid, detail=1.0)
+    assert bridge.preview(sid)["picture"]["detail"] == 1.0
+    bridge.set_params(sid, extent={"x0": 0, "y0": 0, "x1": 160, "y1": 240})
+    p = bridge.preview(sid)
+    assert p["extent"] == {"x0": 0.0, "y0": 0.0, "x1": 160.0, "y1": 240.0}
+    assert p["picture"]["maxWidth"] == 160
+    # Rows and colour detail are the chart's; a picture ignores them.
+    bridge.set_params(sid, rows=5, delta_e=3.0)
+    assert bridge.preview(sid)["rows"] == p["rows"]
+    assert len(count_detections) == 1
+
+
+def test_switching_between_chart_and_picture_keeps_each():
+    sid = _open(_chart())["session"]
+    chart = bridge.preview(sid)
+    picture = bridge.set_mode(sid, "picture")
+    assert picture["mode"] == "picture" and picture["reading"]["kind"] == "chart"
+    bridge.set_params(sid, width=25)
+    back = bridge.set_mode(sid, "chart")
+    assert back["mode"] == "chart" and np.array_equal(back["cells"], chart["cells"])
+    assert bridge.set_mode(sid, "picture")["cols"] == 25   # kept while in the chart
+
+
+def test_a_picture_can_still_be_read_as_the_grid_detection_found(monkeypatch):
+    """A picture with a grid fitted to it (kind.py judged the grid nonsense) keeps that
+    grid, so "Read as a chart instead" works."""
+    real = kind.read_image
+
+    def as_picture(img, **kw):
+        r = real(img, **kw)
+        return kind.Reading("picture", True, r.result, None, "forced")
+
+    monkeypatch.setattr(bridge, "read_image", as_picture)
+    p = _open(_chart())
+    assert p["mode"] == "picture" and p["reading"]["canChart"] is True
+    assert bridge.set_mode(p["session"], "chart")["rows"] == 14
+
+
+def test_a_picture_flattens_transparency_onto_white_but_detection_does_not():
+    img = _photo()
+    h, w = img.shape[:2]
+    alpha = np.full((h, w, 1), 255, np.uint8)
+    alpha[:, : w // 2] = 0                            # left half transparent
+    p = bridge.open_session(np.concatenate([img, alpha], axis=2).tobytes(), w, h)
+    cells = p["cells"].reshape(p["rows"], p["cols"])
+    left = {p["palette"][i]["hex"] for i in np.unique(cells[:, : p["cols"] // 2 - 1])}
+    assert left == {"#ffffff"}
+    assert np.array_equal(bridge._sessions[p["session"]].img, img)     # detection's own
+
+
+def test_a_crop_read_as_a_picture_uses_just_the_crop():
+    sid = _open(_photo())["session"]
+    p = bridge.redetect(sid, crop=(100, 40, 300, 200))
+    assert p["mode"] == "picture"
+    assert p["extent"] == {"x0": 100.0, "y0": 40.0, "x1": 300.0, "y1": 200.0}
+
+
+def test_a_shrunk_picture_reports_image_coordinates():
+    img = np.repeat(np.repeat(_photo(), 2, axis=0), 2, axis=1)       # 640×480
+    p = _open(img, max_pixels=320 * 240)
+    assert p["detectedWidth"] == 320
+    assert p["extent"]["x1"] == pytest.approx(640, abs=1)
+    bridge.set_params(p["session"], extent={"x0": 0, "y0": 0, "x1": 320, "y1": 480})
+    q = bridge.preview(p["session"])
+    assert q["extent"]["x1"] == pytest.approx(320, abs=1)
+    assert q["picture"]["maxWidth"] == 160            # one stitch per detected pixel
+
+
+def test_a_bad_stitch_shape_is_ignored():
+    sid = _open(_photo(), cell_aspect=0)["session"]
+    assert bridge.preview(sid)["picture"]["cellAspect"] == 1.0
+    bridge.set_params(sid, cell_aspect=-3)
+    assert bridge.preview(sid)["picture"]["cellAspect"] == 1.0
