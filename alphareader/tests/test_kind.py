@@ -110,3 +110,17 @@ def test_synthetic_charts_are_charts(seed):
     spec = synth.random_spec(np.random.default_rng(seed))
     r = read_image(synth.render(spec))
     assert r.kind == "chart", r.reason
+
+
+def test_a_drawing_of_circles_is_not_a_chart():
+    """Two outlined circles on a soft background fit an 8 × 8 lattice with a line contrast
+    of 2.01, over the bar, and read as a chart; what gives them away is that the lattice's
+    "gridlines" have an edge along 8% of their length (a chart's 76%+)."""
+    w = h = 360
+    y, x = np.mgrid[0:h, 0:w]
+    img = np.stack([np.round(235 + 20 * x / w), np.round(235 + 20 * y / h),
+                    np.round(245 - 10 * x / w)], axis=2).astype(np.uint8)
+    img[np.hypot(x - 270, y - 270) < 60] = (210, 30, 30)
+    img[(np.abs(np.hypot(x - 130, y - 130) - 100) < 1.5) | (np.abs(np.hypot(x - 270, y - 270) - 60) < 2)] = (20, 20, 20)
+    r = read_image(img)
+    assert r.kind == "picture", r.reason
