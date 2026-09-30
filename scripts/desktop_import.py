@@ -1,5 +1,7 @@
-"""What the desktop app makes of a file, as JSON: the reference web/e2e/ checks the
-browser against (web/e2e/desktop.ts).
+"""What the Python reference (alphareader/core/, driven as the removed desktop app drove
+it) makes of a file, as JSON: the reference web/e2e/ checks the browser against
+(web/e2e/desktop.ts). The desktop files named below (confirm_window.py, design_window.py)
+are in git history; see docs/dev/architecture.md#desktop-app.
 
     python scripts/desktop_import.py detect <image> [correction ...]
     python scripts/desktop_import.py load <file.alpha>   # as the desktop opens a project

@@ -1,7 +1,5 @@
 numpy==2.5.1
 pillow==12.3.0
-PySide6==6.11.1
-shiboken6==6.11.1
 
 # Test-only. The app no longer imports SciPy — core/detect/_nd.py replaces the five
 # routines detection used, which keeps ~14MB out of the browser build. SciPy is still

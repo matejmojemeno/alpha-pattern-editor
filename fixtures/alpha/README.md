@@ -1,8 +1,11 @@
 # `.alpha` compatibility fixtures
 
-The web app reads and writes `.alpha` projects in TypeScript (`web/src/storage/`), and a
-project has to move freely between it and the desktop app in both directions. These two
-directories prove that it does.
+The web app reads and writes `.alpha` projects in TypeScript (`web/src/storage/`). The
+desktop app that came before it has been removed, but people have projects it saved, so
+**the web app must open every `.alpha` file the desktop app wrote**: that is `desktop/`,
+and it is a hard requirement. `from-ts/` checks the other direction, that the Python
+reference (`alphareader.core.io`) reads what the web app writes. That keeps one format
+for both, but it is no longer required: a web-only format change may change that test.
 
 | Directory | Written by | Read by |
 |---|---|---|
