@@ -30,6 +30,7 @@ import numpy as np
 
 from .confirm import Extent, Preview
 from .detect.palette import DEFAULT_DELTA_E, palette_entries, srgb_to_lab
+from .outlines import centrelines, outline_stitches
 
 DEFAULT_WIDTH = 60          # stitches across, for a picture not yet sized
 DEFAULT_COLOURS = 6         # graphghans work best with about 4–10 (docs, "Picture import")
@@ -48,6 +49,9 @@ _MISSING_DE = 25.0          # a sample this far (CIE76) from every colour is une
 _MIN_FEATURE_STITCHES = 2   # ... and this many stitches' worth of them earn a colour
 _GROUP_DE = 15.0            # the samples within this of the worst one are its group
 _DECIMALS = 6               # Lab and costs are rounded to this, for bit-identical results
+_INK_SAME = 20.0            # an outline ink this near a palette colour is that colour ...
+_INK_REPLACE = 45.0         # ... this near, it replaces it; further, it is added
+_FIXED = 1e9                # the cost that rules a colour out of a stitch
 
 
 def picture_rows(extent: Extent, cols: int, cell_aspect: float) -> int:
@@ -149,12 +153,18 @@ def _principal_axis(x: np.ndarray, w: np.ndarray) -> np.ndarray:
     return v
 
 
-def choose_colours(samples: Samples, k: int) -> tuple[np.ndarray, np.ndarray]:
-    """k palette colours as (lab (k, 3), rgb (k, 3)), fewer if the picture has fewer."""
+def choose_colours(samples: Samples, k: int, exclude: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
+    """k palette colours as (lab (k, 3), rgb (k, 3)), fewer if the picture has fewer.
+    Stitches in `exclude` (rows, cols) are left out of the choosing."""
     S = samples.lab.shape[2]
     lab = samples.lab.reshape(-1, 3)
     rgb = samples.rgb.reshape(-1, 3)
     w = np.repeat(samples.weight.reshape(-1), S)
+    if exclude is not None and not exclude.all():
+        # Stitches that will be outline don't choose colours: their smudge of ink and
+        # colour would otherwise win a colour of its own.
+        keep = np.repeat(~exclude.reshape(-1), S)
+        lab, rgb, w = lab[keep], rgb[keep], w[keep]
     step = max(1, int(np.ceil(lab.shape[0] / _MAX_POINTS)))
     lab, rgb, w = lab[::step], rgb[::step], w[::step]
 
@@ -304,6 +314,24 @@ def assign_stitches(costs: np.ndarray, detail: float) -> np.ndarray:
 
 # --- the whole of it ---------------------------------------------------------------------
 
+def with_ink(pal_lab: np.ndarray, pal_rgb: np.ndarray, ink_rgb: np.ndarray
+             ) -> tuple[np.ndarray, np.ndarray, int, bool]:
+    """The palette with the outlines' ink in it: (lab, rgb, ink index, added). The palette's
+    own colour if one is within ΔE 20 of the ink (a black the picture already has), else
+    the ink replaces the colour nearest it if within ΔE 45 (a smudge of ink and colour), else
+    it is added. `added` says the ink is no colour of the picture's, only its lines'."""
+    ink_lab = np.round(srgb_to_lab(ink_rgb[None])[0], _DECIMALS)
+    d = np.sqrt(((pal_lab - ink_lab) ** 2).sum(axis=1))
+    near = int(np.argmin(d))
+    if d[near] < _INK_SAME:
+        return pal_lab, pal_rgb, near, False
+    if d[near] < _INK_REPLACE:
+        lab, rgb = pal_lab.copy(), pal_rgb.copy()
+        lab[near], rgb[near] = ink_lab, ink_rgb
+        return lab, rgb, near, False
+    return np.vstack([pal_lab, ink_lab]), np.vstack([pal_rgb, ink_rgb]), pal_lab.shape[0], True
+
+
 def _finish(samples: Samples, pal_rgb: np.ndarray, labels: np.ndarray, extent: Extent) -> Preview:
     """Order the colours as a chart's palette is ordered (most used first, ties by colour),
     drop any no stitch ended up using, and build the preview."""
@@ -325,10 +353,10 @@ def _finish(samples: Samples, pal_rgb: np.ndarray, labels: np.ndarray, extent: E
 
 def convert_picture(img: np.ndarray, extent: Extent | None = None, cols: int = DEFAULT_WIDTH,
                     cell_aspect: float = 1.0, colours: int = DEFAULT_COLOURS,
-                    detail: float = DEFAULT_DETAIL) -> Preview:
+                    detail: float = DEFAULT_DETAIL, outlines: bool = False) -> Preview:
     """The whole conversion in one call (PictureState caches the steps between calls)."""
     state = PictureState(img=img, extent=extent or whole(img), cols=cols,
-                         cell_aspect=cell_aspect, colours=colours, detail=detail)
+                         cell_aspect=cell_aspect, colours=colours, detail=detail, outlines=outlines)
     return state.preview()
 
 
@@ -347,6 +375,9 @@ class PictureState:
     cell_aspect: float = 1.0
     colours: int = DEFAULT_COLOURS
     detail: float = DEFAULT_DETAIL
+    outlines: bool = False          # "Keep outlines" (outlines.py)
+    _lines: tuple | None = field(default=None, repr=False)
+    _outline: tuple | None = field(default=None, repr=False)
     _samples: tuple | None = field(default=None, repr=False)
     _colours: tuple | None = field(default=None, repr=False)
     _costs: tuple | None = field(default=None, repr=False)
@@ -381,18 +412,51 @@ class PictureState:
     def set_detail(self, detail: float) -> None:
         self.detail = float(np.clip(detail, 0.0, 1.0))
 
+    def set_outlines(self, on: bool) -> None:
+        self.outlines = bool(on)
+
+    def _outline_stitches(self, skey: tuple) -> tuple[np.ndarray | None, np.ndarray | None]:
+        """(outline stitches, ink colour), or (None, None) with outlines off or no ink.
+        The centrelines are found once per image; the stitches once per size and crop."""
+        if not self.outlines:
+            return None, None
+        if self._lines is None:
+            self._lines = centrelines(self.img)
+        lines, ink = self._lines
+        if ink is None:
+            return None, None
+        if self._outline is None or self._outline[0] != skey:
+            self._outline = (skey, outline_stitches(lines, self.extent, self.rows, self.cols))
+        mask = self._outline[1]
+        return (mask, ink) if mask.any() else (None, None)
+
     def preview(self) -> Preview:
         e = self.extent
         skey = (e.x0, e.y0, e.x1, e.y1, self.rows, self.cols)
         if self._samples is None or self._samples[0] != skey:
             self._samples = (skey, sample_stitches(self.img, e, self.rows, self.cols))
         samples = self._samples[1]
-        ckey = (skey, self.colours)
+        mask, ink = self._outline_stitches(skey)
+        ckey = (skey, self.colours, mask is not None)
         if self._colours is None or self._colours[0] != ckey:
-            self._colours = (ckey, choose_colours(samples, self.colours))
-        pal_lab, pal_rgb = self._colours[1]
+            lab, rgb = choose_colours(samples, self.colours, exclude=mask)
+            fixed = None
+            if mask is not None:
+                lab, rgb, index, added = with_ink(lab, rgb, ink)
+                fixed = (index, added)
+            self._colours = (ckey, (lab, rgb, fixed))
+        pal_lab, pal_rgb, fixed = self._colours[1]
         if self._costs is None or self._costs[0] != ckey:
-            self._costs = (ckey, colour_costs(samples, pal_lab))
+            costs = colour_costs(samples, pal_lab)
+            if fixed is not None:
+                # Outline stitches are the ink, whatever smoothing would prefer; the ink is
+                # no other stitch's colour when it's only the lines'.
+                index, added = fixed
+                if added:
+                    costs[..., index] = _FIXED
+                costs[mask] = _FIXED
+                costs[mask, index] = 0.0
+            self._costs = (ckey, costs)
         pkey = (ckey, self.detail)
         if self._preview is None or self._preview[0] != pkey:
             labels = assign_stitches(self._costs[1], self.detail)
