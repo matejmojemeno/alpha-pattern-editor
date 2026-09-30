@@ -265,6 +265,7 @@ def _preview_payload(session_id: int, session: _Session) -> dict:
             "colours": int(ps.colours),
             "detail": float(ps.detail),
             "cellAspect": float(ps.cell_aspect),
+            "outlines": bool(ps.outlines),
         }
     return payload
 
@@ -398,13 +399,14 @@ def redetect(session: int, crop=None, delta_e: float | None = None) -> dict:
 def set_params(session: int, rows: int | None = None, cols: int | None = None,
                delta_e: float | None = None, extent=None, width: int | None = None,
                colours: int | None = None, detail: float | None = None,
-               cell_aspect: float | None = None) -> dict:
+               cell_aspect: float | None = None, outlines: bool | None = None) -> dict:
     """Change the settings of the mode the session is in. Nothing is detected or resampled
     until `preview`. `extent` is a dict with x0, y0, x1, y1 in image pixels.
 
     A chart takes rows, cols, delta_e and extent. A picture takes extent (what of the
     image is used), width (stitches across; `cols` means the same, and the rows follow),
-    colours, detail (0..1) and cell_aspect; rows and delta_e don't apply to it."""
+    colours, detail (0..1), cell_aspect and outlines ("Keep outlines", outlines.py); rows
+    and delta_e don't apply to it."""
     s = _session(session)
     if isinstance(s, dict):
         return s
@@ -426,6 +428,8 @@ def set_params(session: int, rows: int | None = None, cols: int | None = None,
             ps.set_colours(int(colours))
         if detail is not None:
             ps.set_detail(float(detail))
+        if outlines is not None:
+            ps.set_outlines(bool(outlines))
         return {"ok": True}
     if delta_e is not None:
         s.delta_e = float(delta_e)

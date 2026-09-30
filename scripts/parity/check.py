@@ -30,7 +30,7 @@ HERE = os.path.join(ROOT, "scripts", "parity")
 COMPARED = ("ok", "code", "rows", "cols", "cells_sha", "palette", "warnings",
             "pitch_x", "pitch_y", "x0", "y0", "conf_mean",
             # kind.py's verdict and convert.py's pattern at two settings (digest.py).
-            "kind", "pixels", "picture", "picture_small")
+            "kind", "pixels", "picture", "picture_small", "picture_outlines")
 
 
 def _decode_real(dest: str) -> int:
