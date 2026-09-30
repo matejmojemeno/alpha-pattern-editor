@@ -126,6 +126,7 @@ def picture(path: str, *settings: str) -> dict:
     conversion with `settings` applied in order, each one of
 
         width=N  colours=N  detail=X  aspect=X   the picture's controls, and the stitch
+        outlines=1                                "Keep outlines" on
         extent=x0,y0,x1,y1                        a crop, in image pixels (edges)
 
     A transparent background is white, as in bridge._on_white. Images over 4 MP aren't
@@ -152,6 +153,8 @@ def picture(path: str, *settings: str) -> dict:
             state.set_detail(float(arg))
         elif op == "aspect":
             state.set_cell_aspect(float(arg))
+        elif op == "outlines":
+            state.set_outlines(arg == "1")
         elif op == "extent":
             state.set_extent(Extent(*(float(v) for v in arg.split(","))))
         else:
