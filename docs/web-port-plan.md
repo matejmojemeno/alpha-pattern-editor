@@ -343,6 +343,24 @@ root. This document covers *how* the app moves to the web, not *what* it does.
     the width staying; "Reset to detected grid" becomes "Use the whole picture". No
     warnings or shrink notice. The stitch shape is the swatch's (square until measured).
   - Behaviour that differs from the desktop: the desktop imports charts only.
+- **Keep outlines** (`core/outlines.py`, `convert.PictureState.outlines`, a switch under
+  Detail; plan.md §5a). Off by default. On the Moon Stick (a user's example, not in the
+  repo), 40 wide: the full moon circle appears (off, half the moon is missing: its white
+  half is drawn only by a line), the handle is outlined, and the ornament keeps one ring
+  with its gold inside; about 0.9 s in Chromium. The coat of arms goes from 6 colours to
+  3 with a continuous outline; the smiley (lines ~20 px, already kept) doesn't change.
+  - Reached by testing, not guessed: a first version (mark stitches with ink, thin them)
+    broke lines into dots; tracing centrelines keeps them whole. A darker ink threshold
+    (L* 40) broke the moon's tapered line ends (L* 49); a lighter one traced the edges of
+    a red shield and a burgundy mouth, hence a ridge test; a ridge test alone took the
+    corners of dark shapes, hence "goes on along itself in the same ink".
+  - No automatic "is it a drawing?": a flat-colour score put the arctic fox photo at 1.00
+    and the coat of arms at 0.59, and "edges with ink beside them" scored photos 0.87–0.93.
+  - Found on the way, in `kind.py`: a drawing of two outlined circles read as a 5 × 3 (and
+    an 8 × 8) chart. A chart's gridlines now need an edge along half their length (real
+    charts 0.95+, 40 synthetic ones down to 4 × 7 cells 0.76+, the drawing 0.08–0.17);
+    every corpus image is read as before.
+  - Parity: every image is also converted with outlines on, 122/122 bit-identical.
 - **Pixel images** (`core/pixels.py`, `kind.py`, the bridge's `pixels` mode; plan.md
   §5a). Pixel art without gridlines is read exactly, a stitch per block: "Read pixel by
   pixel: each block of your image is one stitch.", with "Turn it into a pattern instead"
@@ -681,9 +699,9 @@ break without noticing.
 - **Settings saved before the yarn libraries went off by default still say `"dmc"`.**
   The store writes every field whenever one changes, so an old `"dmc"` can't be told
   from a choice. Such a browser keeps showing DMC shades until "Nothing" is picked.
-- **After any change to `alphareader/core/detect`, `kind.py`, `pixels.py` or `convert.py`, run
+- **After any change to `alphareader/core/detect`, `kind.py`, `pixels.py`, `outlines.py` or `convert.py`, run
   `python scripts/parity/check.py`.** It must report 122/122 bit-identical (89 charts, 25
-  pictures and 8 pixel images, each also read by `kind.py` and converted twice). It exits non-zero
+  pictures and 8 pixel images, each also read by `kind.py` and converted three times, once with outlines). It exits non-zero
   otherwise. Run `npm install` in `scripts/parity/` once first.
 - **A detection failure is not a picture, and a detected grid is not a chart.** Most
   photos fail as LOW_RESOLUTION, as real charts with small squares do; pictures can fit a
@@ -697,6 +715,11 @@ break without noticing.
   extent is clamped to W − 1 and scaled as pixel centres (`to_image`); a picture's runs
   0 to W and is scaled by the shrink factor alone (`edge_to_image`, `convert.clamp_edges`),
   so its outline reaches the image's own edges.
+- **"Keep outlines" stays the user's switch.** Two measures of "has drawn outlines"
+  failed on the corpus (photos scored as high as drawings); don't turn it on by itself
+  without a measure that separates the pictures in `test_images/pictures/`.
+- **Ink is a ridge that goes on.** Lightness alone takes the edges of dark areas (a red
+  shield); a ridge alone takes their corners. Both tests are in `test_outlines.py`.
 - **Pixel art is read as pixels only when it can't be a chart.** A crisp chart is
   itself an exact enlargement (2 px lines: 2×; any chart at 1:1), so an enlargement loses
   to a chart, read or refused, whose squares aren't its blocks, and 1:1 wins only where

@@ -276,7 +276,9 @@ Detection's success or failure doesn't decide it: most photos fail as LOW_RESOLU
 (texture fits 3–5 px squares), and so does a real chart with 5 px squares; a picture can
 also fit a nonsense grid. A detected grid is a chart when its squares are within 1.5:1,
 it spans at least 60% of each side, its edge strength on the lattice is at least twice
-that half a square off it, and no more than 60% of its cells are unsure. With more than
+that half a square off it, its gridlines have an edge along at least half their length
+(a drawing's lattice crosses its lines at a point or two), and no more than 60% of its
+cells are unsure. With more than
 15% unsure it is a chart **with doubts**, and the picture reading is offered prominently.
 A LOW_RESOLUTION or ROTATED refusal stays a chart's refusal only if a fit below the
 minimum square size still looks like a grid (square to 1.2:1, contrast 1.25, 70% of the
@@ -305,6 +307,27 @@ The aim is the best pattern, not the most faithful shrink:
 - Deterministic (no random seeds, Lab and costs rounded to 6 decimals), so the desktop
   Python and Pyodide give identical patterns (`scripts/parity`).
 - A transparent background is white.
+
+### Keep outlines (`core/outlines.py`)
+
+A switch for a picture, off by default: a drawing's dark lines kept, one stitch thick.
+A cartoon's 2–5 px lines vanish when averaged into 15–25 px stitches, and with them
+shapes drawn only by a line (the white half of a crescent moon, white on white).
+
+- **Ink** is a dark ridge (L* < 55, 12 lighter on both sides 3 or 6 px away) that goes
+  on along itself in the same ink as far as it is looked across: a line, not the edge
+  or the corner of a dark area.
+- It is thinned to its centreline, and each stitch the centreline crosses is a line
+  stitch, less those it only clips where the line stays connected. A clump of lines
+  (most of a stitch's 3 × 3) keeps only its outline; lines touching side by side are
+  thinned to one; specks under 3 stitches go.
+- The ink is the darkest quarter of it: the palette's colour within ΔE 20, else it
+  replaces the one within 45, else it is added (and then is no other stitch's). Colours
+  are chosen from the other stitches, so none is spent on line smudge; line stitches
+  are the ink whatever the Detail slider.
+- Whether a picture has drawn outlines can't be told from simple measures (flat colour
+  and "edges with ink beside them" both score photos as high as drawings), so the user
+  decides, and the pattern shows at once whether it helps.
 
 ### Pixel images (`core/pixels.py`)
 
