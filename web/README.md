@@ -1,7 +1,8 @@
 # Alpha Pattern Editor: web app
 
-The browser version of the desktop app. The plan, and the rules for working on it, are
-in [`docs/web-port-plan.md`](../docs/web-port-plan.md).
+The browser version of the desktop app. How it is built is in
+[`docs/dev/architecture.md`](../docs/dev/architecture.md), and the rules for working on it
+in [`docs/dev/rules.md`](../docs/dev/rules.md).
 
 ```bash
 npm install

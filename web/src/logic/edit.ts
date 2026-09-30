@@ -510,7 +510,7 @@ export function padToSize(p: Pattern, targetCols: number, targetRows: number, op
 export const MAX_SIDE = 999
 
 /**
- * A blank pattern to design from (docs/web-port-plan.md, "Landing screen"): every cell
+ * A blank pattern to design from (docs/dev/history/web-port.md#landing-screen): every cell
  * in one colour, a one-entry palette and fresh row ids. `now` is seconds since the
  * epoch, like Python's time.time().
  */

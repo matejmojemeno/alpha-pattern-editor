@@ -2,7 +2,7 @@
  * Work-stage chart layout: where every row and column goes, as pure functions.
  *
  * The desktop sizes every row with one number (chart_view.py:69). The web chart instead
- * gives each row its own height (docs/web-port-plan.md, "Chart layout"):
+ * gives each row its own height (docs/dev/history/web-port.md#chart-layout):
  *
  *   rowHeight(r)  -> emphasised height if |r - current| <= radius, else the base height
  *   yOffsets      -> running sum of the row heights

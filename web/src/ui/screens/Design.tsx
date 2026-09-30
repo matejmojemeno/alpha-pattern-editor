@@ -604,9 +604,9 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
     />
   )
 
-  // A phone: the Design stage is desktop-first and doesn't fit (docs/web-port-plan.md,
-  // Phase 3). This screen keeps its state (the pattern, undo) meanwhile, so turning a
-  // device round and back loses nothing.
+  // A phone: the Design stage is desktop-first and doesn't fit
+  // (docs/dev/history/web-port.md#phase-3). This screen keeps its state (the pattern,
+  // undo) meanwhile, so turning a device round and back loses nothing.
   if (tooSmall) {
     return (
       <main className="screen design design--small">

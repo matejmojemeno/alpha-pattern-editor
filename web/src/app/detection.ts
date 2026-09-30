@@ -1,7 +1,7 @@
 /**
  * The app shell's only way to reach detection: a dynamic import of detect/client.ts, so
  * the Pyodide worker is never part of the landing screen, the Library or the Work stage
- * (docs/web-port-plan.md, "Central decision"). tests/boundary.test.ts checks that no
+ * (docs/dev/architecture.md#central-decision). tests/boundary.test.ts checks that no
  * static import reaches src/detect/.
  */
 type ClientModule = typeof import('../detect/client.ts')

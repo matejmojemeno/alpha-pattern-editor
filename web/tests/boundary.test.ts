@@ -1,6 +1,6 @@
 /**
  * The Work stage, the Library and opening or saving `.alpha` files must never load
- * Pyodide (docs/web-port-plan.md, "Central decision"). These tests walk the source's
+ * Pyodide (docs/dev/architecture.md#central-decision). These tests walk the source's
  * import graph:
  *
  * - src/logic and src/storage import nothing that reaches Pyodide or src/detect/.

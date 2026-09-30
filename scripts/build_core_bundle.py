@@ -1,4 +1,4 @@
-"""Package alphareader/core/ for the browser (docs/web-port-plan.md, "Repo layout").
+"""Package alphareader/core/ for the browser (docs/dev/architecture.md#repo-layout).
 
 Writes `alphareader-core.<hash>.zip` holding `alphareader/__init__.py` and everything
 under `alphareader/core/` except `io.py`, which the browser replaces with

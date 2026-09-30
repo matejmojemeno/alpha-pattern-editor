@@ -11,7 +11,10 @@ before you do.
 
 | File | What it holds |
 |---|---|
-| `docs/web-port-plan.md` | Status of every piece of work, and **"Rules for anyone working on this"**: the technical invariants. Follow them. |
+| `docs/dev/rules.md` | **"Rules for anyone working on this"**: the technical invariants. Follow them. |
+| `docs/dev/areas/` | The status of each area of the app: what was built, and why. |
+| `docs/dev/architecture.md` | Tier A / Tier B, the repo layout, the stack, hosting. |
+| `docs/README.md` | The map of all the docs. |
 | `docs/dev/spec.md` | The product spec. Code and docs cite it as §N. |
 | `web/README.md` | Commands, the layout of `web/src/`, deploying. |
 | `fixtures/README.md` | The golden fixtures: schemas and porting notes. |
@@ -38,7 +41,7 @@ golden fixtures:
 3. Change the TypeScript until `web/tests/*golden*` replays the fixtures.
 
 After touching `core/detect`, run `python scripts/parity/check.py`: 89/89 bit-identical
-between desktop CPython and Pyodide. Don't "simplify" `_nd.py`; the plan's Rules say why.
+between desktop CPython and Pyodide. Don't "simplify" `_nd.py`; `docs/dev/rules.md#nd-py` says why.
 
 ## How a change is made
 
@@ -55,9 +58,9 @@ between desktop CPython and Pyodide. Don't "simplify" `_nd.py`; the plan's Rules
   - End it with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
   - Cloudflare's bot comments the PR's preview link on every PR by itself (see Hosting).
     Point the owner to it when there's something to try.
-- **Keep the docs true:** update the status in `docs/web-port-plan.md` and any README the
-  change affects, in the same PR. When you learn a non-obvious invariant, add it to the
-  plan's Rules.
+- **Keep the docs true:** update the area note in `docs/dev/areas/` and any README the
+  change affects, in the same PR. When you learn a non-obvious invariant, add it to
+  `docs/dev/rules.md`.
 - **After the owner merges:**
   1. Pull `main`.
   2. Remove the worktree and delete the branch, locally and on GitHub. Before removing
