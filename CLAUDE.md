@@ -12,7 +12,7 @@ before you do.
 | File | What it holds |
 |---|---|
 | `docs/web-port-plan.md` | Status of every piece of work, and **"Rules for anyone working on this"**: the technical invariants. Follow them. |
-| `plan.md` | The product spec. Code and docs cite it as §N. |
+| `docs/dev/spec.md` | The product spec. Code and docs cite it as §N. |
 | `web/README.md` | Commands, the layout of `web/src/`, deploying. |
 | `fixtures/README.md` | The golden fixtures: schemas and porting notes. |
 

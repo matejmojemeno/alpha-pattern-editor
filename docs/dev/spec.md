@@ -1,4 +1,11 @@
-# Alpha Pattern Reader — Build Specification (v2, Python)
+# Alpha Pattern Editor: product specification
+
+> **Read this first.** This spec was written for the desktop app (PySide6), under its
+> earlier name, "Alpha Pattern Reader: build specification (v2, Python)". The web app
+> follows it except where [`areas/`](areas/) says otherwise; the web app's architecture
+> is in [`architecture.md`](architecture.md). Code cites this file by § number, so the
+> numbers are frozen: new sections are appended (§15 onwards), never inserted, and
+> nothing is renumbered.
 
 A desktop app that ingests an **image of an existing alpha pattern chart**, recovers the underlying grid as structured data, and provides two separate workspaces: a **Design stage** for editing the pattern, and a **Work stage** for following it while crocheting or knotting.
 

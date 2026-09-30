@@ -191,7 +191,7 @@ export const clampScroll = (v: number, max: number) => Math.max(0, Math.min(max,
 
 /**
  * The vertical scroll offset that keeps the current row in view: centred when the chart
- * scrolls (plan.md §6.3), clamped to the ends. Without a drawn current row, `scrollY` is
+ * scrolls (docs/dev/spec.md §6.3), clamped to the ends. Without a drawn current row, `scrollY` is
  * only clamped.
  */
 export function followCurrent(layout: ChartLayout, scrollY: number): number {

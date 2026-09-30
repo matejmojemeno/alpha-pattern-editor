@@ -1,7 +1,7 @@
 # Alpha Pattern Editor
 
 Turn an image of an existing alpha / tapestry-crochet chart into an editable, trackable
-pattern. See [`plan.md`](plan.md) for the full product spec.
+pattern. See [`docs/dev/spec.md`](docs/dev/spec.md) for the full product spec.
 
 The desktop app is being ported to a hosted web app. See
 [`docs/web-port-plan.md`](docs/web-port-plan.md) for the plan, its current status, and
@@ -11,7 +11,7 @@ the rules anyone working on it needs to follow.
 
 - **M0 — detection pipeline (the "reader"):** done. A pure-NumPy pipeline that recovers
   the grid, per-cell colours and a palette from a chart image, plus a synthetic test
-  harness (`plan.md` §5, §11).
+  harness (`docs/dev/spec.md` §5, §11).
 - **M1 — import + confirmation wizard:** done. Load an image (file / drag-drop / paste),
   review and correct the detection, and commit to a stored `.alpha` project (§7, §8).
 - **M2 — Work stage:** done. Read-only, glanceable row-by-row following with run-length
@@ -124,7 +124,7 @@ what kinds of charts work.
 ```
 
 The harness renders charts from known grids and checks recovery, exercising the traps
-from `plan.md` §11: edge numbering, watermarks, coloured margins, white-on-white,
+from `docs/dev/spec.md` §11: edge numbering, watermarks, coloured margins, white-on-white,
 solid-black rows, non-integer downscale and JPEG re-encode.
 
 **Guarantees enforced by the suite**
