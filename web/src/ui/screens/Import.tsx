@@ -2,7 +2,7 @@
  * Importing a pattern from an image: a port of the desktop's confirmation window
  * (alphareader/ui/importer/confirm_window.py), correction controls and all.
  *
- * The desktop's fast/slow split is kept (docs/web-port-plan.md, Phase 2):
+ * The desktop's fast/slow split is kept (docs/dev/history/web-port.md#phase-2):
  * - moving the grid's outline only resamples (`DetectSession.update`),
  *   which folds a burst of changes into one pending request and drops stale answers;
  * - a box drawn on the image (a crop) detects again (`DetectSession.redetect`), under

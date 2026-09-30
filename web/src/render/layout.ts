@@ -2,7 +2,7 @@
  * Work-stage chart layout: where every row and column goes, as pure functions.
  *
  * The desktop sizes every row with one number (chart_view.py:69). The web chart instead
- * gives each row its own height (docs/web-port-plan.md, "Chart layout"):
+ * gives each row its own height (docs/dev/history/web-port.md#chart-layout):
  *
  *   rowHeight(r)  -> emphasised height if |r - current| <= radius, else the base height
  *   yOffsets      -> running sum of the row heights
@@ -191,7 +191,7 @@ export const clampScroll = (v: number, max: number) => Math.max(0, Math.min(max,
 
 /**
  * The vertical scroll offset that keeps the current row in view: centred when the chart
- * scrolls (plan.md §6.3), clamped to the ends. Without a drawn current row, `scrollY` is
+ * scrolls (docs/dev/spec.md §6.3), clamped to the ends. Without a drawn current row, `scrollY` is
  * only clamped.
  */
 export function followCurrent(layout: ChartLayout, scrollY: number): number {

@@ -1,4 +1,4 @@
-"""How should a large photo be shrunk before detection? (docs/web-port-plan.md, Risks #2;
+"""How should a large photo be shrunk before detection? (docs/dev/history/web-port.md#risk-2;
 core/bridge.py `shrink_factor`.)
 
 Each chart is upscaled (Lanczos) to a phone-photo size, then detected at that size and

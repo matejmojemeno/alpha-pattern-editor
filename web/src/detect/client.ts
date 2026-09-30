@@ -9,7 +9,7 @@
  *   one was requested is stale, so the screen never steps back to an older result.
  * - `update` sends the first change at once. While it is in flight, further changes are
  *   folded into one pending request, so a slider drag costs two or three resamples and
- *   the preview still moves on the first tick (docs/web-port-plan.md, "Cancellation").
+ *   the preview still moves on the first tick (docs/dev/history/web-port.md#cancellation).
  * - Pixels are transferred to the worker, not copied.
  * - An OUT_OF_MEMORY or fatal answer terminates the worker, as the watchdog does:
  *   WebAssembly memory never shrinks once grown, and a fatal error leaves Pyodide unusable,

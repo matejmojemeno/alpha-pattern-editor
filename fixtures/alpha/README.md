@@ -24,7 +24,7 @@ back from it: cells, palette, row_ids, direction flags, progress, stage and a sh
 - `old-progress`: `progress.json` without `current_run_stitches`, as older builds wrote it.
 - `legacy-pattern`: no `start_direction`, `alternate_direction`, `bottom_up` or `stage`,
   and palette entries without `dmc` or `count`. `start_direction` must load as `"LTR"`,
-  not the dataclass default `"RTL"` (see Rules in `docs/web-port-plan.md`).
+  not the dataclass default `"RTL"` (see [the rule](../../docs/dev/rules.md#start-direction)).
 - `unicode`: non-ASCII, astral and control characters in names.
 - `large`: 120×150, so the `.npy` header has 3-digit dimensions.
 - `newer-format`: `format_version: 999`. Both sides must refuse it.

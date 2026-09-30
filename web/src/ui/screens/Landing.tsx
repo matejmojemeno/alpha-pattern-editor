@@ -1,7 +1,7 @@
 /**
  * The first screen: a large drop zone to import a chart, with the other ways in beside
  * it (Library, Design pattern, Settings, Feedback). The desktop opened straight onto the Library; the web
- * app starts here instead (docs/web-port-plan.md, "Landing screen").
+ * app starts here instead (docs/dev/history/web-port.md#landing-screen).
  */
 import { useCallback, useState } from 'react'
 

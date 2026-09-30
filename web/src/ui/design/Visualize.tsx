@@ -11,7 +11,7 @@
  * chunk of its own, loaded from a lazily loaded screen, made the bundler split what it
  * shares with the main chunk (the Work stage's logic, the shared components) into chunks
  * the page then preloads: about 2 KB more up front and an extra request
- * (docs/web-port-plan.md, Rules).
+ * (docs/dev/rules.md#no-nested-lazy-chunks).
  */
 import '../visualize.css'
 
