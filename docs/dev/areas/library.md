@@ -18,6 +18,14 @@ Newest last, as they were built.
   choose a file" instead of drop or paste. There is no backend, so **Feedback** opens
   the public repo's GitHub "New issue" page in a new tab (needs a GitHub account).
 
+- <a id="home-icons"></a>**Home-screen icons that mean something** (`ui/icons.tsx`, from Lucide): the tiles
+  had the app's 3×3 grid with arbitrary cells inked (Settings a middle row, Feedback an
+  L), which said nothing. Now a picture with an upward arrow (Import pattern), books on
+  a shelf (Library), a pencil (Design pattern, as the Paint tool), a gear (Settings) and
+  a speech bubble (Feedback). The 3×3 grid stays as the app's mark beside its name, the
+  same as the favicon. The import screen's warnings have a drawn warning triangle
+  instead of ⚠, which some systems show as a colour emoji.
+
 ## During the port
 
 What each phase of the port built here, newest first. The plan each phase followed is in

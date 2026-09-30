@@ -113,7 +113,7 @@ Newest last, as they were built.
   - **The buttons** (under the tools on a desktop; over the bottom of the chart on a
     tablet, which then scrolls further so no row stays hidden under them): Copy, Cut,
     Paste (`Cmd/Ctrl+C`, `X`, `V`), Delete (the Delete key: empties it to the background;
-    a floating block is taken away instead), Mirror ⇄, Flip ⇅, Rotate ↻ and ↺ (a quarter
+    a floating block is taken away instead), Mirror, Flip, Rotate clockwise and anticlockwise (a quarter
     turn about its centre, the odd half cell going up and left), Fill with the colour
     painted with, Crop to selection (`add_border` with negative sides, so the rows kept
     keep their ids and their progress; it asks first when rows done in Work go), Select
@@ -135,6 +135,21 @@ Newest last, as they were built.
     same in both.
   - Tier A (Vite's figures, gzipped): main entry chunk 104.7 KB (104.5 on `main` before),
     Design 30.1 KB (27.1) with 3.6 KB of CSS (3.5).
+
+- <a id="icons"></a>**Icons that say what the tool does** (`ui/design/icons.tsx`, from Lucide): every
+  tool was the same 3×3 grid with a different few cells inked (Paint one cell, Fill an
+  L, Pick colour a diagonal), so on a tablet, where the toolbar shows icons without
+  words, they couldn't be told apart, and Fill row and Add row differed only by a small
+  plus. Now: a dashed marquee (Select), a pencil (Paint), a paint bucket (Fill), a
+  rectangle, a pipette (Pick colour), the grid with its middle row or column inked in
+  the accent colour (Fill row, Fill column: drawn here in Lucide's style, since Lucide
+  has the grid but not the inked band), and Lucide's "insert between" for Add row and
+  Add column. Mirror, Flip and the two Rotates, in the Structure panel and the
+  selection's buttons, show the flip and turn icons instead of ⇄ ⇅ ↻ ↺, whose look
+  depended on the font and which a screen reader read out as arrow names; their
+  accessible names now say which way ("Rotate 90° clockwise"). Deleting a colour is a
+  bin, not ×, which elsewhere means close. Tier A: main chunk 106.8 KB gzipped (+2.1 KB),
+  Design 31.8 KB (+1.7 KB).
 
 ## During the port
 

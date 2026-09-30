@@ -118,7 +118,8 @@ files.
 - `src/theme/`: `tokens.css` (the port of `theme.py`) and `contrastOn()`.
 - `src/ui/`: the screens (landing, Library, Settings, Work, and the lazily loaded
   import screen and Design stage) and shared components. `gestures.ts` is the two-finger
-  pinch and pan both charts use.
+  pinch and pan both charts use. `icons.tsx` holds the icons (Lucide) and the logo;
+  the Design stage's own are in `design/icons.tsx`, in its chunk.
 - `src/detect/`: the Pyodide boundary. `worker.ts` runs `alphareader/core/bridge.py` in
   a module worker; `client.ts` is the app's side of it; `protocol.ts` the messages.
 - `src/importer/`: the import screen's logic: decoding images, the failure hints, the
