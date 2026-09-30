@@ -4,6 +4,9 @@ import { defineConfig, devices } from '@playwright/test'
 // First time: `npx playwright install chromium`. Then: `npm run test:e2e`.
 export default defineConfig({
   testDir: 'e2e',
+  // The docs' screenshots have their own config and command (playwright.docs.config.ts,
+  // `npm run docs:media`): they rewrite committed images, so they never run here.
+  testIgnore: 'docs-media.spec.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   reporter: 'list',

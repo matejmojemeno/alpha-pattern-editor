@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "gen:alpha": "node scripts/gen-alpha-fixtures.ts",
     "test:e2e": "playwright test",
+    "docs:media": "playwright test --config playwright.docs.config.ts",
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {

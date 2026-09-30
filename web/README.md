@@ -14,6 +14,8 @@ npm run build       # production build in dist/
 npx playwright install chromium   # once
 npm run test:e2e    # Playwright in real Chromium, against the production build
 npm run gen:alpha   # rewrite ../fixtures/alpha/from-ts/ after changing src/storage
+npm run docs:media  # the user guide's screenshots, into ../docs/guide/media/ (only those that changed)
+DOCS_TOUR=1 npm run docs:media   # also re-record tour.gif and tour.mp4 (needs ffmpeg)
 BENCH=1 npx playwright test e2e/large-photo.bench.spec.ts   # detection time and memory, phone-sized photos
 ```
 
@@ -24,6 +26,14 @@ cached in `.cache/`), and `alphareader-core.<hash>.zip` from
 `../scripts/build_core_bundle.py`. That needs Python 3 on the path, or `../.venv`, or
 `$PYTHON`. The e2e tests also use that Python, with numpy and Pillow, as the desktop
 reference.
+
+`npm run docs:media` runs `e2e/docs-media.spec.ts` with its own config
+(`playwright.docs.config.ts`, on port 4187, or `$DOCS_PORT`); `npm run test:e2e` skips that spec, because
+it rewrites committed images. It drives the app through the demo pattern in
+`../fixtures/demo/`, writes one image per test, and compares each with the committed one
+pixel for pixel, rewriting only those that differ. `DOCS_TOUR=1` also records the tour
+and encodes it with `ffmpeg` (on the `PATH`, or `$FFMPEG`); it's off by default because
+the encoding changes on every run. See `../docs/guide/media/README.md`.
 
 ## Deploying (Cloudflare)
 
