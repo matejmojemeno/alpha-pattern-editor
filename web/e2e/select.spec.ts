@@ -228,3 +228,34 @@ test('four quarter turns leave a selection where it was; Remove background moves
   await page.keyboard.press('ControlOrMeta+z')
   expect(await grid(page)).toEqual(over)
 })
+
+test('Select object: a press on a shape picks it up without its background, and drags it', async ({ page }) => {
+  await newPattern(page, 'Cat')
+  await addColour(page, BLACK, 'Black')
+  await addColour(page, RED, 'Red')
+
+  // A "cat": a tail joined corner to corner, a body with a white middle; a red cell in its
+  // rectangle that doesn't touch it.
+  await palette(page).filter({ hasText: /#000000/ }).click()
+  for (const at of [[0, 0], [1, 1], [3, 2], [3, 4]] as [number, number][]) await dragThrough(page, [at])
+  await dragThrough(page, [[2, 2], [2, 4]])
+  await dragThrough(page, [[4, 2], [4, 4]])
+  await palette(page).filter({ hasText: /#d93a3a/ }).click()
+  await dragThrough(page, [[4, 0]])
+  const start = ['B.......', '.B......', '..BBB...', '..B.B...', 'R.BBB...', '........']
+  expect(await grid(page)).toEqual(start)
+
+  await page.keyboard.press('w')
+  await expect(page.getByRole('group', { name: 'Tool' }).getByRole('button', { name: /^Select object\s*W$/ })).toHaveAttribute('aria-pressed', 'true')
+  await dragThrough(page, [[2, 3], [2, 5], [2, 6]])
+  await expect(page.locator('.design__message')).toHaveText('Selected a shape, 5 × 5, without its background. Drag it to move it.')
+  expect(await grid(page)).toEqual(['...B....', '....B...', '.....BBB', '.....B.B', 'R....BBB', '........'])
+  await expect(selectionButton(page, 'Put background back')).toBeVisible()
+
+  // A click on the background drops it; undo puts the cat back in one step.
+  await dragThrough(page, [[5, 0]])
+  await expect(page.locator('.design__message')).toHaveText('That’s the background. Click a shape to select it.')
+  await expect(page.getByRole('img', { name: /selected/ })).toHaveCount(0)
+  await page.keyboard.press('ControlOrMeta+z')
+  expect(await grid(page)).toEqual(start)
+})

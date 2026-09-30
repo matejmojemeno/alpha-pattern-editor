@@ -46,7 +46,9 @@ import {
   containsCell,
   mapClip,
   moveRect,
+  objectAt,
   readBlock,
+  rectCols,
   rectBetween,
   sameRect,
   seeThrough,
@@ -59,12 +61,13 @@ import {
   type Turn,
 } from './selection.ts'
 
-export type Tool = 'select' | 'paint' | 'fill' | 'rect' | 'eyedropper' | 'row' | 'col' | 'addRow' | 'addCol'
+export type Tool = 'select' | 'object' | 'paint' | 'fill' | 'rect' | 'eyedropper' | 'row' | 'col' | 'addRow' | 'addCol'
 
 /** The tools in toolbar order, with their single-key shortcuts (design_window.py). Adding
  *  a row or a column is Shift with the key that fills one. */
 export const TOOLS: readonly { tool: Tool; label: string; key: string; shift?: boolean }[] = [
   { tool: 'select', label: 'Select', key: 'S' },
+  { tool: 'object', label: 'Select object', key: 'W' },
   { tool: 'paint', label: 'Paint', key: 'B' },
   { tool: 'fill', label: 'Fill', key: 'F' },
   { tool: 'rect', label: 'Rectangle', key: 'R' },
@@ -77,6 +80,10 @@ export const TOOLS: readonly { tool: Tool; label: string; key: string; shift?: b
 
 /** The tools that add a row or a column where the pointer is, rather than act on a cell. */
 export const ADD_TOOLS: Readonly<Partial<Record<Tool, 'row' | 'col'>>> = { addRow: 'row', addCol: 'col' }
+
+/** The tools that hold a selection: Select, and Select object (a click picks up the
+ *  object under it). Everything else about the selection is the same for both. */
+export const selects = (tool: Tool): boolean => tool === 'select' || tool === 'object'
 
 export function toolForKey(key: string, shift = false): Tool | null {
   return TOOLS.find((t) => t.key === key.toUpperCase() && !!t.shift === shift)?.tool ?? null
@@ -168,7 +175,7 @@ export function commit(s: EditorState, next: Pattern): EditorState {
 /** Choose a tool. Leaving Select puts its selection down and drops it. */
 export function setTool(s: EditorState, tool: Tool): EditorState {
   if (tool === s.tool && !s.drag) return s
-  return { ...s, tool, drag: null, selection: tool === 'select' ? settled(s.selection, s.pattern, s.pattern) : null }
+  return { ...s, tool, drag: null, selection: selects(tool) ? settled(s.selection, s.pattern, s.pattern) : null }
 }
 
 export function selectColour(s: EditorState, colour: number): EditorState {
@@ -227,14 +234,16 @@ export function pointerDown(s: EditorState, cell: Cell): EditorState {
   const { pattern: p, colour } = s
   const { r, c } = cell
   switch (s.tool) {
-    case 'select': {
+    case 'select':
+    case 'object': {
       const sel = s.selection
-      if (sel && containsCell(sel.rect, cell)) {
+      if (sel && grabs(sel, cell)) {
         return {
           ...lift(s),
           drag: { tool: 'move', from: cell, rect: sel.rect, recorded: false, origin: { pattern: p, history: s.history } },
         }
       }
+      if (s.tool === 'object') return pickObject(putDown(s), cell)
       // The old selection stays until the press ends: a pinch that began here keeps it.
       return { ...s, drag: { tool: 'select', start: cell, end: cell, had: sel !== null } }
     }
@@ -371,6 +380,40 @@ export function lift(s: EditorState): EditorState {
   return { ...s, selection: { rect, floating: { block, under } } }
 }
 
+/** Whether a press on `cell` takes hold of the selection: inside it, and not on one of
+ *  its see-through cells (a press there goes to what shows through). */
+function grabs(sel: Selection, cell: Cell): boolean {
+  if (!containsCell(sel.rect, cell)) return false
+  const clear = sel.floating?.clear
+  return !clear || !clear[(cell.r - sel.rect.r0) * rectCols(sel.rect) + (cell.c - sel.rect.c0)]
+}
+
+/**
+ * Select object: select the object at `cell` (`objectAt`: the cells that aren't the
+ * background joined to it, and what they enclose), floating with the rest of its
+ * rectangle see-through, and take hold of it so the same press can drag it. The pattern
+ * doesn't change until it moves; under it, only the object's own cells become the
+ * background, so a neighbour inside its rectangle stays. On the background it drops the
+ * selection.
+ */
+function pickObject(s: EditorState, cell: Cell): EditorState {
+  const p = s.pattern
+  const bg = backgroundIndex(p)
+  const o = objectAt(p, cell, bg)
+  if (!o) return { ...s, drag: null, selection: null }
+  const { rect, clear } = o
+  const own: [number, number][] = []
+  for (let r = rect.r0; r < rect.r1; r++) {
+    for (let c = rect.c0; c < rect.c1; c++) if (!clear[(r - rect.r0) * rectCols(rect) + (c - rect.c0)]) own.push([r, c])
+  }
+  const floating: Floating = { block: readBlock(p, rect), under: setCells(p, own, bg), clear }
+  return {
+    ...s,
+    selection: { rect, floating },
+    drag: { tool: 'move', from: cell, rect, recorded: false, origin: { pattern: p, history: s.history } },
+  }
+}
+
 /** A floating block put at `rect` (its size), as one undo step when that changes the
  *  pattern. */
 function placeFloating(s: EditorState, rect: CellRect, f: Floating): EditorState {
@@ -432,7 +475,7 @@ export function deselect(s: EditorState): EditorState {
 /** Select the whole pattern, choosing the Select tool. */
 export function selectAll(s: EditorState): EditorState {
   const p = s.pattern
-  return { ...s, tool: 'select', drag: null, selection: { rect: { r0: 0, c0: 0, r1: p.rows, c1: p.cols }, floating: null } }
+  return { ...s, tool: selects(s.tool) ? s.tool : 'select', drag: null, selection: { rect: { r0: 0, c0: 0, r1: p.rows, c1: p.cols }, floating: null } }
 }
 
 /** The selection's cells as they are now, for the clipboard: a floating block whole,
@@ -482,7 +525,7 @@ export function paste(s: EditorState, clip: Clip): EditorState {
   const rect = { r0: at.r0, c0: at.c0, r1: at.r0 + block.rows, c1: at.c0 + block.cols }
   const floating: Floating = { block, under, clear: clip.clear ?? null }
   const pattern = over(floating, rect)
-  const base: EditorState = { ...down, tool: 'select', drag: null, selection: { rect, floating } }
+  const base: EditorState = { ...down, tool: selects(down.tool) ? down.tool : 'select', drag: null, selection: { rect, floating } }
   if (samePattern(pattern, p)) return base
   return { ...base, pattern, history: record(down.history, p), colour: clampColour(s.colour, pattern) }
 }

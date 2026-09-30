@@ -138,6 +138,20 @@ Newest last, as they were built.
     turns with the block and rides the clipboard (`Clip.clear`). One undo step when the
     chart changes; in place it usually doesn't, since the lifted cells are already the
     pattern's background.
+  - <a id="select-object"></a>**Select object** (`W`, a magic wand; `objectAt`, `pickObject`): a press on a
+    cell that isn't the pattern's background selects its object and takes hold of it,
+    so the same press drags it. The object is the non-background cells joined to it
+    8-way (a tail drawn as a diagonal staircase), any colours, plus what it encloses:
+    everything in its rectangle that can't be reached 4-way from the rectangle's edge
+    without crossing it (an 8-way wall stops a 4-way flood), so eyes come along. The rest
+    of the rectangle is the see-through mask of Remove background. Under it, only the
+    object's own cells become the background (not the whole rectangle, as `lift` does),
+    so a neighbour inside the rectangle stays. A press on a see-through cell doesn't
+    take hold of the selection (`grabs`), for either tool: it picks what shows through.
+    The selection is shared with Select (`selects(tool)`); Paste and Select all keep
+    whichever of the two is chosen. Checked on a real chart of five cats (76 × 24, as
+    imported): a click on any black cell of a cat gives that cat alone, with its eyes,
+    and nothing of its neighbours.
   - Web only: the desktop has no selection. The `.alpha` file is unchanged.
   - `paste_block` went into `edit.py` first, with tests and ten golden cases (176 calls
     now); `edit.ts` replays them, and 1,159 random pastes in 300 chains over random
@@ -150,7 +164,7 @@ Newest last, as they were built.
   tool was the same 3×3 grid with a different few cells inked (Paint one cell, Fill an
   L, Pick colour a diagonal), so on a tablet, where the toolbar shows icons without
   words, they couldn't be told apart, and Fill row and Add row differed only by a small
-  plus. Now: a dashed marquee (Select), a pencil (Paint), a paint bucket (Fill), a
+  plus. Now: a dashed marquee (Select), a magic wand (Select object, added later), a pencil (Paint), a paint bucket (Fill), a
   rectangle, a pipette (Pick colour), the grid with its middle row or column inked in
   the accent colour (Fill row, Fill column: drawn here in Lucide's style, since Lucide
   has the grid but not the inked band), and Lucide's "insert between" for Add row and

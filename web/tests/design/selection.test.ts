@@ -28,7 +28,7 @@ import {
   backgroundRemoved,
   type EditorState,
 } from '../../src/design/editor.ts'
-import { backgroundMask, clipRect, mapClip, rectBetween, turnBlock, turnRect, type Block } from '../../src/design/selection.ts'
+import { backgroundMask, objectAt, clipRect, mapClip, rectBetween, turnBlock, turnRect, type Block } from '../../src/design/selection.ts'
 import { addPaletteEntry, mirrorH, newPattern, SKIP_INDEX } from '../../src/logic/edit.ts'
 import type { Pattern } from '../../src/model/types.ts'
 
@@ -334,6 +334,69 @@ describe('remove background', () => {
     expect(clip.clear).toBeTruthy()
     s = paste(deselect(s), { ...clip, r0: 0, c0: 3 })
     expect(grid(s.pattern)[0]).toEqual([0, 1, 0, 2, 1, 2])
+  })
+})
+
+describe('select object', () => {
+  /** An 8×6 white (0) chart: a black (1) "cat" (a staircase tail joined corner to
+   *  corner, and a body with a white middle), and a red (2) cell inside its rectangle
+   *  that doesn't touch it. */
+  function cat(): EditorState {
+    let p = newPattern(8, 6, '#ffffff')
+    p = addPaletteEntry(p, '#000000', 'Black')
+    p = addPaletteEntry(p, '#d93a3a', 'Red')
+    const rows = [
+      [1, 0, 0, 0, 0, 0, 0, 0],
+      [0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 1, 1, 1, 0, 0, 0],
+      [0, 0, 1, 0, 1, 0, 0, 0],
+      [2, 0, 1, 1, 1, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0],
+    ]
+    return setTool(initialEditor({ ...p, cells: Uint16Array.from(rows.flat()) }), 'object')
+  }
+
+  it('finds the object, corners included, with what it encloses, and not its neighbour', () => {
+    const o = objectAt(cat().pattern, { r: 2, c: 3 }, 0)!
+    expect(o.rect).toEqual({ r0: 0, c0: 0, r1: 5, c1: 5 })
+    const shape = Array.from({ length: 5 }, (_, y) => [...o.clear.subarray(y * 5, y * 5 + 5)].map((v) => (v ? '.' : '#')).join(''))
+    expect(shape).toEqual(['#....', '.#...', '..###', '..###', '..###'])
+    expect(objectAt(cat().pattern, { r: 5, c: 5 }, 0)).toBeNull()
+  })
+
+  it('a press picks it up and drags it; the neighbour stays, and it is one undo step', () => {
+    let s = pointerDown(cat(), { r: 2, c: 3 })
+    expect(s.selection?.rect).toEqual({ r0: 0, c0: 0, r1: 5, c1: 5 })
+    expect(s.history.past).toHaveLength(0)
+    s = pointerUp(pointerMove(s, { r: 2, c: 6 }), { r: 2, c: 6 })
+    expect(grid(s.pattern)).toEqual([
+      [0, 0, 0, 1, 0, 0, 0, 0],
+      [0, 0, 0, 0, 1, 0, 0, 0],
+      [0, 0, 0, 0, 0, 1, 1, 1],
+      [0, 0, 0, 0, 0, 1, 0, 1],
+      [2, 0, 0, 0, 0, 1, 1, 1],
+      [0, 0, 0, 0, 0, 0, 0, 0],
+    ])
+    expect(s.history.past).toHaveLength(1)
+    expect(grid(undo(s).pattern)).toEqual(grid(cat().pattern))
+  })
+
+  it('a press on a see-through cell picks what shows through; on the background, nothing', () => {
+    let s = pointerUp(pointerDown(cat(), { r: 2, c: 3 }), { r: 2, c: 3 })
+    s = pointerDown(s, { r: 4, c: 0 }) // the red, inside the cat's rectangle
+    expect(s.selection?.rect).toEqual({ r0: 4, c0: 0, r1: 5, c1: 1 })
+    s = pointerDown(pointerUp(s, { r: 4, c: 0 }), { r: 5, c: 7 })
+    expect(s.selection).toBeNull()
+    expect(grid(s.pattern)).toEqual(grid(cat().pattern))
+  })
+
+  it('shares the Select tool’s buttons: turn it, and put its background back', () => {
+    let s = pointerUp(pointerDown(cat(), { r: 2, c: 3 }), { r: 2, c: 3 })
+    expect(backgroundRemoved(s)).toBe(true)
+    s = turnSelection(s, 'flip')
+    expect(grid(s.pattern)[0]).toEqual([0, 0, 1, 1, 1, 0, 0, 0])
+    expect(grid(s.pattern)[4]).toEqual([1, 0, 0, 0, 0, 0, 0, 0]) // the tail's tip, over the red
+    expect(s.tool).toBe('object')
   })
 })
 

@@ -51,6 +51,7 @@ import {
   redo,
   selectAll,
   selectColour,
+  selects,
   setTool,
   structural,
   toggleBackground,
@@ -430,6 +431,8 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
         setMessage(`Point at the chart where the new ${one} goes, and click to add it. To delete a ${one}, press its number.`)
       } else if (tool === 'select') {
         setMessage('Drag over the chart to select cells, then drag inside the selection to move them.')
+      } else if (tool === 'object') {
+        setMessage('Click a shape to select it without its background, then drag it to move it.')
       }
     },
     [update],
@@ -443,6 +446,16 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
     const sel = latest.current.selection
     if (d?.tool === 'select' && sel) setMessage(`Selected ${cellsIn(sel.rect)} cells. Drag inside them to move them.`)
     else if (d?.tool === 'select') setMessage('')
+  }
+  const onDown = (c: { r: number; c: number }) => {
+    const before = latest.current.selection
+    update((s) => pointerDown(s, c))
+    if (latest.current.tool !== 'object') return
+    const sel = latest.current.selection
+    if (!sel) setMessage('That’s the background. Click a shape to select it.')
+    else if (sel.floating?.clear && sel.floating !== before?.floating) {
+      setMessage(`Selected a shape, ${rectCols(sel.rect)} × ${rectRows(sel.rect)}, without its background. Drag it to move it.`)
+    }
   }
   const onCopy = () => {
     const c = copySelection(latest.current)
@@ -674,7 +687,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   const mode = preview ? (preview.outline ? 'move' : 'view') : 'edit'
   // The selection being dragged out, or the one there is.
   const selection = d?.tool === 'select' ? rectBetween(d.start, d.end) : (editor.selection?.rect ?? null)
-  const withSelection: Overlay | null = overlay ?? (selection && editor.tool === 'select' ? { selection } : null)
+  const withSelection: Overlay | null = overlay ?? (selection && selects(editor.tool) ? { selection } : null)
 
   // The same controls, laid out for the screen: side columns on a desktop; on a tablet a
   // toolbar over the chart, and the colours and the structural panel in drawers.
@@ -702,7 +715,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   )
   const sel = editor.selection
   const bg = p.palette[backgroundIndex(p)]
-  const selectionTools = editor.tool === 'select' && (
+  const selectionTools = selects(editor.tool) && (
     <div className="selection-tools" role="group" aria-label="Selection">
       <button type="button" className="button button--small" disabled={!sel} title={`Copy (${MOD}C)`} onClick={onCopy}>
         Copy
@@ -980,9 +993,9 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
             mode={mode}
             preview={rectPreview}
             overlay={withSelection}
-            selection={editor.tool === 'select' ? (sel?.rect ?? null) : null}
-            roomBelow={compact && editor.tool === 'select' ? barHeight : 0}
-            onDown={(c) => update((s) => pointerDown(s, c))}
+            selection={selects(editor.tool) ? (sel?.rect ?? null) : null}
+            roomBelow={compact && selects(editor.tool) ? barHeight : 0}
+            onDown={onDown}
             onMove={(c) => update((s) => pointerMove(s, c))}
             onUp={onSelectUp}
             onCancel={() => update(cancelDrag)}
@@ -999,7 +1012,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
             label={
               preview
                 ? `Preview, ${shownPattern.cols} by ${shownPattern.rows}`
-                : `Pattern, ${p.cols} by ${p.rows}${sel && editor.tool === 'select' ? `, ${rectCols(sel.rect)} by ${rectRows(sel.rect)} selected` : ''}`
+                : `Pattern, ${p.cols} by ${p.rows}${sel && selects(editor.tool) ? `, ${rectCols(sel.rect)} by ${rectRows(sel.rect)} selected` : ''}`
             }
           />
           {compact && selectionTools && (

@@ -134,6 +134,79 @@ export function backgroundMask(b: Block): Uint8Array | null {
   return mask
 }
 
+/**
+ * Select object: the object at a cell, as the rectangle round it and a see-through mask
+ * over that rectangle, or null on the background. The object is every cell that isn't
+ * the background joined to this one, corners included (a tail drawn as a diagonal
+ * staircase is one piece), whatever its colours, plus whatever it encloses (the eyes of
+ * a cat, a letter inside a ring). What else lies in its rectangle (a neighbour's paw) is
+ * see-through, so it isn't part of it.
+ */
+export function objectAt(p: Pattern, cell: { r: number; c: number }, background: number): { rect: CellRect; clear: Uint8Array } | null {
+  const { rows: R, cols: C, cells } = p
+  const start = cell.r * C + cell.c
+  if (cells[start] === background) return null
+  const inObject = new Uint8Array(R * C)
+  inObject[start] = 1
+  const todo = [start]
+  let r0 = cell.r
+  let r1 = cell.r
+  let c0 = cell.c
+  let c1 = cell.c
+  while (todo.length > 0) {
+    const i = todo.pop()!
+    const y = Math.floor(i / C)
+    const x = i % C
+    r0 = Math.min(r0, y)
+    r1 = Math.max(r1, y)
+    c0 = Math.min(c0, x)
+    c1 = Math.max(c1, x)
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const ny = y + dy
+        const nx = x + dx
+        const j = ny * C + nx
+        if (ny >= 0 && ny < R && nx >= 0 && nx < C && !inObject[j] && cells[j] !== background) {
+          inObject[j] = 1
+          todo.push(j)
+        }
+      }
+    }
+  }
+  // Outside: what can be reached from the rectangle's edge without crossing the object,
+  // side by side only (an object joined corner to corner still walls it in).
+  const h = r1 - r0 + 1
+  const w = c1 - c0 + 1
+  const clear = new Uint8Array(h * w)
+  const open = (y: number, x: number) => !inObject[(r0 + y) * C + c0 + x] && !clear[y * w + x]
+  const out: number[] = []
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if ((y === 0 || x === 0 || y === h - 1 || x === w - 1) && open(y, x)) {
+        clear[y * w + x] = 1
+        out.push(y * w + x)
+      }
+    }
+  }
+  while (out.length > 0) {
+    const i = out.pop()!
+    const y = Math.floor(i / w)
+    const x = i % w
+    for (const [ny, nx] of [
+      [y - 1, x],
+      [y + 1, x],
+      [y, x - 1],
+      [y, x + 1],
+    ] as const) {
+      if (ny >= 0 && ny < h && nx >= 0 && nx < w && open(ny, nx)) {
+        clear[ny * w + nx] = 1
+        out.push(ny * w + nx)
+      }
+    }
+  }
+  return { rect: { r0, c0, r1: r1 + 1, c1: c1 + 1 }, clear }
+}
+
 /** A see-through mask turned as `turnBlock` turns its block. */
 export function turnMask(mask: Uint8Array, rows: number, cols: number, how: Turn): Uint8Array {
   return Uint8Array.from(turnBlock({ rows, cols, cells: Uint16Array.from(mask) }, how).cells)

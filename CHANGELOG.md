@@ -13,6 +13,8 @@ line per change, under the release it's in.
 - **Remove background** for a selection in Design: its background becomes see-through, so
   when you move or turn it, only the motif goes over what's there. Press **Put background
   back** to undo it.
+- **Select object** (`W`) in Design: click a shape, such as one cat in a row of cats, to
+  select it without its background, and drag it straight away.
 
 ### Fixed
 

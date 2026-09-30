@@ -1,6 +1,7 @@
 /**
  * The Design stage's icons (see ui/icons.tsx for the rest, and why Lucide). The tools
- * are the ones every drawing program has: a dashed marquee selects, a pencil paints one
+ * are the ones every drawing program has: a dashed marquee selects, a magic wand selects
+ * the object clicked, a pencil paints one
  * cell, a bucket fills, a rectangle draws one, a pipette picks a colour up. Filling a
  * row or a column shows the grid with that band inked; adding one is Lucide's
  * "insert between".
@@ -18,6 +19,7 @@ import {
   Trash2,
   TrianglesCenterlineDashedHorizontal,
   TrianglesCenterlineDashedVertical,
+  WandSparkles,
   type LucideIcon,
   type LucideProps,
 } from 'lucide-react'
@@ -56,6 +58,7 @@ const FillColumn = (props: LucideProps) => <Band kind="col" {...props} />
 
 const TOOL_ICONS: Record<Tool, LucideIcon | typeof FillRow> = {
   select: SquareDashed,
+  object: WandSparkles,
   paint: Pencil,
   fill: PaintBucket,
   rect: Square,
