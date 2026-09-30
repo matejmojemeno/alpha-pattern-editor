@@ -3,9 +3,7 @@
 Turns a photo of a crochet alpha chart into a pattern you can design and follow row by
 row. The product is the **web app in `web/`**, hosted on Cloudflare. The Python in
 `alphareader/core/` is the reference implementation, and runs in the browser through
-Pyodide for photo detection only. The PySide6 desktop app (`alphareader/ui/`, `app.py`)
-is legacy: keep it working, don't extend it. Retiring it is the owner's decision, so ask
-before you do.
+Pyodide for photo detection only.
 
 ## Read first
 
@@ -41,7 +39,7 @@ golden fixtures:
 3. Change the TypeScript until `web/tests/*golden*` replays the fixtures.
 
 After touching `core/detect`, run `python scripts/parity/check.py`: 89/89 bit-identical
-between desktop CPython and Pyodide. Don't "simplify" `_nd.py`; `docs/dev/rules.md#nd-py` says why.
+between CPython and Pyodide. Don't "simplify" `_nd.py`; `docs/dev/rules.md#nd-py` says why.
 
 ## How a change is made
 
@@ -53,7 +51,7 @@ between desktop CPython and Pyodide. Don't "simplify" `_nd.py`; `docs/dev/rules.
   line your harness gives.
 - **PRs (not drafts):**
   - The description covers, in plain English: what was built, the choices made and why,
-    behaviour that differs from the desktop and why, every check with its result, and
+    behaviour that differs from the Python reference and why, every check with its result, and
     **"Couldn't verify"**.
   - End it with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
   - Cloudflare's bot comments the PR's preview link on every PR by itself (see Hosting).
@@ -88,7 +86,7 @@ From the repo root:
 - **e2e:**
   - Without `CI=1`, Playwright reuses any server already on port 4174, possibly a stale
     one. Check that the port is free.
-  - The import specs compare against the desktop through `scripts/desktop_import.py`,
+  - The import specs compare against the Python reference through `scripts/desktop_import.py`,
     which needs `<repo>/.venv`. In a worktree, symlink it or put `.venv/bin` on `PATH`.
 - **Python:** one known failure, `test_edge_numbers_all_sides`. Any other failure is new.
 - **Tests must fail without the fix.** For a bug fix, run the new test against the old
@@ -105,7 +103,7 @@ before saying it's ready:
   - For logic ports, run random chained operations on real patterns through the Python,
     record them in the golden-fixture format, and replay them through the TypeScript.
   - Plant a wrong expectation, and confirm the replay catches it.
-  - For output formats, compare pixel for pixel with the desktop.
+  - For output formats, compare pixel for pixel with the Python reference.
   - For data, check every entry against its cited source.
 - **Read the risky code,** not just the tests.
 - **Report in plain language:**
@@ -133,9 +131,10 @@ before saying it's ready:
   repo is **public**.
 - `saved/` holds the owner's real projects. Read them for testing; never modify or commit
   them.
-- **`.alpha` compatibility with the desktop is a hard requirement,** in both directions.
-  Round-trip through `scripts/desktop_import.py load` when storage or editing changes.
-  Keep the `start_direction` load-default asymmetry; the Rules explain why.
+- **Old `.alpha` files must keep opening.** Every file in `fixtures/alpha/desktop/` (and
+  in `saved/`) must load in the web app; `fixtures/alpha/README.md` says what else is
+  tested. Keep the `start_direction` load-default asymmetry;
+  `docs/dev/rules.md#start-direction` says why.
 - **Undo restores exactly.** Structural edits that lose Work progress ask first.
 
 ## Hosting and deploys (Cloudflare Workers static assets)
@@ -176,5 +175,4 @@ before saying it's ready:
 - **Ask before anything irreversible or outward-facing:**
   - merging;
   - deleting a remote branch that isn't merged yet;
-  - publishing private material;
-  - retiring the desktop app.
+  - publishing private material.
