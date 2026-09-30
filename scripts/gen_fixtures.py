@@ -330,6 +330,18 @@ def edit_calls() -> list[tuple[str, str, list, dict]]:
                        ("single-column", 0, 2)):
         add(name, "fill_column", c, i)
 
+    # A block's corner may be anywhere: only the part over the chart is written.
+    add("framed", "paste_block", 1, 1, [[3, 3], [0, 1]])
+    add("framed", "paste_block", -1, -1, [[3, 3, 3], [3, 1, 1]])   # over the top left
+    add("framed", "paste_block", 4, 3, [[0, 1, 3], [1, 0, 3]])     # over the bottom right
+    add("framed", "paste_block", -2, 1, [[1], [0], [3], [3], [3], [3], [3], [3], [3]])
+    add("framed", "paste_block", 6, 0, [[1, 1]])                   # below: a copy
+    add("framed", "paste_block", 0, -3, [[1, 1]])                  # left of it: a copy
+    add("random", "paste_block", 2, 3, [[4, 3, 2, 1, 0]])
+    add("single-cell", "paste_block", 0, 0, [[0]])                 # already that colour
+    add("odd-indices", "paste_block", 0, 2, [[SKIP_INDEX, 9], [2, SKIP_INDEX]])
+    add("framed", "paste_block", 0, 0, [1, 2])                     # not a grid: ValueError
+
     add("framed", "add_border", top=1, right=2, bottom=3, left=4, palette_index=3)
     add("framed", "add_border", top=2)
     add("framed", "add_border", bottom=1, palette_index=1)

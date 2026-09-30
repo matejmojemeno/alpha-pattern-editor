@@ -343,3 +343,54 @@ def test_rotate_90_does_not_mutate_its_input():
     edit.rotate_90(p, clockwise=False)
     assert np.array_equal(p.cells, cells) and p.row_ids == ids
     assert [e.count for e in p.palette] == counts and (p.rows, p.cols) == (2, 3)
+
+
+# --- paste_block ---------------------------------------------------------------
+
+def test_paste_block_writes_at_its_corner():
+    p = _pattern([[0, 0, 0], [0, 0, 0], [0, 0, 0]])
+    q = edit.paste_block(p, 1, 1, [[1, 2], [2, 1]])
+    assert q.cells.tolist() == [[0, 0, 0], [0, 1, 2], [0, 2, 1]]
+    assert [e.count for e in q.palette] == [5, 2, 2]
+    assert q.row_ids == p.row_ids and (q.rows, q.cols) == (3, 3)
+
+
+def test_paste_block_drops_what_hangs_over_any_edge():
+    p = _pattern([[0, 0, 0], [0, 0, 0]])
+    block = [[1, 2], [2, 1]]
+    assert edit.paste_block(p, -1, -1, block).cells.tolist() == [[1, 0, 0], [0, 0, 0]]
+    assert edit.paste_block(p, 1, 2, block).cells.tolist() == [[0, 0, 0], [0, 0, 1]]
+    # Wholly off the chart: a copy.
+    for r, c in ((2, 0), (0, 3), (-2, 0), (0, -2)):
+        assert edit.paste_block(p, r, c, block).cells.tolist() == p.cells.tolist()
+
+
+def test_paste_block_larger_than_the_chart():
+    p = _pattern([[0, 0], [0, 0]])
+    block = [[1, 2, 1], [2, 1, 2], [1, 1, 1]]
+    assert edit.paste_block(p, -1, 0, block).cells.tolist() == [[2, 1], [1, 1]]
+
+
+def test_paste_block_copies_skip_and_odd_indices_as_they_are():
+    from ..core.model import SKIP_INDEX
+    p = _pattern([[0, 0, 0]])
+    q = edit.paste_block(p, 0, 0, [[SKIP_INDEX, 7, 1]])
+    assert q.cells.tolist() == [[SKIP_INDEX, 7, 1]]
+    assert [e.count for e in q.palette] == [0, 1, 0]
+
+
+def test_paste_block_needs_a_grid():
+    p = _pattern([[0, 0]])
+    try:
+        edit.paste_block(p, 0, 0, [1, 2])
+    except ValueError as e:
+        assert str(e) == "A block must be a grid of cells."
+    else:
+        raise AssertionError("a flat list was pasted")
+
+
+def test_paste_block_does_not_mutate_its_input_or_block():
+    p = _pattern([[0, 0], [0, 0]])
+    block = np.array([[1, 1]], dtype=np.uint16)
+    edit.paste_block(p, 0, 0, block)
+    assert p.cells.tolist() == [[0, 0], [0, 0]] and block.tolist() == [[1, 1]]

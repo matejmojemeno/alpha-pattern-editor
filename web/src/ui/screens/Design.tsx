@@ -7,7 +7,8 @@
  * (logic/progress.ts): an edit that would lose rows marked done asks first.
  *
  * Every edit goes through design/editor.ts, which also keeps undo; each structural
- * edit is one undo step. Saving is automatic, as in the Work stage (app/autosave.ts),
+ * edit is one undo step. The Select tool's selection lives there too; Copy and Cut keep
+ * cells in this tab (`clipboard`), so they can be pasted into another pattern. Saving is automatic, as in the Work stage (app/autosave.ts),
  * and stamps the project as in the Design stage.
  *
  * Loaded lazily (App.tsx): nothing here is needed to follow a pattern on a phone.
@@ -28,20 +29,31 @@ import {
   abortDrag,
   addColour,
   addLine,
+  backgroundIndex,
   canRedo,
   canUndo,
   cancelDrag,
+  copySelection,
+  croppedToSelection,
   deleteColour,
+  deleteSelection,
+  deselect,
+  fillSelection,
   initialEditor,
+  nudge,
+  paste,
   pointerDown,
   pointerMove,
   pointerUp,
   editColour,
+  putDown,
   redo,
+  selectAll,
   selectColour,
   setTool,
   structural,
   toolForKey,
+  turnSelection,
   undo,
   type EditorState,
   type Tool,
@@ -57,6 +69,7 @@ import {
   type Preview,
   type Sides,
 } from '../../design/structure.ts'
+import { rectBetween, rectCols, rectRows, type CellRect, type Clip, type Turn } from '../../design/selection.ts'
 import { endSize, formSides, initialForm, parseWhole, turnSides, withSides, type StructureForm } from '../../design/structureForm.ts'
 import {
   EditError,
@@ -92,8 +105,17 @@ export default function Design({ id }: { id: string }) {
   return <ProjectGate id={id}>{(repo, { project }) => <DesignStage repo={repo} initial={project} />}</ProjectGate>
 }
 
+/**
+ * What Copy and Cut keep, for as long as this tab is open, whichever pattern is being
+ * designed: kept here rather than on the system clipboard, which can't hold a pattern's
+ * cells and colours (and asks for permission to be read). Pasting into another pattern
+ * brings the colours with it (design/selection.ts `mapClip`).
+ */
+let clipboard: Clip | null = null
+
 /** Each tool's icon: the same 3×3 cell metaphor as the desktop's (icons.py). */
 const ICONS: Record<Tool, ReadonlyArray<readonly [number, number]>> = {
+  select: [],
   paint: [[1, 1]],
   fill: [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0]],
   rect: [[0, 0], [0, 1], [1, 0], [1, 1]],
@@ -115,6 +137,7 @@ const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 const sizeOf = (p: Pattern) => `${p.cols} × ${p.rows}`
+const cellsIn = (r: CellRect) => `${rectCols(r)} × ${rectRows(r)}`
 
 /** What an edit about to lose progress says about it. `restart` names an edit that
  *  gives every row a new id (scale, rotate), so all progress starts again. */
@@ -403,10 +426,83 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       if (kind) {
         const one = kind === 'row' ? 'row' : 'column'
         setMessage(`Point at the chart where the new ${one} goes, and click to add it. To delete a ${one}, press its number.`)
+      } else if (tool === 'select') {
+        setMessage('Drag over the chart to select cells, then drag inside the selection to move them.')
       }
     },
     [update],
   )
+
+  // --- the Select tool: the selection's buttons, which its shortcuts share -----------------------
+  const [clip, setClip] = useState(clipboard)
+  const onSelectUp = (c: { r: number; c: number } | null) => {
+    const d = latest.current.drag
+    update((s) => pointerUp(s, c))
+    const sel = latest.current.selection
+    if (d?.tool === 'select' && sel) setMessage(`Selected ${cellsIn(sel.rect)} cells. Drag inside them to move them.`)
+    else if (d?.tool === 'select') setMessage('')
+  }
+  const onCopy = () => {
+    const c = copySelection(latest.current)
+    if (!c) return null
+    clipboard = c
+    setClip(c)
+    setMessage(`Copied ${c.block.cols} × ${c.block.rows} cells.`)
+    return c
+  }
+  const onCut = () => {
+    const c = onCopy()
+    if (!c) return
+    const bg = latest.current.pattern.palette[backgroundIndex(latest.current.pattern)]
+    update(deleteSelection)
+    setMessage(`Cut ${c.block.cols} × ${c.block.rows} cells, leaving “${bg?.name || 'the background'}”.`)
+  }
+  const onPaste = () => {
+    const c = clipboard
+    if (!c) return
+    const before = latest.current.pattern.palette.length
+    update((s) => paste(s, c))
+    const added = latest.current.pattern.palette.length - before
+    setMessage(
+      `Pasted ${c.block.cols} × ${c.block.rows} cells${added ? `, adding ${plural(added, 'colour')}` : ''}. Drag them into place, then click outside them.`,
+    )
+  }
+  const onEmpty = () => {
+    const bg = latest.current.pattern.palette[backgroundIndex(latest.current.pattern)]
+    const floating = !!latest.current.selection?.floating
+    update(deleteSelection)
+    setMessage(floating ? 'Took the selection away.' : `Emptied the selection to “${bg?.name || 'the background'}”.`)
+  }
+  const onTurn = (how: Turn) => update((s) => turnSelection(s, how))
+  const onCrop = () =>
+    guarded(() => {
+      const next = croppedToSelection(latest.current)
+      if (next) attempt(next, `Cropped to the selection: now ${sizeOf(next)}.`, { title: 'Crop away rows you’ve worked?', confirmLabel: 'Crop' })
+    })
+  const onSelectAll = () => {
+    update(selectAll)
+    setMessage(`Selected the whole pattern, ${sizeOf(latest.current.pattern)}.`)
+  }
+  // On a tablet the selection's buttons lie over the bottom of the chart: it scrolls that
+  // much further, so nothing stays hidden under them.
+  const [barHeight, setBarHeight] = useState(0)
+  const bar = useRef<ResizeObserver | null>(null)
+  const measureBar = useCallback((el: HTMLDivElement | null) => {
+    bar.current?.disconnect()
+    bar.current = null
+    if (!el) return setBarHeight(0)
+    const measure = () => setBarHeight(el.offsetHeight)
+    measure()
+    if (typeof ResizeObserver !== 'undefined') {
+      bar.current = new ResizeObserver(measure)
+      bar.current.observe(el)
+    }
+  }, [])
+  /** The selection's keys, for the keyboard handler attached once. */
+  const selectionKeys = useRef({ onCopy, onCut, onPaste, onEmpty, onSelectAll })
+  useEffect(() => {
+    selectionKeys.current = { onCopy, onCut, onPaste, onEmpty, onSelectAll }
+  })
 
   // --- zoom: px per cell. Until zoomed (and after Fit) it follows the view's size. ----------
   const [viewport, setViewport] = useState<{ width: number; height: number } | null>(null)
@@ -480,6 +576,8 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
         return
       }
       if (e.defaultPrevented || ownsKeys(e.target) || document.querySelector('[aria-modal="true"]')) return
+      const keys = selectionKeys.current
+      const selected = latest.current.selection !== null
       if (mod && !e.altKey) {
         if (key === 'z') {
           e.preventDefault()
@@ -487,12 +585,39 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
         } else if (key === 'y') {
           e.preventDefault()
           update(redo)
+        } else if ((key === 'c' || key === 'x') && selected && !e.shiftKey) {
+          e.preventDefault()
+          if (key === 'c') keys.onCopy()
+          else keys.onCut()
+        } else if (key === 'v' && clipboard && !e.shiftKey) {
+          e.preventDefault()
+          keys.onPaste()
+        } else if (key === 'a' && !e.shiftKey) {
+          e.preventDefault()
+          keys.onSelectAll()
         }
         return
       }
       if (e.altKey) return
       if (e.key === 'Escape') {
-        update(cancelDrag)
+        update(latest.current.drag ? cancelDrag : deselect)
+        return
+      }
+      if (selected && (e.key === 'Delete' || e.key === 'Backspace')) {
+        e.preventDefault()
+        keys.onEmpty()
+        return
+      }
+      if (selected && e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) {
+        e.preventDefault()
+        update(putDown)
+        return
+      }
+      const arrow = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] }[e.key]
+      if (arrow) {
+        if (!selected || latest.current.drag) return
+        e.preventDefault()
+        update((s) => nudge(s, arrow[0]!, arrow[1]!))
         return
       }
       if (e.key === '+' || e.key === '=') zoom(1)
@@ -539,6 +664,9 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
           : { outline: line(adding.kind, adding.at, shownPattern) }
         : null
   const mode = preview ? (preview.outline ? 'move' : 'view') : 'edit'
+  // The selection being dragged out, or the one there is.
+  const selection = d?.tool === 'select' ? rectBetween(d.start, d.end) : (editor.selection?.rect ?? null)
+  const withSelection: Overlay | null = overlay ?? (selection && editor.tool === 'select' ? { selection } : null)
 
   // The same controls, laid out for the screen: side columns on a desktop; on a tablet a
   // toolbar over the chart, and the colours and the structural panel in drawers.
@@ -554,7 +682,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
           title={`${t.label} (${t.shift ? '⇧' : ''}${t.key})`}
           onClick={() => chooseTool(t.tool)}
         >
-          <CellsIcon filled={ICONS[t.tool]} plus={t.tool in ADD_TOOLS} />
+          <CellsIcon filled={ICONS[t.tool]} plus={t.tool in ADD_TOOLS} marquee={t.tool === 'select'} />
           <span className="tool__label">{t.label}</span>
           <kbd className="tool__key">
             {t.shift ? '⇧' : ''}
@@ -562,6 +690,72 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
           </kbd>
         </button>
       ))}
+    </div>
+  )
+  const sel = editor.selection
+  const bg = p.palette[backgroundIndex(p)]
+  const selectionTools = editor.tool === 'select' && (
+    <div className="selection-tools" role="group" aria-label="Selection">
+      <button type="button" className="button button--small" disabled={!sel} title={`Copy (${MOD}C)`} onClick={onCopy}>
+        Copy
+      </button>
+      <button type="button" className="button button--small" disabled={!sel} title={`Cut (${MOD}X)`} onClick={onCut}>
+        Cut
+      </button>
+      <button
+        type="button"
+        className="button button--small"
+        disabled={!clip}
+        title={clip ? `Paste ${clip.block.cols} × ${clip.block.rows} cells (${MOD}V)` : 'Copy or cut cells first'}
+        onClick={onPaste}
+      >
+        Paste
+      </button>
+      <button
+        type="button"
+        className="button button--small"
+        disabled={!sel}
+        title={`Empty it to “${bg?.name || 'the background'}”, the colour most of the edge is (Delete)`}
+        onClick={onEmpty}
+      >
+        Delete
+      </button>
+      <button type="button" className="button button--small" disabled={!sel} title="Mirror it left to right" onClick={() => onTurn('mirror')}>
+        Mirror ⇄
+      </button>
+      <button type="button" className="button button--small" disabled={!sel} title="Flip it top to bottom" onClick={() => onTurn('flip')}>
+        Flip ⇅
+      </button>
+      <button type="button" className="button button--small" disabled={!sel} title="Turn it a quarter clockwise" onClick={() => onTurn('cw')}>
+        Rotate ↻
+      </button>
+      <button type="button" className="button button--small" disabled={!sel} title="Turn it a quarter anticlockwise" onClick={() => onTurn('ccw')}>
+        Rotate ↺
+      </button>
+      <button
+        type="button"
+        className="button button--small selection-tools__wide"
+        disabled={!sel}
+        title="Fill it with the colour you’re painting with"
+        onClick={() => update(fillSelection)}
+      >
+        Fill with “{current?.name || 'Unnamed'}”
+      </button>
+      <button
+        type="button"
+        className="button button--small selection-tools__wide"
+        disabled={!sel}
+        title="Keep only the selected cells"
+        onClick={onCrop}
+      >
+        Crop to selection
+      </button>
+      <button type="button" className="button button--small" title={`Select the whole pattern (${MOD}A)`} onClick={onSelectAll}>
+        Select all
+      </button>
+      <button type="button" className="button button--small" disabled={!sel} title="Put it down and stop selecting it (Esc)" onClick={() => update(deselect)}>
+        Deselect
+      </button>
     </div>
   )
   const zoomControls = (
@@ -735,6 +929,12 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
           <aside className="design__tools" aria-label="Tools">
             <h2 className="design__heading">Tools</h2>
             {tools}
+            {selectionTools && (
+              <>
+                <h2 className="design__heading">Selection</h2>
+                {selectionTools}
+              </>
+            )}
             <h2 className="design__heading">Zoom</h2>
             {zoomControls}
             {current && (
@@ -755,10 +955,12 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
             tool={editor.tool}
             mode={mode}
             preview={rectPreview}
-            overlay={overlay}
+            overlay={withSelection}
+            selection={editor.tool === 'select' ? (sel?.rect ?? null) : null}
+            roomBelow={compact && editor.tool === 'select' ? barHeight : 0}
             onDown={(c) => update((s) => pointerDown(s, c))}
             onMove={(c) => update((s) => pointerMove(s, c))}
-            onUp={(c) => update((s) => pointerUp(s, c))}
+            onUp={onSelectUp}
             onCancel={() => update(cancelDrag)}
             onAbort={() => update(abortDrag)}
             onShift={onShift}
@@ -770,8 +972,17 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
             onZoomTo={setZoomed}
             onViewport={setViewport}
             themeKey={settings.highContrast ? 'high' : 'normal'}
-            label={preview ? `Preview, ${shownPattern.cols} by ${shownPattern.rows}` : `Pattern, ${p.cols} by ${p.rows}`}
+            label={
+              preview
+                ? `Preview, ${shownPattern.cols} by ${shownPattern.rows}`
+                : `Pattern, ${p.cols} by ${p.rows}${sel && editor.tool === 'select' ? `, ${rectCols(sel.rect)} by ${rectRows(sel.rect)} selected` : ''}`
+            }
           />
+          {compact && selectionTools && (
+            <div ref={measureBar} className="design__selection-bar">
+              {selectionTools}
+            </div>
+          )}
           {preview && (
             <p className="design__previewing" role="status">
               Previewing: drag the pattern to move it.
@@ -843,9 +1054,9 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
 
 /**
  * Insert or delete the row or column whose number was pressed. A small menu at the
- * number, rather than a selected cell: the Design stage has no selection (every tool
- * acts on a press), the numbers are already there to aim at, and it works the same with
- * a finger. Escape, or a press outside, closes it.
+ * number, rather than through a selection: most tools act on a press, the numbers are
+ * already there to aim at, and it works the same with a finger. Escape, or a press
+ * outside, closes it.
  */
 function AxisMenuPopup({
   menu,

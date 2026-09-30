@@ -20,6 +20,8 @@
  *   says where the new row or column would go (`onInsertHover`), for the screen to
  *   preview; a click, or a finger lifted after dragging it into place, adds it
  *   (`onInsert`).
+ * - With Select, the pointer shows a move cursor over the selection (`selection`),
+ *   where a press picks it up to drag.
  * - A press on a row or column number, in the margins, picks that row or column
  *   (`onAxis`), for inserting or deleting it.
  * - Ctrl/⌘ + wheel zooms about the pointer (a trackpad pinch arrives as this too); a
@@ -41,6 +43,7 @@ import {
   insertAt,
   zoomScroll,
   type Cell,
+  type CellRect,
   type Overlay,
 } from '../../render/design.ts'
 import { ADD_TOOLS, type Tool } from '../../design/editor.ts'
@@ -51,6 +54,7 @@ const MAX_DPR = 2
 
 /** A crosshair where cells are placed precisely; a hand where something is picked. */
 const CURSORS: Record<Tool, string> = {
+  select: 'crosshair',
   paint: 'crosshair',
   rect: 'crosshair',
   row: 'crosshair',
@@ -74,6 +78,12 @@ export interface DesignCanvasProps {
   mode?: CanvasMode
   preview: { a: Cell; b: Cell; hex: string } | null
   overlay?: Overlay | null
+  /** The Select tool's selection, for the cursor: a press inside it moves it. */
+  selection?: CellRect | null
+  /** CSS pixels of scrolling room under the chart, for what lies over the bottom of the
+   *  view (the selection's buttons on a tablet), so the last rows can come out from
+   *  under it. */
+  roomBelow?: number
   onDown: (cell: Cell) => void
   onMove: (cell: Cell) => void
   onUp: (cell: Cell | null) => void
@@ -333,6 +343,12 @@ export function DesignCanvas(props: DesignCanvasProps) {
       if (step) pinch(step)
       if (fingers.current.pinching) return
     }
+    const sel = latest.current.selection
+    if (!dragging.current && (latest.current.mode ?? 'edit') === 'edit' && latest.current.tool === 'select') {
+      const at = locate(e, false)
+      const inside = !!sel && !!at && at.r >= sel.r0 && at.r < sel.r1 && at.c >= sel.c0 && at.c < sel.c1
+      e.currentTarget.style.cursor = inside ? 'move' : CURSORS.select
+    }
     if (adds()) {
       // A mouse or a pen points without pressing; a finger has to be down.
       const a = adding.current
@@ -390,6 +406,11 @@ export function DesignCanvas(props: DesignCanvasProps) {
 
   const content = contentSize(pattern.cols, pattern.rows, cell)
   const cursor = mode === 'move' ? 'grab' : mode === 'view' ? 'default' : CURSORS[tool]
+  // Set here as well as in `style`: hovering the selection sets it directly, and React
+  // wouldn't put back a value it thinks is unchanged.
+  useLayoutEffect(() => {
+    if (scroller.current) scroller.current.style.cursor = cursor
+  })
   return (
     <div ref={wrap} className="design-canvas" role="img" aria-label={props.label} tabIndex={-1}>
       <canvas ref={canvas} className="chart__canvas" aria-hidden="true" style={{ width: size.width, height: size.height }} />
@@ -408,7 +429,7 @@ export function DesignCanvas(props: DesignCanvasProps) {
         data-cell={cell}
         data-mode={mode}
       >
-        <div style={{ width: content.width, height: content.height }} />
+        <div style={{ width: content.width, height: content.height + (props.roomBelow ?? 0) }} />
       </div>
     </div>
   )

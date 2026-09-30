@@ -329,7 +329,16 @@ export function RenameForm({
  * A 3×3 chart fragment with some cells inked in the accent colour: the same metaphor as
  * the desktop's tool icons (icons.py), since every screen here is about cells.
  */
-export function CellsIcon({ filled, plus = false }: { filled: ReadonlyArray<readonly [number, number]>; plus?: boolean }) {
+export function CellsIcon({
+  filled,
+  plus = false,
+  marquee = false,
+}: {
+  filled: ReadonlyArray<readonly [number, number]>
+  plus?: boolean
+  /** Selecting, not filling: a dashed line around the top-left four cells. */
+  marquee?: boolean
+}) {
   const on = new Set(filled.map(([r, c]) => r * 3 + c))
   return (
     <svg className="cells-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
@@ -342,13 +351,16 @@ export function CellsIcon({ filled, plus = false }: { filled: ReadonlyArray<read
           height={6}
           fill={on.has(i) ? 'var(--accent)' : 'none'}
           stroke="currentColor"
-          strokeOpacity={0.67}
+          strokeOpacity={marquee ? 0.35 : 0.67}
           strokeWidth={1}
           shapeRendering="crispEdges"
         />
       ))}
       {/* Adding, not filling: a plus on the middle cell. */}
       {plus && <path d="M10 7.5v5M7.5 10h5" stroke="var(--bg)" strokeWidth={1.6} shapeRendering="crispEdges" />}
+      {marquee && (
+        <rect x={2} y={2} width={10} height={10} fill="none" stroke="currentColor" strokeWidth={2.2} strokeDasharray="3 2" />
+      )}
     </svg>
   )
 }

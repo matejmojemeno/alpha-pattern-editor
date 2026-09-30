@@ -11,8 +11,16 @@
  * that are already the colour records nothing. This applies to every tool here, not
  * only paint: an edit that changes nothing (a fill on its own colour, a row already that
  * colour) records no undo step. The desktop recorded those; see the PR notes.
+ *
+ * The Select tool (web only; the desktop has none) keeps a rectangle of cells. Moving,
+ * turning or pasting one makes it *float*: the block of cells is kept whole, with the
+ * pattern under it (`under`), and the pattern is always `under` with the block written
+ * over it. So a block dragged past an edge comes back whole, while what is saved, shown
+ * and counted is always the plain pattern. Each drag, turn or paste is one undo step;
+ * undo puts the pattern back exactly and drops the selection.
  */
 import {
+  addBorder,
   addPaletteEntry,
   deletePaletteEntryNearest,
   fillColumn,
@@ -21,7 +29,9 @@ import {
   floodFill,
   insertColumn,
   insertRow,
+  majorBorderIndex,
   nearestEntryId,
+  pasteBlock,
   recolorPaletteEntry,
   renamePaletteEntry,
   samePattern,
@@ -29,12 +39,29 @@ import {
 } from '../logic/edit.ts'
 import type { Pattern } from '../model/types.ts'
 import { emptyHistory, record, redo as redoHistory, undo as undoHistory, type History } from './history.ts'
+import {
+  clipOf,
+  clipRect,
+  containsCell,
+  mapClip,
+  moveRect,
+  readBlock,
+  rectBetween,
+  sameRect,
+  turnBlock,
+  turnRect,
+  type Block,
+  type CellRect,
+  type Clip,
+  type Turn,
+} from './selection.ts'
 
-export type Tool = 'paint' | 'fill' | 'rect' | 'eyedropper' | 'row' | 'col' | 'addRow' | 'addCol'
+export type Tool = 'select' | 'paint' | 'fill' | 'rect' | 'eyedropper' | 'row' | 'col' | 'addRow' | 'addCol'
 
 /** The tools in toolbar order, with their single-key shortcuts (design_window.py). Adding
  *  a row or a column is Shift with the key that fills one. */
 export const TOOLS: readonly { tool: Tool; label: string; key: string; shift?: boolean }[] = [
+  { tool: 'select', label: 'Select', key: 'S' },
   { tool: 'paint', label: 'Paint', key: 'B' },
   { tool: 'fill', label: 'Fill', key: 'F' },
   { tool: 'rect', label: 'Rectangle', key: 'R' },
@@ -63,11 +90,29 @@ export type Drag =
   | { readonly tool: 'paint'; readonly last: Cell; readonly recorded: boolean; readonly origin: Origin }
   /** A rectangle being dragged out, previewed until the pointer comes up. */
   | { readonly tool: 'rect'; readonly start: Cell; readonly end: Cell }
+  /** A selection being dragged out. `had`: there was one before the press, so a click
+   *  that doesn't move only drops it. */
+  | { readonly tool: 'select'; readonly start: Cell; readonly end: Cell; readonly had: boolean }
+  /** A selection being dragged to a new place, from where it was (`rect`) when the
+   *  pointer went down at `from`. */
+  | { readonly tool: 'move'; readonly from: Cell; readonly rect: CellRect; readonly recorded: boolean; readonly origin: Origin }
 
 /** Where a stroke began: what `abortDrag` puts back. */
 export interface Origin {
   readonly pattern: Pattern
   readonly history: History
+}
+
+/** Picked up to move, turned, or pasted: the block, and the pattern without it. */
+export interface Floating {
+  readonly block: Block
+  readonly under: Pattern
+}
+
+export interface Selection {
+  /** Half-open. On the chart, unless floating: a floating block may hang over an edge. */
+  readonly rect: CellRect
+  readonly floating: Floating | null
 }
 
 export interface EditorState {
@@ -77,22 +122,41 @@ export interface EditorState {
   /** The palette index painted with. */
   readonly colour: number
   readonly drag: Drag | null
+  /** The Select tool's rectangle; only ever set while that tool is chosen. */
+  readonly selection: Selection | null
 }
 
 export function initialEditor(pattern: Pattern): EditorState {
-  return { pattern, history: emptyHistory, tool: 'paint', colour: 0, drag: null }
+  return { pattern, history: emptyHistory, tool: 'paint', colour: 0, drag: null, selection: null }
 }
 
 const clampColour = (colour: number, p: Pattern) => Math.max(0, Math.min(colour, p.palette.length - 1))
 
-/** Apply a discrete edit as one undo step, or as nothing if it changed nothing. */
-export function commit(s: EditorState, next: Pattern): EditorState {
-  if (samePattern(s.pattern, next)) return s
-  return { ...s, pattern: next, history: record(s.history, s.pattern), colour: clampColour(s.colour, next) }
+/** A selection after `next` replaced the pattern by some other edit: put down (what
+ *  floated is already in the pattern), and kept only while the shape is the same. */
+function settled(sel: Selection | null, next: Pattern, before: Pattern): Selection | null {
+  if (!sel || next.rows !== before.rows || next.cols !== before.cols) return null
+  const rect = clipRect(sel.rect, next.rows, next.cols)
+  return rect ? { rect, floating: null } : null
 }
 
+/** Apply a discrete edit as one undo step, or as nothing if it changed nothing. Any
+ *  selection is put down first. */
+export function commit(s: EditorState, next: Pattern): EditorState {
+  if (samePattern(s.pattern, next)) return s.selection?.floating ? { ...s, selection: settled(s.selection, next, s.pattern) } : s
+  return {
+    ...s,
+    pattern: next,
+    history: record(s.history, s.pattern),
+    colour: clampColour(s.colour, next),
+    selection: settled(s.selection, next, s.pattern),
+  }
+}
+
+/** Choose a tool. Leaving Select puts its selection down and drops it. */
 export function setTool(s: EditorState, tool: Tool): EditorState {
-  return tool === s.tool && !s.drag ? s : { ...s, tool, drag: null }
+  if (tool === s.tool && !s.drag) return s
+  return { ...s, tool, drag: null, selection: tool === 'select' ? settled(s.selection, s.pattern, s.pattern) : null }
 }
 
 export function selectColour(s: EditorState, colour: number): EditorState {
@@ -145,11 +209,23 @@ function paint(s: EditorState, cells: readonly Cell[], last: Cell, recorded: boo
   }
 }
 
-/** A press on a cell: what each tool does (design_window.py `_on_pressed`). */
+/** A press on a cell: what each tool does (design_window.py `_on_pressed`). With Select,
+ *  a press inside the selection picks it up to drag; anywhere else starts a new one. */
 export function pointerDown(s: EditorState, cell: Cell): EditorState {
   const { pattern: p, colour } = s
   const { r, c } = cell
   switch (s.tool) {
+    case 'select': {
+      const sel = s.selection
+      if (sel && containsCell(sel.rect, cell)) {
+        return {
+          ...lift(s),
+          drag: { tool: 'move', from: cell, rect: sel.rect, recorded: false, origin: { pattern: p, history: s.history } },
+        }
+      }
+      // The old selection stays until the press ends: a pinch that began here keeps it.
+      return { ...s, drag: { tool: 'select', start: cell, end: cell, had: sel !== null } }
+    }
     case 'paint':
       return paint({ ...s, drag: null }, [cell], cell, false, { pattern: p, history: s.history })
     case 'fill':
@@ -179,6 +255,21 @@ export function pointerMove(s: EditorState, cell: Cell): EditorState {
     if (d.last.r === cell.r && d.last.c === cell.c) return s
     return paint(s, lineCells(d.last, cell).slice(1), cell, d.recorded, d.origin)
   }
+  if (d.tool === 'move') {
+    const f = s.selection?.floating
+    if (!f) return s
+    const rect = moveRect(d.rect, cell.r - d.from.r, cell.c - d.from.c)
+    if (sameRect(rect, s.selection!.rect)) return s
+    const pattern = pasteBlock(f.under, rect.r0, rect.c0, f.block)
+    const changed = !samePattern(pattern, s.pattern)
+    return {
+      ...s,
+      pattern: changed ? pattern : s.pattern,
+      history: changed && !d.recorded ? record(s.history, d.origin.pattern) : s.history,
+      selection: { rect, floating: f },
+      drag: changed && !d.recorded ? { ...d, recorded: true } : d,
+    }
+  }
   if (d.end.r === cell.r && d.end.c === cell.c) return s
   return { ...s, drag: { ...d, end: cell } }
 }
@@ -188,8 +279,12 @@ export function pointerMove(s: EditorState, cell: Cell): EditorState {
 export function pointerUp(s: EditorState, cell?: Cell | null): EditorState {
   const d = s.drag
   if (!d) return s
-  if (d.tool === 'paint') return { ...s, drag: null }
+  if (d.tool === 'paint' || d.tool === 'move') return { ...s, drag: null }
   const end = cell ?? d.end
+  if (d.tool === 'select') {
+    const still = end.r === d.start.r && end.c === d.start.c
+    return { ...s, drag: null, selection: still && d.had ? null : { rect: rectBetween(d.start, end), floating: null } }
+  }
   return commit({ ...s, drag: null }, fillRect(s.pattern, d.start.r, d.start.c, end.r, end.c, s.colour))
 }
 
@@ -205,6 +300,9 @@ export function abortDrag(s: EditorState): EditorState {
   const d = s.drag
   if (!d) return s
   if (d.tool === 'paint' && d.recorded) return { ...s, pattern: d.origin.pattern, history: d.origin.history, drag: null }
+  if (d.tool === 'move' && s.selection) {
+    return { ...s, pattern: d.origin.pattern, history: d.origin.history, drag: null, selection: { ...s.selection, rect: d.rect } }
+  }
   return { ...s, drag: null }
 }
 
@@ -230,13 +328,138 @@ export const canRedo = (s: EditorState) => s.history.future.length > 0
 export function undo(s: EditorState): EditorState {
   const u = undoHistory(s.history, s.pattern)
   if (!u) return s
-  return { ...s, ...u, drag: null, colour: clampColour(s.colour, u.pattern) }
+  return { ...s, ...u, drag: null, selection: null, colour: clampColour(s.colour, u.pattern) }
 }
 
 export function redo(s: EditorState): EditorState {
   const u = redoHistory(s.history, s.pattern)
   if (!u) return s
-  return { ...s, ...u, drag: null, colour: clampColour(s.colour, u.pattern) }
+  return { ...s, ...u, drag: null, selection: null, colour: clampColour(s.colour, u.pattern) }
+}
+
+// --- the selection ------------------------------------------------------------------------------
+
+/** The colour a selection leaves behind when it is moved, cut or deleted: the pattern's
+ *  background, taken as the colour most of its edge is (`major_border_index`, which a
+ *  border defaults to too). */
+export function backgroundIndex(p: Pattern): number {
+  const i = majorBorderIndex(p)
+  return i < p.palette.length ? i : 0
+}
+
+/** Pick the selection up, if it isn't already: its cells become a floating block, and
+ *  the pattern under it has the background where they were. The pattern itself doesn't
+ *  change until the block moves. */
+export function lift(s: EditorState): EditorState {
+  const sel = s.selection
+  if (!sel || sel.floating) return s
+  const { rect } = sel
+  const block = readBlock(s.pattern, rect)
+  const under = fillRect(s.pattern, rect.r0, rect.c0, rect.r1 - 1, rect.c1 - 1, backgroundIndex(s.pattern))
+  return { ...s, selection: { rect, floating: { block, under } } }
+}
+
+/** A floating block put at `rect` (its size), as one undo step when that changes the
+ *  pattern. */
+function placeFloating(s: EditorState, rect: CellRect, f: Floating): EditorState {
+  const pattern = pasteBlock(f.under, rect.r0, rect.c0, f.block)
+  const selection = { rect, floating: f }
+  if (samePattern(pattern, s.pattern)) return { ...s, selection }
+  return { ...s, pattern, history: record(s.history, s.pattern), selection, colour: clampColour(s.colour, pattern) }
+}
+
+/** Move the selection's cells by (dr, dc), as one undo step: the arrow keys. */
+export function nudge(s: EditorState, dr: number, dc: number): EditorState {
+  const lifted = lift({ ...s, drag: null })
+  const sel = lifted.selection
+  if (!sel?.floating) return s
+  return placeFloating(lifted, moveRect(sel.rect, dr, dc), sel.floating)
+}
+
+/** Mirror, flip or turn the selection's cells where they are, as one undo step. A
+ *  quarter turn keeps its centre. */
+export function turnSelection(s: EditorState, how: Turn): EditorState {
+  const lifted = lift({ ...s, drag: null })
+  const sel = lifted.selection
+  if (!sel?.floating) return s
+  const block = turnBlock(sel.floating.block, how)
+  return placeFloating(lifted, turnRect(sel.rect, how), { ...sel.floating, block })
+}
+
+/** Put the selection down where it is; it stays selected (its part on the chart). */
+export function putDown(s: EditorState): EditorState {
+  return s.selection?.floating ? { ...s, drag: null, selection: settled(s.selection, s.pattern, s.pattern) } : s
+}
+
+/** Put the selection down and drop it. */
+export function deselect(s: EditorState): EditorState {
+  return s.selection || s.drag ? { ...s, drag: null, selection: null } : s
+}
+
+/** Select the whole pattern, choosing the Select tool. */
+export function selectAll(s: EditorState): EditorState {
+  const p = s.pattern
+  return { ...s, tool: 'select', drag: null, selection: { rect: { r0: 0, c0: 0, r1: p.rows, c1: p.cols }, floating: null } }
+}
+
+/** The selection's cells as they are now, for the clipboard: a floating block whole,
+ *  even the part hanging over an edge. */
+export function copySelection(s: EditorState): Clip | null {
+  const sel = s.selection
+  if (!sel) return null
+  if (sel.floating) return clipOf(sel.floating.under, sel.floating.block, sel.rect)
+  return clipOf(s.pattern, readBlock(s.pattern, sel.rect), sel.rect)
+}
+
+/** Empty the selection, as one undo step: its cells take the background colour. A
+ *  floating block is taken away instead, leaving what was under it. What is left of it
+ *  stays selected. */
+export function deleteSelection(s: EditorState): EditorState {
+  const sel = s.selection
+  if (!sel) return s
+  if (sel.floating) return commit({ ...s, drag: null }, sel.floating.under)
+  const { rect } = sel
+  return commit({ ...s, drag: null }, fillRect(s.pattern, rect.r0, rect.c0, rect.r1 - 1, rect.c1 - 1, backgroundIndex(s.pattern)))
+}
+
+/** Fill the selection with the colour painted with, as one undo step. */
+export function fillSelection(s: EditorState): EditorState {
+  const down = putDown(s)
+  const rect = down.selection?.rect
+  if (!rect) return down
+  return commit(down, fillRect(down.pattern, rect.r0, rect.c0, rect.r1 - 1, rect.c1 - 1, s.colour))
+}
+
+/**
+ * Paste a clip as a floating selection, as one undo step (any colour the pattern lacked
+ * is added with it). It goes where the selection is, if there is one; otherwise where it
+ * was copied from, moved in as far as it needs to be to lie on the chart. The Select
+ * tool is chosen, so it can be dragged into place.
+ */
+export function paste(s: EditorState, clip: Clip): EditorState {
+  const down = putDown(s)
+  const p = down.pattern
+  const { pattern: under, block } = mapClip(p, clip)
+  const at = down.selection
+    ? { r0: down.selection.rect.r0, c0: down.selection.rect.c0 }
+    : {
+        r0: Math.max(0, Math.min(clip.r0, p.rows - block.rows)),
+        c0: Math.max(0, Math.min(clip.c0, p.cols - block.cols)),
+      }
+  const rect = { r0: at.r0, c0: at.c0, r1: at.r0 + block.rows, c1: at.c0 + block.cols }
+  const pattern = pasteBlock(under, rect.r0, rect.c0, block)
+  const base: EditorState = { ...down, tool: 'select', drag: null, selection: { rect, floating: { block, under } } }
+  if (samePattern(pattern, p)) return base
+  return { ...base, pattern, history: record(down.history, p), colour: clampColour(s.colour, pattern) }
+}
+
+/** The pattern cut down to the selection's part on the chart, or null with none. Row ids
+ *  are kept (`add_border` with negative sides), so progress on the rows kept stays. */
+export function croppedToSelection(s: EditorState): Pattern | null {
+  const p = s.pattern
+  const rect = s.selection && clipRect(s.selection.rect, p.rows, p.cols)
+  if (!rect) return null
+  return addBorder(p, { top: -rect.r0, left: -rect.c0, bottom: rect.r1 - p.rows, right: rect.c1 - p.cols })
 }
 
 // --- the colours panel ------------------------------------------------------------------------

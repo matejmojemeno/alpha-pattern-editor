@@ -93,6 +93,48 @@ Newest last, as they were built.
   - Differs from the desktop, which keeps separate Border and Pad to size boxes.
   - Tier A (Vite's figures, gzipped): main entry chunk 104.5 KB, Design 27.1 KB
     (104.7 and 27.4 were recorded for "A focused import screen"; not rebuilt here).
+- <a id="select-tool"></a>**A Select tool** (`S`; `design/editor.ts`, `design/selection.ts`, the one new
+  edit `edit.paste_block`): part of the pattern can be copied, cut, pasted, moved and
+  turned.
+  - **Selecting:** a drag selects the cells between its corners, outlined dark over
+    light so it shows on any colour. A click selects one cell; a click outside a
+    selection drops it, as Escape does. `Cmd/Ctrl+A` selects everything. The selection
+    belongs to the tool: choosing another tool drops it.
+  - **Moving:** a drag inside the selection, or the arrow keys, moves its cells, leaving
+    the background colour where they were. The background is the colour most of the edge
+    is (`major_border_index`, which a border defaults to as well).
+  - **Floating:** moving, turning or pasting makes the selection float. The block is kept
+    whole, with the pattern under it, and the pattern is always that pattern with the
+    block written over it (`paste_block`, clipped to the chart). So a block dragged past
+    an edge comes back whole, while what is saved, counted and shown in the colours list
+    is always the plain pattern: nothing is lost by leaving mid-move. What still hangs
+    over an edge is dropped when the selection is put down (a click outside, Enter,
+    another tool, any other edit). See [the rule](../rules.md#floating-selection).
+  - **The buttons** (under the tools on a desktop; over the bottom of the chart on a
+    tablet, which then scrolls further so no row stays hidden under them): Copy, Cut,
+    Paste (`Cmd/Ctrl+C`, `X`, `V`), Delete (the Delete key: empties it to the background;
+    a floating block is taken away instead), Mirror ⇄, Flip ⇅, Rotate ↻ and ↺ (a quarter
+    turn about its centre, the odd half cell going up and left), Fill with the colour
+    painted with, Crop to selection (`add_border` with negative sides, so the rows kept
+    keep their ids and their progress; it asks first when rows done in Work go), Select
+    all and Deselect.
+  - **Undo:** each drag, nudge, turn, paste, cut, delete and fill is one undo step, as a
+    stroke is; a drag that never changes a cell records nothing. Undo puts the pattern back
+    exactly and drops the selection (history holds patterns, not selections).
+  - **The clipboard** is the tab's, not the system's (which can't hold cells and
+    colours, and asks permission to be read): it lasts across patterns until the page is
+    reloaded. A paste goes where the selection is, or else where it was copied from,
+    moved onto the chart; it is chosen as the Select tool, floating, ready to drag. Into
+    another pattern, each colour is found by id (with the same hex), then by hex, and any
+    it lacks is added under its own name, all in the same undo step. Skip cells stay skip
+    cells.
+  - Web only: the desktop has no selection. The `.alpha` file is unchanged.
+  - `paste_block` went into `edit.py` first, with tests and ten golden cases (176 calls
+    now); `edit.ts` replays them, and 1,159 random pastes in 300 chains over random
+    patterns (blocks over every edge, skip cells, indices past the palette) came out the
+    same in both.
+  - Tier A (Vite's figures, gzipped): main entry chunk 104.7 KB (104.5 on `main` before),
+    Design 30.1 KB (27.1) with 3.6 KB of CSS (3.5).
 
 ## During the port
 
@@ -125,8 +167,8 @@ What each phase of the port built here, newest first. The plan each phase follow
     column numbers. The Design stage has no selection, every tool acts on a press, so a
     menu on the numbers is where the target already is, and it works the same by finger.
     New rows and columns take the colour being painted with. (The panel's "Rows and
-    columns" section, by number, is now the Add row and Add column tools; see "After
-    the port".)
+    columns" section, by number, is now the Add row and Add column tools, and there is a
+    Select tool now; see "After the port".)
 - **Export PNG** (`render/png.ts`): pixel for pixel `io.export_pattern_png` (16 px
   cells, a 1 px grid in (170,170,170), a (200,200,200) background), encoded in TypeScript,
   saved as "<pattern name>.png". Checked against the desktop's output in
