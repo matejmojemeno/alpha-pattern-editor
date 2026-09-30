@@ -8,8 +8,9 @@ import { useCallback, useState } from 'react'
 import { useRepo } from '../../app/context.ts'
 import { preloadDetection } from '../../app/detection.ts'
 import { href, navigate, paths } from '../../app/router.ts'
-import { CellsIcon, DropOverlay, ImportButton, Notices, ReplaceDialog } from '../components.tsx'
+import { DropOverlay, ImportButton, Notices, ReplaceDialog } from '../components.tsx'
 import { useDocumentTitle, useFileDrop, usePastedImage, useProjects } from '../hooks.ts'
+import { DesignIcon, FeedbackIcon, ImportIcon, LibraryIcon, Logo, SettingsIcon } from '../icons.tsx'
 import { NewPatternDialog } from '../NewPattern.tsx'
 import { openImageImport, useAlphaImport } from '../useAlphaImport.ts'
 
@@ -37,7 +38,7 @@ export function Landing() {
   return (
     <main className="screen landing" {...drop.handlers}>
       <header className="landing__header">
-        <CellsIcon filled={[[0, 0], [1, 1], [1, 2], [2, 0], [2, 1]]} />
+        <Logo />
         <h1 tabIndex={-1}>Alpha Pattern Editor</h1>
         <p className="muted">Follow a crochet alpha chart row by row, and keep your place.</p>
       </header>
@@ -49,7 +50,7 @@ export function Landing() {
           onPreload={preloadDetection}
           disabled={!repo || busy}
         >
-          <CellsIcon filled={[[0, 1], [1, 0], [1, 1], [1, 2], [2, 1]]} />
+          <ImportIcon />
           <span className="drop-zone__title">Import pattern</span>
           <span className="drop-zone__text">
             From a photo or screenshot of a chart (PNG, JPEG or WebP), or a <code>.alpha</code> file.
@@ -63,7 +64,7 @@ export function Landing() {
         <ul className="tiles">
           <li>
             <a className="tile" href={href(paths.library)}>
-              <CellsIcon filled={[[0, 0], [0, 1], [1, 0], [1, 1]]} />
+              <LibraryIcon />
               <span className="tile__title">Library</span>
               <span className="tile__text">
                 {count === null
@@ -76,21 +77,21 @@ export function Landing() {
           </li>
           <li>
             <button type="button" className="tile" onClick={() => setCreating(true)} disabled={!repo}>
-              <CellsIcon filled={[[1, 1]]} />
+              <DesignIcon />
               <span className="tile__title">Design pattern</span>
               <span className="tile__text">Start from a blank grid, and paint your own chart.</span>
             </button>
           </li>
           <li>
             <a className="tile" href={href(paths.settings)}>
-              <CellsIcon filled={[[1, 0], [1, 1], [1, 2]]} />
+              <SettingsIcon />
               <span className="tile__title">Settings</span>
               <span className="tile__text">Display preferences: row emphasis, high contrast, focus mode.</span>
             </a>
           </li>
           <li>
             <a className="tile" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">
-              <CellsIcon filled={[[0, 0], [0, 1], [0, 2], [1, 0]]} />
+              <FeedbackIcon />
               <span className="tile__title">Feedback</span>
               <span className="tile__text">
                 Report a problem or suggest an idea, on GitHub (needs a free account). Opens in a new tab.
