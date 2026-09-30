@@ -16,7 +16,8 @@ is written) carry its rules from then on.
 | #40 | The developer docs moved to `docs/dev/` (spec, rules, architecture, area notes, history), and `npm test` checks every docs link and every docs path the code cites. |
 | #41 | Generated screenshots and the tour: `npm run docs:media` writes `docs/guide/media/` from the demo pattern in `fixtures/demo/`. How it works is in [`guide/media/README.md`](guide/media/README.md). |
 | #43 | The README is the app's front page: the link, the tour, Import, Design and Work with a screenshot each, where projects are stored, credits. |
-| (this PR) | The desktop app is removed. Nothing user-facing describes it; the one thing kept is that the web app opens the `.alpha` files it saved. |
+| #44 | The desktop app is removed. Nothing user-facing describes it; the one thing kept is that the web app opens the `.alpha` files it saved. |
+| (this PR) | The user guide, [`docs/guide/`](guide/index.md): ten pages, one per screen, written from the code and the e2e specs. `CHANGELOG.md` seeded, the README links the guide, the guide's style rules moved into [`docs/README.md`](README.md), and `web/tests/docs.test.ts` checks every image in `docs/guide/media/` is used, and every image a page uses is one `docs-media.spec.ts` writes. |
 
 ## Principles
 
@@ -38,56 +39,7 @@ is written) carry its rules from then on.
 - **Stable anchors.** Guide headings are tasks ("Fix a grid that's one row short"), and
   the app's help links point at them; a test checks every anchor the app links to exists.
 
-## Next: the user guide
-
-`docs/guide/`, Markdown in the repo, so a PR changes the code and its page together and
-GitHub renders it as it is. Each page opens with one paragraph saying what the screen is
-for, then is organised by task. First drafts come from the in-app text, the area notes'
-entries (rewritten in the present tense, for users), `test_images/README.md`, and the
-e2e specs, which describe every behaviour step by step.
-
-- **Getting started** (`index.md`): what an alpha chart is and what the app does with
-  one; the three stages and when you're in each; the tour; "Import your first chart" as
-  numbered steps.
-- **Importing a chart** (`import.md`): which photos work (gridlines, not rotated, at
-  least ~6 pixels per cell, numbers and watermarks are fine); dropping, pasting or
-  choosing a file; reading the result; dragging the outline; cells marked unsure; the
-  colour list (spotlight, ×, fewer or more colours); **Reset to detected grid**; naming
-  and saving; what to do when it says it can't find a grid.
-- **Designing** (`design.md`): starting from a blank grid; each tool and its key;
-  **Add row** and **Add column**; colours (rename, recolour, delete, add); **Border &
-  size**; rotate, mirror, flip, trim; undo; exporting a PNG; going to Work, and what
-  happens to your progress when you change the pattern's structure.
-- **Following a pattern** (`work.md`): which row is row 1 and which way it runs;
-  **Start rows from the right**; the colour chips; finishing a row, going back, stopping
-  mid-row; **Show where to carry yarn**; the keyboard; zoom and scroll on a phone; the
-  screen staying awake; exporting the readout.
-- **Yarn & size** (`yarn-and-size.md`): measuring a swatch; finished size; yarn by
-  weight or length; carried yarn; matching colours to a yarn range, and where the colour
-  data comes from.
-- **Visualize** (`visualize.md`): the stitches it can show, what the preview assumes,
-  and why it isn't exact.
-- **Library** (`library.md`): opening, renaming, exporting and deleting projects; what a
-  `.alpha` file is; backing up; moving projects to another device or browser.
-- **Settings** (`settings.md`): each setting and what it changes.
-- **Your data** (`your-data.md`): projects live in this browser only; nothing is
-  uploaded, including photos; the one download (about 9 MB, only the first time you
-  import a photo); clearing browser data deletes your projects, so export them; each web
-  address has its own library.
-- **Troubleshooting** (`troubleshooting.md`): each problem as a heading, with its fix.
-  Seeded from the failure messages the import screen shows, the storage-unavailable
-  notice, and the issues people file.
-
-Style: second person, present tense, short sentences, British spelling as the app uses.
-UI names in bold, keys as `Shift+H`. A screenshot only where it saves words, each with
-alt text. No history ("used to", "since", "now"), no PR numbers, no internals.
-
-The same PR seeds `CHANGELOG.md` ("Keep a Changelog": `## Unreleased`, then one section
-per release; one plain line per user-visible change), links the guide from the README,
-and extends `web/tests/docs.test.ts`: every image in `docs/guide/media/` is used by some
-page, and every image a page uses is one `docs-media.spec.ts` writes.
-
-## Then: the app links to the guide
+## Next: the app links to the guide
 
 - A **Help** tile on the home screen, and a small **?** in each stage's header that opens
   that stage's guide page. `web/src/app/help.ts` holds every link; a unit test checks

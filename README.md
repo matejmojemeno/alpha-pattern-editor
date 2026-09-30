@@ -5,6 +5,7 @@ Turn a photo of a crochet alpha chart into a pattern you can edit and follow row
 ### [Open the app →](https://alpha-pattern-editor.8b2mbys5sy.workers.dev)
 
 Free, in your browser, no account. Nothing to install.
+New to it? Start with the [user guide](docs/guide/index.md).
 
 ![A chart image is dropped in, its grid and colours are found, one change is made in Design, then rows are ticked off in Work](docs/guide/media/tour.gif)
 
@@ -66,6 +67,9 @@ Editing and following patterns need no download.
 doesn't work in yours, please say so.
 
 ## Help and feedback
+
+The [user guide](docs/guide/index.md) explains each screen and how to do things in it,
+and [Troubleshooting](docs/guide/troubleshooting.md) covers the messages the app shows.
 
 Found a problem or have an idea? [Open an issue](https://github.com/matejmojemeno/alpha-pattern-editor/issues/new),
 or use **Feedback** on the app's home screen.
