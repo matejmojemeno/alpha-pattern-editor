@@ -6,9 +6,36 @@ to its own place:
 
 | Audience | Question | Where | Tense |
 |---|---|---|---|
-| People using the app | "How do I…?" | `docs/guide/` (not written yet) | the present: how it works now |
+| People using the app | "How do I…?" | [`guide/`](guide/index.md), and the [README](../README.md) | the present: how it works now |
 | People developing it | "Why is it like this, and what mustn't I break?" | [`dev/`](dev/), [`CLAUDE.md`](../CLAUDE.md) | the present, with reasons |
-| Everyone | "What changed?" | git history and pull requests | the past |
+| Everyone | "What changed?" | [`CHANGELOG.md`](../CHANGELOG.md), git history and pull requests | the past |
+
+## For people using the app: `docs/guide/`
+
+One page per screen, organised by task, so a change to a screen touches one page:
+[Getting started](guide/index.md), [Importing a chart](guide/import.md),
+[Designing](guide/design.md), [Following a pattern](guide/work.md),
+[Yarn & size](guide/yarn-and-size.md), [Visualize](guide/visualize.md),
+[Library](guide/library.md), [Settings](guide/settings.md), [Your data](guide/your-data.md)
+and [Troubleshooting](guide/troubleshooting.md).
+
+How the guide is written:
+
+- **Second person, present tense, short sentences, British spelling** as the app uses it.
+  No history ("used to", "now"), no pull request numbers, nothing about how the app is
+  built.
+- **The crocheter's words:** row, stitch, colour; never "palette index" or "extent".
+- **Names exactly as on screen, in bold** (**Save & edit pattern**, **Border & size**);
+  keys in code, as `Shift+H`.
+- **Headings are tasks** ("Fix a grid that's a row or column short"), and they're stable:
+  other pages, and later the app, link to them.
+- **Only what the app does.** Every claim is checked against the code; a behaviour that
+  can't be found there is left out.
+- **Screenshots are generated, never taken by hand** (`npm run docs:media`, see
+  [`guide/media/README.md`](guide/media/README.md)), each with alt text, and only where
+  one saves words. `npm test` fails if an image in `guide/media/` is used by no page, or a
+  page uses an image the screenshot script doesn't write.
+- A change users will notice adds a line to [`CHANGELOG.md`](../CHANGELOG.md).
 
 ## For developers: `docs/dev/`
 
