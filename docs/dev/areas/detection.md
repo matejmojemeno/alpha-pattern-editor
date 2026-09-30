@@ -6,6 +6,22 @@ Pyodide through [`alphareader/core/bridge.py`](../../../alphareader/core/bridge.
 worker in [`web/src/detect/`](../../../web/src/detect/). Parity with the desktop is checked
 by [`scripts/parity/`](../../../scripts/parity/README.md).
 
+## What the test suite guarantees
+
+Moved from the old README. The harness (`alphareader/tests/`) renders charts from known
+grids and checks recovery, exercising the traps from [`spec.md`](../spec.md) §11: edge
+numbering, watermarks, coloured margins, white-on-white, solid-black rows, non-integer
+downscale and JPEG re-encode.
+
+- **Never a silently wrong pattern** (§13.8): any result that is materially wrong carries
+  a warning, so the import screen surfaces it. This is asserted absolutely.
+- Detection **refuses** rather than guesses on low-resolution or rotated input, with a
+  named reason.
+- On a deliberately adversarial randomized corpus: ~87% exact cell-by-cell recovery, ~95%
+  either exact or fixable in one gesture at the confirmation step (off-by-one dimension /
+  over-segmented palette). The remaining warned failures are pitch-halving on aggressive
+  downscale — see the note in `test_detect.py`.
+
 ## After the port
 
 Newest last, as they were built.
