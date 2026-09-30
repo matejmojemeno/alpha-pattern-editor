@@ -101,6 +101,13 @@ break without noticing.
 - <a id="per-row-heights"></a>**The Work chart lays out rows with per-row heights, never a single cell size.**
   Scrolling long charts and the taller current row both depend on it (see [Phase 1](history/web-port.md#chart-layout)), and
   retrofitting it later means redoing the layout.
+- <a id="floating-selection"></a>**A floating selection must be put down before any other edit.** While the Select
+  tool's block floats (`editor.ts` `Selection.floating`), the pattern is its `under` with
+  the block written over it, and both hold palette *indices*. An edit that renumbers the
+  palette (deleting a colour) or reshapes the pattern would leave them stale, and the
+  next move would write the wrong colours. `commit` (so every edit through it) puts the
+  selection down first, and undo and redo drop it. A new edit that sets `pattern`
+  without `commit` must do the same.
 - <a id="design-carries-progress"></a>**The Design stage carries progress from what it opened with.** It saves
   `carryProgress(openedPattern, openedProgress, pattern)`, never progress updated edit by
   edit: that is what lets undo bring back the rows a structural edit dropped. The Work
