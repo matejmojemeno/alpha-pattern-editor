@@ -188,3 +188,43 @@ test('select, copy, paste, move, cut, turn, undo, reload, and paste into another
   // The paste is one undo step, colour and cells together (the Ink added before it stays).
   expect(await undoSteps()).toBe(2)
 })
+
+test('four quarter turns leave a selection where it was; Remove background moves only the motif', async ({ page }) => {
+  await newPattern(page, 'Turns')
+  await addColour(page, BLACK, 'Black')
+  await addColour(page, RED, 'Red')
+
+  // A 3 wide × 2 high piece (an odd difference between its sides), a black ring, and a red patch.
+  await palette(page).filter({ hasText: /#000000/ }).click()
+  await dragThrough(page, [[0, 0], [0, 2]])
+  for (const at of [[3, 1], [4, 0], [4, 2], [5, 1]] as [number, number][]) await dragThrough(page, [at])
+  await palette(page).filter({ hasText: /#d93a3a/ }).click()
+  await dragThrough(page, [[1, 0]])
+  for (const r of [3, 4, 5]) await dragThrough(page, [[r, 5], [r, 7]])
+  const start = ['BBB.....', 'R.......', '........', '.B...RRR', 'B.B..RRR', '.B...RRR']
+  expect(await grid(page)).toEqual(start)
+
+  // --- four turns clockwise, then one each way: back where it was ------------------------------------
+  await page.keyboard.press('s')
+  await dragThrough(page, [[0, 0], [1, 2]])
+  for (let i = 0; i < 4; i++) await selectionButton(page, 'Rotate clockwise').click()
+  expect(await grid(page)).toEqual(start)
+  await selectionButton(page, 'Rotate anticlockwise').click()
+  await selectionButton(page, 'Rotate clockwise').click()
+  expect(await grid(page)).toEqual(start)
+  await page.keyboard.press('Escape')
+
+  // --- Remove background: dragged over the red, only the ring goes, its middle kept ------------------
+  await dragThrough(page, [[3, 0], [5, 2]])
+  await selectionButton(page, 'Remove background').click()
+  await expect(page.locator('.design__message')).toHaveText(/Removed the background: 4 cells/)
+  expect(await grid(page)).toEqual(start)
+  await dragThrough(page, [[3, 1], [3, 6]])
+  const over = ['BBB.....', 'R.......', '........', '.....RBR', '.....B.B', '.....RBR']
+  expect(await grid(page)).toEqual(over)
+  // Pressed again, the background comes back over the red; undo takes that back.
+  await selectionButton(page, 'Put background back').click()
+  expect(await grid(page)).toEqual(['BBB.....', 'R.......', '........', '......B.', '.....B.B', '......B.'])
+  await page.keyboard.press('ControlOrMeta+z')
+  expect(await grid(page)).toEqual(over)
+})

@@ -114,7 +114,8 @@ Newest last, as they were built.
     tablet, which then scrolls further so no row stays hidden under them): Copy, Cut,
     Paste (`Cmd/Ctrl+C`, `X`, `V`), Delete (the Delete key: empties it to the background;
     a floating block is taken away instead), Mirror, Flip, Rotate clockwise and anticlockwise (a quarter
-    turn about its centre, the odd half cell going up and left), Fill with the colour
+    turn about its centre; see [the rule](../rules.md#turn-rect) for the odd half cell),
+    Remove background (below), Fill with the colour
     painted with, Crop to selection (`add_border` with negative sides, so the rows kept
     keep their ids and their progress; it asks first when rows done in Work go), Select
     all and Deselect.
@@ -128,6 +129,15 @@ Newest last, as they were built.
     another pattern, each colour is found by id (with the same hex), then by hex, and any
     it lacks is added under its own name, all in the same undo step. Skip cells stay skip
     cells.
+  - <a id="remove-background"></a>**Remove background** (a toggle; the button then reads Put background back):
+    the floating block gets a see-through mask (`Floating.clear`), and every write of the
+    block (`over` in `editor.ts`) first fills its see-through cells from `under`
+    (`seeThrough`), so `paste_block` itself is unchanged. The background is the block's
+    own edge majority (not the pattern's), and only the cells of it joined to the edge
+    side by side go (`backgroundMask`), so a motif keeps that colour inside it. The mask
+    turns with the block and rides the clipboard (`Clip.clear`). One undo step when the
+    chart changes; in place it usually doesn't, since the lifted cells are already the
+    pattern's background.
   - Web only: the desktop has no selection. The `.alpha` file is unchanged.
   - `paste_block` went into `edit.py` first, with tests and ten golden cases (176 calls
     now); `edit.ts` replays them, and 1,159 random pastes in 300 chains over random

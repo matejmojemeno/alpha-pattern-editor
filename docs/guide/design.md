@@ -78,7 +78,12 @@ click selects one stitch, and a click outside the selection drops it.
   too: open it in Design and paste. Colours it doesn't have are added. What you copy is
   kept until you reload the page.
 - **Turn it:** **Mirror ⇄**, **Flip ⇅**, **Rotate ↻** and **Rotate ↺** turn just the
-  selection.
+  selection. Four turns the same way, or one each way, put it back where it was.
+- **Remove background:** makes the selection's background see-through, so when you drag
+  or turn it, only the motif moves, over whatever is there. The background is the colour
+  most of the selection's edge is, where it touches the edge: the same colour inside the
+  motif (the middle of an O, say) stays. **Put background back** returns it. Copy and
+  paste keep it see-through.
 - **Fill with** the colour you're painting with, or **Delete** (the `Delete` or `Backspace` key) to
   empty it to the background colour.
 - **Crop to selection** keeps only the selected stitches.

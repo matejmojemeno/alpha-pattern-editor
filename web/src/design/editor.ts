@@ -40,6 +40,7 @@ import {
 import type { Pattern } from '../model/types.ts'
 import { emptyHistory, record, redo as redoHistory, undo as undoHistory, type History } from './history.ts'
 import {
+  backgroundMask,
   clipOf,
   clipRect,
   containsCell,
@@ -48,7 +49,9 @@ import {
   readBlock,
   rectBetween,
   sameRect,
+  seeThrough,
   turnBlock,
+  turnMask,
   turnRect,
   type Block,
   type CellRect,
@@ -107,6 +110,15 @@ export interface Origin {
 export interface Floating {
   readonly block: Block
   readonly under: Pattern
+  /** Remove background: the block's see-through cells (1), which show what is under
+   *  them wherever it goes; null when it has none. Web only, like the selection. */
+  readonly clear?: Uint8Array | null
+}
+
+/** The pattern with a floating block written over it at `rect`, its see-through cells
+ *  left as `under` has them. */
+function over(f: Floating, rect: CellRect): Pattern {
+  return pasteBlock(f.under, rect.r0, rect.c0, seeThrough(f.block, f.clear ?? null, f.under, rect.r0, rect.c0))
 }
 
 export interface Selection {
@@ -260,7 +272,7 @@ export function pointerMove(s: EditorState, cell: Cell): EditorState {
     if (!f) return s
     const rect = moveRect(d.rect, cell.r - d.from.r, cell.c - d.from.c)
     if (sameRect(rect, s.selection!.rect)) return s
-    const pattern = pasteBlock(f.under, rect.r0, rect.c0, f.block)
+    const pattern = over(f, rect)
     const changed = !samePattern(pattern, s.pattern)
     return {
       ...s,
@@ -362,7 +374,7 @@ export function lift(s: EditorState): EditorState {
 /** A floating block put at `rect` (its size), as one undo step when that changes the
  *  pattern. */
 function placeFloating(s: EditorState, rect: CellRect, f: Floating): EditorState {
-  const pattern = pasteBlock(f.under, rect.r0, rect.c0, f.block)
+  const pattern = over(f, rect)
   const selection = { rect, floating: f }
   if (samePattern(pattern, s.pattern)) return { ...s, selection }
   return { ...s, pattern, history: record(s.history, s.pattern), selection, colour: clampColour(s.colour, pattern) }
@@ -382,8 +394,29 @@ export function turnSelection(s: EditorState, how: Turn): EditorState {
   const lifted = lift({ ...s, drag: null })
   const sel = lifted.selection
   if (!sel?.floating) return s
-  const block = turnBlock(sel.floating.block, how)
-  return placeFloating(lifted, turnRect(sel.rect, how), { ...sel.floating, block })
+  const f = sel.floating
+  const block = turnBlock(f.block, how)
+  const clear = f.clear ? turnMask(f.clear, f.block.rows, f.block.cols, how) : null
+  return placeFloating(lifted, turnRect(sel.rect, how), { ...f, block, clear })
+}
+
+/** Whether the selection's background has been removed (so its button puts it back). */
+export const backgroundRemoved = (s: EditorState): boolean => !!s.selection?.floating?.clear
+
+/**
+ * Remove background: the selection's background cells (`backgroundMask`: the colour most
+ * of its edge is, joined to the edge) become see-through, so wherever it is moved or
+ * turned only the motif goes, over what is there. Pressed again, it puts them back. One
+ * undo step when the chart changes: where it was lifted from, the cells under it are the
+ * pattern's background, so it changes only if that is a different colour.
+ */
+export function toggleBackground(s: EditorState): EditorState {
+  const lifted = lift({ ...s, drag: null })
+  const sel = lifted.selection
+  if (!sel?.floating) return s
+  const f = sel.floating
+  const clear = f.clear ? null : backgroundMask(f.block)
+  return placeFloating(lifted, sel.rect, { ...f, clear })
 }
 
 /** Put the selection down where it is; it stays selected (its part on the chart). */
@@ -407,7 +440,7 @@ export function selectAll(s: EditorState): EditorState {
 export function copySelection(s: EditorState): Clip | null {
   const sel = s.selection
   if (!sel) return null
-  if (sel.floating) return clipOf(sel.floating.under, sel.floating.block, sel.rect)
+  if (sel.floating) return clipOf(sel.floating.under, sel.floating.block, sel.rect, sel.floating.clear ?? null)
   return clipOf(s.pattern, readBlock(s.pattern, sel.rect), sel.rect)
 }
 
@@ -447,8 +480,9 @@ export function paste(s: EditorState, clip: Clip): EditorState {
         c0: Math.max(0, Math.min(clip.c0, p.cols - block.cols)),
       }
   const rect = { r0: at.r0, c0: at.c0, r1: at.r0 + block.rows, c1: at.c0 + block.cols }
-  const pattern = pasteBlock(under, rect.r0, rect.c0, block)
-  const base: EditorState = { ...down, tool: 'select', drag: null, selection: { rect, floating: { block, under } } }
+  const floating: Floating = { block, under, clear: clip.clear ?? null }
+  const pattern = over(floating, rect)
+  const base: EditorState = { ...down, tool: 'select', drag: null, selection: { rect, floating } }
   if (samePattern(pattern, p)) return base
   return { ...base, pattern, history: record(down.history, p), colour: clampColour(s.colour, pattern) }
 }

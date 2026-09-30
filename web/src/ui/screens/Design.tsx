@@ -30,6 +30,7 @@ import {
   addColour,
   addLine,
   backgroundIndex,
+  backgroundRemoved,
   canRedo,
   canUndo,
   cancelDrag,
@@ -52,6 +53,7 @@ import {
   selectColour,
   setTool,
   structural,
+  toggleBackground,
   toolForKey,
   turnSelection,
   undo,
@@ -474,6 +476,12 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
     setMessage(floating ? 'Took the selection away.' : `Emptied the selection to “${bg?.name || 'the background'}”.`)
   }
   const onTurn = (how: Turn) => update((s) => turnSelection(s, how))
+  const onBackground = () => {
+    update(toggleBackground)
+    const clear = latest.current.selection?.floating?.clear
+    const n = clear ? clear.reduce((a, v) => a + v, 0) : 0
+    setMessage(clear ? `Removed the background: ${plural(n, 'cell')} now show what is under them. Drag it into place.` : 'Put the background back.')
+  }
   const onCrop = () =>
     guarded(() => {
       const next = croppedToSelection(latest.current)
@@ -734,6 +742,20 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
           {t.label}
         </button>
       ))}
+      <button
+        type="button"
+        className="button button--small selection-tools__wide"
+        disabled={!sel}
+        aria-pressed={backgroundRemoved(editor)}
+        title={
+          backgroundRemoved(editor)
+            ? 'Put its background cells back'
+            : 'Make its background see-through, so only the motif moves: the colour most of its edge is, where it touches the edge'
+        }
+        onClick={onBackground}
+      >
+        {backgroundRemoved(editor) ? 'Put background back' : 'Remove background'}
+      </button>
       <button
         type="button"
         className="button button--small selection-tools__wide"

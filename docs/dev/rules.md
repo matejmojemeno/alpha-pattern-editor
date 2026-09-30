@@ -114,6 +114,14 @@ break without noticing.
   next move would write the wrong colours. `commit` (so every edit through it) puts the
   selection down first, and undo and redo drop it. A new edit that sets `pattern`
   without `commit` must do the same.
+- <a id="turn-rect"></a>**A quarter turn's shift must be undone by the next one.** When a
+  selection's height and width differ by an odd number, its centre can't stay exactly put,
+  and `turnRect` (`design/selection.ts`) has to round half a cell. The shift of a tall→wide
+  turn must be the exact negative of the wide→tall one, and the same both ways round, or
+  four turns (or a turn and its reverse) move the block: rounding both axes down made it
+  creep up and left a cell every two turns. So "always up and left" is impossible. Today
+  a wide block turned grows upward and keeps its left edge, and a tall one keeps its
+  bottom row and grows right. `selection.test.ts` checks every size up to 7 × 7.
 - <a id="design-carries-progress"></a>**The Design stage carries progress from what it opened with.** It saves
   `carryProgress(openedPattern, openedProgress, pattern)`, never progress updated edit by
   edit: that is what lets undo bring back the rows a structural edit dropped. The Work
