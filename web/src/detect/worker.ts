@@ -191,7 +191,7 @@ async function handle(req: Request): Promise<Outcome<Answers[Request['type']]>> 
           }),
         ) as never
       case 'update': {
-        const { rows, cols, extent, width, colours, detail, cellAspect } = req.params
+        const { rows, cols, extent, width, colours, detail, cellAspect, outlines } = req.params
         const kwargs: Record<string, unknown> = {}
         if (rows !== undefined) kwargs.rows = rows
         if (cols !== undefined) kwargs.cols = cols
@@ -200,6 +200,7 @@ async function handle(req: Request): Promise<Outcome<Answers[Request['type']]>> 
         if (colours !== undefined) kwargs.colours = colours
         if (detail !== undefined) kwargs.detail = detail
         if (cellAspect !== undefined) kwargs.cell_aspect = cellAspect
+        if (outlines !== undefined) kwargs.outlines = outlines
         const set = plain(b.set_params.callKwargs(req.session, kwargs))
         if (set.ok !== true) return set as unknown as Failure
         return plain(b.preview(req.session)) as never

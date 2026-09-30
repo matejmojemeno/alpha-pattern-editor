@@ -78,6 +78,8 @@ export interface PictureSettings {
   detail: number
   /** A stitch's height over its width. */
   cellAspect: number
+  /** "Keep outlines": a drawing's dark lines kept, one stitch thick (core/outlines.py). */
+  outlines: boolean
 }
 
 export const DETECTION_ERROR_CODES: readonly DetectionErrorCode[] = [
@@ -133,7 +135,7 @@ export type Outcome<T> = T | Failure
 
 /** Settings a preview can be adjusted by (bridge.set_params). A chart takes rows, cols
  *  and extent; a picture takes extent (what of the image is used), width, colours,
- *  detail and cellAspect. */
+ *  detail, cellAspect and outlines. */
 export interface Params {
   rows?: number
   cols?: number
@@ -142,6 +144,7 @@ export interface Params {
   colours?: number
   detail?: number
   cellAspect?: number
+  outlines?: boolean
 }
 
 // --- messages -------------------------------------------------------------------------------

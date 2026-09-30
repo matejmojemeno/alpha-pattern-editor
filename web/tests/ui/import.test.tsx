@@ -344,7 +344,7 @@ describe('Import screen', () => {
 function readingWorker(first: 'chart' | 'picture' | 'pixels', { sure = true, canChart = first === 'chart' } = {}) {
   const w = detectingWorker()
   const auto = w.auto!
-  const s = { mode: first, width: 8, colours: 6, detail: 0.5, extent: { x0: 0, y0: 0, x1: 400, y1: 300 } }
+  const s = { mode: first, width: 8, colours: 6, detail: 0.5, outlines: false, extent: { x0: 0, y0: 0, x1: 400, y1: 300 } }
   const reading = { kind: first, sure, canChart, canPixels: first === 'pixels', failure: null }
   const answer = (session: number) =>
     s.mode === 'picture'
@@ -363,6 +363,7 @@ function readingWorker(first: 'chart' | 'picture' | 'pixels', { sure = true, can
         if (msg.params.colours !== undefined) s.colours = msg.params.colours
         if (msg.params.detail !== undefined) s.detail = msg.params.detail
         if (msg.params.extent !== undefined) s.extent = msg.params.extent
+        if (msg.params.outlines !== undefined) s.outlines = msg.params.outlines
         return answer(msg.session)
       default:
         return auto(msg)
@@ -437,6 +438,20 @@ describe('Import screen: charts and pictures', () => {
     expect(screen.getByRole('button', { name: 'Fewer colours' }).hasAttribute('disabled')).toBe(true)
     await userEvent.click(screen.getByRole('button', { name: 'More colours' }))
     await waitFor(() => expect(detection.worker.of('update').at(-1)!.params).toEqual({ colours: 3 }))
+  })
+
+  it('keeps outlines when asked, off to start with', async () => {
+    detection.reset(readingWorker('picture'))
+    await openImport()
+    await saveButton()
+    const toggle = within(screen.getByRole('group', { name: 'Picture settings' })).getByRole('switch', { name: 'Keep outlines' })
+    expect((toggle as HTMLInputElement).checked).toBe(false)
+    expect(toggle.getAttribute('aria-describedby')).toBeTruthy()
+    await userEvent.click(toggle)
+    await waitFor(() => expect(detection.worker.of('update').at(-1)!.params).toEqual({ outlines: true }))
+    await waitFor(() => expect((toggle as HTMLInputElement).checked).toBe(true))
+    await userEvent.click(toggle)
+    await waitFor(() => expect(detection.worker.of('update').at(-1)!.params).toEqual({ outlines: false }))
   })
 
   it('saves a picture as converted, and opens it in Design', async () => {

@@ -13,6 +13,7 @@ const picture = (over: Partial<PictureSettings> = {}): PictureSettings => ({
   colours: 6,
   detail: 0.5,
   cellAspect: 1,
+  outlines: false,
   ...over,
 })
 
