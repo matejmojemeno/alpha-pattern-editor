@@ -122,6 +122,7 @@ the zip.
 
 - React, Vite and TypeScript.
 - `fflate` for zip files and `idb` for IndexedDB.
+- `lucide-react` for icons (ISC licence; only the icons imported are bundled).
 - Canvas 2D for all chart rendering.
 - Vitest and Playwright for tests.
 - Hosted on Cloudflare Workers static assets at the free `*.workers.dev` address. This

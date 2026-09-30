@@ -17,8 +17,8 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 const SRC = fileURLToPath(new URL('../src/', import.meta.url))
-/** Third-party packages Tier A may use. Neither pulls in anything further. */
-const ALLOWED_PACKAGES = new Set(['fflate', 'idb'])
+/** Third-party packages Tier A may use. None pulls in anything further (lucide-react needs only React). */
+const ALLOWED_PACKAGES = new Set(['fflate', 'idb', 'lucide-react'])
 
 // `import x from 'y'`, `import { a, type B } from 'y'`, `export { a } from 'y'` (not
 // `import type` / `export type`, which the build erases), and `import 'y'`.

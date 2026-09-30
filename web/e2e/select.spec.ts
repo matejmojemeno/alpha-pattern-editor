@@ -133,9 +133,9 @@ test('select, copy, paste, move, cut, turn, undo, reload, and paste into another
   // --- arrow keys nudge it, one step each; Mirror and Rotate from the buttons -------------------
   await page.keyboard.press('ArrowLeft')
   expect(await grid(page)).toEqual(['BBB.....', 'RR......', '........', '........', '...BBB..', '...RR...'])
-  await selectionButton(page, 'Mirror ⇄').click()
+  await selectionButton(page, 'Mirror left to right').click()
   expect(await grid(page)).toEqual(['BBB.....', 'RR......', '........', '........', '...BBB..', '....RR..'])
-  await selectionButton(page, 'Rotate ↻').click()
+  await selectionButton(page, 'Rotate clockwise').click()
   // 3 wide × 2 high turned clockwise about its centre: 2 wide × 3 high, one row higher.
   expect(await grid(page)).toEqual(['BBB.....', 'RR......', '........', '....B...', '...RB...', '...RB...'])
 

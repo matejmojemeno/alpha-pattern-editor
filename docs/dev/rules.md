@@ -41,6 +41,12 @@ break without noticing.
   (`bottom_up`, `start_direction`) over the pattern's before `carryPlan`, or the carried
   strands would lie where the stitches aren't drawn. To show a pattern worked top down or
   from the left, teach `faces.ts` first, then drop that override.
+- <a id="lucide-flip-names"></a>**Name Lucide's flip icons by their axis, never `FlipHorizontal2`/`FlipVertical2`.**
+  In lucide-react 1.x those are aliases the wrong way round for this app: `FlipHorizontal2`
+  is `TrianglesCenterlineDashedHorizontal`, a horizontal centre line, which is a flip top
+  to bottom. Mirror (left to right) is `TrianglesCenterlineDashedVertical`. Look at an icon
+  on screen before trusting its name. Icons the Design stage alone uses belong in
+  `ui/design/icons.tsx`, so they load with its chunk rather than the entry chunk.
 - <a id="no-nested-lazy-chunks"></a>**Don't lazily import a chunk from inside a lazily loaded chunk.** Visualize, first
   loaded by `import()` from the (lazy) import screen, made Rollup split whatever it
   shared with the entry chunk (the Work stage's logic, then the shared components) into

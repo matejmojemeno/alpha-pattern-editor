@@ -135,18 +135,18 @@ const OPS: Op[] = [
     size: [14, 10],
     done: 0,
   },
-  { name: 'mirroring', run: (u) => u.click(screen.getByRole('button', { name: 'Mirror ⇄' })), size: [7, 5], done: 2 },
-  { name: 'flipping', run: (u) => u.click(screen.getByRole('button', { name: 'Flip ⇅' })), size: [7, 5], done: 2 },
+  { name: 'mirroring', run: (u) => u.click(screen.getByRole('button', { name: 'Mirror left to right' })), size: [7, 5], done: 2 },
+  { name: 'flipping', run: (u) => u.click(screen.getByRole('button', { name: 'Flip top to bottom' })), size: [7, 5], done: 2 },
   {
     name: 'rotating a quarter turn clockwise (every row new)',
-    run: (u) => u.click(screen.getByRole('button', { name: 'Rotate ↻ 90°' })),
+    run: (u) => u.click(screen.getByRole('button', { name: 'Rotate 90° clockwise' })),
     asks: ['Start progress again?', 'Rotate'],
     size: [5, 7],
     done: 0,
   },
   {
     name: 'rotating a quarter turn anticlockwise (every row new)',
-    run: (u) => u.click(screen.getByRole('button', { name: 'Rotate ↺ 90°' })),
+    run: (u) => u.click(screen.getByRole('button', { name: 'Rotate 90° anticlockwise' })),
     asks: ['Start progress again?', 'Rotate'],
     size: [5, 7],
     done: 0,
@@ -276,7 +276,7 @@ describe('rotating a quarter turn', () => {
     const user = userEvent.setup()
     const before = stats()
 
-    await user.click(screen.getByRole('button', { name: 'Rotate ↻ 90°' }))
+    await user.click(screen.getByRole('button', { name: 'Rotate 90° clockwise' }))
     expect(screen.queryByRole('alertdialog')).toBeNull()
     expect(stats()).toMatch(/^5 cols × 12 rows/)
     expect(message()).toBe('Rotated 90° clockwise: now 5 × 12.')
@@ -292,7 +292,7 @@ describe('rotating a quarter turn', () => {
     expect(q.row_ids).toEqual(p.row_ids)
     expect([...q.cells]).toEqual([...p.cells])
 
-    await user.click(screen.getByRole('button', { name: 'Rotate ↺ 90°' }))
+    await user.click(screen.getByRole('button', { name: 'Rotate 90° anticlockwise' }))
     expect(stats()).toMatch(/^5 cols × 12 rows/)
     expect(message()).toBe('Rotated 90° anticlockwise: now 5 × 12.')
     q = (await saved(repo, p.id)).pattern
@@ -300,7 +300,7 @@ describe('rotating a quarter turn', () => {
     expect([at(q, 11, 0), at(q, 11, 4)]).toEqual([1, 2])
 
     // Back with the other button (a new step), then two undos to the start.
-    await user.click(screen.getByRole('button', { name: 'Rotate ↻ 90°' }))
+    await user.click(screen.getByRole('button', { name: 'Rotate 90° clockwise' }))
     expect(stats()).toBe(before)
     q = (await saved(repo, p.id)).pattern
     expect([...q.cells]).toEqual([...p.cells])
@@ -318,7 +318,7 @@ describe('rotating a quarter turn', () => {
     const sides = () => [field('Top'), field('Right'), field('Bottom'), field('Left')]
     await section(user, 'Border & size')
     expect([field('Width'), field('Height')]).toEqual(['14', '7']) // 12 × 5, one on every side
-    await user.click(screen.getByRole('button', { name: 'Rotate ↻ 90°' }))
+    await user.click(screen.getByRole('button', { name: 'Rotate 90° clockwise' }))
     expect([field('Width'), field('Height')]).toEqual(['7', '14'])
 
     // A size typed, and the pattern placed by hand in it, turns too.
@@ -327,7 +327,7 @@ describe('rotating a quarter turn', () => {
     expect(sides()).toEqual(['4', '2', '4', '2'])
     await fill(user, 'Left', '0')
     await fill(user, 'Right', '4')
-    await user.click(screen.getByRole('button', { name: 'Rotate ↺ 90°' }))
+    await user.click(screen.getByRole('button', { name: 'Rotate 90° anticlockwise' }))
     expect([field('Width'), field('Height')]).toEqual(['20', '9'])
     expect(sides()).toEqual(['0', '4', '4', '4'])
     // Undo turns it back.
@@ -341,7 +341,7 @@ describe('rotating a quarter turn', () => {
     await openDesign(repo, p.id, p.name)
     const user = userEvent.setup()
     const before = stats()
-    await user.click(screen.getByRole('button', { name: 'Rotate ↻ 90°' }))
+    await user.click(screen.getByRole('button', { name: 'Rotate 90° clockwise' }))
     const dialog = await screen.findByRole('alertdialog', { name: 'Start progress again?' })
     expect(dialog.textContent).toContain(
       'Rotating gives every row a new place, so your progress in the Work stage (2 rows done and part of another) starts again from the first row.',
@@ -353,7 +353,7 @@ describe('rotating a quarter turn', () => {
     expect(got.pattern.row_ids).toEqual(p.row_ids)
     expect(got.progress.completed_row_ids).toEqual(pr.completed_row_ids)
 
-    await user.click(screen.getByRole('button', { name: 'Rotate ↺ 90°' }))
+    await user.click(screen.getByRole('button', { name: 'Rotate 90° anticlockwise' }))
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Rotate' }))
     expect(stats()).toMatch(/^5 cols × 7 rows/)
     got = await saved(repo, p.id)

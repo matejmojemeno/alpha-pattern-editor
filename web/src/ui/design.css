@@ -103,7 +103,7 @@
   box-shadow: var(--focus-ring);
 }
 
-.tool .cells-icon {
+.tool .icon {
   width: 1.25rem;
   height: 1.25rem;
 }
@@ -300,7 +300,8 @@
   cursor: not-allowed;
 }
 
-.colours__entry:hover .colours__remove:disabled {
+/* Only the icon fades: a faded background would let the count show through it. */
+.colours__remove:disabled .icon {
   opacity: 0.35;
 }
 
@@ -867,4 +868,9 @@
 
 .design__too-small-actions .button {
   min-height: var(--tap);
+}
+
+.colours__remove .icon {
+  width: 1.05rem;
+  height: 1.05rem;
 }

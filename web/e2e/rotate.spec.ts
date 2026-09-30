@@ -22,8 +22,8 @@ const RED = '#d93a3a'
 
 const scroller = (page: Page) => page.getByTestId('design-scroller')
 const stats = (page: Page) => page.locator('.design__stats')
-const clockwise = (page: Page) => page.getByRole('button', { name: 'Rotate ↻ 90°' })
-const anticlockwise = (page: Page) => page.getByRole('button', { name: 'Rotate ↺ 90°' })
+const clockwise = (page: Page) => page.getByRole('button', { name: 'Rotate 90° clockwise' })
+const anticlockwise = (page: Page) => page.getByRole('button', { name: 'Rotate 90° anticlockwise' })
 
 async function centre(page: Page, r: number, c: number) {
   const box = (await scroller(page).boundingBox())!

@@ -13,6 +13,7 @@
  */
 import { useId, type ReactNode } from 'react'
 
+import type { Turn } from '../../design/selection.ts'
 import { MAX_BORDERED, NO_SIDES, SCALE_MAX, SCALE_MIN, scaledSize } from '../../design/structure.ts'
 import {
   centred,
@@ -27,9 +28,13 @@ import {
 } from '../../design/structureForm.ts'
 import { MAX_SIDE } from '../../logic/edit.ts'
 import type { Pattern } from '../../model/types.ts'
+import { TurnIcon } from './icons.tsx'
 
 export interface TransformAction {
   label: string
+  /** The accessible name, when the label leaves out what the icon shows (which way it turns). */
+  name?: string
+  turn?: Turn
   title: string
   run: () => void
 }
@@ -142,7 +147,15 @@ export function StructurePanel(props: StructurePanelProps) {
 
       <div className="structure__transforms" role="group" aria-label="Transform">
         {props.transforms.map((t) => (
-          <button key={t.label} type="button" className="button button--small" title={t.title} onClick={t.run}>
+          <button
+            key={t.name ?? t.label}
+            type="button"
+            className="button button--small"
+            aria-label={t.name}
+            title={t.title}
+            onClick={t.run}
+          >
+            {t.turn && <TurnIcon turn={t.turn} />}
             {t.label}
           </button>
         ))}

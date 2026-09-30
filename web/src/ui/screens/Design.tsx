@@ -92,9 +92,10 @@ import type { Pattern, Project } from '../../model/types.ts'
 import { fitCell, zoomStep, type Overlay } from '../../render/design.ts'
 import { exportPng } from '../../render/png.ts'
 import type { ProjectRepo } from '../../storage/repo.ts'
-import { CellsIcon, ConfirmDialog } from '../components.tsx'
+import { ConfirmDialog } from '../components.tsx'
 import { ColoursPanel } from '../design/ColoursPanel.tsx'
 import { DesignCanvas } from '../design/DesignCanvas.tsx'
+import { ToolIcon, TurnIcon } from '../design/icons.tsx'
 import { StructurePanel, type TransformAction } from '../design/StructurePanel.tsx'
 import { Visualize } from '../design/Visualize.tsx'
 import { YarnEstimate } from '../design/YarnEstimate.tsx'
@@ -113,18 +114,13 @@ export default function Design({ id }: { id: string }) {
  */
 let clipboard: Clip | null = null
 
-/** Each tool's icon: the same 3×3 cell metaphor as the desktop's (icons.py). */
-const ICONS: Record<Tool, ReadonlyArray<readonly [number, number]>> = {
-  select: [],
-  paint: [[1, 1]],
-  fill: [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0]],
-  rect: [[0, 0], [0, 1], [1, 0], [1, 1]],
-  eyedropper: [[0, 2], [1, 1], [2, 0]],
-  row: [[1, 0], [1, 1], [1, 2]],
-  col: [[0, 1], [1, 1], [2, 1]],
-  addRow: [[1, 0], [1, 1], [1, 2]],
-  addCol: [[0, 1], [1, 1], [2, 1]],
-}
+/** The Select tool's turns: what the whole-pattern ones do (the Structure panel), to the selection. */
+const SELECTION_TURNS: readonly { turn: Turn; label: string; name: string; title: string }[] = [
+  { turn: 'mirror', label: 'Mirror', name: 'Mirror left to right', title: 'Mirror it left to right' },
+  { turn: 'flip', label: 'Flip', name: 'Flip top to bottom', title: 'Flip it top to bottom' },
+  { turn: 'cw', label: 'Rotate', name: 'Rotate clockwise', title: 'Turn it a quarter clockwise' },
+  { turn: 'ccw', label: 'Rotate', name: 'Rotate anticlockwise', title: 'Turn it a quarter anticlockwise' },
+]
 
 /** Keys that belong to whatever has focus, not to the Design stage. */
 function ownsKeys(target: EventTarget | null): boolean {
@@ -358,10 +354,12 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
     })
 
   const transforms: TransformAction[] = [
-    { label: 'Mirror ⇄', title: 'Mirror left to right', run: () => attempt(mirrorH(p), 'Mirrored left to right.') },
-    { label: 'Flip ⇅', title: 'Flip top to bottom', run: () => attempt(mirrorV(p), 'Flipped top to bottom.') },
+    { label: 'Mirror', name: 'Mirror left to right', turn: 'mirror', title: 'Mirror left to right', run: () => attempt(mirrorH(p), 'Mirrored left to right.') },
+    { label: 'Flip', name: 'Flip top to bottom', turn: 'flip', title: 'Flip top to bottom', run: () => attempt(mirrorV(p), 'Flipped top to bottom.') },
     {
-      label: 'Rotate ↻ 90°',
+      label: 'Rotate 90°',
+      name: 'Rotate 90° clockwise',
+      turn: 'cw',
       title: 'Rotate a quarter turn clockwise: rows become columns',
       run: () => {
         const next = rotate90(p, true)
@@ -369,7 +367,9 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       },
     },
     {
-      label: 'Rotate ↺ 90°',
+      label: 'Rotate 90°',
+      name: 'Rotate 90° anticlockwise',
+      turn: 'ccw',
       title: 'Rotate a quarter turn anticlockwise: rows become columns',
       run: () => {
         const next = rotate90(p, false)
@@ -682,7 +682,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
           title={`${t.label} (${t.shift ? '⇧' : ''}${t.key})`}
           onClick={() => chooseTool(t.tool)}
         >
-          <CellsIcon filled={ICONS[t.tool]} plus={t.tool in ADD_TOOLS} marquee={t.tool === 'select'} />
+          <ToolIcon tool={t.tool} />
           <span className="tool__label">{t.label}</span>
           <kbd className="tool__key">
             {t.shift ? '⇧' : ''}
@@ -720,18 +720,20 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       >
         Delete
       </button>
-      <button type="button" className="button button--small" disabled={!sel} title="Mirror it left to right" onClick={() => onTurn('mirror')}>
-        Mirror ⇄
-      </button>
-      <button type="button" className="button button--small" disabled={!sel} title="Flip it top to bottom" onClick={() => onTurn('flip')}>
-        Flip ⇅
-      </button>
-      <button type="button" className="button button--small" disabled={!sel} title="Turn it a quarter clockwise" onClick={() => onTurn('cw')}>
-        Rotate ↻
-      </button>
-      <button type="button" className="button button--small" disabled={!sel} title="Turn it a quarter anticlockwise" onClick={() => onTurn('ccw')}>
-        Rotate ↺
-      </button>
+      {SELECTION_TURNS.map((t) => (
+        <button
+          key={t.turn}
+          type="button"
+          className="button button--small"
+          disabled={!sel}
+          aria-label={t.name}
+          title={t.title}
+          onClick={() => onTurn(t.turn)}
+        >
+          <TurnIcon turn={t.turn} />
+          {t.label}
+        </button>
+      ))}
       <button
         type="button"
         className="button button--small selection-tools__wide"

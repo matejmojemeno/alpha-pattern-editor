@@ -55,6 +55,7 @@ import { useDelayedFlag, useDocumentTitle, useFileDrop, useMediaQuery, usePasted
 import { Palette } from '../import/Palette.tsx'
 import { PatternView } from '../import/PatternView.tsx'
 import { SourceView } from '../import/SourceView.tsx'
+import { WarningIcon } from '../icons.tsx'
 import { cleanName, MAX_NAME_LENGTH } from '../names.ts'
 import { isChartImage, type Notice } from '../useAlphaImport.ts'
 
@@ -516,7 +517,7 @@ function Summary({ preview }: { preview: Preview }) {
         <ul className="confirm__warnings" aria-label="Warnings">
           {preview.warnings.map((w, i) => (
             <li key={i}>
-              <span aria-hidden="true">⚠ </span>
+              <WarningIcon />
               {w}
             </li>
           ))}
