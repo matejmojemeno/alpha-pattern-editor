@@ -7,22 +7,23 @@ and why is in [`areas/`](areas/). The port that produced it is recorded in
 
 ## Context
 
-Alpha Pattern Editor is a ~6,500 LOC PySide6 desktop app that turns a photo of a crochet
-alpha chart into an editable, trackable pattern (Library → Import → Work → Design). It
-only runs on a Mac with the repo checked out and a venv set up. That makes it impossible
-to share, and unusable where the Work stage matters most: propped up on a table, or on a
-phone, while crocheting.
+Alpha Pattern Editor began as a ~6,500 LOC PySide6 desktop app that turned a photo of a
+crochet alpha chart into an editable, trackable pattern (Library → Import → Work →
+Design). It only ran on a Mac with the repo checked out and a venv set up. That made it
+impossible to share, and unusable where the Work stage matters most: propped up on a
+table, or on a phone, while crocheting. The web app replaced it, and the desktop app has
+been removed.
 
 The goal is a hosted web app with no backend and no accounts. What makes this feasible
 is that `alphareader/core/` (~2,400 LOC) is already strictly UI-free, and it touches the
 filesystem in only two places. So this is a frontend rewrite plus a storage swap, not a
 ground-up rebuild.
 
-**Decisions taken** at the start of the port. They still hold, except that the desktop app
-stays in the repo as legacy until the owner decides to retire it, and Design has shipped:
+**Decisions taken** at the start of the port. They still hold, except that Design has
+shipped:
 - Pyodide (Python compiled to WASM), no backend, static hosting.
 - The desktop Qt app is retired once the web app reaches parity, so `core/` may be
-  restructured freely.
+  restructured freely. (Done: see [The desktop app](#desktop-app) below.)
 - Storage is local-only: IndexedDB plus `.alpha` import/export.
 - The first release is Import + Work + Library. Design comes later.
 - Import and Work must work on phones and tablets. Design is desktop-first.
@@ -67,7 +68,7 @@ alpha-pattern-editor/
   README.md
   CLAUDE.md                 # how work is done here (for agents, and the process for everyone)
   detect_cli.py             # runs detection on one image from the command line
-  requirements.txt          # the Python dependencies (desktop app and tests)
+  requirements.txt          # the Python dependencies (the reference, tests and scripts)
   docs/
     README.md               # map of the docs
     dev/                    # spec.md (the § numbers cited in code), architecture.md (this
@@ -78,17 +79,16 @@ alpha-pattern-editor/
       bridge.py             # the only Python the browser calls
       confirm.py            # the import screen's session state (Tier B)
       model.py, readout.py, work.py, edit.py, io.py   # ported to TypeScript (Tier A)
-    ui/, app.py             # the legacy PySide6 desktop app
     tests/                  # pytest
   fixtures/                 # golden fixtures the TypeScript replays (see its README)
     logic_golden.json, edit_golden.json, colour_names.json, yarn_nearest.json
     alpha/                  # .alpha files written by each side, read by the other
-    png/                    # the desktop's PNG exports
+    png/                    # the Python reference's PNG exports
   scripts/
     parity/                 # desktop-vs-Pyodide detection parity
     gen_*.py                # regenerate the fixtures
     build_core_bundle.py    # packages alphareader/core/ for the browser
-    desktop_import.py       # the desktop's import, driven by the e2e specs
+    desktop_import.py       # the Python reference's import, driven by the e2e specs
     import_*.py             # build the colour-name and yarn tables from their sources
   test_images/              # charts the tests and the parity check detect
   web/
@@ -147,3 +147,22 @@ Pyodide threading needs the `Cross-Origin-Opener-Policy: same-origin` and
   persistence e2e specs pass against it, and `.wasm` is served as `application/wasm`.
   **Rule:** a new file under those three folders must carry a version or content hash in
   its name, or returning visitors never see it change.
+
+<a id="desktop-app"></a>
+
+## The desktop app
+
+The PySide6 desktop app (`alphareader/ui/`, `alphareader/app.py`, and its tests) was
+removed once the web app had replaced it. Two things remain from it on purpose:
+
+- **Its `.alpha` files.** The web app must open every `.alpha` file the desktop app
+  saved; `fixtures/alpha/desktop/` proves it (see
+  [`fixtures/alpha/README.md`](../../fixtures/alpha/README.md)).
+- **Its logic, as the reference.** `alphareader/core/` was always UI-free and stays: it
+  runs detection in the browser, and it is the spec the TypeScript replays. Scripts
+  named after the desktop, such as `scripts/desktop_import.py`, drive this Python
+  reference and need no desktop UI.
+
+Code comments that say what they port, such as "a port of `design_window.py`" or
+`chart_view.py:69`, name files from the desktop app. They are in git history: the last
+commit that has them is `f33316e` (`git show f33316e:alphareader/ui/work/chart_view.py`).

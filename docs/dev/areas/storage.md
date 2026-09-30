@@ -1,7 +1,7 @@
 # Storage
 
-How projects are kept: `.alpha` files, compatible with the desktop app in both
-directions, stored in the browser's IndexedDB. Code:
+How projects are kept: `.alpha` files, stored in the browser's IndexedDB. Every `.alpha`
+file the removed desktop app saved must still open. Code:
 [`web/src/storage/`](../../../web/src/storage/); the test files are described in
 [`fixtures/alpha/README.md`](../../../fixtures/alpha/README.md).
 

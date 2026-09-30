@@ -1,6 +1,6 @@
 # Alpha Pattern Editor: web app
 
-The browser version of the desktop app. How it is built is in
+The app itself: everything a user sees. How it is built is in
 [`docs/dev/architecture.md`](../docs/dev/architecture.md), and the rules for working on it
 in [`docs/dev/rules.md`](../docs/dev/rules.md).
 
@@ -24,8 +24,8 @@ BENCH=1 npx playwright test e2e/large-photo.bench.spec.ts   # detection time and
 numpy's wheel (fetched once from Pyodide's release and checked against its sha256, then
 cached in `.cache/`), and `alphareader-core.<hash>.zip` from
 `../scripts/build_core_bundle.py`. That needs Python 3 on the path, or `../.venv`, or
-`$PYTHON`. The e2e tests also use that Python, with numpy and Pillow, as the desktop
-reference.
+`$PYTHON`. The e2e tests also use that Python, with numpy and Pillow, as the Python
+reference (`alphareader/core/`).
 
 `npm run docs:media` runs `e2e/docs-media.spec.ts` with its own config
 (`playwright.docs.config.ts`, on port 4187, or `$DOCS_PORT`); `npm run test:e2e` skips that spec, because
@@ -93,10 +93,10 @@ files.
   panel's previews and form (`structure.ts`, `structureForm.ts`).
 - `src/render/`: Canvas 2D drawing and its geometry: the Work chart (`layout.ts`,
   `chart.ts`), the Design canvas (`design.ts`), and Export PNG (`png.ts`), which is
-  checked pixel for pixel against the desktop's export in `../fixtures/png/`.
+  checked pixel for pixel against the Python reference's export in `../fixtures/png/`.
 - `src/storage/`: `.alpha` archives (`alpha.ts`, `npy.ts`, `pyjson.ts`), IndexedDB
-  (`db.ts`) and the repository the UI will use (`repo.ts`). Compatibility with the
-  desktop format is tested in both directions; see `../fixtures/alpha/README.md`.
+  (`db.ts`) and the repository the UI will use (`repo.ts`). Every `.alpha` file the
+  old desktop app saved must open; see `../fixtures/alpha/README.md`.
 
 - `src/yarn/`: colour libraries (DMC and yarn ranges) and the yarn estimate. `data/`
   holds one JSON table per library, written by `../scripts/import_yarn_libraries.py`,
