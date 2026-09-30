@@ -89,7 +89,8 @@ files.
   works out where to carry each colour on to the next row, for the Work stage's "Show
   where to carry yarn".
 - `src/design/`: the Design stage's editing state as pure functions: the tools' pointer
-  logic and the current colour (`editor.ts`), undo (`history.ts`), and the structural
+  logic, the current colour and the Select tool's selection (`editor.ts`), undo
+  (`history.ts`), blocks of cells and the clipboard (`selection.ts`), and the structural
   panel's previews and form (`structure.ts`, `structureForm.ts`).
 - `src/render/`: Canvas 2D drawing and its geometry: the Work chart (`layout.ts`,
   `chart.ts`), the Design canvas (`design.ts`), and Export PNG (`png.ts`), which is
