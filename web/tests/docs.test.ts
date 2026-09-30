@@ -181,6 +181,71 @@ export function citedProblems(file: string, text = readFileSync(join(REPO, file)
   return problems
 }
 
+/** The pages that show the guide's generated images: the guide itself and the README. */
+export function guidePages(): string[] {
+  return ['README.md', ...filesUnder('docs/guide').filter((f) => f.endsWith('.md') && !isReadme(f))]
+}
+
+const MEDIA_DIR = 'docs/guide/media'
+
+/** The files in docs/guide/media/ a page refers to (by `media/<file>`), with where. */
+export function mediaUses(file: string, text = readFileSync(join(REPO, file), 'utf8')): { name: string; line: number }[] {
+  const masked = maskCode(text)
+  return [...masked.matchAll(/(?:^|[("'/\s])media\/([\w.-]+)/gm)].map((m) => ({
+    name: m[1]!,
+    line: lineAt(text, m.index),
+  }))
+}
+
+/** The images docs-media.spec.ts writes: each test is named after its file ("tour.gif and
+ *  tour.mp4" names two). */
+export function generatedMedia(spec = readFileSync(join(REPO, 'web/e2e/docs-media.spec.ts'), 'utf8')): Set<string> {
+  const out = new Set<string>()
+  for (const m of spec.matchAll(/\btest\(\s*'([^']+)'/g)) {
+    for (const name of m[1]!.split(' and ')) {
+      if (/^[\w.-]+\.(?:png|gif|mp4|jpe?g|webp)$/.test(name)) out.add(name)
+    }
+  }
+  return out
+}
+
+describe('the guide’s images', () => {
+  const inMedia = filesUnder(MEDIA_DIR)
+    .map((f) => f.slice(MEDIA_DIR.length + 1))
+    .filter((f) => f !== 'README.md')
+
+  it('finds the images and the pages', () => {
+    expect(inMedia).toContain('design.png')
+    expect(guidePages()).toContain('docs/guide/index.md')
+    expect(generatedMedia()).toContain('tour.mp4')
+  })
+
+  it('every image in docs/guide/media/ is used by some page', () => {
+    const used = new Set(guidePages().flatMap((f) => mediaUses(f).map((u) => u.name)))
+    expect(inMedia.filter((f) => !used.has(f))).toEqual([])
+  })
+
+  it('every image a page uses is one docs-media.spec.ts writes', () => {
+    const made = generatedMedia()
+    const problems = guidePages().flatMap((f) =>
+      mediaUses(f)
+        .filter((u) => !made.has(u.name))
+        .map((u) => `${f}:${u.line}: "media/${u.name}" isn't written by web/e2e/docs-media.spec.ts`),
+    )
+    expect(problems).toEqual([])
+  })
+
+  it('reads the spec’s test names and a page’s uses', () => {
+    const spec = "test('a.png', f)\ntest('tour.gif and tour.mp4', f)\ntest('not an image', f)\n"
+    expect([...generatedMedia(spec)].sort()).toEqual(['a.png', 'tour.gif', 'tour.mp4'])
+    const page = '![x](media/a.png)\n<img src="media/b.png">\n`media/c.png` in code\n'
+    expect(mediaUses('guide-page.md', page)).toEqual([
+      { name: 'a.png', line: 1 },
+      { name: 'b.png', line: 2 },
+    ])
+  })
+})
+
 describe('docs', () => {
   it('finds the docs and the code it checks', () => {
     const md = markdownFiles()
