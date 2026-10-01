@@ -155,11 +155,17 @@ export function carryEdge(hex: string): string {
   }
 }
 
+/** How thick a carried strand is in a row `h` tall, edges aside: a tenth of the row, 2 or
+ *  3 px. A line to follow, not a band that hides the stitches it runs through. */
+export function carryThickness(h: number): number {
+  return Math.max(2, Math.min(3, Math.round(h * 0.1)))
+}
+
 /** How thick each strand is, and how much of the bottom of the row the strands take,
- *  when they're drawn along the foot of the stitches under the stitch numbers: about an
- *  eighth of the row each, 2 to 4 px, one lane per colour, each with its 1 px edges. */
+ *  when they're drawn along the foot of the stitches under the stitch numbers: one lane
+ *  per colour, each with its 1 px edges. */
 export function carryStrip(h: number, lanes: number): { thickness: number; height: number } {
-  const thickness = Math.max(2, Math.min(4, Math.round(h * 0.12)))
+  const thickness = carryThickness(h)
   return { thickness, height: lanes * (thickness + 2) + 1 }
 }
 
@@ -196,11 +202,8 @@ function drawCarries(
     if (!row?.length || h < CARRY_MIN_ROW) continue
     const lanes = [...new Set(row.map((c) => c.palette_index))]
     const foot = footStrip(d, i) > 0
-    // About a third of the row, and never so thick that the lanes, each with its 1 px
-    // edges, overflow it.
-    const t = foot
-      ? carryStrip(h, lanes.length).thickness
-      : Math.min(Math.max(2, Math.min(8, Math.round(h * 0.3))), Math.floor((h - 2) / lanes.length) - 2)
+    // Never so thick that the lanes, each with its 1 px edges, overflow the row.
+    const t = foot ? carryStrip(h, lanes.length).thickness : Math.min(carryThickness(h), Math.floor((h - 2) / lanes.length) - 2)
     if (t < 1) continue
     const pitch = t + 2
     const top = foot

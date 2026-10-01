@@ -8,6 +8,7 @@ import {
   NUMBER_MIN_FONT,
   bands,
   carryStrip,
+  carryThickness,
   carryEdge,
   cellPixels,
   drawChart,
@@ -348,6 +349,18 @@ describe('drawChart', () => {
     const { ctx, calls } = recorder()
     drawChart(ctx, { layout, image: {} as CellImage, pattern: p, completed: new Set(), numbers: true, scrollX: 0, scrollY: 0, width: 600, height: 400, dpr: 1, colors })
     expect(calls.filter((c) => c.op === 'fillText' && (c.fillStyle === '#000000' || c.fillStyle === '#ffffff'))).toHaveLength(0)
+  })
+
+  it('draws strands as thin lines, 2 or 3 px, never a band across the stitches', () => {
+    expect([6, 12, 14, 25, 40, 80].map(carryThickness)).toEqual([2, 2, 2, 3, 3, 3])
+    const p = pattern(10, 10)
+    const layout = computeLayout({ rows: 10, cols: 10, current: 9, emphasise: true, focus: false, width: 240, height: 228 })
+    const carries = Array.from({ length: 10 }, () => [{ palette_index: 0, from: 2, to: 5, kind: 'on' as const }])
+    const { ctx, calls } = recorder()
+    drawChart(ctx, { layout, image: {} as CellImage, pattern: p, completed: new Set(), carries, scrollX: 0, scrollY: 0, width: 240, height: 228, dpr: 1, colors })
+    const strands = calls.filter((c) => c.op === 'fillRect' && c.fillStyle === '#ff0000')
+    expect(strands.length).toBeGreaterThan(0)
+    for (const c of strands) expect((c.args as number[])[3]).toBeLessThanOrEqual(3)
   })
 
   it('edges a pale strand dark and a dark one pale', () => {
