@@ -500,7 +500,7 @@ def test_a_picture_opens_as_a_picture_and_saves_what_convert_makes():
     p = _open(img)
     assert (p["mode"], p["reading"]["kind"]) == ("picture", "picture")
     assert p["picture"] == {"width": 60, "maxWidth": 320, "colours": 6, "detail": 0.5,
-                            "cellAspect": 1.0}
+                            "cellAspect": 1.0, "outlines": False}
     assert (p["cols"], p["rows"]) == (60, 45)
     assert p["confidence"].min() == 1.0 and p["lowConfidenceFraction"] == 0.0
     want = convert.convert_picture(img)
@@ -651,3 +651,26 @@ def test_transparent_pixel_art_is_read_on_white():
     assert p["mode"] == "pixels"
     cells = p["cells"].reshape(p["rows"], p["cols"])
     assert {p["palette"][i]["hex"] for i in np.unique(cells[:, :3])} == {"#ffffff"}
+
+
+def test_keep_outlines_is_a_pictures_setting_and_is_saved(count_detections):
+    """A circle drawn as a line on white: gone without outlines, kept with them, and the
+    saved pattern is what the preview showed. Switching doesn't detect again."""
+    h = w = 300
+    y, x = np.mgrid[0:h, 0:w]
+    # A soft gradient behind it, as a scanned or smoothed drawing has: not pixel art.
+    img = np.stack([235 + 20 * x / w, 235 + 20 * y / h, 245 - 10 * x / w], axis=2).astype(np.uint8)
+    img[np.abs(np.hypot(y - 150, x - 150) - 110) < 1.5] = (20, 20, 20)
+    p = _open(img)
+    sid = p["session"]
+    assert p["mode"] == "picture" and p["picture"]["outlines"] is False
+    bridge.set_params(sid, width=30, outlines=True)
+    q = bridge.preview(sid)
+    assert q["picture"]["outlines"] is True
+    dark = [i for i, e in enumerate(q["palette"]) if int(e["hex"][1:3], 16) < 80]
+    assert len(dark) == 1 and int((q["cells"] == dark[0]).sum()) >= 50
+    saved = bridge.commit(sid, "Ring")["pattern"]
+    assert np.array_equal(saved["cells"], q["cells"])
+    bridge.set_params(sid, outlines=False)
+    assert bridge.preview(sid)["picture"]["outlines"] is False
+    assert len(count_detections) == 1

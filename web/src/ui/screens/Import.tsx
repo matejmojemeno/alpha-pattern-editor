@@ -19,7 +19,8 @@
  * which, with a button to the other reading. For a chart nothing else changes. For a
  * picture the outline and a box drawn on the image crop what's used (the width in
  * stitches stays), the colour count asks for one colour fewer or more, and Width and
- * Detail sit above the colour list, so the stages' own chrome is unchanged. Pixel art
+ * Detail (and "Keep outlines", for drawings) sit above the colour list, so the stages'
+ * own chrome is unchanged. Pixel art
  * without gridlines is read block by block, exactly: nothing to adjust but its colours
  * (merged as a chart's), and no outline or box.
  *
@@ -547,6 +548,7 @@ export default function ImportScreen() {
                   update({ width: clampWidth(width, picture) })
                 }}
                 onDetail={(detail) => update({ detail })}
+                onOutlines={(outlines) => update({ outlines })}
               />
             )}
             {display && hasGrid ? (
@@ -667,6 +669,7 @@ function PictureControls({
   disabled,
   onWidth,
   onDetail,
+  onOutlines,
 }: {
   picture: PictureSettings
   rows: number
@@ -675,14 +678,18 @@ function PictureControls({
   disabled: boolean
   onWidth: (width: number) => void
   onDetail: (detail: number) => void
+  onOutlines: (on: boolean) => void
 }) {
   const id = useId()
-  // A slider shows the value asked for until the answer to it arrives, then the answer:
+  // A control shows the value asked for until the answer to it arrives, then the answer:
   // answers to earlier values of a drag don't pull it back.
   const [askedWidth, setAskedWidth] = useState<number | null>(null)
   const [askedDetail, setAskedDetail] = useState<number | null>(null)
   if (askedWidth !== null && picture.width === clampWidth(askedWidth, picture)) setAskedWidth(null)
   if (askedDetail !== null && Math.abs(picture.detail - askedDetail) < 1e-9) setAskedDetail(null)
+  const [askedOutlines, setAskedOutlines] = useState<boolean | null>(null)
+  if (askedOutlines !== null && picture.outlines === askedOutlines) setAskedOutlines(null)
+  const outlines = askedOutlines ?? picture.outlines
   const width = askedWidth ?? picture.width
   const detail = askedDetail ?? picture.detail
   const min = Math.min(MIN_WIDTH, picture.maxWidth)
@@ -742,6 +749,25 @@ function PictureControls({
       <p className="picture-controls__note picture-controls__ends" aria-hidden="true">
         <span>Fewer colour changes</span>
         <span>More detail</span>
+      </p>
+      {/* Off unless asked for: whether a picture has drawn outlines can't be told
+          reliably, so the pattern shows at once whether it helps (core/outlines.py). */}
+      <label className="picture-controls__switch">
+        <input
+          type="checkbox"
+          role="switch"
+          checked={outlines}
+          disabled={disabled}
+          aria-describedby={`${id}-outlines`}
+          onChange={(e) => {
+            setAskedOutlines(e.target.checked)
+            onOutlines(e.target.checked)
+          }}
+        />
+        <span className="picture-controls__label">Keep outlines</span>
+      </label>
+      <p id={`${id}-outlines`} className="picture-controls__note">
+        For drawings with dark lines: keeps them, one stitch thick.
       </p>
     </div>
   )

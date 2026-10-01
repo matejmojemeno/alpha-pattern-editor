@@ -23,6 +23,7 @@ import numpy as np
 
 from .detect import detect_pattern
 from .detect import periodic
+from .detect.lattice import line_coverage
 from .detect.palette import DEFAULT_DELTA_E
 from .model import DetectionError, DetectionResult
 from .pixels import PixelArt, read_pixels
@@ -31,6 +32,9 @@ from .pixels import PixelArt, read_pixels
 _MAX_CELL_RATIO = 1.5       # long side over short side of a square
 _MIN_SPAN = 0.6             # the grid covers at least this share of each side
 _MIN_CONTRAST = 2.0         # edge strength on the lattice over half a square off it
+_MIN_COVERAGE = 0.5         # ... and its gridlines have an edge along half their length or
+#                             more (real charts 0.95+, 40 synthetic ones down to 4 × 7 cells
+#                             0.76+; a drawing of two circles fitted a 5 × 3 grid at 0.17)
 # ... and it is surely one when few of its cells are unsure, else a chart shown with a
 # visible way to read it as a picture instead.
 _SURE_UNSURE = 0.15
@@ -85,8 +89,11 @@ def line_contrast(prof: np.ndarray, x0: float, pitch: float, lo: float = 0.0,
     return float(periodic._sample(prof, on).mean() / (periodic._sample(prof, off).mean() + 1e-9))
 
 
-def _grid_signals(img: np.ndarray, result: DetectionResult) -> tuple[float, float, float, float]:
-    """(cell ratio, span, unsure share, contrast) of a detected grid."""
+def _grid_signals(img: np.ndarray, result: DetectionResult) -> tuple[float, float, float, float, float]:
+    """(cell ratio, span, unsure share, contrast, coverage) of a detected grid. Coverage is
+    how much of its gridlines' length has an edge on it (the median over its lines): a
+    chart's gridlines run the width of the grid, the lattice fitted to a drawing crosses
+    its lines at a point or two."""
     lat = result.lattice
     H, W = img.shape[:2]
     ratio = max(lat.pitch_x, lat.pitch_y) / max(min(lat.pitch_x, lat.pitch_y), 1e-9)
@@ -98,7 +105,10 @@ def _grid_signals(img: np.ndarray, result: DetectionResult) -> tuple[float, floa
     prof_r, prof_c = periodic.profiles_from_maps(dh, dv, row_span=(r0, r1), col_span=(c0, c1))
     contrast = min(line_contrast(prof_r, lat.y0, lat.pitch_y, lat.row_lines[0], lat.row_lines[-1]),
                    line_contrast(prof_c, lat.x0, lat.pitch_x, lat.col_lines[0], lat.col_lines[-1]))
-    return float(ratio), float(span), unsure, contrast
+    eh, ev = periodic.evidence_from_maps(dh, dv, img.shape[:2])
+    coverage = min(float(np.median([line_coverage(eh, 0, y, lat.pitch_y, c0, c1) for y in lat.row_lines])),
+                   float(np.median([line_coverage(ev, 1, x, lat.pitch_x, r0, r1) for x in lat.col_lines])))
+    return float(ratio), float(span), unsure, contrast, coverage
 
 
 def looks_like_fine_grid(img: np.ndarray) -> bool:
@@ -174,9 +184,10 @@ def _chart_or_picture(img: np.ndarray, region: np.ndarray, delta_e_threshold: fl
             return Reading("chart", True, None, err, f"{err.code}, and a grid's structure")
         return Reading("picture", True, None, None, f"{err.code}")
 
-    ratio, span, unsure, contrast = _grid_signals(region, result)
-    signals = f"ratio {ratio:.2f}, span {span:.2f}, unsure {unsure:.2f}, contrast {contrast:.2f}"
+    ratio, span, unsure, contrast, coverage = _grid_signals(region, result)
+    signals = (f"ratio {ratio:.2f}, span {span:.2f}, unsure {unsure:.2f}, contrast {contrast:.2f}, "
+               f"coverage {coverage:.2f}")
     if (ratio > _MAX_CELL_RATIO or span < _MIN_SPAN or contrast < _MIN_CONTRAST
-            or unsure > _MAX_UNSURE):
+            or unsure > _MAX_UNSURE or coverage < _MIN_COVERAGE):
         return Reading("picture", True, result, None, f"not a grid: {signals}")
     return Reading("chart", unsure <= _SURE_UNSURE, result, None, signals)

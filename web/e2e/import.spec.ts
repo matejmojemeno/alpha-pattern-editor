@@ -292,6 +292,43 @@ test('real pixel art is saved exactly as the Python reads it', async ({ page }, 
   expect(cellsOf(saved)).toEqual(desktopCells(want))
 })
 
+test('"Keep outlines" draws a drawing\'s lines, exactly as the Python does', async ({ page }, testInfo) => {
+  // A drawing: a soft background (not pixel art), a circle that is only its line, and a
+  // red disc outlined in black. Off, the circle vanishes; on, it's a ring of stitches.
+  const [w, h] = [360, 360]
+  const rgba = new Uint8Array(w * h * 4)
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const ring = Math.abs(Math.hypot(x - 130, y - 130) - 100) < 1.5
+      const disc = Math.hypot(x - 270, y - 270) < 60
+      const rim = Math.abs(Math.hypot(x - 270, y - 270) - 60) < 2
+      const bg = [Math.round(235 + (20 * x) / w), Math.round(235 + (20 * y) / h), Math.round(245 - (10 * x) / w)]
+      const px = ring || rim ? [20, 20, 20] : disc ? [210, 30, 30] : bg
+      rgba.set([...px, 255], (y * w + x) * 4)
+    }
+  const file = testInfo.outputPath('drawing.png')
+  writeFileSync(file, encodePngRgba(w, h, rgba))
+  const want = desktopPicture(file, ['width=36', 'outlines=1'])
+
+  const { save } = await importImage(page, file)
+  await expect(save).toBeEnabled()
+  const settings = page.getByRole('group', { name: 'Picture settings' })
+  await settings.getByLabel('Width').fill('36')
+  await expect(page.locator('.confirm__stats')).toHaveText('36 columns × 36 rows', { timeout: DETECT_TIMEOUT })
+  const toggle = settings.getByRole('switch', { name: 'Keep outlines' })
+  await expect(toggle).not.toBeChecked()
+  await toggle.check()
+  await expect(toggle).toBeChecked({ timeout: DETECT_TIMEOUT })
+  await saveAs(page, 'Drawing')
+
+  const saved = readAlpha(new Uint8Array(readFileSync(await exportFromLibrary(page, testInfo, 'Drawing')))).project.pattern
+  expect(cellsOf(saved)).toEqual(desktopCells(want))
+  // The ring is there: a dark colour with at least most of its circumference in stitches.
+  const dark = saved.palette.findIndex((e) => parseInt(e.hex.slice(1, 3), 16) < 80)
+  expect(dark).toBeGreaterThanOrEqual(0)
+  expect([...saved.cells].filter((c) => c === dark).length).toBeGreaterThan(0.8 * 2 * Math.PI * 10)
+})
+
 test('a pasted image saved without a name is named by the moment it was saved', async ({ page }) => {
   await page.goto('/')
   const bytes = readFileSync(resolve(IMAGES, 'dachshund.png')).toString('base64')

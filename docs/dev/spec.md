@@ -283,7 +283,9 @@ Detection's success or failure doesn't decide it: most photos fail as LOW_RESOLU
 (texture fits 3–5 px squares), and so does a real chart with 5 px squares; a picture can
 also fit a nonsense grid. A detected grid is a chart when its squares are within 1.5:1,
 it spans at least 60% of each side, its edge strength on the lattice is at least twice
-that half a square off it, and no more than 60% of its cells are unsure. With more than
+that half a square off it, its gridlines have an edge along at least half their length
+(a drawing's lattice crosses its lines at a point or two), and no more than 60% of its
+cells are unsure. With more than
 15% unsure it is a chart **with doubts**, and the picture reading is offered prominently.
 A LOW_RESOLUTION or ROTATED refusal stays a chart's refusal only if a fit below the
 minimum square size still looks like a grid (square to 1.2:1, contrast 1.25, 70% of the
@@ -305,6 +307,13 @@ The aim is the best pattern, not the most faithful shrink:
   detail and vivid colour, capped at 4× so a large plain area still keeps its colour. A
   group of at least 2 stitches' samples further than ΔE 25 from every colour (an eye,
   a dot) is then given one, taken from the colour that suffers least without it.
+- **A drawing's colours are its own.** When most of a picture is flat colour (60% of
+  samples within ΔE 2 of all their neighbours), each colour is the shade most of its
+  samples have, not their mean: yellow and orange sharing a colour make it yellow, not
+  an olive between them. Samples that are an edge averaged (on the line between the
+  samples either side of them, which differ by ΔE 20 or more) choose no colour, nor does
+  the rescue above give one to a mix of two colours; colours within ΔE 6 are one. A
+  photo's colours are spreads of shades, and stay means.
 - **Stitches:** each colour's cost is the mean ΔE of all the stitch's samples (up to 4×4),
   so thin lines pull; a colour change to a neighbour costs up to ΔE 100 along a row
   (a yarn change) and half that up a column, scaled by the Detail slider (0 = smooth
@@ -312,6 +321,29 @@ The aim is the best pattern, not the most faithful shrink:
 - Deterministic (no random seeds, Lab and costs rounded to 6 decimals), so the desktop
   Python and Pyodide give identical patterns (`scripts/parity`).
 - A transparent background is white.
+
+### Keep outlines (`core/outlines.py`)
+
+A switch for a picture, off by default: a drawing's dark lines kept, one stitch thick.
+A cartoon's 2–5 px lines vanish when averaged into 15–25 px stitches, and with them
+shapes drawn only by a line (the white half of a crescent moon, white on white).
+
+- **Ink** is a dark ridge (L* < 55, 12 lighter on both sides 3 or 6 px away) that goes
+  on along itself, in ink as dark or darker, a pixel either way, as far as it is looked
+  across: a line, not the edge or the corner of a dark area. Beyond the picture's edge
+  is background across or down, so a line the edge cuts through is still a line.
+- It is thinned to its centreline, and each stitch the centreline crosses is a line
+  stitch, less those it only clips where the line stays connected. A clump of lines
+  (most of a stitch's 3 × 3) keeps only its outline; lines touching side by side are
+  thinned to one; specks under 3 stitches go.
+- The ink is the darkest quarter of it: the palette's colour within ΔE 20, else it is
+  added (and then is no other stitch's), as one of the colours asked for. It never
+  replaces a colour. Colours are chosen from the other stitches and, in a drawing,
+  without the samples within 2 px of the ink, so none is spent on line smudge; line
+  stitches are the ink whatever the Detail slider.
+- Whether a picture has drawn outlines can't be told from simple measures (flat colour
+  and "edges with ink beside them" both score photos as high as drawings), so the user
+  decides, and the pattern shows at once whether it helps.
 
 ### Pixel images (`core/pixels.py`)
 

@@ -76,9 +76,9 @@ break without noticing.
 - <a id="old-dmc-setting"></a>**Settings saved before the yarn libraries went off by default still say `"dmc"`.**
   The store writes every field whenever one changes, so an old `"dmc"` can't be told
   from a choice. Such a browser keeps showing DMC shades until "Nothing" is picked.
-- <a id="parity-check"></a>**After any change to `alphareader/core/detect`, `kind.py`, `pixels.py` or `convert.py`, run
+- <a id="parity-check"></a>**After any change to `alphareader/core/detect`, `kind.py`, `pixels.py`, `outlines.py` or `convert.py`, run
   `python scripts/parity/check.py`.** It must report 122/122 bit-identical (89 charts, 25
-  pictures and 8 pixel images, each also read by `kind.py` and converted twice). It exits non-zero
+  pictures and 8 pixel images, each also read by `kind.py` and converted three times, once with outlines). It exits non-zero
   otherwise. Run `npm install` in `scripts/parity/` once first.
 - <a id="failure-not-picture"></a>**A detection failure is not a picture, and a detected grid is not a chart.** Most
   photos fail as LOW_RESOLUTION, as real charts with small squares do; pictures can fit a
@@ -107,6 +107,19 @@ break without noticing.
   itself an exact enlargement (2 px lines: 2×; any chart at 1:1), so an enlargement loses
   to a chart, read or refused, whose squares aren't its blocks, and 1:1 wins only where
   detection finds no chart. Enlargements under 2× are 1:1 (`pixels._MIN_SCALE`).
+- <a id="outlines-switch"></a>**"Keep outlines" stays the user's switch.** Two measures of "has drawn outlines"
+  failed on the corpus (photos scored as high as drawings); don't turn it on by itself
+  without a measure that separates the pictures in `test_images/pictures/`.
+- <a id="ink-ridge"></a>**Ink is a ridge that goes on.** Lightness alone takes the edges of dark areas (a red
+  shield); a ridge alone takes their corners. Both tests are in `test_outlines.py`.
+  "Goes on" must allow a pixel's drift and darker ink, or thin anti-aliased lines break.
+- <a id="drawing-colour"></a>**A drawing's colour is its most common shade; a photo's is its mean.** The mean of
+  two flat colours sharing a slot is neither (an olive from yellow and orange); the most
+  common shade of a photo's spread of shades can be the wrong one (a parrot's red beak,
+  sharing a colour with brown ground, went brown). `convert.flat_share` decides, and is
+  not "is it a drawing?" for anything else: it counts snowy photos as flat, where the
+  most common shade and the mean are the same. Check `test_images/pictures/` with
+  outlines off before moving `_FLAT_SHARE`: every photo there must convert as before.
 - <a id="python-is-spec"></a>**The Python is the spec for readout, progress and editing.** If `readout.ts`/`work.ts`
   disagree with `fixtures/logic_golden.json`, or `edit.ts` with `fixtures/edit_golden.json`,
   the TypeScript is wrong. If you change `readout.py`, `work.py` or `edit.py`, run

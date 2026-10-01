@@ -213,6 +213,48 @@ Newest last, as they were built.
     + 2.6 KB CSS, Design 27.4 KB (unchanged). `importer/picture.ts` repeats usage.ts's
     four-line stitch size instead of importing it, which split usage.ts into a shared
     4.8 KB chunk.
+- <a id="keep-outlines"></a>**Keep outlines** (`core/outlines.py`, `convert.PictureState.outlines`, a switch under
+  Detail; spec.md §5a). Off by default. On the Moon Stick (a user's example, not in the
+  repo), 40 wide: the full moon circle appears (off, half the moon is missing: its white
+  half is drawn only by a line), the handle is outlined, and the ornament keeps one ring
+  with its gold inside; about 0.9 s in Chromium. The coat of arms goes from 6 colours to
+  3 with a continuous outline; the smiley (lines ~20 px, already kept) doesn't change.
+  - Reached by testing, not guessed: a first version (mark stitches with ink, thin them)
+    broke lines into dots; tracing centrelines keeps them whole. A darker ink threshold
+    (L* 40) broke the moon's tapered line ends (L* 49); a lighter one traced the edges of
+    a red shield and a burgundy mouth, hence a ridge test; a ridge test alone took the
+    corners of dark shapes, hence "goes on along itself in the same ink".
+  - No automatic "is it a drawing?": a flat-colour score put the arctic fox photo at 1.00
+    and the coat of arms at 0.59, and "edges with ink beside them" scored photos 0.87–0.93.
+  - Found on the way, in `kind.py`: a drawing of two outlined circles read as a 5 × 3 (and
+    an 8 × 8) chart. A chart's gridlines now need an edge along half their length (real
+    charts 0.95+, 40 synthetic ones down to 4 × 7 cells 0.76+, the drawing 0.08–0.17);
+    every corpus image is read as before.
+  - Parity: every image is also converted with outlines on, 122/122 bit-identical.
+  - **The whole outline, and no olive** (stacked on Keep outlines). On the Moon Stick at
+    some widths the crescent was olive: with 6 colours, yellow and orange shared one and
+    it was their mean (122 wide `#d9c37e`; the owner saw `#b5a35a` at 156), and the
+    lines' ink, averaged with yellow, white or pink, won colours of its own (a grey at
+    60 wide, where yellow had none). Then the ink replaced the colour within ΔE 45 of
+    it, at 122 wide the pink handle's, which became the gem's red. Now, for a picture
+    that is mostly flat colour (`convert.flat_share` ≥ 0.6), each colour is the shade
+    most of its samples have (`_dominant`), edge samples (`edge_blends`) and samples
+    within 2 px of the ink don't choose colours, the rescue gives none to a mix of two
+    colours, and colours within ΔE 6 merge; the ink never replaces a colour and is one
+    of the colours asked for. Every width 20–200 of the Moon Stick is now white,
+    mustard, pink, burgundy ink, and orange, cream, dark pink, red or green as room
+    allows; the smiley is its 5 colours (its pink tongue had become white, and an olive
+    took a sixth). Photos (flat share 0.37 or less) are converted exactly as before with
+    outlines off.
+  - The outline was broken where the line is thin: a 2 px anti-aliased line drifts a
+    pixel within a few pixels, and was looked for exactly in line, in the same ink (a
+    third of the Moon Stick's outer circle was missed; a thin synthetic circle was found
+    at 68 of 360 angles, now 360). And a line the picture's edge cuts through (the top
+    of the circle) had nothing lighter beyond the edge.
+  - The gem's green was named "Olive": the green family had no mid green, so `#227e23`
+    was nearest olive. "tree green" (`#2a7e19`, from the xkcd survey) is now an anchor.
+  - Speed, natively: a drawing's preview 0.7–0.9 s at 122–156 wide (was 0.6–0.7 s);
+    photos unchanged.
 
 ## During the port
 
