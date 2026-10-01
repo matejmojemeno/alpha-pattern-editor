@@ -25,7 +25,7 @@ interface PatternRecord {
 interface Case {
   pattern: string
   fn: string
-  args: (number | string)[]
+  args: (number | string | number[] | number[][])[]
   kwargs: Record<string, number | boolean>
   result?: PatternRecord
   value?: number | string
@@ -80,6 +80,14 @@ function toRecord(p: Pattern): PatternRecord {
   }
 }
 
+/** A block as the fixture lists it, a list of rows, in the port's form. Anything but a
+ *  grid (a flat list, ragged rows) comes out with too many or too few cells, as edit.py's
+ *  "not a grid" does. */
+function toBlock(rows: unknown[]): edit.Block {
+  const cols = Array.isArray(rows[0]) ? rows[0].length : 0
+  return { rows: rows.length, cols, cells: Uint16Array.from(rows.flat() as number[]) }
+}
+
 /** Call the TS port the way the fixture called the Python: fn(pattern, *args, **kwargs). */
 function call(p: Pattern, c: Case): unknown {
   // Arguments are typed by the function they go to; the fixture is the authority.
@@ -97,6 +105,8 @@ function call(p: Pattern, c: Case): unknown {
       return edit.fillRow(p, a[0], a[1])
     case 'fill_column':
       return edit.fillColumn(p, a[0], a[1])
+    case 'paste_block':
+      return edit.pasteBlock(p, a[0], a[1], toBlock(c.args[2] as unknown[]))
     case 'add_border':
       return edit.addBorder(p, {
         top: num('top'),
@@ -205,6 +215,6 @@ describe('edit.ts replays fixtures/edit_golden.json', () => {
 
   it('covers every function the Python has', () => {
     const fns = new Set(golden.cases.map((c) => c.fn))
-    expect(fns.size).toBe(25)
+    expect(fns.size).toBe(26)
   })
 })

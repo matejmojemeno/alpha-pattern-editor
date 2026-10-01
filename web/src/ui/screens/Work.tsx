@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AutoSaver, type SaveStatus } from '../../app/autosave.ts'
 import { useSettings } from '../../app/context.ts'
 import { downloadBlob } from '../../app/download.ts'
+import { helpUrl } from '../../app/help.ts'
 import { href, navigate, paths } from '../../app/router.ts'
 import { trackSave } from '../../app/saving.ts'
 import { keepScreenAwake } from '../../app/wakeLock.ts'
@@ -31,7 +32,7 @@ import type { Project } from '../../model/types.ts'
 import type { RowPlace } from '../../render/layout.ts'
 import { progressPct } from '../../storage/alpha.ts'
 import type { ProjectRepo } from '../../storage/repo.ts'
-import { ProgressBar, RenameForm } from '../components.tsx'
+import { HelpLink, ProgressBar, RenameForm } from '../components.tsx'
 import { useDocumentTitle } from '../hooks.ts'
 import { ProjectGate } from '../ProjectGate.tsx'
 import { ChartView } from '../work/ChartView.tsx'
@@ -294,8 +295,13 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
             <button type="button" className="button button--small" onClick={editPattern}>
               Edit pattern…
             </button>
+            {/* Also here, for phones, where the header has no room for its "?". */}
+            <a className="button button--small" href={helpUrl('work')} target="_blank" rel="noopener noreferrer">
+              Help
+            </a>
           </div>
         </details>
+        <HelpLink topic="work" />
       </header>
 
       <section className="work__status" aria-label="Progress">

@@ -166,3 +166,10 @@ the Lab conversion; `alphareader/tests/test_names_fixture.py` fails if it is sta
 { about, colours: ["#rrggbb"], nearest: [[anchor index, ΔE2000]],
   palettes: [{ hexes: ["#rrggbb"], names: [string] }] }
 ```
+
+## `demo/`: the docs' demo pattern
+
+`demo/demo.alpha` and `demo/demo-chart.png` are the pattern the user guide's screenshots
+and tour show (`web/e2e/docs-media.spec.ts`): an original design made for this repo, so
+the docs never show a chart whose rights are in question. `demo/README.md` says how each
+was made and how to replace them; `scripts/gen_demo_pattern.py` writes `demo.alpha`.

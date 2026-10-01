@@ -1,9 +1,9 @@
 /**
  * The structural panel in real Chromium, with Work-stage progress on the pattern: a
  * border previewed then applied, a done row deleted from the menu on its row number
- * (asking first), padding placed by dragging the pattern on the preview, Export PNG;
- * then the Work stage opens on a sound place, and the desktop opens the file it saved
- * and makes the same PNG. Then the tablet and phone layouts. No Pyodide anywhere.
+ * (asking first), a size set and the pattern placed in it by dragging it on the preview,
+ * Export PNG; then the Work stage opens on a sound place, and the desktop opens the file
+ * it saved and makes the same PNG. Then the tablet and phone layouts. No Pyodide anywhere.
  */
 import { readFileSync } from 'node:fs'
 
@@ -72,31 +72,34 @@ test('structural edits with rows done in Work, and the desktop opens the result'
   await expect(page.getByText(/You're 3 rows into this project/)).toBeVisible()
 
   // --- a border: previewed on the canvas, then applied ---------------------------------------------------
-  await page.getByRole('button', { name: 'Border', expanded: false }).click()
+  await page.getByRole('button', { name: 'Border & size', expanded: false }).click()
   await field(page, 'Top').fill('2')
   await expect(page.getByRole('img', { name: 'Preview, 16 by 14' })).toBeVisible()
-  await expect(scroller(page)).toHaveAttribute('data-mode', 'view')
-  await expect(page.getByText('Result: 16 × 14')).toBeVisible()
+  await expect(scroller(page)).toHaveAttribute('data-mode', 'move')
+  await expect(field(page, 'Width')).toHaveValue('16')
+  await expect(field(page, 'Height')).toHaveValue('14')
   // Painting is off while previewing: a press on the chart changes nothing.
   const off = await cellCentre(page, 5, 5)
   await page.mouse.click(off.x, off.y)
   await expect(stats(page)).toHaveText(/^12 cols × 10 rows/)
-  await page.getByRole('button', { name: 'Apply border' }).click()
+  await expect(field(page, 'Left')).toHaveValue('2') // nor does it move the pattern
+  await page.getByRole('button', { name: 'Apply' }).click()
   await expect(stats(page)).toHaveText(/^16 cols × 14 rows/)
   await expect(page.getByRole('img', { name: 'Pattern, 16 by 14' })).toBeVisible()
 
   // A removal that cuts into the art asks first; Cancel leaves it be.
-  await page.getByRole('button', { name: 'Border', expanded: false }).click()
+  await page.getByRole('button', { name: 'Border & size', expanded: false }).click()
   await field(page, 'Top').fill('-4')
   await expect(page.getByRole('img', { name: 'Preview, 16 by 14' })).toBeVisible()
-  await expect(page.getByText('Result: 8 × 6')).toBeVisible()
-  await page.getByRole('button', { name: 'Apply border' }).click()
+  await expect(field(page, 'Width')).toHaveValue('8')
+  await expect(field(page, 'Height')).toHaveValue('6')
+  await page.getByRole('button', { name: 'Apply' }).click()
   const ask = page.getByRole('alertdialog', { name: 'Remove part of the pattern?' })
   await expect(ask).toContainText('aren’t all one colour')
   await expect(ask).toContainText('you’ve marked done')
   await ask.getByRole('button', { name: 'Cancel' }).click()
   await expect(stats(page)).toHaveText(/^16 cols × 14 rows/)
-  await page.getByRole('button', { name: 'Border', expanded: true }).click()
+  await page.getByRole('button', { name: 'Border & size', expanded: true }).click()
 
   // --- a done row deleted from the menu on its number ------------------------------------------------------
   // Working row 3 is the first row done before the border (image row 14 - 3 = 11).
@@ -118,8 +121,10 @@ test('structural edits with rows done in Work, and the desktop opens the result'
   await page.keyboard.press('Escape')
   await expect(page.getByRole('menu')).toHaveCount(0)
 
-  // --- padding, placed by dragging the pattern on the preview ------------------------------------------------
-  await page.getByRole('button', { name: 'Pad to size', expanded: false }).click()
+  // --- a size, the pattern placed in it by dragging it on the preview -----------------------------------------
+  await page.getByRole('button', { name: 'Border & size', expanded: false }).click()
+  await page.getByRole('button', { name: 'Clear' }).click()
+  await expect(field(page, 'Width')).toHaveValue('16')
   await field(page, 'Width').fill('20')
   await field(page, 'Height').fill('15')
   await expect(field(page, 'Left')).toHaveValue('2')
@@ -134,9 +139,11 @@ test('structural edits with rows done in Work, and the desktop opens the result'
   await page.mouse.move(to.x, to.y, { steps: 4 })
   await page.mouse.up()
   await expect(field(page, 'Left')).toHaveValue('4')
+  await expect(field(page, 'Right')).toHaveValue('0')
   await expect(field(page, 'Top')).toHaveValue('2')
-  await expect(page.getByText('Adds 4 left, 0 right, 2 top, 0 bottom.')).toBeVisible()
-  await page.getByRole('button', { name: 'Apply padding' }).click()
+  await expect(field(page, 'Bottom')).toHaveValue('0')
+  await expect(field(page, 'Width')).toHaveValue('20') // the size stays
+  await page.getByRole('button', { name: 'Apply' }).click()
   await expect(stats(page)).toHaveText(/^20 cols × 15 rows/)
 
   // --- Export PNG ----------------------------------------------------------------------------------------------------
@@ -221,7 +228,7 @@ test.describe('on a tablet', () => {
     await page.getByRole('button', { name: 'Structure' }).click()
     const drawer = page.getByRole('complementary', { name: 'Structure' })
     await expect(drawer).toBeVisible()
-    await drawer.getByRole('button', { name: 'Border', expanded: false }).click()
+    await drawer.getByRole('button', { name: 'Border & size', expanded: false }).click()
     await expect(page.getByRole('img', { name: 'Preview, 14 by 12' })).toBeVisible()
     // The preview goes with the panel.
     await page.getByRole('button', { name: 'Colours' }).click()

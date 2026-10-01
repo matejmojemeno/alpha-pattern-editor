@@ -62,7 +62,7 @@ export const DEFAULT_SETTINGS: Settings = {
   focusMode: false,
   showCarries: false,
   colourLibrary: DEFAULT_LIBRARY,
-  // 10 × 10: the swatch Magic Yarn Pixels' calculators ask for (docs/web-port-plan.md).
+  // 10 × 10: the swatch Magic Yarn Pixels' calculators ask for (docs/dev/areas/yarn.md#yarn-and-size).
   swatchStitches: 10,
   swatchRows: 10,
   swatchWidthCm: null,

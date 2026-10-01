@@ -1,6 +1,6 @@
 /**
  * The Work stage, the Library and opening or saving `.alpha` files must never load
- * Pyodide (docs/web-port-plan.md, "Central decision"). These tests walk the source's
+ * Pyodide (docs/dev/architecture.md#central-decision). These tests walk the source's
  * import graph:
  *
  * - src/logic and src/storage import nothing that reaches Pyodide or src/detect/.
@@ -17,8 +17,8 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 const SRC = fileURLToPath(new URL('../src/', import.meta.url))
-/** Third-party packages Tier A may use. Neither pulls in anything further. */
-const ALLOWED_PACKAGES = new Set(['fflate', 'idb'])
+/** Third-party packages Tier A may use. None pulls in anything further (lucide-react needs only React). */
+const ALLOWED_PACKAGES = new Set(['fflate', 'idb', 'lucide-react'])
 
 // `import x from 'y'`, `import { a, type B } from 'y'`, `export { a } from 'y'` (not
 // `import type` / `export type`, which the build erases), and `import 'y'`.

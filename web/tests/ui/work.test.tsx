@@ -45,6 +45,9 @@ describe('Work stage', () => {
     expect(screen.getByText(`0 / ${p.rows * p.cols} stitches`)).toBeTruthy()
     expect(screen.getByText('0% done')).toBeTruthy()
     expect(screen.getByRole('link', { name: /Library/ }).getAttribute('href')).toBe('#/library')
+    expect(
+      screen.getByRole('link', { name: 'Help with following a pattern (opens in a new tab)' }).getAttribute('href'),
+    ).toMatch(/\/docs\/guide\/work\.md$/)
     expect(document.title).toBe(`${p.name} · Alpha Pattern Editor`)
     // Next: the second row worked.
     const next = p.rows - 2

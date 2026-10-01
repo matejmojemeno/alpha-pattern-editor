@@ -24,7 +24,7 @@ of the Moon Stick's crescent is white on white, drawn only by its outline). So w
    its edges blend into the colours beside it, choose no colours in a drawing.
 
 Whether an image has drawn outlines at all can't be told reliably from simple measures
-(docs/web-port-plan.md, "Keep outlines"), so this is the user's switch, off by default,
+(docs/dev/areas/import.md#keep-outlines), so this is the user's switch, off by default,
 with the result shown live. Deterministic: integers and booleans throughout, and L*
 rounded as convert.py rounds its Lab values.
 """

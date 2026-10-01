@@ -21,6 +21,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { simpleNames } from '../../importer/names.ts'
 import type { PaletteEntry } from '../../model/types.ts'
 import { contrastOn } from '../../theme/contrast.ts'
+import { DeleteIcon } from './icons.tsx'
 import { cleanName, MAX_NAME_LENGTH } from '../names.ts'
 import { ColourPicker } from './ColourPicker.tsx'
 
@@ -256,7 +257,7 @@ export function ColoursPanel({
                 disabled={only}
                 onClick={() => onDelete(i)}
               >
-                <span aria-hidden="true">×</span>
+                <DeleteIcon />
               </button>
               {editing && menuBox}
             </li>

@@ -2,7 +2,7 @@
  * How much yarn of each colour a pattern needs, and how big it comes out: an estimate,
  * for buying, from one swatch worked in the crocheter's own yarn, hook and stitch.
  *
- * The swatch is how crocheters estimate both (docs/web-port-plan.md, "Yarn and size"):
+ * The swatch is how crocheters estimate both (docs/dev/areas/yarn.md#yarn-and-size):
  *
  *   size    = columns × (swatch width ÷ its stitches), rows × (swatch height ÷ its rows)
  *   weight  = stitches × (swatch grams ÷ (its stitches × its rows)) × (1 + margin)

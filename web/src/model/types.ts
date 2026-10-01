@@ -41,7 +41,7 @@ export interface Pattern {
 }
 
 /** Dataclass defaults for a *new* Pattern. Loading a file uses different ones for
- *  start_direction; see storage/alpha.ts and the Rules in docs/web-port-plan.md. */
+ *  start_direction; see storage/alpha.ts and docs/dev/rules.md#start-direction. */
 export const PATTERN_DEFAULTS = {
   start_direction: 'RTL',
   alternate_direction: true,

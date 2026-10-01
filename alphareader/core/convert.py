@@ -1,9 +1,9 @@
-"""Turning a picture into a pattern (plan.md §5a). Pure NumPy, like detection.
+"""Turning a picture into a pattern (§5a). Pure NumPy, like detection.
 
 A chart is *read*: its squares are already there. A picture has to be *made* into
 squares, and the goal is the best pattern, not the most faithful shrink. Other tools
 shrink the picture, reduce its colours by area, then sweep up lone stitches with a
-majority filter; measured on real images (docs/web-port-plan.md, "Picture import"), that
+majority filter; measured on real images (docs/dev/areas/import.md#picture-import), that
 spends the colours on large dull areas and erases eyes, dots and outlines along with the
 noise. Here:
 

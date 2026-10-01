@@ -1,4 +1,4 @@
-"""Pixel images: pixel art without gridlines, read exactly (plan.md §5a).
+"""Pixel images: pixel art without gridlines, read exactly (§5a).
 
 A chart has gridlines between its squares; pixel art has none, only blocks of one colour.
 Detection's lattice fitter finds the block size of enlarged pixel art, but it samples each

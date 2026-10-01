@@ -1,5 +1,5 @@
 /**
- * The files the detection worker downloads, self-hosted (docs/web-port-plan.md, Phase 2):
+ * The files the detection worker downloads, self-hosted (docs/dev/areas/detection.md#browser-detection):
  *
  * - the Pyodide runtime, copied from the pinned `pyodide` npm package;
  * - numpy's wheel, which the npm package doesn't include. It is fetched once from

@@ -1,5 +1,5 @@
 /**
- * "Design pattern": start from a blank grid (docs/web-port-plan.md, "Landing screen").
+ * "Design pattern": start from a blank grid (docs/dev/history/web-port.md#landing-screen).
  * A small dialog asks for the size and the colour, then the pattern is saved and opened
  * in the Design stage.
  */
