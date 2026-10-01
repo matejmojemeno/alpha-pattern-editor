@@ -65,6 +65,19 @@ Newest last, as they were built.
   and Design filled the window. Now it has no cap, like them, and the chart can use the
   extra width.
 
+- <a id="stitch-numbers"></a>**Stitch numbers** (`render/chart.ts`, `stitchNumbers`;
+  "Number the stitches" in Options and Settings, **on** by default, app-wide in
+  `settings.stitchNumbers`). Every stitch on the chart shows its place in its run of one
+  colour, counted in the row's working direction (`encodeRow` and `rowDirection`, so it
+  agrees with the chips), from 1 at the start of each run. Skipped cells get none.
+  - Drawn per frame for the visible cells, over the strands and under the done wash, in
+    black or white by `contrastOn` of the stitch's colour. A number in a stitch a strand
+    is carried in is outlined in the other one, or a white strand hides a white numeral.
+  - One font size per row, set by its longest number (so a 10 isn't smaller than the 9
+    beside it), at most 16 px; under `NUMBER_MIN_FONT` (8 px) the cell stays plain, so a
+    big chart shows numbers only on its taller rows, or once zoomed in.
+  - Not in the Python: the desktop never showed it, and it only reads the pattern.
+
 ## During the port
 
 What each phase of the port built here, newest first. The plan each phase followed is in
