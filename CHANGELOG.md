@@ -30,6 +30,9 @@ line per change, under the release it's in.
 
 - The home screen says what the app is for: turn a photo of a chart into a pattern you
   can edit and follow row by row.
+- In the Work stage, a pattern much wider than it is tall now fits the screen whole, so
+  each row is on screen at once. Before, it was enlarged and scrolled sideways along every
+  row. A pattern much taller than wide still fills the width and scrolls down with you.
 
 ### Fixed
 

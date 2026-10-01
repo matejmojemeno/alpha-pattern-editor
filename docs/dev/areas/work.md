@@ -29,6 +29,14 @@ Newest last, as they were built.
   in the Python: the desktop never showed it, and it only reads the pattern. Tested
   against the strands themselves: over 800 random patterns, every strand enters a row
   where it left the one before when rows alternate, carried exactly |q − p|.
+- <a id="tall-only-scroll"></a>**Only tall charts scroll** (`render/layout.ts`,
+  `shouldScroll`). A chart more than 2:1 taller than wide is sized to its width and
+  scrolls down, following the current row, as before. A chart more than 2:1 wider than
+  tall used to be sized to its height and scroll across; it now fits like any other
+  chart. A row is worked whole, so it should be on screen in one piece, not scrolled
+  along stitch by stitch. A wide chart still scrolls across, following your place
+  (`followCurrentX`), once its cells reach `MIN_CELL` or when zoomed in. The Python had
+  no scroll mode (it always fit), so nothing to keep in step.
 - <a id="crafts"></a>**Crafts** (`web/src/craft/crafts.ts`, §15; Work stage, **Options**).
   - **Craft** (tapestry crochet, intarsia crochet, stranded knitting, intarsia knitting,
     alpha friendship bracelet, bead loom) is saved on the pattern as `craft`.
@@ -86,8 +94,9 @@ What each phase of the port built here, newest first. The plan each phase follow
 - **Work stage** (PR #8), at `#/work/<id>`:
   - `render/layout.ts`: per-row heights, `yOffsets`, and a viewport that keeps the
     current row centred. Charts past 2:1 are sized to their short axis and scroll along
-    the long one. Row emphasis and focus mode share one "rows around the current one"
-    range (`nearRows`, current ± 2).
+    the long one (later only tall ones: see
+    [Only tall charts scroll](#tall-only-scroll)). Row emphasis and focus mode share one
+    "rows around the current one" range (`nearRows`, current ± 2).
   - `render/chart.ts`: the cells are drawn once, a pixel per cell, into an offscreen
     image; each frame scales it onto a viewport-sized canvas in a few bands and draws
     the gridlines, done-wash, strike line, outline and axis numbers over it. An 88×194

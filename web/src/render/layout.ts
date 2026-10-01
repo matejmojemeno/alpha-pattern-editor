@@ -12,8 +12,8 @@
  * (`nearRows`). Emphasis draws them taller; focus mode draws only them
  * (chart_view.py:46-52).
  *
- * Across, a chart wider than its view follows your place in the row, the next stitch to
- * work (`followCurrentX`).
+ * Across, a chart wider than its view (a very wide one at the smallest cells, or one
+ * zoomed in) follows your place in the row, the next stitch to work (`followCurrentX`).
  *
  * Coordinates are CSS pixels. The grid sits inside the axis margins; `scrollX`/`scrollY`
  * are offsets of the grid within its viewport, and the axis numbers stay put.
@@ -31,7 +31,7 @@ export const NEAR_RADIUS = 2
 export const EMPHASIS_SCALE = 1.6
 /** The smallest a cell gets before the chart scrolls instead (chart_view.py:69). */
 export const MIN_CELL = 3
-/** Charts longer than this on one axis than the other scroll along it instead of fitting. */
+/** Charts more than this many times taller than wide scroll down instead of fitting. */
 export const SCROLL_ASPECT = 2
 /** How far the chart can be zoomed in (pinch, or Ctrl/⌘ + wheel), over its usual size. */
 export const MAX_ZOOM = 8
@@ -74,10 +74,14 @@ export function yOffsets(heights: readonly number[]): number[] {
   return out
 }
 
-/** Whether a chart of this shape scrolls along its long axis rather than fitting. */
+/**
+ * Whether a chart of this shape is sized to its width and scrolls down, rather than
+ * fitting. Only tall charts do: a row is worked whole, so it stays on screen in one
+ * piece, and a wide chart fits (smaller) rather than scrolling across every row.
+ */
 export function shouldScroll(rows: number, cols: number): boolean {
   if (rows <= 0 || cols <= 0) return false
-  return Math.max(rows, cols) / Math.min(rows, cols) > SCROLL_ASPECT
+  return rows / cols > SCROLL_ASPECT
 }
 
 export interface LayoutInput {
@@ -103,7 +107,7 @@ export interface ChartLayout {
   readonly rows: number
   readonly cols: number
   readonly current: number | null
-  /** 'fit' shows the whole chart; 'scroll' sizes cells to the short axis. */
+  /** 'fit' shows the whole chart; 'scroll' sizes cells to the width (a tall chart). */
   readonly mode: 'fit' | 'scroll'
   /** The drawn image rows, top to bottom. */
   readonly range: RowRange
@@ -145,13 +149,12 @@ export function computeLayout(input: LayoutInput): ChartLayout {
   const weight = sized - emphasised + emphasised * EMPHASIS_SCALE
 
   // Focus mode shows a handful of rows, so it always fits, as on the desktop. Otherwise
-  // a long chart is sized to its short axis and scrolls along the long one.
+  // a tall chart is sized to its width and scrolls down.
   const mode = !focus && shouldScroll(rows, cols) ? 'scroll' : 'fit'
   let base: number
   if (n === 0 || cols <= 0) base = MIN_CELL
   else if (mode === 'fit') base = Math.min(viewWidth / cols, viewHeight / weight)
-  else if (rows > cols) base = viewWidth / cols
-  else base = viewHeight / weight
+  else base = viewWidth / cols
   const zoom = Math.max(1, Math.min(MAX_ZOOM, input.zoom ?? 1)) || 1
   base = Math.max(MIN_CELL, snap(base * zoom, dpr))
 

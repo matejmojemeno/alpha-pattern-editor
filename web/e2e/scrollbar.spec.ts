@@ -129,9 +129,11 @@ async function visibleEdges(page: Page, box: { x: number; y: number; width: numb
 
 // Cells are floored to whole pixels, and the slack that leaves can hide a scrollbar's
 // 15 px by luck. These sizes leave little: measured with the scrollbar in, they overflow.
+// A wide chart fits whole when it can (layout.ts, shouldScroll), so it scrolls across
+// only once its cells are at the smallest size: 300 columns in this window.
 for (const [label, cols, rows, axis] of [
   ['tall', 31, 98, 'vertical'],
-  ['wide', 98, 22, 'horizontal'],
+  ['wide', 300, 22, 'horizontal'],
 ] as const) {
   test(`a ${label} chart scrolled to the end shows its last column and row whole, clear of the ${axis} scrollbar`, async ({ page }, testInfo) => {
     const project = edgesProject(`Edges ${label}`, cols, rows)
