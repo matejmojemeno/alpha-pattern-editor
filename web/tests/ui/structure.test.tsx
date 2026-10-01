@@ -98,18 +98,18 @@ interface Op {
 const OPS: Op[] = [
   {
     name: 'a border added on every side',
-    setup: (u) => section(u, 'Border'),
-    run: (u) => u.click(screen.getByRole('button', { name: 'Apply border' })),
+    setup: (u) => section(u, 'Border & size'),
+    run: (u) => u.click(screen.getByRole('button', { name: 'Apply' })),
     size: [9, 7],
     done: 2,
   },
   {
     name: 'a border removed from every side (cuts into the art, and a done row)',
     setup: async (u) => {
-      await section(u, 'Border')
+      await section(u, 'Border & size')
       await fill(u, 'Top', '-1')
     },
-    run: (u) => u.click(screen.getByRole('button', { name: 'Apply border' })),
+    run: (u) => u.click(screen.getByRole('button', { name: 'Apply' })),
     asks: ['Remove part of the pattern?', 'Remove cells'],
     size: [5, 3],
     done: 1,
@@ -117,13 +117,13 @@ const OPS: Op[] = [
   {
     name: 'padding to a size, placed by hand',
     setup: async (u) => {
-      await section(u, 'Pad to size')
+      await section(u, 'Border & size')
       await fill(u, 'Width', '10')
       await fill(u, 'Height', '8')
       await fill(u, 'Left', '0')
-      await fill(u, 'Top', '1')
+      await fill(u, 'Right', '3')
     },
-    run: (u) => u.click(screen.getByRole('button', { name: 'Apply padding' })),
+    run: (u) => u.click(screen.getByRole('button', { name: 'Apply' })),
     size: [10, 8],
     done: 2,
   },
@@ -135,18 +135,18 @@ const OPS: Op[] = [
     size: [14, 10],
     done: 0,
   },
-  { name: 'mirroring', run: (u) => u.click(screen.getByRole('button', { name: 'Mirror ⇄' })), size: [7, 5], done: 2 },
-  { name: 'flipping', run: (u) => u.click(screen.getByRole('button', { name: 'Flip ⇅' })), size: [7, 5], done: 2 },
+  { name: 'mirroring', run: (u) => u.click(screen.getByRole('button', { name: 'Mirror left to right' })), size: [7, 5], done: 2 },
+  { name: 'flipping', run: (u) => u.click(screen.getByRole('button', { name: 'Flip top to bottom' })), size: [7, 5], done: 2 },
   {
     name: 'rotating a quarter turn clockwise (every row new)',
-    run: (u) => u.click(screen.getByRole('button', { name: 'Rotate ↻ 90°' })),
+    run: (u) => u.click(screen.getByRole('button', { name: 'Rotate 90° clockwise' })),
     asks: ['Start progress again?', 'Rotate'],
     size: [5, 7],
     done: 0,
   },
   {
     name: 'rotating a quarter turn anticlockwise (every row new)',
-    run: (u) => u.click(screen.getByRole('button', { name: 'Rotate ↺ 90°' })),
+    run: (u) => u.click(screen.getByRole('button', { name: 'Rotate 90° anticlockwise' })),
     asks: ['Start progress again?', 'Rotate'],
     size: [5, 7],
     done: 0,
@@ -276,7 +276,7 @@ describe('rotating a quarter turn', () => {
     const user = userEvent.setup()
     const before = stats()
 
-    await user.click(screen.getByRole('button', { name: 'Rotate ↻ 90°' }))
+    await user.click(screen.getByRole('button', { name: 'Rotate 90° clockwise' }))
     expect(screen.queryByRole('alertdialog')).toBeNull()
     expect(stats()).toMatch(/^5 cols × 12 rows/)
     expect(message()).toBe('Rotated 90° clockwise: now 5 × 12.')
@@ -292,7 +292,7 @@ describe('rotating a quarter turn', () => {
     expect(q.row_ids).toEqual(p.row_ids)
     expect([...q.cells]).toEqual([...p.cells])
 
-    await user.click(screen.getByRole('button', { name: 'Rotate ↺ 90°' }))
+    await user.click(screen.getByRole('button', { name: 'Rotate 90° anticlockwise' }))
     expect(stats()).toMatch(/^5 cols × 12 rows/)
     expect(message()).toBe('Rotated 90° anticlockwise: now 5 × 12.')
     q = (await saved(repo, p.id)).pattern
@@ -300,7 +300,7 @@ describe('rotating a quarter turn', () => {
     expect([at(q, 11, 0), at(q, 11, 4)]).toEqual([1, 2])
 
     // Back with the other button (a new step), then two undos to the start.
-    await user.click(screen.getByRole('button', { name: 'Rotate ↻ 90°' }))
+    await user.click(screen.getByRole('button', { name: 'Rotate 90° clockwise' }))
     expect(stats()).toBe(before)
     q = (await saved(repo, p.id)).pattern
     expect([...q.cells]).toEqual([...p.cells])
@@ -311,33 +311,29 @@ describe('rotating a quarter turn', () => {
     expect((await saved(repo, p.id)).pattern.row_ids).toEqual(p.row_ids)
   })
 
-  it('turns the pad-to-size fields and the border’s result with the pattern', async () => {
+  it('turns the size set in Border & size with the pattern', async () => {
     const { repo, p } = await wide()
     await openDesign(repo, p.id, 'Wide')
     const user = userEvent.setup()
-    await section(user, 'Pad to size')
-    expect([field('Width'), field('Height')]).toEqual(['12', '5'])
-    await user.click(screen.getByRole('button', { name: 'Rotate ↻ 90°' }))
-    expect([field('Width'), field('Height')]).toEqual(['5', '12'])
-    expect(screen.getByText('Set a size larger than the pattern.')).toBeTruthy()
+    const sides = () => [field('Top'), field('Right'), field('Bottom'), field('Left')]
+    await section(user, 'Border & size')
+    expect([field('Width'), field('Height')]).toEqual(['14', '7']) // 12 × 5, one on every side
+    await user.click(screen.getByRole('button', { name: 'Rotate 90° clockwise' }))
+    expect([field('Width'), field('Height')]).toEqual(['7', '14'])
 
-    // A target typed and placed by hand turns too, and is centred again.
+    // A size typed, and the pattern placed by hand in it, turns too.
     await fill(user, 'Width', '9')
     await fill(user, 'Height', '20')
-    fireEvent.change(screen.getByLabelText('Left', { selector: 'input' }), { target: { value: '0' } })
-    expect(screen.getByText(/Adds 0 left, 4 right, 4 top, 4 bottom/)).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: 'Rotate ↺ 90°' }))
+    expect(sides()).toEqual(['4', '2', '4', '2'])
+    await fill(user, 'Left', '0')
+    await fill(user, 'Right', '4')
+    await user.click(screen.getByRole('button', { name: 'Rotate 90° anticlockwise' }))
     expect([field('Width'), field('Height')]).toEqual(['20', '9'])
-    expect(screen.getByText(/Adds 4 left, 4 right, 2 top, 2 bottom/)).toBeTruthy()
+    expect(sides()).toEqual(['0', '4', '4', '4'])
     // Undo turns it back.
     fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true })
     expect([field('Width'), field('Height')]).toEqual(['9', '20'])
-    expect(screen.queryByText(/Target must be at least/)).toBeNull()
-
-    await section(user, 'Border')
-    expect(screen.getByText(/^Result: 7 × 14$/)).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: 'Rotate ↻ 90°' }))
-    expect(screen.getByText(/^Result: 14 × 7$/)).toBeTruthy()
+    expect(sides()).toEqual(['4', '4', '4', '0'])
   })
 
   it('asks first when rows are marked done, saying what goes; Undo brings the progress back', async () => {
@@ -345,7 +341,7 @@ describe('rotating a quarter turn', () => {
     await openDesign(repo, p.id, p.name)
     const user = userEvent.setup()
     const before = stats()
-    await user.click(screen.getByRole('button', { name: 'Rotate ↻ 90°' }))
+    await user.click(screen.getByRole('button', { name: 'Rotate 90° clockwise' }))
     const dialog = await screen.findByRole('alertdialog', { name: 'Start progress again?' })
     expect(dialog.textContent).toContain(
       'Rotating gives every row a new place, so your progress in the Work stage (2 rows done and part of another) starts again from the first row.',
@@ -357,7 +353,7 @@ describe('rotating a quarter turn', () => {
     expect(got.pattern.row_ids).toEqual(p.row_ids)
     expect(got.progress.completed_row_ids).toEqual(pr.completed_row_ids)
 
-    await user.click(screen.getByRole('button', { name: 'Rotate ↺ 90°' }))
+    await user.click(screen.getByRole('button', { name: 'Rotate 90° anticlockwise' }))
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Rotate' }))
     expect(stats()).toMatch(/^5 cols × 7 rows/)
     got = await saved(repo, p.id)
@@ -378,14 +374,14 @@ describe('the structural panel', () => {
     const { repo, p } = await worked()
     await openDesign(repo, p.id, p.name)
     const user = userEvent.setup()
-    await section(user, 'Border')
+    await section(user, 'Border & size')
     await fill(user, 'Top', '-3')
     expect(screen.getByText('Border removal would leave an empty pattern.')).toBeTruthy()
-    expect((screen.getByRole('button', { name: 'Apply border' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: 'Apply' }) as HTMLButtonElement).disabled).toBe(true)
     // Unlinked, one side at a time.
     await user.click(screen.getByLabelText('Same on every side'))
     await fill(user, 'Top', '2')
-    expect(screen.getByText(/^Result: 1 × 4$/)).toBeTruthy() // +2 on top, still -3 elsewhere
+    expect([field('Width'), field('Height')]).toEqual(['1', '4']) // +2 on top, still -3 elsewhere
   })
 
   it('does not ask before removing a border that is all one colour', async () => {
@@ -394,31 +390,49 @@ describe('the structural panel', () => {
     await repo.save({ pattern: p, progress: emptyProgress(), stage: 'design' })
     await openDesign(repo, p.id, 'Plain')
     const user = userEvent.setup()
-    await section(user, 'Border')
+    await section(user, 'Border & size')
     await fill(user, 'Top', '-1')
-    await user.click(screen.getByRole('button', { name: 'Apply border' }))
+    await user.click(screen.getByRole('button', { name: 'Apply' }))
     expect(screen.queryByRole('alertdialog')).toBeNull()
     expect(stats()).toMatch(/^4 cols × 2 rows/)
     expect(message()).toBe('Border applied: now 4 × 2.')
   })
 
-  it('pads only to a size at least the current one, centred by default', async () => {
-    const { repo, p } = await worked()
+  it('sets a size: centred padding from no border, cropping when smaller, within 2000', async () => {
+    const { repo, p } = await worked() // 7 × 5
     await openDesign(repo, p.id, p.name)
     const user = userEvent.setup()
-    await section(user, 'Pad to size')
-    await fill(user, 'Width', '6')
-    expect(screen.getByText(/Target must be at least the current size/)).toBeTruthy()
-    expect((screen.getByRole('button', { name: 'Apply padding' }) as HTMLButtonElement).disabled).toBe(true)
+    const apply = () => screen.getByRole('button', { name: 'Apply' }) as HTMLButtonElement
+    const sides = () => [field('Top'), field('Right'), field('Bottom'), field('Left')]
+    await section(user, 'Border & size')
+    await user.click(screen.getByRole('button', { name: 'Clear' }))
+    expect([field('Width'), field('Height')]).toEqual(['7', '5'])
+    expect(apply().disabled).toBe(true)
+
+    // Padding, centred as pad_to_size centres it (the odd column going right).
     await fill(user, 'Width', '12')
     await fill(user, 'Height', '9')
-    expect((screen.getByLabelText('Left', { selector: 'input' }) as HTMLInputElement).value).toBe('2')
-    expect((screen.getByLabelText('Top', { selector: 'input' }) as HTMLInputElement).value).toBe('2')
-    expect(screen.getByText(/Adds 2 left, 3 right, 2 top, 2 bottom/)).toBeTruthy()
-    await fill(user, 'Left', '9') // past the 5 added: clamped
-    expect((screen.getByLabelText('Left', { selector: 'input' }) as HTMLInputElement).value).toBe('5')
-    await user.click(screen.getByRole('button', { name: 'Centre' }))
-    expect((screen.getByLabelText('Left', { selector: 'input' }) as HTMLInputElement).value).toBe('2')
+    expect(sides()).toEqual(['2', '3', '2', '2'])
+    expect(screen.queryByRole('button', { name: 'Centre the pattern' })).toBeNull()
+    await fill(user, 'Left', '0')
+    expect(field('Width')).toBe('10')
+    await user.click(screen.getByRole('button', { name: 'Centre the pattern' }))
+    expect(sides()).toEqual(['2', '2', '2', '1'])
+
+    await fill(user, 'Width', '2001')
+    expect(screen.getByText('At most 2000 on a side.')).toBeTruthy()
+    expect(apply().disabled).toBe(true)
+    await user.clear(screen.getByLabelText('Width', { selector: 'input' }))
+    expect(screen.getByText('Enter a width and a height.')).toBeTruthy()
+    expect(apply().disabled).toBe(true)
+
+    // Smaller than the pattern: cells come off the sides, and it asks first.
+    await user.type(screen.getByLabelText('Width', { selector: 'input' }), '5')
+    expect(sides()).toEqual(['2', '0', '2', '-2'])
+    await user.click(apply())
+    const dialog = await screen.findByRole('alertdialog', { name: 'Remove part of the pattern?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Remove cells' }))
+    expect(stats()).toMatch(/^5 cols × 9 rows/)
   })
 
   it('shows the size a scale gives, and warns past 999', async () => {
@@ -464,8 +478,8 @@ describe('the structural panel', () => {
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Trim edges' }))
     expect(message()).toBe('No single-colour edges to trim.')
-    await section(user, 'Border')
-    await user.click(screen.getByRole('button', { name: 'Apply border' }))
+    await section(user, 'Border & size')
+    await user.click(screen.getByRole('button', { name: 'Apply' }))
     expect(stats()).toMatch(/^9 cols × 7 rows/)
     await user.click(screen.getByRole('button', { name: 'Trim edges' }))
     expect(stats()).toMatch(/^7 cols × 5 rows/)

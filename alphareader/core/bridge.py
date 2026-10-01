@@ -1,4 +1,4 @@
-"""The browser's entry point into detection (docs/web-port-plan.md, Phase 2).
+"""The browser's entry point into detection (docs/dev/history/web-port.md#phase-2).
 
 This is the only Python that knows JavaScript is calling it. The web worker
 (web/src/detect/worker.ts) imports this module inside Pyodide and calls nothing else.

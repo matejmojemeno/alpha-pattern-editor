@@ -86,6 +86,24 @@ def fill_column(p: Pattern, c: int, palette_index: int) -> Pattern:
     return _clone(p, cells=cells)
 
 
+def paste_block(p: Pattern, r: int, c: int, block) -> Pattern:
+    """Write a block of palette indices with its top-left cell at (r, c): what pasting or
+    moving a selection does. The block may hang over any edge, (r, c) negative included;
+    only the part over the chart is written, the rest is dropped. Every value is copied
+    as it is (a skip cell stays one). The shape and the row ids never change."""
+    block = np.asarray(block, dtype=np.uint16)
+    if block.ndim != 2:
+        raise ValueError("A block must be a grid of cells.")
+    h, w = block.shape
+    r, c = int(r), int(c)
+    y0, x0 = max(r, 0), max(c, 0)
+    y1, x1 = min(r + h, p.rows), min(c + w, p.cols)
+    cells = p.cells.copy()
+    if y0 < y1 and x0 < x1:
+        cells[y0:y1, x0:x1] = block[y0 - r:y1 - r, x0 - c:x1 - c]
+    return _clone(p, cells=cells)
+
+
 # --- structural: borders / insert / delete / trim ----------------------------
 
 def add_border(p: Pattern, *, top: int = 0, right: int = 0, bottom: int = 0,

@@ -1,24 +1,40 @@
 /**
  * The Design stage's structural panel (§6.2, §9; design_window.py `_structural_panel`):
- * borders, pad to size, scale, mirror, flip, rotate a quarter turn either way, and trim.
- * Rows and columns are added with the Add row and Add column tools, and deleted from the
- * menu on their numbers (screens/Design.tsx).
+ * a border or a size (one section: the desktop's border and pad to size together), scale,
+ * mirror, flip, rotate a quarter turn either way, and trim. Rows and columns are added
+ * with the Add row and Add column tools, and deleted from the menu on their numbers
+ * (screens/Design.tsx).
  *
- * The form lives in the Design screen (design/structureForm.ts), because the border and padding
- * sections drive the canvas: while one is open with something to add or remove, the
- * canvas shows it before it is applied, and dragging the pattern on the padding preview
- * writes its offsets back here. Applying, and asking first when something would be
+ * The form lives in the Design screen (design/structureForm.ts), because the border
+ * section drives the canvas: while it is open with something to add or remove, the
+ * canvas shows it before it is applied, and dragging the pattern on the preview moves
+ * it, writing the sides back here. Applying, and asking first when something would be
  * lost, is the screen's job too.
  */
 import { useId, type ReactNode } from 'react'
 
-import { SCALE_MAX, SCALE_MIN, scaledSize } from '../../design/structure.ts'
-import { parseWhole, type Section, type StructureForm } from '../../design/structureForm.ts'
+import type { Turn } from '../../design/selection.ts'
+import { MAX_BORDERED, NO_SIDES, SCALE_MAX, SCALE_MIN, scaledSize } from '../../design/structure.ts'
+import {
+  centred,
+  endSize,
+  isCentred,
+  parseWhole,
+  sizeText,
+  typeSize,
+  withSides,
+  type Section,
+  type StructureForm,
+} from '../../design/structureForm.ts'
 import { MAX_SIDE } from '../../logic/edit.ts'
 import type { Pattern } from '../../model/types.ts'
+import { TurnIcon } from './icons.tsx'
 
 export interface TransformAction {
   label: string
+  /** The accessible name, when the label leaves out what the icon shows (which way it turns). */
+  name?: string
+  turn?: Turn
   title: string
   run: () => void
 }
@@ -29,13 +45,9 @@ export interface StructurePanelProps {
   onForm: (fn: (f: StructureForm) => StructureForm) => void
   /** The border colour the pattern has now (major_border_index). */
   borderIndex: number
-  /** The border's result size, or why it can't be made. */
+  /** The border's result size, or why it can't be made; null when it changes nothing. */
   borderResult: { cols: number; rows: number } | { error: string } | null
-  /** Pad offsets as they stand (clamped, centred when unset), and how much is added. */
-  pad: { left: number; top: number; addedCols: number; addedRows: number }
-  padError: string | null
   onBorder: () => void
-  onPad: () => void
   onScale: () => void
   transforms: readonly TransformAction[]
 }
@@ -113,15 +125,19 @@ function Disclosure({
 }
 
 export function StructurePanel(props: StructurePanelProps) {
-  const { pattern: p, form, onForm, pad } = props
+  const { pattern: p, form, onForm } = props
   const id = useId()
   const b = form.border
+  const size = sizeText(b, p)
   const setSide = (side: (typeof SIDES)[number], v: string) =>
     onForm((f) => ({
       ...f,
-      border: f.border.linked ? { ...f.border, top: v, right: v, bottom: v, left: v } : { ...f.border, [side]: v },
+      border: f.border.linked
+        ? { ...f.border, top: v, right: v, bottom: v, left: v, size: null }
+        : { ...f.border, [side]: v, size: null },
     }))
   const scaled = scaledSize(p, form.scale)
+  const failed = props.borderResult !== null && 'error' in props.borderResult
 
   return (
     <section className="structure" aria-labelledby={`${id}-heading`}>
@@ -131,14 +147,46 @@ export function StructurePanel(props: StructurePanelProps) {
 
       <div className="structure__transforms" role="group" aria-label="Transform">
         {props.transforms.map((t) => (
-          <button key={t.label} type="button" className="button button--small" title={t.title} onClick={t.run}>
+          <button
+            key={t.name ?? t.label}
+            type="button"
+            className="button button--small"
+            aria-label={t.name}
+            title={t.title}
+            onClick={t.run}
+          >
+            {t.turn && <TurnIcon turn={t.turn} />}
             {t.label}
           </button>
         ))}
       </div>
 
-      <Disclosure section="border" title="Border" form={form} onForm={onForm}>
-        <p className="structure__hint muted">Cells to add on each side; negative numbers remove cells from that side.</p>
+      <Disclosure section="border" title="Border & size" form={form} onForm={onForm}>
+        <p className="structure__hint muted">
+          Set a size, or the cells to add on each side (negative numbers remove cells). Drag the pattern on the chart to
+          move it.
+        </p>
+        <div className="structure__sides">
+          {(['width', 'height'] as const).map((axis) => (
+            <label key={axis} className="structure__field">
+              <span>{axis === 'width' ? 'Width' : 'Height'}</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={MAX_BORDERED}
+                step={1}
+                value={size[axis]}
+                aria-invalid={parseWhole(size[axis]) === null || failed}
+                onChange={(e) => {
+                  const v = e.target.value
+                  onForm((f) => typeSize(f, p, axis, v))
+                }}
+                onBlur={() => onForm(endSize)}
+              />
+            </label>
+          ))}
+        </div>
         <label className="check">
           <input
             type="checkbox"
@@ -147,7 +195,9 @@ export function StructurePanel(props: StructurePanelProps) {
               const linked = e.target.checked
               onForm((f) => ({
                 ...f,
-                border: linked ? { ...f.border, linked, right: f.border.top, bottom: f.border.top, left: f.border.top } : { ...f.border, linked },
+                border: linked
+                  ? { ...f.border, linked, right: f.border.top, bottom: f.border.top, left: f.border.top, size: null }
+                  : { ...f.border, linked },
               }))
             }}
           />
@@ -168,6 +218,13 @@ export function StructurePanel(props: StructurePanelProps) {
             </label>
           ))}
         </div>
+        {!isCentred(form) && (
+          <p className="structure__hint">
+            <button type="button" className="linklike" onClick={() => onForm(centred)}>
+              Centre the pattern
+            </button>
+          </p>
+        )}
         <div className="structure__field structure__field--wide">
           <label htmlFor={`${id}-border-colour`}>Colour</label>
           <ColourSelect
@@ -178,121 +235,17 @@ export function StructurePanel(props: StructurePanelProps) {
             onChange={(i) => onForm((f) => ({ ...f, border: { ...f.border, colour: i } }))}
           />
         </div>
-        {props.borderResult && (
-          <p className={'error' in props.borderResult ? 'structure__result structure__result--error' : 'structure__result muted'} role="status">
-            {'error' in props.borderResult ? props.borderResult.error : `Result: ${props.borderResult.cols} × ${props.borderResult.rows}`}
-          </p>
-        )}
-        <div className="structure__apply">
-          <button
-            type="button"
-            className="button button--small button--primary"
-            disabled={!props.borderResult || 'error' in props.borderResult}
-            onClick={props.onBorder}
-          >
-            Apply border
-          </button>
-          <button
-            type="button"
-            className="button button--small"
-            onClick={() => onForm((f) => ({ ...f, border: { ...f.border, top: '0', right: '0', bottom: '0', left: '0' } }))}
-          >
-            Clear
-          </button>
-        </div>
-      </Disclosure>
-
-      <Disclosure section="pad" title="Pad to size" form={form} onForm={onForm}>
-        <p className="structure__hint muted">Grow the pattern to a size; drag it on the chart to place it.</p>
-        <div className="structure__sides">
-          <label className="structure__field">
-            <span>Width</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={p.cols}
-              max={2000}
-              value={form.pad.width}
-              aria-invalid={props.padError !== null}
-              onChange={(e) => onForm((f) => ({ ...f, pad: { ...f.pad, width: e.target.value } }))}
-            />
-          </label>
-          <label className="structure__field">
-            <span>Height</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={p.rows}
-              max={2000}
-              value={form.pad.height}
-              aria-invalid={props.padError !== null}
-              onChange={(e) => onForm((f) => ({ ...f, pad: { ...f.pad, height: e.target.value } }))}
-            />
-          </label>
-          <label className="structure__field">
-            <span>Left</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={pad.addedCols}
-              value={pad.left}
-              disabled={pad.addedCols === 0}
-              onChange={(e) => {
-                const v = parseWhole(e.target.value)
-                if (v !== null) onForm((f) => ({ ...f, pad: { ...f.pad, left: v } }))
-              }}
-            />
-          </label>
-          <label className="structure__field">
-            <span>Top</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={pad.addedRows}
-              value={pad.top}
-              disabled={pad.addedRows === 0}
-              onChange={(e) => {
-                const v = parseWhole(e.target.value)
-                if (v !== null) onForm((f) => ({ ...f, pad: { ...f.pad, top: v } }))
-              }}
-            />
-          </label>
-        </div>
-        <p className="structure__hint muted">
-          {pad.addedCols || pad.addedRows
-            ? `Adds ${pad.left} left, ${pad.addedCols - pad.left} right, ${pad.top} top, ${pad.addedRows - pad.top} bottom.`
-            : 'Set a size larger than the pattern.'}{' '}
-          {(pad.addedCols > 0 || pad.addedRows > 0) && (
-            <button type="button" className="linklike" onClick={() => onForm((f) => ({ ...f, pad: { ...f.pad, left: null, top: null } }))}>
-              Centre
-            </button>
-          )}
-        </p>
-        <div className="structure__field structure__field--wide">
-          <label htmlFor={`${id}-pad-colour`}>Colour</label>
-          <ColourSelect
-            id={`${id}-pad-colour`}
-            pattern={p}
-            value={form.pad.colour}
-            fallback={props.borderIndex}
-            onChange={(i) => onForm((f) => ({ ...f, pad: { ...f.pad, colour: i } }))}
-          />
-        </div>
-        {props.padError && (
+        {props.borderResult && 'error' in props.borderResult && (
           <p className="structure__result structure__result--error" role="status">
-            {props.padError}
+            {props.borderResult.error}
           </p>
         )}
         <div className="structure__apply">
-          <button
-            type="button"
-            className="button button--small button--primary"
-            disabled={props.padError !== null || (pad.addedCols === 0 && pad.addedRows === 0)}
-            onClick={props.onPad}
-          >
-            Apply padding
+          <button type="button" className="button button--small button--primary" disabled={!props.borderResult || failed} onClick={props.onBorder}>
+            Apply
+          </button>
+          <button type="button" className="button button--small" onClick={() => onForm((f) => withSides(f, NO_SIDES))}>
+            Clear
           </button>
         </div>
       </Disclosure>

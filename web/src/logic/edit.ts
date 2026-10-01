@@ -155,6 +155,38 @@ export function fillColumn(p: Pattern, c: number, paletteIndex: number): Pattern
   return fillRect(p, 0, c, p.rows - 1, c, paletteIndex)
 }
 
+/** A rectangle of palette indices, row-major: what a selection holds. */
+export interface Block {
+  readonly rows: number
+  readonly cols: number
+  readonly cells: Uint16Array
+}
+
+/**
+ * Write a block with its top-left cell at (r, c): what pasting or moving a selection
+ * does. The block may hang over any edge, (r, c) negative included; only the part over
+ * the chart is written. Every value is copied as it is (a skip cell stays one). The
+ * shape and the row ids never change.
+ */
+export function pasteBlock(p: Pattern, r: number, c: number, block: Block): Pattern {
+  const { rows: h, cols: w } = block
+  if (!(Number.isInteger(h) && Number.isInteger(w) && h >= 0 && w >= 0 && block.cells.length === h * w)) {
+    throw new EditError('A block must be a grid of cells.')
+  }
+  const y0 = Math.max(r, 0)
+  const x0 = Math.max(c, 0)
+  const y1 = Math.min(r + h, p.rows)
+  const x1 = Math.min(c + w, p.cols)
+  const cells = p.cells.slice()
+  if (x0 < x1) {
+    for (let y = y0; y < y1; y++) {
+      const from = (y - r) * w + (x0 - c)
+      cells.set(block.cells.subarray(from, from + (x1 - x0)), y * p.cols + x0)
+    }
+  }
+  return clone(p, { cells })
+}
+
 // --- structural: borders / insert / delete / trim ---------------------------------------------
 
 /** A grid being reshaped, row-major. `rows` is explicit: a grid can pass through zero
@@ -510,7 +542,7 @@ export function padToSize(p: Pattern, targetCols: number, targetRows: number, op
 export const MAX_SIDE = 999
 
 /**
- * A blank pattern to design from (docs/web-port-plan.md, "Landing screen"): every cell
+ * A blank pattern to design from (docs/dev/history/web-port.md#landing-screen): every cell
  * in one colour, a one-entry palette and fresh row ids. `now` is seconds since the
  * epoch, like Python's time.time().
  */

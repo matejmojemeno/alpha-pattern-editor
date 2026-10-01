@@ -1,7 +1,7 @@
 /**
  * Turning an image file into what detection reads, and into the `source.png` a project
- * keeps. The browser decodes; Python never sees an encoded image (docs/web-port-plan.md,
- * "Pillow isn't needed in the browser").
+ * keeps. The browser decodes; Python never sees an encoded image
+ * (docs/dev/history/web-port.md#pillow).
  *
  * Decoding matches the desktop's Pillow as closely as a canvas allows:
  * - colour profiles are ignored (`colorSpaceConversion: 'none'`), as Pillow ignores them;

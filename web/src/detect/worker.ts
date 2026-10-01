@@ -1,6 +1,6 @@
 /**
  * The detection worker: Pyodide, numpy and alphareader/core/bridge.py, off the main
- * thread (docs/web-port-plan.md, Phase 2). A module worker, started by client.ts only
+ * thread (docs/dev/history/web-port.md#phase-2). A module worker, started by client.ts only
  * when an image is imported, and terminated when the import screen closes.
  *
  * Requests are handled one at a time, in order. Every answer is plain data: the bridge's
