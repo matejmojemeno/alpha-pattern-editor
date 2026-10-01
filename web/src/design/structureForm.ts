@@ -1,11 +1,16 @@
 /**
  * The structural panel's form (ui/design/StructurePanel.tsx), kept by the Design screen
- * because the border and padding sections drive the canvas preview.
+ * because the border section drives the canvas preview.
+ *
+ * The border's four sides are the form's truth. Its width and height are worked out from
+ * them, except while one is being typed: then the text typed is kept, over the sides it
+ * started from, and each whole number typed sets the sides afresh from those
+ * (structure.ts `resizeSides`), so typing "70" never passes through a 7-wide pattern.
  */
 import type { Pattern } from '../model/types.ts'
-import type { Sides } from './structure.ts'
+import { centreSides, resizeSides, sizeWith, type Sides } from './structure.ts'
 
-export type Section = 'border' | 'pad' | 'scale'
+export type Section = 'border' | 'scale'
 
 export interface StructureForm {
   readonly open: Section | null
@@ -17,23 +22,17 @@ export interface StructureForm {
     readonly linked: boolean
     /** A palette index, or null for the pattern's border colour. */
     readonly colour: number | null
-  }
-  readonly pad: {
-    readonly width: string
-    readonly height: string
-    /** Added columns on the left and rows on top; null centres. */
-    readonly left: number | null
-    readonly top: number | null
-    readonly colour: number | null
+    /** The width and height as typed, and the sides typing began from; null while
+     *  neither is being typed. */
+    readonly size: { readonly width: string; readonly height: string; readonly from: Sides } | null
   }
   readonly scale: number
 }
 
-export function initialForm(p: Pick<Pattern, 'cols' | 'rows'>): StructureForm {
+export function initialForm(): StructureForm {
   return {
     open: null,
-    border: { top: '1', right: '1', bottom: '1', left: '1', linked: true, colour: null },
-    pad: { width: String(p.cols), height: String(p.rows), left: null, top: null, colour: null },
+    border: { top: '1', right: '1', bottom: '1', left: '1', linked: true, colour: null, size: null },
     scale: 2,
   }
 }
@@ -52,18 +51,49 @@ export function formSides(f: StructureForm['border']): Sides {
   return { top: n(f.top), right: n(f.right), bottom: n(f.bottom), left: n(f.left) }
 }
 
-/** The pad target kept at least the pattern's size, without clobbering a larger one
- *  typed (design_window.py `_after_edit`). The same form when nothing changes. */
-export function keepPadValid(f: StructureForm, p: Pick<Pattern, 'cols' | 'rows'>): StructureForm {
-  const w = parseWhole(f.pad.width)
-  const h = parseWhole(f.pad.height)
-  const width = w === null || w < p.cols ? String(p.cols) : f.pad.width
-  const height = h === null || h < p.rows ? String(p.rows) : f.pad.height
-  return width === f.pad.width && height === f.pad.height ? f : { ...f, pad: { ...f.pad, width, height } }
+/** The width and height fields' text: as typed, or the size the sides give. */
+export function sizeText(f: StructureForm['border'], p: Pick<Pattern, 'cols' | 'rows'>): { width: string; height: string } {
+  if (f.size) return { width: f.size.width, height: f.size.height }
+  const { width, height } = sizeWith(p, formSides(f))
+  return { width: String(width), height: String(height) }
 }
 
-/** The pad target turned a quarter with the pattern: width and height swap, and the
- *  offsets, placed for the old shape, go back to centred. */
-export function turnPad(f: StructureForm): StructureForm {
-  return { ...f, pad: { ...f.pad, width: f.pad.height, height: f.pad.width, left: null, top: null } }
+const text = (s: Sides) => ({ top: String(s.top), right: String(s.right), bottom: String(s.bottom), left: String(s.left) })
+const even = (s: Sides) => s.top === s.right && s.right === s.bottom && s.bottom === s.left
+
+/** The sides set as given; "Same on every side" stays on only while they are. */
+export function withSides(f: StructureForm, s: Sides): StructureForm {
+  return { ...f, border: { ...f.border, ...text(s), linked: f.border.linked && even(s), size: null } }
+}
+
+/** Width or height typed: the sides that give it, the other kept. */
+export function typeSize(f: StructureForm, p: Pick<Pattern, 'cols' | 'rows'>, axis: 'width' | 'height', value: string): StructureForm {
+  const b = f.border
+  const size = { ...sizeText(b, p), [axis]: value, from: b.size?.from ?? formSides(b) }
+  const s = resizeSides(p, size.from, parseWhole(size.width), parseWhole(size.height))
+  return { ...f, border: { ...b, ...text(s), linked: b.linked && even(s), size } }
+}
+
+/** Done typing the size: the fields show the size the sides give again. */
+export function endSize(f: StructureForm): StructureForm {
+  return f.border.size ? { ...f, border: { ...f.border, size: null } } : f
+}
+
+/** The sides turned a quarter with the pattern: what was added across it is added down
+ *  it, so the size set turns with it (as the desktop's pad target does). */
+export function turnSides(f: StructureForm): StructureForm {
+  const s = formSides(f.border)
+  return endSize(withSides(f, { top: s.left, bottom: s.right, left: s.top, right: s.bottom }))
+}
+
+/** The pattern centred in the same size. */
+export function centred(f: StructureForm): StructureForm {
+  return withSides(f, centreSides(formSides(f.border)))
+}
+
+/** Whether the pattern is centred as `centred` would place it. */
+export function isCentred(f: StructureForm): boolean {
+  const s = formSides(f.border)
+  const c = centreSides(s)
+  return c.left === s.left && c.top === s.top
 }

@@ -1,7 +1,7 @@
 /**
  * The built output (dist/, which the e2e web server builds first): the app's entry chunk
  * holds no Pyodide and stays within budget, and the worker is reachable only from the
- * lazily loaded detection client (docs/web-port-plan.md, Tier A / Tier B).
+ * lazily loaded detection client (docs/dev/architecture.md#tiers).
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -10,7 +10,7 @@ import { gzipSync } from 'node:zlib'
 import { expect, test } from '@playwright/test'
 
 const DIST = resolve(import.meta.dirname, '../dist')
-/** Tier A's budget (docs/web-port-plan.md, Verification). */
+/** Tier A's budget (docs/dev/history/web-port.md#verification). */
 const MAIN_BUDGET_GZIP = 250 * 1024
 const CLOUDFLARE_FILE_LIMIT = 25 * 1024 * 1024
 
@@ -38,7 +38,7 @@ test('the main entry chunk has no Pyodide and is within budget', () => {
   // Nor any chunk at all: what the page needs at first is the entry chunk, whole. A lazy
   // chunk imported from another lazy one once made the bundler split what it shared with
   // the entry into a chunk preloaded here, so the size counted below looked smaller while
-  // the page loaded more (docs/web-port-plan.md, Rules).
+  // the page loaded more (docs/dev/rules.md#no-nested-lazy-chunks).
   expect(html).not.toMatch(/modulepreload/)
   for (const [lib, shade] of [
     ['dmc', 'Dark Coffee Brown'],

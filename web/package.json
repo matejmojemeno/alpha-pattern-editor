@@ -1,7 +1,7 @@
 {
-  "name": "web",
+  "name": "alpha-pattern-editor",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,11 +12,13 @@
     "typecheck": "tsc --noEmit",
     "gen:alpha": "node scripts/gen-alpha-fixtures.ts",
     "test:e2e": "playwright test",
+    "docs:media": "playwright test --config playwright.docs.config.ts",
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "fflate": "^0.8.3",
     "idb": "^8.0.3",
+    "lucide-react": "^1.49.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

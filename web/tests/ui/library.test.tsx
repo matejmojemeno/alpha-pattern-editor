@@ -46,10 +46,10 @@ describe('Library', () => {
     const links = cards().map((c) => c.querySelector('a')!)
     expect(links.every((a) => a.tabIndex === 0)).toBe(true)
 
-    // Tab order: Home, Import, then each card's link, Export and Delete.
+    // Tab order: Home, Import, Help, then each card's link, Export and Delete.
     const user = userEvent.setup()
     const order: Element[] = []
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 9; i++) {
       await user.tab()
       order.push(document.activeElement!)
     }

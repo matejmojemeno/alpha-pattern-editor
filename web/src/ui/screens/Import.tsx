@@ -2,7 +2,7 @@
  * Importing a pattern from an image: a port of the desktop's confirmation window
  * (alphareader/ui/importer/confirm_window.py), correction controls and all.
  *
- * The desktop's fast/slow split is kept (docs/web-port-plan.md, Phase 2):
+ * The desktop's fast/slow split is kept (docs/dev/history/web-port.md#phase-2):
  * - moving the grid's outline only resamples (`DetectSession.update`),
  *   which folds a burst of changes into one pending request and drops stale answers;
  * - a box drawn on the image (a crop) detects again (`DetectSession.redetect`), under
@@ -14,7 +14,7 @@
  * and its count merges colours detection split, but removing a colour, "Yarn & size" and
  * "Visualize" are the Design stage's, where the pattern is saved and edited.
  *
- * Any image can be imported (plan.md §5a). The worker reads it as a chart, or, when it
+ * Any image can be imported (§5a). The worker reads it as a chart, or, when it
  * isn't one, turns it into a pattern as a picture; one quiet line above the stages says
  * which, with a button to the other reading. For a chart nothing else changes. For a
  * picture the outline and a box drawn on the image crop what's used (the width in
@@ -68,6 +68,7 @@ import { useDelayedFlag, useDocumentTitle, useFileDrop, useMediaQuery, usePasted
 import { Palette } from '../import/Palette.tsx'
 import { PatternView } from '../import/PatternView.tsx'
 import { SourceView } from '../import/SourceView.tsx'
+import { WarningIcon } from '../icons.tsx'
 import { cleanName, MAX_NAME_LENGTH } from '../names.ts'
 import { isChartImage, type Notice } from '../useAlphaImport.ts'
 
@@ -426,7 +427,7 @@ export default function ImportScreen() {
   if (state.phase === 'choose' || !image) {
     return (
       <main className="screen import" {...drop.handlers}>
-        <TopBar title="Import pattern" />
+        <TopBar title="Import pattern" help="import" />
         <Notices notices={notices} />
         <div className="empty import__choose">
           <p>Choose a photo or screenshot of an alpha chart, or any picture to turn into a pattern.</p>
@@ -456,7 +457,7 @@ export default function ImportScreen() {
 
   return (
     <main className="screen import" {...drop.handlers}>
-      <TopBar title="Import pattern" />
+      <TopBar title="Import pattern" help="import" />
       <SaveBar
         name={name}
         onName={setName}
@@ -754,7 +755,7 @@ function Summary({ preview }: { preview: Preview }) {
         <ul className="confirm__warnings" aria-label="Warnings">
           {preview.warnings.map((w, i) => (
             <li key={i}>
-              <span aria-hidden="true">⚠ </span>
+              <WarningIcon />
               {w}
             </li>
           ))}

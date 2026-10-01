@@ -1,7 +1,8 @@
 # Alpha Pattern Editor: web app
 
-The browser version of the desktop app. The plan, and the rules for working on it, are
-in [`docs/web-port-plan.md`](../docs/web-port-plan.md).
+The app itself: everything a user sees. How it is built is in
+[`docs/dev/architecture.md`](../docs/dev/architecture.md), and the rules for working on it
+in [`docs/dev/rules.md`](../docs/dev/rules.md).
 
 ```bash
 npm install
@@ -13,6 +14,8 @@ npm run build       # production build in dist/
 npx playwright install chromium   # once
 npm run test:e2e    # Playwright in real Chromium, against the production build
 npm run gen:alpha   # rewrite ../fixtures/alpha/from-ts/ after changing src/storage
+npm run docs:media  # the user guide's screenshots, into ../docs/guide/media/ (only those that changed)
+DOCS_TOUR=1 npm run docs:media   # also re-record tour.gif and tour.mp4 (needs ffmpeg)
 BENCH=1 npx playwright test e2e/large-photo.bench.spec.ts   # detection time and memory, phone-sized photos
 ```
 
@@ -21,8 +24,16 @@ BENCH=1 npx playwright test e2e/large-photo.bench.spec.ts   # detection time and
 numpy's wheel (fetched once from Pyodide's release and checked against its sha256, then
 cached in `.cache/`), and `alphareader-core.<hash>.zip` from
 `../scripts/build_core_bundle.py`. That needs Python 3 on the path, or `../.venv`, or
-`$PYTHON`. The e2e tests also use that Python, with numpy and Pillow, as the desktop
-reference.
+`$PYTHON`. The e2e tests also use that Python, with numpy and Pillow, as the Python
+reference (`alphareader/core/`).
+
+`npm run docs:media` runs `e2e/docs-media.spec.ts` with its own config
+(`playwright.docs.config.ts`, on port 4187, or `$DOCS_PORT`); `npm run test:e2e` skips that spec, because
+it rewrites committed images. It drives the app through the demo pattern in
+`../fixtures/demo/`, writes one image per test, and compares each with the committed one
+pixel for pixel, rewriting only those that differ. `DOCS_TOUR=1` also records the tour
+and encodes it with `ffmpeg` (on the `PATH`, or `$FFMPEG`); it's off by default because
+the encoding changes on every run. See `../docs/guide/media/README.md`.
 
 ## Deploying (Cloudflare)
 
@@ -78,14 +89,15 @@ files.
   works out where to carry each colour on to the next row, for the Work stage's "Show
   where to carry yarn".
 - `src/design/`: the Design stage's editing state as pure functions: the tools' pointer
-  logic and the current colour (`editor.ts`), undo (`history.ts`), and the structural
+  logic, the current colour and the Select tool's selection (`editor.ts`), undo
+  (`history.ts`), blocks of cells and the clipboard (`selection.ts`), and the structural
   panel's previews and form (`structure.ts`, `structureForm.ts`).
 - `src/render/`: Canvas 2D drawing and its geometry: the Work chart (`layout.ts`,
   `chart.ts`), the Design canvas (`design.ts`), and Export PNG (`png.ts`), which is
-  checked pixel for pixel against the desktop's export in `../fixtures/png/`.
+  checked pixel for pixel against the Python reference's export in `../fixtures/png/`.
 - `src/storage/`: `.alpha` archives (`alpha.ts`, `npy.ts`, `pyjson.ts`), IndexedDB
-  (`db.ts`) and the repository the UI will use (`repo.ts`). Compatibility with the
-  desktop format is tested in both directions; see `../fixtures/alpha/README.md`.
+  (`db.ts`) and the repository the UI will use (`repo.ts`). Every `.alpha` file the
+  old desktop app saved must open; see `../fixtures/alpha/README.md`.
 
 - `src/yarn/`: colour libraries (DMC and yarn ranges) and the yarn estimate. `data/`
   holds one JSON table per library, written by `../scripts/import_yarn_libraries.py`,
@@ -100,13 +112,16 @@ files.
   as strands of yarn (`geometry.ts`), the strands rasterised as shaded tubes
   (`raster.ts`), and the fabric drawn on a canvas (`fabric.ts`). Its dialog is
   `src/ui/design/Visualize.tsx`, part of the Design stage's chunk.
-- `src/app/`: hash router, app-wide context (repository, settings), persistence request.
+- `src/app/`: hash router, app-wide context (repository, settings), persistence request,
+  every link to the user guide (`help.ts`), and the build's version and commit
+  (`build.ts`, written in by `vite.config.ts`).
 - `src/settings/`: app-wide preferences in `localStorage` (display, the colour library,
   the yarn estimate's inputs), typed and fail-safe.
 - `src/theme/`: `tokens.css` (the port of `theme.py`) and `contrastOn()`.
 - `src/ui/`: the screens (landing, Library, Settings, Work, and the lazily loaded
   import screen and Design stage) and shared components. `gestures.ts` is the two-finger
-  pinch and pan both charts use.
+  pinch and pan both charts use. `icons.tsx` holds the icons (Lucide) and the logo;
+  the Design stage's own are in `design/icons.tsx`, in its chunk.
 - `src/detect/`: the Pyodide boundary. `worker.ts` runs `alphareader/core/bridge.py` in
   a module worker; `client.ts` is the app's side of it; `protocol.ts` the messages.
 - `src/importer/`: the import screen's logic: decoding images, the failure hints, the

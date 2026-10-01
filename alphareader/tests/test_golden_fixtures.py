@@ -56,9 +56,10 @@ def test_edit_fixtures_cover_every_public_function():
                 "Cannot delete the last column.", "Cannot remove the only colour.",
                 "Replacement colour must differ from the deleted one.",
                 "Scale factor must be a positive integer.",
-                "Target size must be at least the current size (this only pads)."):
+                "Target size must be at least the current size (this only pads).",
+                "A block must be a grid of cells."):
         assert msg in source and msg in messages, msg
-    assert source.count("raise ValueError") == 9, "a new ValueError path needs a fixture"
+    assert source.count("raise ValueError") == 10, "a new ValueError path needs a fixture"
     assert any(c.get("raises") == "KeyError" for c in data["cases"])
     news = [c for c in data["cases"] if data["new_id"] in c.get("result", {}).get("row_ids", [])]
     assert news, "fresh row ids are recorded"

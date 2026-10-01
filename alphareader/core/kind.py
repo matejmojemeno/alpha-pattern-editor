@@ -1,4 +1,4 @@
-"""Chart or picture? The import decides by itself (plan.md §5a).
+"""Chart or picture? The import decides by itself (§5a).
 
 A chart's squares are read; a picture is turned into a pattern (convert.py). Detection
 alone can't tell them apart, measured on test_images/ and test_images/pictures/:

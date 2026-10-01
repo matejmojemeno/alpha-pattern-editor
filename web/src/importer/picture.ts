@@ -1,5 +1,5 @@
 /**
- * The import screen's side of reading an image as a chart or a picture (plan.md §5a):
+ * The import screen's side of reading an image as a chart or a picture (§5a):
  * what the screen says it read, and a picture's settings. The deciding and the converting
  * are the Python's (core/kind.py, core/convert.py); this is only wording and arithmetic.
  */

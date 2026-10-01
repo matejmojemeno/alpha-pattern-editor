@@ -7,7 +7,8 @@
  * (logic/progress.ts): an edit that would lose rows marked done asks first.
  *
  * Every edit goes through design/editor.ts, which also keeps undo; each structural
- * edit is one undo step. Saving is automatic, as in the Work stage (app/autosave.ts),
+ * edit is one undo step. The Select tool's selection lives there too; Copy and Cut keep
+ * cells in this tab (`clipboard`), so they can be pasted into another pattern. Saving is automatic, as in the Work stage (app/autosave.ts),
  * and stamps the project as in the Design stage.
  *
  * Loaded lazily (App.tsx): nothing here is needed to follow a pattern on a phone.
@@ -28,35 +29,51 @@ import {
   abortDrag,
   addColour,
   addLine,
+  backgroundIndex,
+  backgroundRemoved,
   canRedo,
   canUndo,
   cancelDrag,
+  copySelection,
+  croppedToSelection,
   deleteColour,
+  deleteSelection,
+  deselect,
+  fillSelection,
   initialEditor,
+  nudge,
+  paste,
   pointerDown,
   pointerMove,
   pointerUp,
   editColour,
+  putDown,
   redo,
+  selectAll,
   selectColour,
+  selects,
   setTool,
   structural,
+  toggleBackground,
   toolForKey,
+  turnSelection,
   undo,
   type EditorState,
   type Tool,
 } from '../../design/editor.ts'
 import {
+  MAX_BORDERED,
   borderPreview,
-  dragOffsets,
-  padOffsets,
-  padPreview,
   removedCount,
   removesArtwork,
+  shiftSides,
+  sizeWith,
   tryBorder,
   type Preview,
+  type Sides,
 } from '../../design/structure.ts'
-import { formSides, initialForm, keepPadValid, parseWhole, turnPad, type StructureForm } from '../../design/structureForm.ts'
+import { rectBetween, rectCols, rectRows, type CellRect, type Clip, type Turn } from '../../design/selection.ts'
+import { endSize, formSides, initialForm, parseWhole, turnSides, withSides, type StructureForm } from '../../design/structureForm.ts'
 import {
   EditError,
   addBorder,
@@ -67,7 +84,6 @@ import {
   majorBorderIndex,
   mirrorH,
   mirrorV,
-  padToSize,
   rotate90,
   samePattern,
   scale,
@@ -79,9 +95,10 @@ import type { Pattern, Project } from '../../model/types.ts'
 import { fitCell, zoomStep, type Overlay } from '../../render/design.ts'
 import { exportPng } from '../../render/png.ts'
 import type { ProjectRepo } from '../../storage/repo.ts'
-import { CellsIcon, ConfirmDialog } from '../components.tsx'
+import { ConfirmDialog, HelpLink } from '../components.tsx'
 import { ColoursPanel } from '../design/ColoursPanel.tsx'
 import { DesignCanvas } from '../design/DesignCanvas.tsx'
+import { ToolIcon, TurnIcon } from '../design/icons.tsx'
 import { StructurePanel, type TransformAction } from '../design/StructurePanel.tsx'
 import { Visualize } from '../design/Visualize.tsx'
 import { YarnEstimate } from '../design/YarnEstimate.tsx'
@@ -92,17 +109,21 @@ export default function Design({ id }: { id: string }) {
   return <ProjectGate id={id}>{(repo, { project }) => <DesignStage repo={repo} initial={project} />}</ProjectGate>
 }
 
-/** Each tool's icon: the same 3×3 cell metaphor as the desktop's (icons.py). */
-const ICONS: Record<Tool, ReadonlyArray<readonly [number, number]>> = {
-  paint: [[1, 1]],
-  fill: [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0]],
-  rect: [[0, 0], [0, 1], [1, 0], [1, 1]],
-  eyedropper: [[0, 2], [1, 1], [2, 0]],
-  row: [[1, 0], [1, 1], [1, 2]],
-  col: [[0, 1], [1, 1], [2, 1]],
-  addRow: [[1, 0], [1, 1], [1, 2]],
-  addCol: [[0, 1], [1, 1], [2, 1]],
-}
+/**
+ * What Copy and Cut keep, for as long as this tab is open, whichever pattern is being
+ * designed: kept here rather than on the system clipboard, which can't hold a pattern's
+ * cells and colours (and asks for permission to be read). Pasting into another pattern
+ * brings the colours with it (design/selection.ts `mapClip`).
+ */
+let clipboard: Clip | null = null
+
+/** The Select tool's turns: what the whole-pattern ones do (the Structure panel), to the selection. */
+const SELECTION_TURNS: readonly { turn: Turn; label: string; name: string; title: string }[] = [
+  { turn: 'mirror', label: 'Mirror', name: 'Mirror left to right', title: 'Mirror it left to right' },
+  { turn: 'flip', label: 'Flip', name: 'Flip top to bottom', title: 'Flip it top to bottom' },
+  { turn: 'cw', label: 'Rotate', name: 'Rotate clockwise', title: 'Turn it a quarter clockwise' },
+  { turn: 'ccw', label: 'Rotate', name: 'Rotate anticlockwise', title: 'Turn it a quarter anticlockwise' },
+]
 
 /** Keys that belong to whatever has focus, not to the Design stage. */
 function ownsKeys(target: EventTarget | null): boolean {
@@ -113,11 +134,9 @@ function ownsKeys(target: EventTarget | null): boolean {
 
 const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+'
 
-/** The desktop's spin boxes stop at 2000 (design_window.py). */
-const MAX_PAD = 2000
-
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 const sizeOf = (p: Pattern) => `${p.cols} × ${p.rows}`
+const cellsIn = (r: CellRect) => `${rectCols(r)} × ${rectRows(r)}`
 
 /** What an edit about to lose progress says about it. `restart` names an edit that
  *  gives every row a new id (scale, rotate), so all progress starts again. */
@@ -218,7 +237,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   }
 
   // --- the structural panel's form, and the preview it drives ------------------------------------
-  const [form, setForm] = useState<StructureForm>(() => initialForm(initial.pattern))
+  const [form, setForm] = useState<StructureForm>(initialForm)
   const borderIndex = useMemo(() => {
     const i = majorBorderIndex(p)
     return i < p.palette.length ? i : 0
@@ -226,48 +245,42 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   const pick = (i: number | null) => (i !== null && i < p.palette.length ? i : borderIndex)
   const sides = formSides(form.border)
   const borderColour = pick(form.border.colour)
+  const typed = form.border.size
+  const sizeUnset = typed !== null && (parseWhole(typed.width) === null || parseWhole(typed.height) === null)
   const borderResult = useMemo(() => {
-    if (form.open !== 'border' || Object.values(sides).every((v) => v === 0)) return null
+    if (form.open !== 'border') return null
+    if (sizeUnset) return { error: 'Enter a width and a height.' }
+    if (Object.values(sides).every((v) => v === 0)) return null
+    const { width, height } = sizeWith(p, sides)
+    if (width > MAX_BORDERED || height > MAX_BORDERED) return { error: `At most ${MAX_BORDERED} on a side.` }
     const r = tryBorder(p, sides, borderColour)
     return r instanceof EditError ? { error: r.message } : { cols: r.cols, rows: r.rows }
     // `sides` is rebuilt every render; its fields are what matter.
-  }, [form.open, p, sides.top, sides.right, sides.bottom, sides.left, borderColour]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [form.open, sizeUnset, p, sides.top, sides.right, sides.bottom, sides.left, borderColour]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const padW = parseWhole(form.pad.width)
-  const padH = parseWhole(form.pad.height)
-  const padError =
-    padW === null || padH === null
-      ? 'Enter a width and a height.'
-      : padW < p.cols || padH < p.rows
-        ? 'Target must be at least the current size: this adds a border, it doesn’t crop.'
-        : padW > MAX_PAD || padH > MAX_PAD
-          ? `At most ${MAX_PAD} on a side.`
-          : null
-  const pad = padOffsets(p, padError ? p.cols : padW!, padError ? p.rows : padH!, form.pad.left, form.pad.top)
-  const padColour = pick(form.pad.colour)
-
-  // Keep the pad target valid (at least the size) whenever the size changes, without
-  // clobbering a larger one typed, as the desktop's _after_edit does. A quarter turn (or
-  // undoing one) swaps width and height: the target turns with the pattern, and offsets
-  // dragged for the old shape go back to centred.
+  // A size being typed is kept over the sides it began from, for this pattern: when the
+  // pattern changes shape, the fields show the size the sides give again. A quarter turn
+  // (or undoing one) swaps width and height, and the sides turn with it.
   const [sizeSeen, setSizeSeen] = useState({ cols: p.cols, rows: p.rows })
   if (sizeSeen.cols !== p.cols || sizeSeen.rows !== p.rows) {
     const turned = sizeSeen.cols === p.rows && sizeSeen.rows === p.cols
     setSizeSeen({ cols: p.cols, rows: p.rows })
-    setForm((f) => keepPadValid(turned ? turnPad(f) : f, p))
+    setForm(turned ? turnSides : endSize)
   }
 
-
-  // Dragging the pattern on the padding preview: offsets from where it was picked up.
-  const dragFrom = useRef<{ left: number; top: number } | null>(null)
+  // Dragging the pattern on the preview: the sides from when it was picked up, shifted.
+  const dragFrom = useRef<Sides | null>(null)
   const onShift = (delta: { dr: number; dc: number } | null) => {
     if (!delta) {
       dragFrom.current = null
       return
     }
-    dragFrom.current ??= { left: pad.left, top: pad.top }
-    const to = dragOffsets(dragFrom.current, delta.dr, delta.dc, { cols: pad.addedCols, rows: pad.addedRows })
-    setForm((f) => (f.pad.left === to.left && f.pad.top === to.top ? f : { ...f, pad: { ...f.pad, left: to.left, top: to.top } }))
+    dragFrom.current ??= sides
+    const to = shiftSides(dragFrom.current, delta.dr, delta.dc)
+    setForm((f) => {
+      const now = formSides(f.border)
+      return now.top === to.top && now.left === to.left && now.bottom === to.bottom && now.right === to.right ? f : withSides(f, to)
+    })
   }
 
   // --- structural edits: one undo step each, asking first when something would be lost -----------
@@ -337,13 +350,6 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       })
     })
 
-  const onPad = () =>
-    guarded(() => {
-      if (padError) return
-      const next = padToSize(p, padW!, padH!, { offsetLeft: pad.left, offsetTop: pad.top, paletteIndex: padColour })
-      attempt(next, `Padded to ${sizeOf(next)}.`, { after: closeSection })
-    })
-
   const onScale = () =>
     guarded(() => {
       const next = scale(p, form.scale)
@@ -351,10 +357,12 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
     })
 
   const transforms: TransformAction[] = [
-    { label: 'Mirror ⇄', title: 'Mirror left to right', run: () => attempt(mirrorH(p), 'Mirrored left to right.') },
-    { label: 'Flip ⇅', title: 'Flip top to bottom', run: () => attempt(mirrorV(p), 'Flipped top to bottom.') },
+    { label: 'Mirror', name: 'Mirror left to right', turn: 'mirror', title: 'Mirror left to right', run: () => attempt(mirrorH(p), 'Mirrored left to right.') },
+    { label: 'Flip', name: 'Flip top to bottom', turn: 'flip', title: 'Flip top to bottom', run: () => attempt(mirrorV(p), 'Flipped top to bottom.') },
     {
-      label: 'Rotate ↻ 90°',
+      label: 'Rotate 90°',
+      name: 'Rotate 90° clockwise',
+      turn: 'cw',
       title: 'Rotate a quarter turn clockwise: rows become columns',
       run: () => {
         const next = rotate90(p, true)
@@ -362,7 +370,9 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       },
     },
     {
-      label: 'Rotate ↺ 90°',
+      label: 'Rotate 90°',
+      name: 'Rotate 90° anticlockwise',
+      turn: 'ccw',
       title: 'Rotate a quarter turn anticlockwise: rows become columns',
       run: () => {
         const next = rotate90(p, false)
@@ -419,10 +429,101 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       if (kind) {
         const one = kind === 'row' ? 'row' : 'column'
         setMessage(`Point at the chart where the new ${one} goes, and click to add it. To delete a ${one}, press its number.`)
+      } else if (tool === 'select') {
+        setMessage('Drag over the chart to select cells, then drag inside the selection to move them.')
+      } else if (tool === 'object') {
+        setMessage('Click a shape to select it without its background, then drag it to move it.')
       }
     },
     [update],
   )
+
+  // --- the Select tool: the selection's buttons, which its shortcuts share -----------------------
+  const [clip, setClip] = useState(clipboard)
+  const onSelectUp = (c: { r: number; c: number } | null) => {
+    const d = latest.current.drag
+    update((s) => pointerUp(s, c))
+    const sel = latest.current.selection
+    if (d?.tool === 'select' && sel) setMessage(`Selected ${cellsIn(sel.rect)} cells. Drag inside them to move them.`)
+    else if (d?.tool === 'select') setMessage('')
+  }
+  const onDown = (c: { r: number; c: number }) => {
+    const before = latest.current.selection
+    update((s) => pointerDown(s, c))
+    if (latest.current.tool !== 'object') return
+    const sel = latest.current.selection
+    if (!sel) setMessage('That’s the background. Click a shape to select it.')
+    else if (sel.floating?.clear && sel.floating !== before?.floating) {
+      setMessage(`Selected a shape, ${rectCols(sel.rect)} × ${rectRows(sel.rect)}, without its background. Drag it to move it.`)
+    }
+  }
+  const onCopy = () => {
+    const c = copySelection(latest.current)
+    if (!c) return null
+    clipboard = c
+    setClip(c)
+    setMessage(`Copied ${c.block.cols} × ${c.block.rows} cells.`)
+    return c
+  }
+  const onCut = () => {
+    const c = onCopy()
+    if (!c) return
+    const bg = latest.current.pattern.palette[backgroundIndex(latest.current.pattern)]
+    update(deleteSelection)
+    setMessage(`Cut ${c.block.cols} × ${c.block.rows} cells, leaving “${bg?.name || 'the background'}”.`)
+  }
+  const onPaste = () => {
+    const c = clipboard
+    if (!c) return
+    const before = latest.current.pattern.palette.length
+    update((s) => paste(s, c))
+    const added = latest.current.pattern.palette.length - before
+    setMessage(
+      `Pasted ${c.block.cols} × ${c.block.rows} cells${added ? `, adding ${plural(added, 'colour')}` : ''}. Drag them into place, then click outside them.`,
+    )
+  }
+  const onEmpty = () => {
+    const bg = latest.current.pattern.palette[backgroundIndex(latest.current.pattern)]
+    const floating = !!latest.current.selection?.floating
+    update(deleteSelection)
+    setMessage(floating ? 'Took the selection away.' : `Emptied the selection to “${bg?.name || 'the background'}”.`)
+  }
+  const onTurn = (how: Turn) => update((s) => turnSelection(s, how))
+  const onBackground = () => {
+    update(toggleBackground)
+    const clear = latest.current.selection?.floating?.clear
+    const n = clear ? clear.reduce((a, v) => a + v, 0) : 0
+    setMessage(clear ? `Removed the background: ${plural(n, 'cell')} now show what is under them. Drag it into place.` : 'Put the background back.')
+  }
+  const onCrop = () =>
+    guarded(() => {
+      const next = croppedToSelection(latest.current)
+      if (next) attempt(next, `Cropped to the selection: now ${sizeOf(next)}.`, { title: 'Crop away rows you’ve worked?', confirmLabel: 'Crop' })
+    })
+  const onSelectAll = () => {
+    update(selectAll)
+    setMessage(`Selected the whole pattern, ${sizeOf(latest.current.pattern)}.`)
+  }
+  // On a tablet the selection's buttons lie over the bottom of the chart: it scrolls that
+  // much further, so nothing stays hidden under them.
+  const [barHeight, setBarHeight] = useState(0)
+  const bar = useRef<ResizeObserver | null>(null)
+  const measureBar = useCallback((el: HTMLDivElement | null) => {
+    bar.current?.disconnect()
+    bar.current = null
+    if (!el) return setBarHeight(0)
+    const measure = () => setBarHeight(el.offsetHeight)
+    measure()
+    if (typeof ResizeObserver !== 'undefined') {
+      bar.current = new ResizeObserver(measure)
+      bar.current.observe(el)
+    }
+  }, [])
+  /** The selection's keys, for the keyboard handler attached once. */
+  const selectionKeys = useRef({ onCopy, onCut, onPaste, onEmpty, onSelectAll })
+  useEffect(() => {
+    selectionKeys.current = { onCopy, onCut, onPaste, onEmpty, onSelectAll }
+  })
 
   // --- zoom: px per cell. Until zoomed (and after Fit) it follows the view's size. ----------
   const [viewport, setViewport] = useState<{ width: number; height: number } | null>(null)
@@ -439,14 +540,14 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
     hidden.current = tooSmall
   }, [tooSmall])
 
-  // A border or a padding is previewed while its section is open and in view (on a
-  // tablet, while the structure drawer is).
+  // A border is previewed while its section is open and in view (on a tablet, while the
+  // structure drawer is), unless its size is unset or past the limit.
   const previewing = form.open !== null && (!compact || drawer === 'structure') ? form.open : null
+  const tooBig = Math.max(sizeWith(p, sides).width, sizeWith(p, sides).height) > MAX_BORDERED
   const preview: Preview | null = useMemo(() => {
-    if (previewing === 'border') return borderPreview(p, sides, borderColour)
-    if (previewing === 'pad' && !padError) return padPreview(p, padW!, padH!, pad.left, pad.top, padColour)
-    return null
-  }, [previewing, p, sides.top, sides.right, sides.bottom, sides.left, borderColour, padError, padW, padH, pad.left, pad.top, padColour]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (previewing !== 'border' || sizeUnset || tooBig) return null
+    return borderPreview(p, sides, borderColour)
+  }, [previewing, sizeUnset, tooBig, p, sides.top, sides.right, sides.bottom, sides.left, borderColour]) // eslint-disable-line react-hooks/exhaustive-deps
   // The row or column the Add tool would add, shown in place, in the colour it will be.
   // It doesn't change the fit: the zoom would jump under the pointer as it moved.
   const addKind = ADD_TOOLS[editor.tool]
@@ -496,6 +597,8 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
         return
       }
       if (e.defaultPrevented || ownsKeys(e.target) || document.querySelector('[aria-modal="true"]')) return
+      const keys = selectionKeys.current
+      const selected = latest.current.selection !== null
       if (mod && !e.altKey) {
         if (key === 'z') {
           e.preventDefault()
@@ -503,12 +606,39 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
         } else if (key === 'y') {
           e.preventDefault()
           update(redo)
+        } else if ((key === 'c' || key === 'x') && selected && !e.shiftKey) {
+          e.preventDefault()
+          if (key === 'c') keys.onCopy()
+          else keys.onCut()
+        } else if (key === 'v' && clipboard && !e.shiftKey) {
+          e.preventDefault()
+          keys.onPaste()
+        } else if (key === 'a' && !e.shiftKey) {
+          e.preventDefault()
+          keys.onSelectAll()
         }
         return
       }
       if (e.altKey) return
       if (e.key === 'Escape') {
-        update(cancelDrag)
+        update(latest.current.drag ? cancelDrag : deselect)
+        return
+      }
+      if (selected && (e.key === 'Delete' || e.key === 'Backspace')) {
+        e.preventDefault()
+        keys.onEmpty()
+        return
+      }
+      if (selected && e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) {
+        e.preventDefault()
+        update(putDown)
+        return
+      }
+      const arrow = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] }[e.key]
+      if (arrow) {
+        if (!selected || latest.current.drag) return
+        e.preventDefault()
+        update((s) => nudge(s, arrow[0]!, arrow[1]!))
         return
       }
       if (e.key === '+' || e.key === '=') zoom(1)
@@ -554,7 +684,10 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
           ? { highlight: line(adding.kind, adding.at, p) }
           : { outline: line(adding.kind, adding.at, shownPattern) }
         : null
-  const mode = preview ? (previewing === 'pad' ? 'move' : 'view') : 'edit'
+  const mode = preview ? (preview.outline ? 'move' : 'view') : 'edit'
+  // The selection being dragged out, or the one there is.
+  const selection = d?.tool === 'select' ? rectBetween(d.start, d.end) : (editor.selection?.rect ?? null)
+  const withSelection: Overlay | null = overlay ?? (selection && selects(editor.tool) ? { selection } : null)
 
   // The same controls, laid out for the screen: side columns on a desktop; on a tablet a
   // toolbar over the chart, and the colours and the structural panel in drawers.
@@ -570,7 +703,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
           title={`${t.label} (${t.shift ? '⇧' : ''}${t.key})`}
           onClick={() => chooseTool(t.tool)}
         >
-          <CellsIcon filled={ICONS[t.tool]} plus={t.tool in ADD_TOOLS} />
+          <ToolIcon tool={t.tool} />
           <span className="tool__label">{t.label}</span>
           <kbd className="tool__key">
             {t.shift ? '⇧' : ''}
@@ -578,6 +711,88 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
           </kbd>
         </button>
       ))}
+    </div>
+  )
+  const sel = editor.selection
+  const bg = p.palette[backgroundIndex(p)]
+  const selectionTools = selects(editor.tool) && (
+    <div className="selection-tools" role="group" aria-label="Selection">
+      <button type="button" className="button button--small" disabled={!sel} title={`Copy (${MOD}C)`} onClick={onCopy}>
+        Copy
+      </button>
+      <button type="button" className="button button--small" disabled={!sel} title={`Cut (${MOD}X)`} onClick={onCut}>
+        Cut
+      </button>
+      <button
+        type="button"
+        className="button button--small"
+        disabled={!clip}
+        title={clip ? `Paste ${clip.block.cols} × ${clip.block.rows} cells (${MOD}V)` : 'Copy or cut cells first'}
+        onClick={onPaste}
+      >
+        Paste
+      </button>
+      <button
+        type="button"
+        className="button button--small"
+        disabled={!sel}
+        title={`Empty it to “${bg?.name || 'the background'}”, the colour most of the edge is (Delete)`}
+        onClick={onEmpty}
+      >
+        Delete
+      </button>
+      {SELECTION_TURNS.map((t) => (
+        <button
+          key={t.turn}
+          type="button"
+          className="button button--small"
+          disabled={!sel}
+          aria-label={t.name}
+          title={t.title}
+          onClick={() => onTurn(t.turn)}
+        >
+          <TurnIcon turn={t.turn} />
+          {t.label}
+        </button>
+      ))}
+      <button
+        type="button"
+        className="button button--small selection-tools__wide"
+        disabled={!sel}
+        aria-pressed={backgroundRemoved(editor)}
+        title={
+          backgroundRemoved(editor)
+            ? 'Put its background cells back'
+            : 'Make its background see-through, so only the motif moves: the colour most of its edge is, where it touches the edge'
+        }
+        onClick={onBackground}
+      >
+        {backgroundRemoved(editor) ? 'Put background back' : 'Remove background'}
+      </button>
+      <button
+        type="button"
+        className="button button--small selection-tools__wide"
+        disabled={!sel}
+        title="Fill it with the colour you’re painting with"
+        onClick={() => update(fillSelection)}
+      >
+        Fill with “{current?.name || 'Unnamed'}”
+      </button>
+      <button
+        type="button"
+        className="button button--small selection-tools__wide"
+        disabled={!sel}
+        title="Keep only the selected cells"
+        onClick={onCrop}
+      >
+        Crop to selection
+      </button>
+      <button type="button" className="button button--small" title={`Select the whole pattern (${MOD}A)`} onClick={onSelectAll}>
+        Select all
+      </button>
+      <button type="button" className="button button--small" disabled={!sel} title="Put it down and stop selecting it (Esc)" onClick={() => update(deselect)}>
+        Deselect
+      </button>
     </div>
   )
   const zoomControls = (
@@ -614,18 +829,15 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       onForm={setForm}
       borderIndex={borderIndex}
       borderResult={borderResult}
-      pad={pad}
-      padError={form.open === 'pad' ? padError : null}
       onBorder={onBorder}
-      onPad={onPad}
       onScale={onScale}
       transforms={transforms}
     />
   )
 
-  // A phone: the Design stage is desktop-first and doesn't fit (docs/web-port-plan.md,
-  // Phase 3). This screen keeps its state (the pattern, undo) meanwhile, so turning a
-  // device round and back loses nothing.
+  // A phone: the Design stage is desktop-first and doesn't fit
+  // (docs/dev/history/web-port.md#phase-3). This screen keeps its state (the pattern,
+  // undo) meanwhile, so turning a device round and back loses nothing.
   if (tooSmall) {
     return (
       <main className="screen design design--small">
@@ -712,6 +924,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
         <button type="button" className="button button--primary design__work" onClick={startWorking}>
           Start working →
         </button>
+        <HelpLink topic="design" />
       </header>
 
       {warning && (
@@ -754,6 +967,12 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
           <aside className="design__tools" aria-label="Tools">
             <h2 className="design__heading">Tools</h2>
             {tools}
+            {selectionTools && (
+              <>
+                <h2 className="design__heading">Selection</h2>
+                {selectionTools}
+              </>
+            )}
             <h2 className="design__heading">Zoom</h2>
             {zoomControls}
             {current && (
@@ -774,10 +993,12 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
             tool={editor.tool}
             mode={mode}
             preview={rectPreview}
-            overlay={overlay}
-            onDown={(c) => update((s) => pointerDown(s, c))}
+            overlay={withSelection}
+            selection={selects(editor.tool) ? (sel?.rect ?? null) : null}
+            roomBelow={compact && selects(editor.tool) ? barHeight : 0}
+            onDown={onDown}
             onMove={(c) => update((s) => pointerMove(s, c))}
-            onUp={(c) => update((s) => pointerUp(s, c))}
+            onUp={onSelectUp}
             onCancel={() => update(cancelDrag)}
             onAbort={() => update(abortDrag)}
             onShift={onShift}
@@ -789,11 +1010,20 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
             onZoomTo={setZoomed}
             onViewport={setViewport}
             themeKey={settings.highContrast ? 'high' : 'normal'}
-            label={preview ? `Preview, ${shownPattern.cols} by ${shownPattern.rows}` : `Pattern, ${p.cols} by ${p.rows}`}
+            label={
+              preview
+                ? `Preview, ${shownPattern.cols} by ${shownPattern.rows}`
+                : `Pattern, ${p.cols} by ${p.rows}${sel && selects(editor.tool) ? `, ${rectCols(sel.rect)} by ${rectRows(sel.rect)} selected` : ''}`
+            }
           />
+          {compact && selectionTools && (
+            <div ref={measureBar} className="design__selection-bar">
+              {selectionTools}
+            </div>
+          )}
           {preview && (
             <p className="design__previewing" role="status">
-              {previewing === 'pad' ? 'Previewing the padding: drag the pattern to place it.' : 'Previewing the border.'}
+              Previewing: drag the pattern to move it.
             </p>
           )}
         </section>
@@ -862,9 +1092,9 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
 
 /**
  * Insert or delete the row or column whose number was pressed. A small menu at the
- * number, rather than a selected cell: the Design stage has no selection (every tool
- * acts on a press), the numbers are already there to aim at, and it works the same with
- * a finger. Escape, or a press outside, closes it.
+ * number, rather than through a selection: most tools act on a press, the numbers are
+ * already there to aim at, and it works the same with a finger. Escape, or a press
+ * outside, closes it.
  */
 function AxisMenuPopup({
   menu,

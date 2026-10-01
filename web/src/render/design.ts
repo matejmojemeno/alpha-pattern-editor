@@ -163,7 +163,14 @@ export interface Overlay {
   readonly outline?: CellRect | null
   /** A row or column picked from its number: tinted. */
   readonly highlight?: CellRect | null
+  /** The Select tool's selection: a dashed line, dark over light, that shows on any
+   *  colour. It may hang over the chart's edges. */
+  readonly selection?: CellRect | null
 }
+
+/** The selection's two tones. */
+export const SELECTION_DARK = '#1a1a1a'
+export const SELECTION_LIGHT = '#ffffff'
 
 /** Removed cells are hatched in the theme's danger red (tokens.css --danger). */
 export const REMOVED_COLOR = '#dd3333'
@@ -201,6 +208,16 @@ function drawOverlay(ctx: CanvasRenderingContext2D, o: Overlay, ox: number, oy: 
     ctx.lineWidth = 2
     ctx.strokeStyle = colors.accent
     ctx.strokeRect(x + 1, y + 1, w - 2, h - 2)
+  }
+  if (o.selection && o.selection.r1 > o.selection.r0 && o.selection.c1 > o.selection.c0) {
+    const [x, y, w, h] = box(o.selection)
+    ctx.lineWidth = 2
+    ctx.strokeStyle = SELECTION_LIGHT
+    ctx.strokeRect(x + 1, y + 1, w - 2, h - 2)
+    ctx.setLineDash([5, 5])
+    ctx.strokeStyle = SELECTION_DARK
+    ctx.strokeRect(x + 1, y + 1, w - 2, h - 2)
+    ctx.setLineDash([])
   }
   if (o.outline) {
     const [x, y, w, h] = box(o.outline)

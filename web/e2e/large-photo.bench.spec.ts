@@ -1,6 +1,6 @@
 /**
  * How long detection takes, and how much memory Pyodide needs, for phone-photo-sized
- * images (docs/web-port-plan.md, Risks #2). Not part of the suite; run it on purpose:
+ * images (docs/dev/history/web-port.md#risk-2). Not part of the suite; run it on purpose:
  *
  *   BENCH=1 npx playwright test e2e/large-photo.bench.spec.ts
  *

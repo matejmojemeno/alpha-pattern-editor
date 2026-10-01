@@ -793,3 +793,8 @@
   font-weight: 600;
   font-size: var(--t-section);
 }
+
+.confirm__warnings .icon {
+  margin-right: 0.35rem;
+  vertical-align: -0.15em;
+}

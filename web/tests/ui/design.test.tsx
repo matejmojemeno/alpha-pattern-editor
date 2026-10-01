@@ -41,6 +41,9 @@ describe('Design stage', () => {
     expect(document.querySelector('.design__stats')!.textContent).toMatch(
       new RegExp(`${p.cols} cols × ${p.rows} rows\\s+·\\s+${p.cols * p.rows} stitches\\s+·\\s+${p.palette.length} colours\\s+·\\s+${p.cols + 1} strings needed`),
     )
+    expect(
+      screen.getByRole('link', { name: 'Help with designing (opens in a new tab)' }).getAttribute('href'),
+    ).toMatch(/\/docs\/guide\/design\.md$/)
     // No progress anywhere (§6.1), and no warning without any.
     expect(screen.queryByText(/% done/)).toBeNull()
     expect(screen.queryByText(/rows? into this project/)).toBeNull()

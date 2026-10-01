@@ -5,7 +5,9 @@
  */
 import { useId } from 'react'
 
+import { APP_COMMIT, APP_VERSION } from '../../app/build.ts'
 import { useSettings } from '../../app/context.ts'
+import { CHANGELOG_URL, REPO_URL } from '../../app/help.ts'
 import type { Settings as SettingsValues } from '../../settings/store.ts'
 import { TopBar } from '../components.tsx'
 import { useDocumentTitle } from '../hooks.ts'
@@ -41,7 +43,7 @@ export function Settings() {
   const id = useId()
   return (
     <main className="screen settings">
-      <TopBar title="Settings" />
+      <TopBar title="Settings" help="settings" />
       <form className="settings__list" onSubmit={(e) => e.preventDefault()}>
         {OPTIONS.map(({ key, label, help }) => (
           <div className="setting" key={key}>
@@ -65,6 +67,36 @@ export function Settings() {
         in the Work stage, where they can also be changed from Options. Which side a row starts from is saved with each
         pattern instead.
       </p>
+      <About />
     </main>
+  )
+}
+
+/** Which build this is, so a bug report can say which version it's about. */
+function About() {
+  return (
+    <section className="settings__about" aria-labelledby="about-heading">
+      <h2 id="about-heading">About</h2>
+      <p>
+        Alpha Pattern Editor, version {APP_VERSION}
+        {APP_COMMIT && (
+          <>
+            {' '}
+            (build{' '}
+            <a href={`${REPO_URL}/commit/${APP_COMMIT}`} target="_blank" rel="noopener noreferrer">
+              <code>{APP_COMMIT}</code>
+            </a>
+            )
+          </>
+        )}
+        .
+      </p>
+      <p>
+        <a href={CHANGELOG_URL} target="_blank" rel="noopener noreferrer">
+          What&rsquo;s new
+        </a>{' '}
+        lists the changes in each version. If you report a problem, say which version you are using.
+      </p>
+    </section>
   )
 }
