@@ -31,6 +31,11 @@ const OPTIONS: { key: Switch; label: string; help: string }[] = [
     help: 'Draws only the rows around the current one and hides the rest of the chart.',
   },
   {
+    key: 'stitchNumbers',
+    label: 'Number the stitches',
+    help: 'Writes on each stitch of the Work chart which one it is in its block of one colour, counted the way you work the row, so you can keep count as you go. Stitches too small to hold a number stay plain; zoom in to see them.',
+  },
+  {
     key: 'showCarries',
     label: 'Show where to carry yarn',
     help: 'For tapestry crochet worked over the yarn you are not using, keeping each colour only until the next row needs it. A line through the stitches shows which colour to carry inside them, and each colour in the row says how many stitches to carry another over.',
@@ -63,8 +68,8 @@ export function Settings() {
         ))}
       </form>
       <p className="muted settings__note">
-        These are saved in this browser and apply to every project. Row emphasis, focus mode and carrying take effect
-        in the Work stage, where they can also be changed from Options. Which side a row starts from is saved with each
+        These are saved in this browser and apply to every project. Row emphasis, focus mode, stitch numbers and
+        carrying take effect in the Work stage, where they can also be changed from Options. Which side a row starts from is saved with each
         pattern instead.
       </p>
       <About />

@@ -20,7 +20,8 @@ you [choose another craft](#choose-your-craft).
   and so on. The colour you're on is outlined.
 - **Next:** shows the row after this one, so you can see what's coming.
 - The chart shows the whole pattern with the current row outlined and the rows you've
-  finished greyed out. A pattern more than twice as tall as it is wide fills the width
+  finished greyed out. Each stitch carries a number: see
+  [Count stitches on the chart](#count-stitches-on-the-chart). A pattern more than twice as tall as it is wide fills the width
   and scrolls down with you, keeping your row in the middle. A wide pattern fits the
   screen whole, so you see each row at once without scrolling sideways.
 
@@ -91,8 +92,22 @@ rather than left hanging at the back, turn on **Show where to carry yarn** in **
 
 Each colour is kept only until the next row needs it, so you never carry more than you
 must. On the chart, a line of a colour through a run of stitches means: carry that colour
-inside those stitches. In **This row**, a colour's chip says what to do while you work it,
+inside those stitches. With [stitch numbers](#count-stitches-on-the-chart) on, the line
+runs along the bottom of each stitch, under its number. In **This row**, a colour's chip says what to do while you work it,
 such as "carry Beige over the first 1", or "pick up Black, carry over the last 3".
+
+## Count stitches on the chart
+
+Each stitch on the chart has a number: which one it is in its block of one colour,
+counted the way you work the row. In a row worked right to left that reads "1 Red, 8
+Blue…", the red stitch at the right is 1, and the blue ones next to it are 1 to 8, from
+right to left. The count starts again at 1 with each new block, so a glance at the chart
+tells you how far into a block you are.
+
+Stitches too small to hold a number stay plain: a big pattern on a phone may show
+numbers only on the taller rows around your place, or none until you zoom in. To hide
+the numbers, untick **Number the stitches** in **Options** (or in
+[Settings](settings.md)).
 
 ## Zoom and scroll on a phone
 

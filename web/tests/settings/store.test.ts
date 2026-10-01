@@ -28,6 +28,7 @@ describe('parseSettings', () => {
       highContrast: false,
       focusMode: false,
       showCarries: false,
+      stitchNumbers: true,
       colourLibrary: null,
       swatchStitches: 10,
       swatchRows: 10,

@@ -57,6 +57,8 @@ export interface ChartViewProps {
   place?: RowPlace | null
   /** Strands to draw carried inside stitches, per image row (logic/carry.ts), or none. */
   carries?: readonly (readonly Carry[])[] | null
+  /** Number each stitch within its run of one colour. */
+  numbers?: boolean
 }
 
 const MAX_DPR = 2
@@ -71,6 +73,7 @@ export function ChartView({
   label,
   place = null,
   carries = null,
+  numbers = false,
 }: ChartViewProps) {
   const wrap = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -141,6 +144,7 @@ export function ChartView({
         completed,
         place,
         carries,
+        numbers,
         scrollX: sc.scrollLeft,
         scrollY: sc.scrollTop,
         width: size.width,
@@ -285,7 +289,7 @@ export function ChartView({
   }, [])
 
   // Anything drawn changed.
-  useLayoutEffect(() => draw.current(), [layout, image, pattern, completed, place, carries, dpr, themeKey, dark])
+  useLayoutEffect(() => draw.current(), [layout, image, pattern, completed, place, carries, numbers, dpr, themeKey, dark])
 
   // A tall chart scrolls down (layout.ts, shouldScroll); zoomed in, any chart may scroll
   // both ways.

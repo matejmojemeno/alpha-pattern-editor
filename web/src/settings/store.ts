@@ -26,6 +26,9 @@ export interface Settings {
   /** Show where to carry each colour on to the next row, for tapestry crochet worked
    *  over the strands (logic/carry.ts). */
   readonly showCarries: boolean
+  /** Number each stitch on the Work chart by its place in its run of one colour, counted
+   *  the way the row is worked (render/chart.ts, stitchNumbers). */
+  readonly stitchNumbers: boolean
   /** The library each palette colour is matched to (yarn/libraries.ts), or null for none. */
   readonly colourLibrary: LibraryId | null
   /** The swatch the yarn estimate and finished size come from (yarn/usage.ts): its
@@ -60,6 +63,7 @@ export const DEFAULT_SETTINGS: Settings = {
   highContrast: false,
   focusMode: false,
   showCarries: false,
+  stitchNumbers: true,
   colourLibrary: DEFAULT_LIBRARY,
   // 10 × 10: the swatch Magic Yarn Pixels' calculators ask for (docs/dev/areas/yarn.md#yarn-and-size).
   swatchStitches: 10,
@@ -89,6 +93,7 @@ const VALID: { [K in keyof Settings]: (v: unknown) => boolean } = {
   highContrast: (v) => typeof v === 'boolean',
   focusMode: (v) => typeof v === 'boolean',
   showCarries: (v) => typeof v === 'boolean',
+  stitchNumbers: (v) => typeof v === 'boolean',
   colourLibrary: (v) => v === null || isLibraryId(v),
   swatchStitches: count,
   swatchRows: count,
