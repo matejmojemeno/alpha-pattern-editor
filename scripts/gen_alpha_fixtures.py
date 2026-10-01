@@ -176,6 +176,13 @@ def build(out: str) -> dict:
     # Large enough that the .npy shape has 3-digit dimensions.
     save("large.alpha", _pattern("large", rng.integers(0, 40, size=(120, 150)), 5))
 
+    # A craft chosen (§15): the only files with "craft" in pattern.json. Every other file
+    # here has none, as tapestry crochet is left out, and reads back as "tapestry".
+    save("craft.alpha", _pattern("craft", rng.integers(0, 3, size=(4, 6)), 3,
+                                 start_direction="LTR", bottom_up=False, craft="bracelet"))
+    save("craft-unknown.alpha",
+         _pattern("craft-unknown", rng.integers(0, 2, size=(3, 4)), 2, craft="c2c-someday"))
+
     # A newer desktop build's file: both sides must refuse it.
     save("newer-format.alpha", _pattern("newer-format", [[0, 1]], 2),
          post=_edit_json("meta.json", lambda d: d.update(format_version=999)))
@@ -204,6 +211,7 @@ def _expected(path: str) -> dict:
                          "count": e.count} for e in p.palette],
             "start_direction": p.start_direction,
             "alternate_direction": p.alternate_direction, "bottom_up": p.bottom_up,
+            "craft": p.craft,
         },
         "progress": {
             "completed_row_ids": sorted(pr.completed_row_ids),

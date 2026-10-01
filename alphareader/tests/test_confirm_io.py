@@ -169,6 +169,36 @@ def test_bottom_up_persists(tmp_path):
     assert io.load_project(path).pattern.bottom_up is False
 
 
+def test_craft_persists(tmp_path):
+    img, pattern = _sample_project()
+    pattern.craft = "bracelet"
+    path = str(tmp_path / "c.alpha")
+    io.save_project(Project(pattern=pattern), path, source_img=img)
+    assert io.load_project(path).pattern.craft == "bracelet"
+
+
+def test_tapestry_craft_is_left_out_of_the_file(tmp_path):
+    """Tapestry crochet, the default, isn't written, so a pattern that never chose a craft
+    saves exactly as before crafts existed; a file without one reads as tapestry."""
+    import json, zipfile
+    img, pattern = _sample_project()
+    assert pattern.craft == "tapestry"
+    path = str(tmp_path / "t.alpha")
+    io.save_project(Project(pattern=pattern), path, source_img=img)
+    with zipfile.ZipFile(path) as z:
+        assert "craft" not in json.loads(z.read("pattern.json"))
+    assert io.load_project(path).pattern.craft == "tapestry"
+
+
+def test_unknown_craft_is_kept(tmp_path):
+    """A craft from a newer build survives a load and save here, unchanged."""
+    img, pattern = _sample_project()
+    pattern.craft = "some-future-craft"
+    path = str(tmp_path / "u.alpha")
+    io.save_project(Project(pattern=pattern), path, source_img=img)
+    assert io.load_project(path).pattern.craft == "some-future-craft"
+
+
 def test_progress_roundtrip(tmp_path):
     img, pattern = _sample_project()
     prog = Progress(completed_row_ids={pattern.row_ids[0], pattern.row_ids[1]},
