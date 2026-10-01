@@ -49,7 +49,7 @@ FAMILIES: list[tuple[str, list[str]]] = [
     ("mustard", ["mustard", "dark yellow", "gold", "dark mustard"]),
     ("olive", ["olive", "dark olive", "light olive", "khaki"]),
     ("lime", ["lime", "light lime", "dark lime"]),
-    ("green", ["green", "light green", "dark green", "forest green", "pale green"]),
+    ("green", ["green", "light green", "dark green", "forest green", "pale green", "tree green"]),
     ("mint", ["mint", "light mint", "mint green"]),
     ("teal", ["teal", "dark teal"]),
     ("turquoise", ["turquoise", "light turquoise", "aqua", "light aqua", "cyan"]),
