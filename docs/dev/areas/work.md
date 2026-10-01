@@ -21,14 +21,21 @@ Newest last, as they were built.
   otherwise the next row passes the dropped strand first, and it's picked up there and
   carried up to its first stitch. Either way |q − p| stitches between consecutive rows,
   never more. Carrying between two runs of one colour in a row isn't shown (it's done
-  anyway), a colour missing from the next row is dropped, and when rows don't alternate
-  a strand the next row needs behind it gets no suggestion (it can't be reached without a
-  float). The chart draws each strand as a band of its colour through the middle of the
-  stitches it's carried in (rows under 6 px tall get none), and each chip of the current
-  row says "carry Black over the first 2" or "pick up Black, carry over the last 3". Not
-  in the Python: the desktop never showed it, and it only reads the pattern. Tested
-  against the strands themselves: over 800 random patterns, every strand enters a row
-  where it left the one before when rows alternate, carried exactly |q − p|.
+  anyway), and a colour missing from the next row is dropped. When rows don't alternate
+  the work is in rounds, the last stitch of a round followed by the first of the next: a
+  strand the next round needs behind where it was left is carried on round that join
+  (over the rest of the round, then the next round's stitches up to its first, cols − 1 −
+  (p − q) in working positions), and one needed right above where it was left waits
+  there. That can mean carrying a colour nearly all the time; the owner accepted that
+  over cutting and rejoining. (Until this, rounds got no suggestion there at all.) The
+  chart draws each strand as a band of its colour through the middle of the stitches
+  it's carried in (rows under 6 px tall get none), and each chip of the current row says
+  "carry Black over the first 2" or "pick up Black, carry over the last 3". Not in the
+  Python: the desktop never showed it, and it only reads the pattern. Tested against the
+  strands themselves: over 800 random patterns, every strand enters a row where it left
+  the one before (or, in rounds, leaves at the end of a round and enters at the start of
+  the next), carried exactly |q − p| when rows alternate and exactly as far along the
+  rounds as needed when they don't.
 - <a id="tall-only-scroll"></a>**Only tall charts scroll** (`render/layout.ts`,
   `shouldScroll`). A chart more than 2:1 taller than wide is sized to its width and
   scrolls down, following the current row, as before. A chart more than 2:1 wider than
@@ -46,7 +53,9 @@ Newest last, as they were built.
     ("knots", "beads").
   - **Show where to carry yarn** shows only for tapestry crochet. Other crafts don't carry
     inside stitches, and the app-wide setting is left as it is.
-  - **Start from the top row** (`bottom_up`) and **Rows turn** (`alternate_direction`)
+  - **Start from the top row** (`bottom_up`) and **Work in rounds (every row the same
+    way)** (`alternate_direction` off; the label is the craft's `sameWay`, **Every row the
+    same way** for a bracelet or bead loom, which aren't worked in rounds)
     join **Start rows from the right**.
   - Every one of these changes goes through `reorder` (`logic/progress.ts`):
     - Rows marked done stay done, as row ids do.
