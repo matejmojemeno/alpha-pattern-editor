@@ -80,6 +80,9 @@ export const desktopDetect = (file: string, corrections: Correction[] = []) => r
 export const desktopPicture = (file: string, settings: string[] = []) =>
   run(['picture', file, ...settings]) as DesktopPattern & { kind: 'chart' | 'picture' }
 
+/** What the web's pixel art reading makes of `file` (core/pixels.py, as bridge.py reads it). */
+export const desktopPixels = (file: string) => run(['pixels', file]) as DesktopPattern & { kind: 'chart' | 'picture' | 'pixels' }
+
 /** Open a `.alpha` file as the desktop does. */
 export const desktopLoad = (file: string) => run(['load', file]) as DesktopProject
 

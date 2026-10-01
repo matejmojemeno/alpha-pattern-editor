@@ -76,9 +76,9 @@ break without noticing.
 - <a id="old-dmc-setting"></a>**Settings saved before the yarn libraries went off by default still say `"dmc"`.**
   The store writes every field whenever one changes, so an old `"dmc"` can't be told
   from a choice. Such a browser keeps showing DMC shades until "Nothing" is picked.
-- <a id="parity-check"></a>**After any change to `alphareader/core/detect`, `kind.py` or `convert.py`, run
-  `python scripts/parity/check.py`.** It must report 114/114 bit-identical (89 charts and
-  25 pictures, each also read by `kind.py` and converted twice). It exits non-zero
+- <a id="parity-check"></a>**After any change to `alphareader/core/detect`, `kind.py`, `pixels.py` or `convert.py`, run
+  `python scripts/parity/check.py`.** It must report 122/122 bit-identical (89 charts, 25
+  pictures and 8 pixel images, each also read by `kind.py` and converted twice). It exits non-zero
   otherwise. Run `npm install` in `scripts/parity/` once first.
 - <a id="failure-not-picture"></a>**A detection failure is not a picture, and a detected grid is not a chart.** Most
   photos fail as LOW_RESOLUTION, as real charts with small squares do; pictures can fit a
@@ -103,6 +103,10 @@ break without noticing.
   as first tried), a white background filling half a picture weighed 1/156 of the rest
   and lost its colour. Small distinct areas are protected by the "unexplained samples"
   step instead, which compares worst errors, not squared error (an area measure).
+- <a id="pixel-art-last"></a>**Pixel art is read as pixels only when it can't be a chart.** A crisp chart is
+  itself an exact enlargement (2 px lines: 2×; any chart at 1:1), so an enlargement loses
+  to a chart, read or refused, whose squares aren't its blocks, and 1:1 wins only where
+  detection finds no chart. Enlargements under 2× are 1:1 (`pixels._MIN_SCALE`).
 - <a id="python-is-spec"></a>**The Python is the spec for readout, progress and editing.** If `readout.ts`/`work.ts`
   disagree with `fixtures/logic_golden.json`, or `edit.ts` with `fixtures/edit_golden.json`,
   the TypeScript is wrong. If you change `readout.py`, `work.py` or `edit.py`, run

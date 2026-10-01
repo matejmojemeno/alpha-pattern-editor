@@ -6,7 +6,7 @@ import { clampWidth, colourSteps, detailText, kindLine, MAX_COLOURS, sizeText, s
 import { finishedSize, type Swatch } from '../../src/yarn/usage.ts'
 
 const swatch = (over: Partial<Swatch> = {}): Swatch => ({ stitches: 10, rows: 10, widthCm: null, heightCm: null, grams: null, ...over })
-const reading = (over: Partial<Reading> = {}): Reading => ({ kind: 'chart', sure: true, canChart: true, failure: null, ...over })
+const reading = (over: Partial<Reading> = {}): Reading => ({ kind: 'chart', sure: true, canChart: true, canPixels: false, failure: null, ...over })
 const picture = (over: Partial<PictureSettings> = {}): PictureSettings => ({
   width: 60,
   maxWidth: 320,
@@ -57,6 +57,20 @@ describe('the line that says what the image was read as', () => {
     expect(kindLine('picture', reading({ kind: 'picture', canChart: true })).action).toEqual({
       label: 'Read it as a chart instead',
       mode: 'chart',
+    })
+  })
+
+  it('reads pixel art block by block, with the way to a picture and back', () => {
+    const pixels = reading({ kind: 'pixels', canChart: false, canPixels: true })
+    expect(kindLine('pixels', pixels)).toEqual({
+      text: 'Read pixel by pixel: each block of your image is one stitch.',
+      action: { label: 'Turn it into a pattern instead', mode: 'picture' },
+      prominent: false,
+    })
+    // Back to pixels, not to a chart, even where detection also fitted a grid to it.
+    expect(kindLine('picture', { ...pixels, canChart: true }).action).toEqual({
+      label: 'Read it pixel by pixel instead',
+      mode: 'pixels',
     })
   })
 

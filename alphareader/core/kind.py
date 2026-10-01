@@ -25,6 +25,7 @@ from .detect import detect_pattern
 from .detect import periodic
 from .detect.palette import DEFAULT_DELTA_E
 from .model import DetectionError, DetectionResult
+from .pixels import PixelArt, read_pixels
 
 # A fitted grid is a chart when all three hold ...
 _MAX_CELL_RATIO = 1.5       # long side over short side of a square
@@ -49,7 +50,7 @@ _CHART_FAILURES = ("LOW_RESOLUTION", "ROTATED")
 class Reading:
     """What the import makes of an image.
 
-    kind:    "chart" or "picture".
+    kind:    "chart", "picture" or "pixels" (pixel art without gridlines, read exactly).
     sure:    False for a chart read with doubts: shown with a visible way to turn it into
              a pattern instead.
     result:  the detected grid, when there is one: also kept for a picture, so it can
@@ -57,12 +58,15 @@ class Reading:
     error:   detection's refusal, when the image looks like a chart it can't read
              (LOW_RESOLUTION, ROTATED); None otherwise.
     reason:  a short note on why, for tests and bug reports (never shown as advice).
+    pixels:  the image as uniform blocks (pixels.py), when it is read as pixels: kept
+             after turning it into a pattern, to go back.
     """
     kind: str
     sure: bool
     result: DetectionResult | None
     error: DetectionError | None
     reason: str
+    pixels: PixelArt | None = None
 
 
 def line_contrast(prof: np.ndarray, x0: float, pitch: float, lo: float = 0.0,
@@ -101,33 +105,75 @@ def looks_like_fine_grid(img: np.ndarray) -> bool:
     """Whether an image refused as too fine (or rotated) still has a grid's structure:
     a fit below the minimum square size with square cells, lines on the lattice, and
     most lattice positions on a detected line."""
+    return fine_grid_pitch(img) is not None
+
+
+def fine_grid_pitch(img: np.ndarray) -> float | None:
+    """The square size of the grid `looks_like_fine_grid` sees, or None if it sees none."""
     dh, dv = periodic.edge_maps(img)
     pr, pc = periodic.profiles_from_maps(dh, dv)
     try:
         fr = periodic.fit_periodic_axis(pr, img.shape[0], min_pitch=periodic._SEARCH_FLOOR)
         fc = periodic.fit_periodic_axis(pc, img.shape[1], min_pitch=periodic._SEARCH_FLOOR)
     except DetectionError:
-        return False
+        return None
     ratio = max(fr.pitch, fc.pitch) / min(fr.pitch, fc.pitch)
     contrast = min(line_contrast(pr, fr.x0, fr.pitch), line_contrast(pc, fc.x0, fc.pitch))
     agreement = min(periodic._peak_agreement(fr.peaks, fr.x0, fr.pitch, pr.size),
                     periodic._peak_agreement(fc.peaks, fc.x0, fc.pitch, pc.size))
-    return (ratio <= _FINE_MAX_RATIO and contrast >= _FINE_MIN_CONTRAST
-            and agreement >= _FINE_MIN_AGREEMENT)
+    if ratio <= _FINE_MAX_RATIO and contrast >= _FINE_MIN_CONTRAST and agreement >= _FINE_MIN_AGREEMENT:
+        return (fr.pitch + fc.pitch) / 2
+    return None
 
 
 def read_image(img: np.ndarray, *, delta_e_threshold: float = DEFAULT_DELTA_E,
-               crop: tuple[int, int, int, int] | None = None) -> Reading:
-    """Detect, then decide whether `img` (or `crop` of it) is a chart or a picture."""
+               crop: tuple[int, int, int, int] | None = None,
+               flat: np.ndarray | None = None) -> Reading:
+    """Detect, then decide whether `img` (or `crop` of it) is a chart, a picture, or a
+    pixel image. `flat` is the image with transparency flattened (bridge._on_white), for
+    the pixel check; `img` when omitted.
+
+    A pixel image (pixels.py) of blocks 2 px or larger is read as pixels, unless it is
+    a sure chart whose squares aren't its blocks (a chart drawn with lines 2 px thick is
+    made of 2 px blocks too): its gridlines are then what the blocks draw. An image of
+    one pixel per stitch is read so only when detection finds no chart in it at all: a
+    small crisp chart is also uniform 1 px blocks, gridlines and all."""
+    region = img if crop is None else img[crop[1]:crop[3], crop[0]:crop[2]]
+    source = region if flat is None else (flat if crop is None else flat[crop[1]:crop[3], crop[0]:crop[2]])
+    art = read_pixels(source)
+    # Kept only when the image is read as pixels: a chart is uniform blocks too (a small
+    # crisp one, gridlines and all), and reading it pixel by pixel is no use.
+    reading = _chart_or_picture(img, region, delta_e_threshold, crop)
+    if art is None:
+        return reading
+    note = f"uniform {art.block} px blocks, {art.cols}x{art.rows}, {art.colours.shape[0]} colours"
+    if art.block >= 2:  # an enlargement (pixels._MIN_SCALE); else one pixel per stitch
+        # A chart, read or refused, whose squares aren't the blocks is a chart drawn with
+        # lines two or more pixels thick (a crisp chart is an enlargement of a thinner-lined
+        # one): its lines would become stitches.
+        if reading.kind == "chart" and reading.sure and reading.result is not None:
+            pitch = (reading.result.lattice.pitch_x + reading.result.lattice.pitch_y) / 2
+        elif reading.kind == "chart" and reading.error is not None:
+            pitch = fine_grid_pitch(region)
+        else:
+            pitch = art.block
+        if pitch is None or abs(pitch - art.block) / art.block > 0.1:
+            return reading
+        return Reading("pixels", True, reading.result, None, f"{note}; {reading.reason}", art)
+    if reading.kind == "picture":
+        return Reading("pixels", True, reading.result, None, f"{note}; {reading.reason}", art)
+    return reading
+
+
+def _chart_or_picture(img: np.ndarray, region: np.ndarray, delta_e_threshold: float,
+                      crop: tuple[int, int, int, int] | None) -> Reading:
     try:
         result = detect_pattern(img, delta_e_threshold=delta_e_threshold, crop=crop)
     except DetectionError as err:
-        region = img if crop is None else img[crop[1]:crop[3], crop[0]:crop[2]]
         if err.code in _CHART_FAILURES and looks_like_fine_grid(region):
             return Reading("chart", True, None, err, f"{err.code}, and a grid's structure")
         return Reading("picture", True, None, None, f"{err.code}")
 
-    region = img if crop is None else img[crop[1]:crop[3], crop[0]:crop[2]]
     ratio, span, unsure, contrast = _grid_signals(region, result)
     signals = f"ratio {ratio:.2f}, span {span:.2f}, unsure {unsure:.2f}, contrast {contrast:.2f}"
     if (ratio > _MAX_CELL_RATIO or span < _MIN_SPAN or contrast < _MIN_CONTRAST

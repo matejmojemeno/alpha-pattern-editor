@@ -47,6 +47,40 @@ def _load(path: str) -> np.ndarray:
     return shrink(a, shrink_factor(a.shape[1], a.shape[0], 4_000_000))
 
 
+# (file, kind, stitches across and down when read as pixels)
+PIXELS = [
+    ("bird-8x.png", "pixels", (64, 64)),
+    ("city-8x.png", "pixels", (137, 126)),       # a sure chart to detection, cropped to 69%
+    ("circle-10x.png", "pixels", (16, 16)),
+    ("face-9.375x.png", "pixels", (32, 32)),     # resized 32 to 300: blocks of 9 and 10
+    ("face-1x.png", "pixels", (32, 32)),
+    ("game-boy-1x.png", "pixels", (64, 64)),     # two equal neighbouring rows
+    ("yin-yang-1x.png", "pixels", (25, 25)),
+    ("isometric-smoothed.png", "picture", None),  # smoothed edges: 198 colours
+]
+
+
+def _load_flat(path: str) -> tuple[np.ndarray, np.ndarray | None]:
+    """As the bridge has it: RGB for detection, and flattened onto white if transparent."""
+    from ..core.bridge import _on_white
+    rgba = np.asarray(Image.open(path).convert("RGBA"))
+    h, w = rgba.shape[:2]
+    return np.ascontiguousarray(rgba[..., :3]), _on_white(rgba.tobytes(), w, h)
+
+
+@pytest.mark.parametrize("name,kind,size", PIXELS)
+def test_pixel_art_is_read_block_by_block(name, kind, size):
+    img, flat = _load_flat(os.path.join(IMAGES, "pixels", name))
+    r = read_image(img, flat=flat)
+    assert r.kind == kind, r.reason
+    assert (None if r.pixels is None else (r.pixels.cols, r.pixels.rows)) == size
+
+
+def test_every_corpus_pixel_image_is_listed():
+    on_disk = sorted(f for f in os.listdir(os.path.join(IMAGES, "pixels")) if f != "README.md")
+    assert on_disk == sorted(n for n, _, _ in PIXELS)
+
+
 @pytest.mark.parametrize("name,kind,sure,failure", CHARTS)
 def test_charts_are_read_as_charts(name, kind, sure, failure):
     r = read_image(_load(os.path.join(IMAGES, name)))

@@ -5,6 +5,7 @@ are in git history; see docs/dev/architecture.md#desktop-app.
 
     python scripts/desktop_import.py detect <image> [correction ...]
     python scripts/desktop_import.py picture <image> [setting ...]   # the web's picture import
+    python scripts/desktop_import.py pixels <image>                  # the web's pixel art
     python scripts/desktop_import.py load <file.alpha>   # as the desktop opens a project
     python scripts/desktop_import.py png <file.alpha> <exported.png>
                                             # whether the PNG is the desktop's Export PNG
@@ -161,6 +162,25 @@ def picture(path: str, *settings: str) -> dict:
     return {"ok": True, "kind": reading.kind, **_pattern(p)}
 
 
+def pixels(path: str) -> dict:
+    """What the web app makes of `path` as pixel art (core/pixels.py, as bridge.py reads
+    it: transparency flattened onto white): kind.py's verdict, and the pattern, a stitch
+    per block."""
+    from alphareader.core.bridge import _on_white
+    from alphareader.core.kind import read_image
+    from alphareader.core.pixels import pixel_preview
+
+    with Image.open(path) as im:
+        rgba = np.array(im.convert("RGBA"), dtype=np.uint8)
+    h, w = rgba.shape[:2]
+    rgb = np.ascontiguousarray(rgba[:, :, :3])
+    reading = read_image(rgb, flat=_on_white(rgba.tobytes(), w, h))
+    if reading.pixels is None:
+        return {"ok": False, "kind": reading.kind}
+    p = pattern_from_preview(pixel_preview(reading.pixels), "x")
+    return {"ok": True, "kind": reading.kind, **_pattern(p)}
+
+
 def load(path: str) -> dict:
     project = io.load_project(path)
     source = io.load_source_image(path)
@@ -193,4 +213,5 @@ def png(path: str, exported: str) -> dict:
 
 if __name__ == "__main__":
     mode, path, *rest = sys.argv[1:]
-    print(json.dumps({"detect": detect, "picture": picture, "load": load, "png": png}[mode](path, *rest)))
+    print(json.dumps({"detect": detect, "picture": picture, "pixels": pixels, "load": load,
+                      "png": png}[mode](path, *rest)))

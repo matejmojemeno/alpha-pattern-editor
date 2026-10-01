@@ -57,7 +57,7 @@ export function makePreview(session: number, rows = 3, cols = 4, over: Partial<P
     ok: true,
     session,
     mode: 'chart',
-    reading: { kind: 'chart', sure: true, canChart: true, failure: null },
+    reading: { kind: 'chart', sure: true, canChart: true, canPixels: false, failure: null },
     picture: null,
     rows,
     cols,
@@ -82,12 +82,12 @@ export function makePreview(session: number, rows = 3, cols = 4, over: Partial<P
  *  across a 400 × 300 image, the rows following for square stitches. */
 export function makePicturePreview(
   session: number,
-  { width = 8, colours = 6, detail = 0.5, canChart = false, kind = 'picture' as 'chart' | 'picture', extent = { x0: 0, y0: 0, x1: 400, y1: 300 } } = {},
+  { width = 8, colours = 6, detail = 0.5, canChart = false, kind = 'picture' as 'chart' | 'picture' | 'pixels', extent = { x0: 0, y0: 0, x1: 400, y1: 300 } } = {},
 ): Preview {
   const rows = Math.max(1, Math.round((width * (extent.y1 - extent.y0)) / (extent.x1 - extent.x0)))
   return makePreview(session, rows, width, {
     mode: 'picture',
-    reading: { kind, sure: true, canChart, failure: null },
+    reading: { kind, sure: true, canChart, canPixels: false, failure: null },
     picture: { width, maxWidth: 400, colours, detail, cellAspect: 1 },
     extent,
     imageWidth: 400,

@@ -58,7 +58,9 @@ def picture_digest(path: str) -> dict:
     img = np.load(path)
     t0 = time.perf_counter()
     r = read_image(img)
-    out = {"kind": [r.kind, bool(r.sure), None if r.error is None else r.error.code]}
+    out = {"kind": [r.kind, bool(r.sure), None if r.error is None else r.error.code],
+           "pixels": None if r.pixels is None else [r.pixels.cols, r.pixels.rows, hashlib.sha256(
+               r.pixels.cells.astype(np.uint16).tobytes()).hexdigest(), r.pixels.colours.tolist()]}
     for tag, kw in (("picture", {}), ("picture_small", {"cols": 40, "colours": 4, "detail": 0.2})):
         p = convert_picture(img, **kw)
         out[tag] = {

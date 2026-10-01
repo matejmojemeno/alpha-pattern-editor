@@ -30,7 +30,7 @@ HERE = os.path.join(ROOT, "scripts", "parity")
 COMPARED = ("ok", "code", "rows", "cols", "cells_sha", "palette", "warnings",
             "pitch_x", "pitch_y", "x0", "y0", "conf_mean",
             # kind.py's verdict and convert.py's pattern at two settings (digest.py).
-            "kind", "picture", "picture_small")
+            "kind", "pixels", "picture", "picture_small")
 
 
 def _decode_real(dest: str) -> int:
@@ -39,7 +39,7 @@ def _decode_real(dest: str) -> int:
     from PIL import Image
     patterns = ("test_images/*.png", "test_images/*.jpg", "test_images/failed/*.jpg",
                 "test_images/pictures/*.jpg", "test_images/pictures/*.png",
-                "test_images/pictures/*.webp")
+                "test_images/pictures/*.webp", "test_images/pixels/*.png")
     files = sorted(f for p in patterns for f in glob.glob(os.path.join(ROOT, p)))
     for f in files:
         arr = np.asarray(Image.open(f).convert("RGB"), dtype=np.uint8)

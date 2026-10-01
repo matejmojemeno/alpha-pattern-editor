@@ -171,6 +171,48 @@ Newest last, as they were built.
     + 2.6 KB CSS, Design 27.4 KB (unchanged). `importer/picture.ts` repeats usage.ts's
     four-line stitch size instead of importing it, which split usage.ts into a shared
     4.8 KB chunk.
+- <a id="pixel-images"></a>**Pixel images** (`core/pixels.py`, `kind.py`, the bridge's `pixels` mode; spec.md
+  §5a). Pixel art without gridlines is read exactly, a stitch per block: "Read pixel by
+  pixel: each block of your image is one stitch.", with "Turn it into a pattern instead"
+  and back ("Read it pixel by pixel instead"). No outline or box; colours merge as a
+  chart's. Before, an 8× sprite came out cropped (60×60 as 51×58), 4× and 1:1 were
+  refused, and a real 8× city (137×126) was a "sure chart" spanning 69% of it.
+  - Found by testing real CC0 pixel art (`test_images/pixels/`, fetched with provenance by
+    `scripts/fetch_test_pictures.py`): images resized by a fraction (32 → 300 px, blocks
+    of 9 and 10) are common, and tools round the block edges differently (Pillow rounds a
+    half down), so a colour change within a pixel of each ideal edge is accepted and the
+    image must then be exactly its blocks. A 1:1 sprite with two equal rows once read as
+    63 rows stretched by 64/63, and a crisp chart with 2 px lines as a 1.5× enlargement:
+    hence the 2× minimum.
+  - All 7 pixel images, 9 charts and 25 pictures are read as what they are; the real city
+    and a generated 7× sprite save exactly in the browser (e2e). Parity 122/122.
+  - **Why not just "detection failed = picture":** of 25 CC0 pictures in
+    `test_images/pictures/` (fetched with provenance by `scripts/fetch_test_pictures.py`),
+    11 fail as LOW_RESOLUTION, like `garment.png`, a real chart; 12 fit a grid, the dice
+    10×4 at 78% unsure. `kind.py` asks whether the grid looks like one: square-ish cells,
+    spanning the image, edge strength on the lattice at least twice that between lines
+    (every chart 5.8–108, every picture 1.5 or less). All 9 charts and 25 pictures come out
+    right; `bunny.jpg` (34% unsure) is a chart with doubts.
+  - **Why not the other tools' method:** research (Stitch Fiddle, ArtPatt, Stitchmate and
+    others; users' #1 complaint is confetti, lone stitches) and a prototype showed that
+    shrinking, reducing colours by area and a majority filter erase eyes and dots with the
+    noise. `convert.py` scores each stitch against all the pixels it covers, charges for
+    colour changes (twice as much along a row as up a column), and gives a colour to any
+    small group far from every colour. Tests: a pupil in a gradient keeps its colour, a
+    white half keeps white, a one-stitch line survives, speckle drops by over 3×.
+  - Bridge: `open_session(cell_aspect=)`, `set_mode`, picture parameters in `set_params`
+    (width, colours, detail, cell_aspect, extent), `mode`/`reading`/`picture` in every
+    preview; a chart's refusal carries `reading` so the screen can offer the picture.
+  - Speed (desktop, 60 wide): first conversion 0.2–0.6 s, Detail 0.01 s, colours
+    0.15–0.6 s, 120 wide 0.3–0.9 s. Pyodide runs detection and conversion about 2.1× slower.
+  - e2e (`import.spec.ts`): a generated picture, and the same at 40 wide, 5 colours and
+    detail 0.2 set through the controls, save exactly the cells `scripts/desktop_import.py
+    picture` makes; so does garment.png turned into a pattern anyway; a chart switched to a
+    picture and back saves the desktop's chart.
+  - Tier A: the main entry chunk 104.7 KB gzipped (unchanged), Import 10.6 KB (from 9.0)
+    + 2.6 KB CSS, Design 27.4 KB (unchanged). `importer/picture.ts` repeats usage.ts's
+    four-line stitch size instead of importing it, which split usage.ts into a shared
+    4.8 KB chunk.
 
 ## During the port
 
