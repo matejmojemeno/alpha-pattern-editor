@@ -30,6 +30,18 @@ Newest last, as they were built.
   in the Python: the desktop never showed it, and it only reads the pattern. Tested
   against the strands themselves: over 800 random patterns, every strand enters a row
   where it left the one before when rows alternate, carried exactly |q − p|.
+  - <a id="counted-carries"></a>**Only carries you count are shown** (`countedCarries`). A carry that
+    runs to either end of its row is left off the chart and the chips: carrying on to
+    the end of the row, or holding the strand from the start of one, is what a tapestry
+    crocheter does anyway, with nothing to count. Shown are those that start or stop
+    partway through a row, where you must know after how many stitches to drop a strand
+    or where to pick it up. The owner's two-colour cats had a strand along every row
+    where a cat met the side of the chart, which hid the few that matter. Everything is
+    still carried: the yarn estimate (`carriedStitches`) and Visualize use the whole
+    plan.
+  - The strands are lines, 2 or 3 px with 1 px edges (`carryThickness`, a tenth of the
+    row), not the band of up to 8 px (a third of the row) they began as, which hid the
+    stitches it crossed.
 - <a id="tall-only-scroll"></a>**Only tall charts scroll** (`render/layout.ts`,
   `shouldScroll`). A chart more than 2:1 taller than wide is sized to its width and
   scrolls down, following the current row, as before. A chart more than 2:1 wider than
