@@ -1,16 +1,19 @@
 /** Small building blocks shared by the screens. */
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 
+import { HELP_LABEL, helpUrl, type HelpTopic } from '../app/help.ts'
 import { href, paths } from '../app/router.ts'
 import type { ThumbnailKind } from '../storage/thumbnail.ts'
 import { useBlobImage } from './hooks.ts'
+import { HelpIcon } from './icons.tsx'
 import { cleanName, MAX_NAME_LENGTH } from './names.ts'
 import { formatPct, IMPORT_ACCEPT, type Notice, type ReplaceQuestion } from './useAlphaImport.ts'
 
 // --- layout -----------------------------------------------------------------------------
 
-/** The header of every screen but the landing one: a way home, and the screen's title. */
-export function TopBar({ title, children }: { title: string; children?: ReactNode }) {
+/** The header of every screen but the landing one: a way home, the screen's title, and
+ *  a link to its page of the guide. */
+export function TopBar({ title, help, children }: { title: string; help?: HelpTopic; children?: ReactNode }) {
   return (
     <header className="topbar">
       <a className="topbar__home" href={href(paths.landing)}>
@@ -18,7 +21,25 @@ export function TopBar({ title, children }: { title: string; children?: ReactNod
       </a>
       <h1 tabIndex={-1}>{title}</h1>
       {children && <div className="topbar__actions">{children}</div>}
+      {help && <HelpLink topic={help} />}
     </header>
+  )
+}
+
+/** A small "?" that opens this screen's page of the user guide in a new tab, so the
+ *  pattern on screen stays where it is. */
+export function HelpLink({ topic }: { topic: HelpTopic }) {
+  return (
+    <a
+      className="help-link"
+      href={helpUrl(topic)}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`Help with ${HELP_LABEL[topic]} (opens in a new tab)`}
+      title={`Help with ${HELP_LABEL[topic]}`}
+    >
+      <HelpIcon />
+    </a>
   )
 }
 

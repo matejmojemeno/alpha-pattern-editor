@@ -95,7 +95,7 @@ import type { Pattern, Project } from '../../model/types.ts'
 import { fitCell, zoomStep, type Overlay } from '../../render/design.ts'
 import { exportPng } from '../../render/png.ts'
 import type { ProjectRepo } from '../../storage/repo.ts'
-import { ConfirmDialog } from '../components.tsx'
+import { ConfirmDialog, HelpLink } from '../components.tsx'
 import { ColoursPanel } from '../design/ColoursPanel.tsx'
 import { DesignCanvas } from '../design/DesignCanvas.tsx'
 import { ToolIcon, TurnIcon } from '../design/icons.tsx'
@@ -924,6 +924,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
         <button type="button" className="button button--primary design__work" onClick={startWorking}>
           Start working →
         </button>
+        <HelpLink topic="design" />
       </header>
 
       {warning && (

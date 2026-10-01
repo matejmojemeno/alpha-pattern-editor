@@ -17,7 +17,8 @@ is written) carry its rules from then on.
 | #41 | Generated screenshots and the tour: `npm run docs:media` writes `docs/guide/media/` from the demo pattern in `fixtures/demo/`. How it works is in [`guide/media/README.md`](guide/media/README.md). |
 | #43 | The README is the app's front page: the link, the tour, Import, Design and Work with a screenshot each, where projects are stored, credits. |
 | #44 | The desktop app is removed. Nothing user-facing describes it; the one thing kept is that the web app opens the `.alpha` files it saved. |
-| (this PR) | The user guide, [`docs/guide/`](guide/index.md): ten pages, one per screen, written from the code and the e2e specs. `CHANGELOG.md` seeded, the README links the guide, the guide's style rules moved into [`docs/README.md`](README.md), and `web/tests/docs.test.ts` checks every image in `docs/guide/media/` is used, and every image a page uses is one `docs-media.spec.ts` writes. |
+| #48 | The user guide, [`docs/guide/`](guide/index.md): ten pages, one per screen, written from the code and the e2e specs. `CHANGELOG.md` seeded, the README links the guide, the guide's style rules moved into [`docs/README.md`](README.md), and `web/tests/docs.test.ts` checks every image in `docs/guide/media/` is used, and every image a page uses is one `docs-media.spec.ts` writes. |
+| (this PR) | The app links to the guide: a **Help** tile on the home screen and a **?** in every header (`web/src/app/help.ts`, checked by `web/tests/docs.test.ts`); **About** in Settings with the version and commit; the README's sentence as the description; Open Graph and Twitter card tags; the Settings tile names carrying yarn; `web/package.json` is `alpha-pattern-editor` `1.0.0`. |
 
 ## Principles
 
@@ -39,27 +40,7 @@ is written) carry its rules from then on.
 - **Stable anchors.** Guide headings are tasks ("Fix a grid that's one row short"), and
   the app's help links point at them; a test checks every anchor the app links to exists.
 
-## Next: the app links to the guide
-
-- A **Help** tile on the home screen, and a small **?** in each stage's header that opens
-  that stage's guide page. `web/src/app/help.ts` holds every link; a unit test checks
-  each anchor exists in `docs/guide/`. The links point at GitHub until the guide is on
-  the website (below).
-- **About** at the bottom of Settings: the version from `package.json` and the commit it
-  was built from, with a link to "What's new", so bug reports say which build they're
-  about.
-- **The description is out of date.** `index.html`'s `<meta name="description">` and the
-  home screen's subtitle say "Follow a crochet alpha chart row by row, and keep your
-  place.", which leaves out import and design. Use the README's sentence: "Turn a photo
-  of a crochet alpha chart into a pattern you can edit and follow row by row."
-- **Link previews:** Open Graph and Twitter card tags (`og:image` a generated
-  screenshot), so a link shared in a chat or forum shows a picture.
-- **The Settings tile** says "Display preferences: row emphasis, high contrast, focus
-  mode." It also holds **Show where to carry yarn**; the tile should say so.
-- `web/package.json`: `"name": "web"`, `"version": "0.0.0"` become
-  `"alpha-pattern-editor"` and `"1.0.0"`.
-
-## Then: the guide on the website
+## Next: the guide on the website
 
 Build `docs/guide/` into static pages with **VitePress** in the same Cloudflare build,
 into `web/dist/help/`, so someone crocheting on a phone never has to go to GitHub.
@@ -82,8 +63,9 @@ never collides; every PR preview includes the guide.
   Chrome". Crocheters follow patterns on iPhones and iPads, which means Safari: adding
   Playwright's WebKit project (at least for Work and Library) would let the README say
   more.
-- **Release 1.0.0** once the guide and help links are in: the changelog section, the
-  version, a tag, a GitHub Release.
+- **Release 1.0.0** now the guide and help links are in: `web/package.json` already says
+  `1.0.0`; what's left is turning the changelog's "Unreleased" into "1.0.0" with the
+  date, a `v1.0.0` tag on `main`, and a GitHub Release.
 
 ## Decisions for the owner
 

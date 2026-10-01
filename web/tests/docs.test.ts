@@ -14,6 +14,8 @@ import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
+import { GUIDE_BASE, HELP, REPO_URL } from '../src/app/help.ts'
+
 const REPO = fileURLToPath(new URL('../../', import.meta.url))
 const SKIP_DIRS = new Set([
   'node_modules', '.git', '.venv', 'dist', '__pycache__', 'test-results',
@@ -109,6 +111,14 @@ function checkTarget(path: string, anchor: string | undefined): string | null {
   if (anchor === undefined || anchor === '') return null
   if (!path.endsWith('.md') || statSync(abs).isDirectory()) return null
   return anchorsOf(path).has(anchor) ? null : `no heading or id "${anchor}" in ${path}`
+}
+
+/** The app's help links (src/app/help.ts) whose page or anchor isn't in docs/guide/. */
+export function helpProblems(help: Record<string, { page: string; anchor?: string }>): string[] {
+  return Object.entries(help).flatMap(([topic, { page, anchor }]) => {
+    const problem = checkTarget(`docs/guide/${page}`, anchor)
+    return problem ? [`${topic}: ${problem}`] : []
+  })
 }
 
 export interface Problem {
@@ -274,6 +284,24 @@ describe('docs', () => {
     )
     expect(slug('`CLAUDE.md` and [the rules](rules.md)')).toBe('claudemd-and-the-rules')
     expect(anchorsOf('docs/dev/rules.md').has('nd-py')).toBe(true)
+  })
+
+  it("every guide page and anchor the app's help links point at exists", () => {
+    expect(helpProblems(HELP)).toEqual([])
+    // The links are read on GitHub, from main, where docs/guide/ is.
+    expect(GUIDE_BASE).toBe(`${REPO_URL}/blob/main/docs/guide/`)
+  })
+
+  it('reports a help link to a missing page or anchor', () => {
+    const help = {
+      ok: { page: 'work.md', anchor: 'keep-the-screen-awake' },
+      page: { page: 'nope.md' },
+      anchor: { page: 'work.md', anchor: 'nope' },
+    }
+    expect(helpProblems(help)).toEqual([
+      'page: no such file',
+      'anchor: no heading or id "nope" in docs/guide/work.md',
+    ])
   })
 
   it('reports a broken link, a broken anchor and a broken cited path by file and line', () => {

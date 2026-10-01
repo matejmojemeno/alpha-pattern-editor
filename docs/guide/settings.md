@@ -4,7 +4,7 @@ Settings are display preferences for the whole app. Open them from **Settings** 
 home screen. They're saved in this browser and apply to every project. All four also appear in the
 Work stage's **Options**, so you can change them without leaving your pattern.
 
-<img src="media/settings.png" alt="The Settings screen: four switches, each with a line saying what it does" width="700">
+<img src="media/settings.png" alt="The Settings screen: four switches, each with a line saying what it does, and About underneath" width="700">
 
 ## Make the current row easier to find
 
@@ -32,3 +32,9 @@ the stitches, and over how many. It's off to start with. See
 This isn't in Settings: it belongs to each pattern. Set it with **Start rows from the
 right** in the Work stage's **Options**
 ([which row is row 1](work.md#which-row-is-row-1-and-which-way-it-runs)).
+
+## Find which version you're using
+
+**About**, at the bottom of Settings, gives the app's version and the build it's from.
+Mention both when you report a problem. **What's new** lists what changed in each
+version.

@@ -110,6 +110,29 @@ code {
   gap: 0.5rem;
 }
 
+/* The "?" at the end of every header: this screen's page of the guide. A full tap
+   target, with only the icon showing. */
+.help-link {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: 50%;
+  color: var(--muted);
+}
+
+.help-link:hover,
+.help-link:focus-visible {
+  color: var(--text);
+}
+
+.help-link .icon {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
 /* --- buttons ------------------------------------------------------------------------- */
 
 .button {
@@ -592,6 +615,18 @@ code {
   font-size: var(--text-sm);
 }
 
+.settings__about {
+  max-width: 40rem;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+
+.settings__about h2 {
+  font-size: var(--text-name);
+}
+
 /* --- work ------------------------------------------------------------------------------ */
 
 /* The whole stage fits the viewport, so the Row complete button never scrolls away; the
@@ -707,6 +742,11 @@ code {
 }
 
 @media (max-width: 699px) {
+  /* The pattern's name needs the room; Help is in Options too. */
+  .work__top .help-link {
+    display: none;
+  }
+
   .work__row {
     font-size: 1.385rem;
   }

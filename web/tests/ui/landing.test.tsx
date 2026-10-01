@@ -40,12 +40,25 @@ describe('Landing screen', () => {
     expect(feedback.getAttribute('target')).toBe('_blank')
     expect(feedback.getAttribute('rel')).toContain('noopener')
 
+    // Help opens the guide's first page, in a new tab so the app stays where it is.
+    const help = screen.getByRole('link', { name: /^Help/ })
+    expect(help.getAttribute('href')).toBe(
+      'https://github.com/matejmojemeno/alpha-pattern-editor/blob/main/docs/guide/index.md',
+    )
+    expect(help.getAttribute('target')).toBe('_blank')
+    expect(help.getAttribute('rel')).toContain('noopener')
+
+    // What the app is for, as the README says it.
+    expect(screen.getByText(/Turn a photo of a crochet alpha chart into a pattern/)).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Settings/ }).textContent).toMatch(/carry yarn/)
+
     // Stacked beside the drop zone in the sketch's order.
     const tiles = within(screen.getByRole('list')).getAllByRole('listitem').map((li) => li.textContent)
-    expect(tiles.map((t) => /^(Library|Design pattern|Settings|Feedback)/.exec(t ?? '')?.[1])).toEqual([
+    expect(tiles.map((t) => /^(Library|Design pattern|Settings|Help|Feedback)/.exec(t ?? '')?.[1])).toEqual([
       'Library',
       'Design pattern',
       'Settings',
+      'Help',
       'Feedback',
     ])
   })

@@ -329,7 +329,7 @@ export default function ImportScreen() {
   if (state.phase === 'choose' || !image) {
     return (
       <main className="screen import" {...drop.handlers}>
-        <TopBar title="Import pattern" />
+        <TopBar title="Import pattern" help="import" />
         <Notices notices={notices} />
         <div className="empty import__choose">
           <p>Choose a photo or screenshot of an alpha chart.</p>
@@ -358,7 +358,7 @@ export default function ImportScreen() {
 
   return (
     <main className="screen import" {...drop.handlers}>
-      <TopBar title="Import pattern" />
+      <TopBar title="Import pattern" help="import" />
       <SaveBar
         name={name}
         onName={setName}
