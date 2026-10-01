@@ -37,5 +37,8 @@ export default defineConfig({
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
     timeout: 180_000,
+    // No commit in Settings' About (vite.config.ts), or settings.png would change with
+    // every commit.
+    env: { WORKERS_CI_COMMIT_SHA: '' },
   },
 })

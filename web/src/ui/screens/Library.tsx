@@ -88,7 +88,7 @@ export function Library() {
   return (
     <main className="screen library" {...drop.handlers}>
       <div ref={heading}>
-        <TopBar title="Your projects">
+        <TopBar title="Your projects" help="library">
           <ImportButton
             onFiles={(f) => {
               setActionNotice(null)
