@@ -75,6 +75,11 @@ function run(args: string[]): unknown {
 /** Detect `file` as the desktop's import window does, then apply `corrections`. */
 export const desktopDetect = (file: string, corrections: Correction[] = []) => run(['detect', file, ...corrections]) as DesktopPattern
 
+/** What the web's picture import makes of `file` (core/convert.py, as bridge.py runs it),
+ *  with `settings` such as `width=40`, `colours=4`, `detail=0.2`, `extent=x0,y0,x1,y1`. */
+export const desktopPicture = (file: string, settings: string[] = []) =>
+  run(['picture', file, ...settings]) as DesktopPattern & { kind: 'chart' | 'picture' }
+
 /** Open a `.alpha` file as the desktop does. */
 export const desktopLoad = (file: string) => run(['load', file]) as DesktopProject
 

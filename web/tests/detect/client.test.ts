@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_MAX_PIXELS, DetectClient, DetectSession } from '../../src/detect/client.ts'
 import type { Outcome, Preview } from '../../src/detect/protocol.ts'
-import { FakeWorker, makePreview } from './fakeWorker.ts'
+import { FakeWorker, makePicturePreview, makePreview } from './fakeWorker.ts'
 
 const flush = () => new Promise((r) => setTimeout(r, 0))
 
@@ -199,6 +199,37 @@ describe('DetectSession', () => {
     worker.reply(worker.of('update')[0]!.id, makePreview(7))
     await flush()
     expect(worker.of('update')).toHaveLength(1)
+  })
+
+  it('switches mode after the update in flight, dropping any still waiting', async () => {
+    const { session, worker } = await opened()
+    const inFlight = session.update({ rows: 5 })
+    const waiting = session.update({ rows: 6 })
+    const switched = session.setMode('picture')
+    expect(await waiting).toMatchObject({ ok: false, code: 'STALE' })
+    await flush()
+    expect(worker.of('mode')).toHaveLength(0) // not before the update in flight is answered
+    worker.reply(worker.of('update')[0]!.id, makePreview(7, 5, 4))
+    expect(await inFlight).toMatchObject({ ok: true, rows: 5 })
+    await flush()
+    const [m] = worker.of('mode')
+    expect(m).toMatchObject({ session: 7, mode: 'picture' })
+    worker.reply(m!.id, makePicturePreview(7))
+    expect(await switched).toMatchObject({ ok: true, mode: 'picture' })
+    expect(session.latest?.mode).toBe('picture')
+    expect(worker.of('update')).toHaveLength(1) // the dropped change was never sent
+  })
+
+  it('sends the stitch shape with an open, and a picture’s settings with an update', async () => {
+    const { worker, client } = setup()
+    void client.open(image(), { cellAspect: 0.8 })
+    expect(worker.of('open')[0]).toMatchObject({ cellAspect: 0.8 })
+    void client.open(image())
+    expect(worker.of('open')[1]).not.toHaveProperty('cellAspect')
+
+    const { session, worker: w2 } = await opened()
+    void session.update({ width: 40, colours: 5, detail: 0.3 })
+    expect(w2.of('update')[0]!.params).toEqual({ width: 40, colours: 5, detail: 0.3 })
   })
 
   it('returns update errors as data', async () => {

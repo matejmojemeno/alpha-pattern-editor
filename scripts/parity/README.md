@@ -1,7 +1,9 @@
 # Pyodide parity harness
 
 Proves that `alphareader/core/detect` produces **identical** results under Pyodide (WASM)
-and desktop CPython.
+and desktop CPython, and so do the chart-or-picture decision (`core/kind.py`) and the
+picture conversion (`core/convert.py`), which every image also goes through, at two
+settings. The corpus includes the pictures in `test_images/pictures/`.
 
 This matters because of how the web port is built: everything else in the app is being
 reimplemented in TypeScript, but the detection pipeline is not — it runs as the same
@@ -40,6 +42,9 @@ fields are included deliberately, since a differing numpy build would perturb th
 before it moved a quantised cell index.
 
 ## Baseline
+
+As of 2026-09-29, **114/114 bit-identical** (the 89 below and 25 pictures, each also
+through kind.py and convert.py), 2.1x slower under WASM, same versions as below.
 
 As of 2026-09-22, with **89/89 bit-identical**:
 

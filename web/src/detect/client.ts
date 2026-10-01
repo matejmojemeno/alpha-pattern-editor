@@ -27,6 +27,7 @@ import type {
   BootProgress,
   Crop,
   Failure,
+  Mode,
   Outcome,
   Params,
   Preview,
@@ -72,6 +73,8 @@ export interface OpenOptions {
   maxPixels?: number
   /** Detect only this part of the image (image pixels), as a crop does. */
   crop?: Crop
+  /** A stitch's height over its width (the swatch), should the image be a picture. */
+  cellAspect?: number
 }
 
 /**
@@ -198,7 +201,7 @@ export class DetectClient {
    * `open` superseded this one).
    */
   async open(image: RgbaImage, opts: OpenOptions = {}): Promise<{ session: DetectSession | null; result: Outcome<Preview> }> {
-    const { maxPixels = DEFAULT_MAX_PIXELS, crop } = opts
+    const { maxPixels = DEFAULT_MAX_PIXELS, crop, cellAspect } = opts
     const { id, answer } = this.send<BodyOf<'open'>>(
       {
         type: 'open',
@@ -207,6 +210,7 @@ export class DetectClient {
         height: image.height,
         ...(maxPixels > 0 ? { maxPixels } : {}),
         ...(crop ? { crop } : {}),
+        ...(cellAspect ? { cellAspect } : {}),
       },
       [image.rgba.buffer],
       { watched: true },
@@ -268,7 +272,7 @@ export class DetectSession {
   }
 
   /** Send a request whose answer replaces the preview; drop it if a newer one was sent. */
-  private async view(body: BodyOf<'update' | 'preview' | 'redetect'>): Promise<Outcome<Preview>> {
+  private async view(body: BodyOf<'update' | 'preview' | 'redetect' | 'mode'>): Promise<Outcome<Preview>> {
     const { id, answer } = this.client.send(body, [], { watched: body.type === 'redetect' })
     this.newestView = id
     const result = await answer
@@ -325,6 +329,17 @@ export class DetectSession {
       session: this.id,
       ...(crop ? { crop } : {}),
     })
+  }
+
+  /** Read the image as a chart, or turn it into a pattern as a picture. Any pending
+   *  update is dropped, as for `redetect`: its settings were the other mode's. Waits for
+   *  an update in flight, so the switch is answered after it and its preview wins. */
+  async setMode(mode: Mode): Promise<Outcome<Preview>> {
+    const dropped = this.pending
+    this.pending = null
+    dropped?.resolve(failure('STALE', 'Superseded by a change of mode.'))
+    if (this.updating) await this.updating
+    return this.view({ type: 'mode', session: this.id, mode })
   }
 
   commit(name: string): Promise<Outcome<Answers['commit']>> {

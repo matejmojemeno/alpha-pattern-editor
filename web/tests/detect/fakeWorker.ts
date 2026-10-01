@@ -56,6 +56,9 @@ export function makePreview(session: number, rows = 3, cols = 4, over: Partial<P
   return {
     ok: true,
     session,
+    mode: 'chart',
+    reading: { kind: 'chart', sure: true, canChart: true, failure: null },
+    picture: null,
     rows,
     cols,
     cells,
@@ -73,6 +76,25 @@ export function makePreview(session: number, rows = 3, cols = 4, over: Partial<P
     detectedHeight: rows * 10,
     ...over,
   }
+}
+
+/** A picture's preview, as bridge.preview returns one in picture mode: `width` stitches
+ *  across a 400 × 300 image, the rows following for square stitches. */
+export function makePicturePreview(
+  session: number,
+  { width = 8, colours = 6, detail = 0.5, canChart = false, kind = 'picture' as 'chart' | 'picture', extent = { x0: 0, y0: 0, x1: 400, y1: 300 } } = {},
+): Preview {
+  const rows = Math.max(1, Math.round((width * (extent.y1 - extent.y0)) / (extent.x1 - extent.x0)))
+  return makePreview(session, rows, width, {
+    mode: 'picture',
+    reading: { kind, sure: true, canChart, failure: null },
+    picture: { width, maxWidth: 400, colours, detail, cellAspect: 1 },
+    extent,
+    imageWidth: 400,
+    imageHeight: 300,
+    detectedWidth: 400,
+    detectedHeight: 300,
+  })
 }
 
 /** A worker that boots at once and detects every image as `makePreview`, or fails

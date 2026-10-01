@@ -16,7 +16,9 @@ import time
 
 import numpy as np
 
+from alphareader.core.convert import convert_picture
 from alphareader.core.detect import detect_pattern
+from alphareader.core.kind import read_image
 from alphareader.core.model import DetectionError
 
 
@@ -49,11 +51,30 @@ def digest(path: str) -> dict:
     }
 
 
+def picture_digest(path: str) -> dict:
+    """What kind.py reads the image as, and what convert.py makes of it at two settings.
+    Every image is converted, charts too: the conversion's arithmetic (Lab, k-means,
+    percentiles, the stitch assignment) must agree whatever the input."""
+    img = np.load(path)
+    t0 = time.perf_counter()
+    r = read_image(img)
+    out = {"kind": [r.kind, bool(r.sure), None if r.error is None else r.error.code]}
+    for tag, kw in (("picture", {}), ("picture_small", {"cols": 40, "colours": 4, "detail": 0.2})):
+        p = convert_picture(img, **kw)
+        out[tag] = {
+            "size": [int(p.rows), int(p.cols)],
+            "cells_sha": hashlib.sha256(p.cells.astype(np.uint16).tobytes()).hexdigest(),
+            "palette": [e.hex for e in p.palette],
+        }
+    out["picture_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+    return out
+
+
 def main(paths: list[str]) -> dict:
     return {
         "python": sys.version.split()[0],
         "numpy": np.__version__,
-        "results": [digest(p) for p in paths],
+        "results": [{**digest(p), **picture_digest(p)} for p in paths],
     }
 
 

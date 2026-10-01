@@ -76,9 +76,33 @@ break without noticing.
 - <a id="old-dmc-setting"></a>**Settings saved before the yarn libraries went off by default still say `"dmc"`.**
   The store writes every field whenever one changes, so an old `"dmc"` can't be told
   from a choice. Such a browser keeps showing DMC shades until "Nothing" is picked.
-- <a id="parity-check"></a>**After any change to `alphareader/core/detect`, run `python scripts/parity/check.py`.**
-  It must report 89/89 bit-identical. It exits non-zero otherwise. Run `npm install` in
-  `scripts/parity/` once first.
+- <a id="parity-check"></a>**After any change to `alphareader/core/detect`, `kind.py` or `convert.py`, run
+  `python scripts/parity/check.py`.** It must report 114/114 bit-identical (89 charts and
+  25 pictures, each also read by `kind.py` and converted twice). It exits non-zero
+  otherwise. Run `npm install` in `scripts/parity/` once first.
+- <a id="failure-not-picture"></a>**A detection failure is not a picture, and a detected grid is not a chart.** Most
+  photos fail as LOW_RESOLUTION, as real charts with small squares do; pictures can fit a
+  nonsense grid. `kind.py` decides from what the grid looks like, and `test_kind.py`
+  names every corpus image with its kind. Add an image there before moving a threshold.
+- <a id="converter-deterministic"></a>**The converter must stay deterministic to the last bit.** No random seeds (the
+  colours are seeded by splits and power iteration, not LAPACK), and Lab values and
+  stitch costs are rounded to 6 decimals: without the rounding, 5 of 114 images put a
+  few stitches differently in Pyodide, stitches halfway between two colours.
+- <a id="picture-extent"></a>**A picture's extent is its edges; a chart's is its outer gridlines.** A chart's
+  extent is clamped to W − 1 and scaled as pixel centres (`to_image`); a picture's runs
+  0 to W and is scaled by the shrink factor alone (`edge_to_image`, `convert.clamp_edges`),
+  so its outline reaches the image's own edges.
+- <a id="picture-controls"></a>**A picture's controls live above the colour list, never under a stage.** The column
+  chrome under the stages is a measured constant (`--col-chrome`); anything added there
+  must change it too, or the stages overflow the window.
+- <a id="refused-chart"></a>**A chart the detector refuses is never converted unasked.** LOW_RESOLUTION and ROTATED
+  on an image with a grid's structure stay failures with their advice, and the picture
+  reading is a button ("Turn it into a pattern anyway"): a converted chart looks
+  plausible and is wrong.
+- <a id="picture-colour-weight"></a>**A picture's colours are weighted towards detail, capped at 4×.** Uncapped (squared,
+  as first tried), a white background filling half a picture weighed 1/156 of the rest
+  and lost its colour. Small distinct areas are protected by the "unexplained samples"
+  step instead, which compares worst errors, not squared error (an area measure).
 - <a id="python-is-spec"></a>**The Python is the spec for readout, progress and editing.** If `readout.ts`/`work.ts`
   disagree with `fixtures/logic_golden.json`, or `edit.ts` with `fixtures/edit_golden.json`,
   the TypeScript is wrong. If you change `readout.py`, `work.py` or `edit.py`, run

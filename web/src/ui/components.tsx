@@ -133,7 +133,7 @@ export function ImportButton({
   )
 }
 
-export function DropOverlay({ show, text = 'Drop a chart image or .alpha files to import them' }: { show: boolean; text?: string }) {
+export function DropOverlay({ show, text = 'Drop an image or .alpha files to import them' }: { show: boolean; text?: string }) {
   if (!show) return null
   return (
     <div className="drop-overlay" aria-hidden="true">

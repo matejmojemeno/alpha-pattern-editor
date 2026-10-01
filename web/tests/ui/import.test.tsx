@@ -12,7 +12,7 @@ import { navigate } from '../../src/app/router.ts'
 import { FAILURE_HINTS } from '../../src/importer/hints.ts'
 import { createSettingsStore } from '../../src/settings/store.ts'
 import { readAlpha } from '../../src/storage/alpha.ts'
-import { detectingWorker, FakeWorker, makePreview } from '../detect/fakeWorker.ts'
+import { detectingWorker, FakeWorker, makePicturePreview, makePreview } from '../detect/fakeWorker.ts'
 import { detection } from './fakeDetection.ts'
 import { hashChanged, memoryStorage, renderApp, screen, sizeShown } from './helpers.tsx'
 
@@ -50,7 +50,7 @@ describe('Import screen', () => {
     expect(screen.getByText('Loading the pattern reader (3 of 3) · 100%')).toBeTruthy()
 
     await act(async () => worker.reply(worker.of('boot')[0]!.id, { ok: true }))
-    expect(await screen.findByText('Finding the grid…')).toBeTruthy()
+    expect(await screen.findByText('Reading your image…')).toBeTruthy()
     const open = worker.of('open')[0]!
     expect(open).toMatchObject({ width: 40, height: 30, maxPixels: 4_000_000 })
     await act(async () => worker.reply(open.id, makePreview(1, 3, 4, { warnings: ['5/12 cells have low confidence'] })))
@@ -249,7 +249,7 @@ describe('Import screen', () => {
     await saveButton()
     await userEvent.click(screen.getByRole('button', { name: 'Fewer colours' }))
     expect(screen.getByRole('heading', { level: 2, name: 'Colours, 1 colour' })).toBeTruthy()
-    await userEvent.upload(screen.getAllByLabelText('Choose a chart image')[0]!, photo('cat.png'))
+    await userEvent.upload(screen.getAllByLabelText('Choose an image')[0]!, photo('cat.png'))
     await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: 'Colours, 2 colours' })).toBeTruthy())
     expect(screen.getByRole('button', { name: 'More colours' }).hasAttribute('disabled')).toBe(true)
   })
@@ -276,7 +276,7 @@ describe('Import screen', () => {
     await screen.findByText(FAILURE_HINTS.ROTATED.title)
     const ok = detectingWorker()
     detection.worker.auto = ok.auto
-    await userEvent.upload(screen.getAllByLabelText('Choose a chart image')[0]!, photo('straight.png'))
+    await userEvent.upload(screen.getAllByLabelText('Choose an image')[0]!, photo('straight.png'))
     expect(await saveButton()).toBeTruthy()
     expect(nameField()).toMatchObject({ value: '', placeholder: 'Untitled pattern' })
     expect(detection.worker.of('open')).toHaveLength(2)
@@ -300,9 +300,9 @@ describe('Import screen', () => {
 
   it('asks for an image when there is none (after a reload)', async () => {
     await openImport(null)
-    expect(screen.getByText('Choose a photo or screenshot of an alpha chart.')).toBeTruthy()
+    expect(screen.getByText('Choose a photo or screenshot of an alpha chart, or any picture to turn into a pattern.')).toBeTruthy()
     expect(detection.worker.sent).toEqual([]) // nothing is loaded until there's an image
-    await userEvent.upload(screen.getByLabelText('Choose a chart image'), photo('cat.webp'))
+    await userEvent.upload(screen.getByLabelText('Choose an image'), photo('cat.webp'))
     expect(await saveButton()).toBeTruthy()
     expect(nameField()).toMatchObject({ value: '', placeholder: 'Untitled pattern' })
   })
@@ -323,7 +323,7 @@ describe('Import screen', () => {
     await openImport()
     await saveButton()
     await userEvent.type(nameField(), 'Dachshund')
-    await userEvent.upload(screen.getAllByLabelText('Choose a chart image')[0]!, photo('other.png'))
+    await userEvent.upload(screen.getAllByLabelText('Choose an image')[0]!, photo('other.png'))
     await waitFor(() => expect(detection.worker.of('open')).toHaveLength(2))
     expect(nameField().value).toBe('Dachshund')
   })
@@ -336,5 +336,149 @@ describe('Import screen', () => {
     await hashChanged()
     expect(detection.release).toHaveBeenCalled()
     expect(detection.worker.of('close').map((c) => c.session)).toEqual([1])
+  })
+})
+
+/** A worker that reads every image as `first` ('chart' or 'picture'), and answers mode
+ *  switches and a picture's settings as bridge.py does. */
+function readingWorker(first: 'chart' | 'picture', { sure = true, canChart = first === 'chart' } = {}) {
+  const w = detectingWorker()
+  const auto = w.auto!
+  const s = { mode: first, width: 8, colours: 6, detail: 0.5, extent: { x0: 0, y0: 0, x1: 400, y1: 300 } }
+  const reading = { kind: first, sure, canChart, failure: null }
+  const answer = (session: number) =>
+    s.mode === 'picture'
+      ? { ...makePicturePreview(session, { ...s, canChart, kind: first }), reading }
+      : makePreview(session, 3, 4, { reading })
+  w.auto = (msg) => {
+    switch (msg.type) {
+      case 'open':
+        auto(msg) // count the session
+        return answer(msg.id)
+      case 'mode':
+        s.mode = msg.mode
+        return answer(msg.session)
+      case 'update':
+        if (msg.params.width !== undefined) s.width = msg.params.width
+        if (msg.params.colours !== undefined) s.colours = msg.params.colours
+        if (msg.params.detail !== undefined) s.detail = msg.params.detail
+        if (msg.params.extent !== undefined) s.extent = msg.params.extent
+        return answer(msg.session)
+      default:
+        return auto(msg)
+    }
+  }
+  return w
+}
+
+const kindLineText = () => document.querySelector('.confirm__kind')?.textContent ?? null
+
+describe('Import screen: charts and pictures', () => {
+  it('says quietly that a chart was read as one, with the way to a picture', async () => {
+    detection.reset(readingWorker('chart'))
+    await openImport()
+    await saveButton()
+    expect(kindLineText()).toMatch(/^Read from the squares of your chart\./)
+    expect(document.querySelector('.confirm__kind')!.hasAttribute('data-prominent')).toBe(false)
+    // Nothing else changes for a chart.
+    expect(screen.queryByRole('group', { name: 'Picture settings' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Reset to detected grid' })).toBeTruthy()
+  })
+
+  it('sets the picture reading apart when the chart reading is in doubt', async () => {
+    detection.reset(readingWorker('chart', { sure: false }))
+    await openImport()
+    await saveButton()
+    expect(kindLineText()).toMatch(/Not sure this is a chart/)
+    expect(document.querySelector('.confirm__kind')!.hasAttribute('data-prominent')).toBe(true)
+  })
+
+  it('turns a picture into a pattern, with its width, detail and colours to change', async () => {
+    detection.reset(readingWorker('picture'))
+    await openImport()
+    await saveButton()
+    expect(kindLineText()).toMatch(/looks like a picture, not a chart/)
+    // No grid was found in it, so there's no chart reading to go back to.
+    expect(within(document.querySelector('.confirm__kind') as HTMLElement).queryByRole('button')).toBeNull()
+    const settings = screen.getByRole('group', { name: 'Picture settings' })
+    expect(within(settings).getByText('8 stitches')).toBeTruthy()
+    expect(within(settings).getByText('8 × 6 stitches')).toBeTruthy()
+    expect(within(settings).getByText('Balanced')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Use the whole picture' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.queryByRole('list', { name: 'Warnings' })).toBeNull()
+
+    const width = within(settings).getByLabelText('Width') as HTMLInputElement
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(width, '12')
+      width.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    await waitFor(() => expect(detection.worker.of('update').at(-1)!.params).toEqual({ width: 12 }))
+    await waitFor(() => expect(sizeShown()).toBe('12 columns × 9 rows'))
+
+    // 6 asked for, 2 shown (the rest unused): the count steps from what's shown, and 2 is
+    // the fewest a picture is made in.
+    expect(screen.getByRole('button', { name: 'Fewer colours' }).hasAttribute('disabled')).toBe(true)
+    await userEvent.click(screen.getByRole('button', { name: 'More colours' }))
+    await waitFor(() => expect(detection.worker.of('update').at(-1)!.params).toEqual({ colours: 3 }))
+  })
+
+  it('saves a picture as converted, and opens it in Design', async () => {
+    detection.reset(readingWorker('picture'))
+    const { repo } = await openImport()
+    await userEvent.click(await saveButton())
+    await waitFor(() => expect(window.location.hash).toBe('#/design/pattern-1'))
+    expect((await repo.open('pattern-1')).project.stage).toBe('design')
+  })
+
+  it('switches a chart to a picture and back', async () => {
+    detection.reset(readingWorker('chart'))
+    await openImport()
+    await saveButton()
+    await userEvent.click(screen.getByRole('button', { name: 'Turn it into a pattern instead' }))
+    await screen.findByRole('group', { name: 'Picture settings' })
+    expect(detection.worker.of('mode').map((m) => m.mode)).toEqual(['picture'])
+    expect(kindLineText()).toMatch(/^Turned into a pattern from your picture\./)
+    expect(screen.getByRole('button', { name: 'Use the whole picture' })).toBeTruthy()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Read it as a chart instead' }))
+    await waitFor(() => expect(screen.queryByRole('group', { name: 'Picture settings' })).toBeNull())
+    expect(detection.worker.of('mode').map((m) => m.mode)).toEqual(['picture', 'chart'])
+    expect(sizeShown()).toBe('4 columns × 3 rows')
+  })
+
+  it('offers to turn a chart it can’t read into a pattern anyway', async () => {
+    const worker = readingWorker('chart')
+    const auto = worker.auto!
+    worker.auto = (msg) =>
+      msg.type === 'open'
+        ? {
+            ok: false,
+            code: 'LOW_RESOLUTION',
+            message: 'too fine',
+            session: 1,
+            reading: { kind: 'chart', sure: true, canChart: false, failure: 'LOW_RESOLUTION' },
+          }
+        : auto(msg)
+    detection.reset(worker)
+    await openImport()
+    const alert = await screen.findByRole('alert')
+    expect(within(alert).getByText(FAILURE_HINTS.LOW_RESOLUTION.title)).toBeTruthy()
+    await userEvent.click(within(alert).getByRole('button', { name: 'Turn it into a pattern anyway' }))
+    await screen.findByRole('group', { name: 'Picture settings' })
+    expect(detection.worker.of('mode')[0]).toMatchObject({ session: 1, mode: 'picture' })
+    expect((await saveButton()).hasAttribute('disabled')).toBe(false)
+  })
+
+  it('sends the stitch shape from the swatch, once it is measured', async () => {
+    const storage = memoryStorage()
+    const settings = createSettingsStore(() => storage)
+    settings.set({ swatchStitches: 16, swatchRows: 20, swatchWidthCm: 10, swatchHeightCm: 10 })
+    detection.reset(readingWorker('picture'))
+    handOffImage({ file: photo('cat.png') })
+    await renderApp('#/import', { settings })
+    await saveButton()
+    expect(detection.worker.of('open')[0]!.cellAspect).toBeCloseTo(0.8)
+    // …and the finished size, beside the stitches.
+    expect(within(screen.getByRole('group', { name: 'Picture settings' })).getByText(/8 × 6 stitches, about 5 × 3 cm/)).toBeTruthy()
   })
 })

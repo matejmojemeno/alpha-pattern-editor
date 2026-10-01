@@ -22,11 +22,18 @@ The desktop's fast/slow split is kept (confirm_window.py): full detection runs o
 `open_session` and `redetect`. `set_params` and `preview` only resample, through the
 session's `ConfirmState`, which caches the result until a setting changes.
 
+An image is read as a **chart** or turned into a pattern as a **picture** (kind.py
+decides; `reading` in every payload says what it decided and what else is possible). A
+session is in one mode at a time, `set_mode` switches, and `set_params`, `preview` and
+`commit` act on the mode it is in. A picture's steps are cached by its `PictureState`
+(convert.py), so moving the Detail slider only reassigns the stitches.
+
 Keys are camelCase, the convention on the JavaScript side, except in `commit`'s pattern,
 which mirrors model.Pattern field for field, as web/src/model/types.ts does.
 """
 from __future__ import annotations
 
+import dataclasses
 import functools
 import itertools
 import re
@@ -35,9 +42,9 @@ from dataclasses import dataclass
 import numpy as np
 
 from .confirm import ConfirmState, Extent, Preview, pattern_from_preview
-from .detect import detect_pattern
+from .convert import MAX_WIDTH, PictureState, clamp_width
 from .detect.palette import DEFAULT_DELTA_E
-from .model import DetectionError
+from .kind import Reading, read_image
 
 # The detection warnings that come from sampling the cells rather than from fitting the
 # lattice. They are recomputed on every preview, because changing the dimensions or the
@@ -56,6 +63,14 @@ class _Session:
     delta_e: float
     state: ConfirmState | None      # None while the last detection failed
     lattice_warnings: list[str]
+    # A picture is converted from `picture_img`: `img` with any transparency flattened
+    # onto white (a transparent background is white paper, not the black under it).
+    # Detection keeps `img`, alpha dropped, as the desktop does.
+    picture_img: np.ndarray | None = None
+    cell_aspect: float = 1.0        # a stitch's height over its width, from the swatch
+    mode: str = "chart"             # "chart" or "picture"
+    reading: Reading | None = None
+    picture: PictureState | None = None
 
     # Everything that crosses the boundary is in the browser's image pixels; `img` is
     # smaller by `scale`. A shrunk pixel i covers image pixels [i*k, (i+1)*k).
@@ -64,6 +79,14 @@ class _Session:
 
     def to_work(self, v):
         return (v - (self.scale - 1) / 2) / self.scale
+
+    # A picture's extent is edges, not pixel centres: edge i of the shrunk image is edge
+    # i*k of the image, so its outline reaches the image's own edges.
+    def edge_to_image(self, v):
+        return v * self.scale
+
+    def edge_to_work(self, v):
+        return v / self.scale
 
 
 _sessions: dict[int, _Session] = {}
@@ -108,19 +131,36 @@ def shrink(img: np.ndarray, k: int) -> np.ndarray:
     return ((total + (k * k) // 2) // (k * k)).astype(np.uint8)
 
 
-def _rgb_from_rgba(rgba, width: int, height: int, k: int = 1) -> np.ndarray:
-    """An owned (H, W, 3) uint8 array from RGBA bytes, as canvas getImageData gives them,
-    shrunk by `k`.
-
-    Alpha is dropped rather than composited, which is what Pillow's convert("RGB") does on
-    the desktop."""
+def _rgba_array(rgba, width: int, height: int) -> np.ndarray:
+    """(H, W, 4) uint8 view of RGBA bytes, as canvas getImageData gives them."""
     if hasattr(rgba, "to_memoryview"):          # a JsProxy of a Uint8Array
         rgba = rgba.to_memoryview()
     width, height = int(width), int(height)
     flat = np.frombuffer(rgba, dtype=np.uint8)
     if width <= 0 or height <= 0 or flat.size != width * height * 4:
         raise ValueError(f"expected {width}×{height} RGBA pixels, got {flat.size} bytes")
-    return shrink(flat.reshape(height, width, 4)[:, :, :3], k)
+    return flat.reshape(height, width, 4)
+
+
+def _rgb_from_rgba(rgba, width: int, height: int, k: int = 1) -> np.ndarray:
+    """An owned (H, W, 3) uint8 array from RGBA bytes, shrunk by `k`.
+
+    Alpha is dropped rather than composited, which is what Pillow's convert("RGB") does on
+    the desktop."""
+    return shrink(_rgba_array(rgba, width, height)[:, :, :3], k)
+
+
+def _on_white(rgba, width: int, height: int, k: int = 1) -> np.ndarray | None:
+    """The image flattened onto white and shrunk by `k`, for a picture; None when it is
+    fully opaque, and so the same as `_rgb_from_rgba`'s."""
+    a = _rgba_array(rgba, width, height)
+    alpha = a[:, :, 3:4]
+    if alpha.min() == 255:
+        return None
+    rgb = a[:, :, :3].astype(np.uint32)
+    al = alpha.astype(np.uint32)
+    flat = ((rgb * al + 255 * (255 - al) + 127) // 255).astype(np.uint8)
+    return shrink(flat, k)
 
 
 def _out_of_memory_as_data(fn):
@@ -147,20 +187,48 @@ def _warnings(session: _Session, preview: Preview) -> list[str]:
     return out
 
 
+def _reading_payload(session: _Session) -> dict:
+    """What the session's image was read as, and what else it can be read as.
+
+    kind:     "chart" or "picture", as kind.py decided.
+    sure:     False for a chart read with doubts (the screen then offers the picture
+              reading prominently).
+    canChart: a grid was found, so the chart reading is available.
+    failure:  the code of a chart's refusal (LOW_RESOLUTION, ROTATED), or None."""
+    r = session.reading
+    if r is None:
+        return {"kind": "chart", "sure": True, "canChart": session.state is not None, "failure": None}
+    return {"kind": r.kind, "sure": bool(r.sure), "canChart": session.state is not None,
+            "failure": None if r.error is None else r.error.code}
+
+
+def _picture(session: _Session) -> PictureState:
+    """The session's picture state, made on first use over the whole image."""
+    if session.picture is None:
+        img = session.img if session.picture_img is None else session.picture_img
+        h, w = img.shape[:2]
+        session.picture = PictureState(img=img, extent=Extent(0.0, 0.0, float(w), float(h)),
+                                       cell_aspect=session.cell_aspect)
+    return session.picture
+
+
 def _preview_payload(session_id: int, session: _Session) -> dict:
-    p = session.state.preview()
+    picture = session.mode == "picture"
+    p = _picture(session).preview() if picture else session.state.preview()
     e = p.extent
-    img = session.to_image
-    return {
+    img = session.edge_to_image if picture else session.to_image
+    payload = {
         "ok": True,
         "session": session_id,
+        "mode": session.mode,
+        "reading": _reading_payload(session),
         "rows": int(p.rows),
         "cols": int(p.cols),
         "cells": np.ascontiguousarray(p.cells, dtype=np.uint16).ravel(),
         "confidence": np.ascontiguousarray(p.confidence, dtype=np.float32).ravel(),
         "palette": [{"id": en.id, "hex": en.hex, "name": en.name, "dmc": en.dmc,
                      "count": int(en.count)} for en in p.palette],
-        "warnings": _warnings(session, p),
+        "warnings": [] if picture else _warnings(session, p),
         "lowConfidenceFraction": float(p.low_confidence_fraction),
         "extent": {"x0": img(float(e.x0)), "y0": img(float(e.y0)),
                    "x1": img(float(e.x1)), "y1": img(float(e.y1))},
@@ -171,35 +239,64 @@ def _preview_payload(session_id: int, session: _Session) -> dict:
         "imageHeight": session.height,
         "detectedWidth": int(session.img.shape[1]),
         "detectedHeight": int(session.img.shape[0]),
+        "picture": None,
     }
+    if picture:
+        ps = _picture(session)
+        payload["picture"] = {
+            "width": int(ps.cols),
+            "maxWidth": int(clamp_width(MAX_WIDTH, ps.extent)),
+            "colours": int(ps.colours),
+            "detail": float(ps.detail),
+            "cellAspect": float(ps.cell_aspect),
+        }
+    return payload
+
+
+def _work_crop(session: _Session, crop) -> tuple[int, int, int, int]:
+    """A crop in image pixels as whole pixels of the shrunk image, clamped and ordered."""
+    k = session.scale
+    x0, y0 = (int(np.floor(float(v) / k)) for v in crop[:2])
+    x1, y1 = (int(np.ceil(float(v) / k)) for v in crop[2:])
+    h, w = session.img.shape[:2]
+    x0, x1 = sorted((max(0, min(w, x0)), max(0, min(w, x1))))
+    y0, y1 = sorted((max(0, min(h, y0)), max(0, min(h, y1))))
+    return (x0, y0, x1, y1)
 
 
 def _detect(session_id: int, session: _Session, crop=None) -> dict:
-    """Run full detection on the session's image (or a crop of it) and reset its state."""
+    """Run full detection on the session's image (or a crop of it), decide what it is
+    (kind.py), and reset the session to that reading."""
     session.state = None
     session.lattice_warnings = []
+    session.picture = None
     if crop is not None:
-        k = session.scale
-        x0, y0 = (int(np.floor(float(v) / k)) for v in crop[:2])
-        x1, y1 = (int(np.ceil(float(v) / k)) for v in crop[2:])
-        h, w = session.img.shape[:2]
-        x0, x1 = sorted((max(0, min(w, x0)), max(0, min(w, x1))))
-        y0, y1 = sorted((max(0, min(h, y0)), max(0, min(h, y1))))
-        crop = (x0, y0, x1, y1)
-    try:
-        result = detect_pattern(session.img, delta_e_threshold=session.delta_e, crop=crop)
-    except DetectionError as err:
-        return _error(err.code, str(err), session=session_id)
-    result.debug = None                              # never kept, never sent
-    state = ConfirmState.from_detection(session.img, result, delta_e=session.delta_e)
-    if crop is not None:
-        # Detection saw only the crop; move the extent back into whole-image coordinates,
-        # as the desktop does, so resampling and the overlay line up with the source.
-        ox, oy = crop[0], crop[1]
-        e = state.extent
-        state.set_extent(Extent(e.x0 + ox, e.y0 + oy, e.x1 + ox, e.y1 + oy))
-    session.state = state
-    session.lattice_warnings = [w for w in result.warnings if not _SAMPLED_WARNING.search(w)]
+        crop = _work_crop(session, crop)
+    reading = read_image(session.img, delta_e_threshold=session.delta_e, crop=crop)
+    result = reading.result
+    # Keep the verdict, not the result: the ConfirmState below is all that's resampled.
+    session.reading = dataclasses.replace(reading, result=None)
+    if result is not None:
+        result.debug = None                          # never kept, never sent
+        state = ConfirmState.from_detection(session.img, result, delta_e=session.delta_e)
+        if crop is not None:
+            # Detection saw only the crop; move the extent back into whole-image
+            # coordinates, as the desktop does, so resampling and the overlay line up.
+            ox, oy = crop[0], crop[1]
+            e = state.extent
+            state.set_extent(Extent(e.x0 + ox, e.y0 + oy, e.x1 + ox, e.y1 + oy))
+        session.state = state
+        session.lattice_warnings = [w for w in result.warnings if not _SAMPLED_WARNING.search(w)]
+    if reading.kind == "picture":
+        session.mode = "picture"
+        ps = _picture(session)
+        if crop is not None:
+            ps.set_extent(Extent(*(float(v) for v in crop)))
+        return _preview_payload(session_id, session)
+    session.mode = "chart"
+    if reading.error is not None:
+        return _error(reading.error.code, str(reading.error), session=session_id,
+                      reading=_reading_payload(session))
     return _preview_payload(session_id, session)
 
 
@@ -212,23 +309,51 @@ def _session(session_id) -> _Session | dict:
 
 @_out_of_memory_as_data
 def open_session(rgba, width: int, height: int, delta_e: float = DEFAULT_DELTA_E,
-                 max_pixels: int | None = None, crop=None) -> dict:
-    """Start a session on an image and detect it, or only `crop` = (x0, y0, x1, y1) of it
-    (image pixels). The session stays open when detection fails, so the user can crop and
-    `redetect`; the failure carries its id.
+                 max_pixels: int | None = None, crop=None, cell_aspect: float = 1.0) -> dict:
+    """Start a session on an image and read it, or only `crop` = (x0, y0, x1, y1) of it
+    (image pixels): as a chart if it is one, otherwise as a picture turned into a pattern
+    (kind.py). The session stays open when a chart can't be read, so the user can crop and
+    `redetect`, or `set_mode` to a picture; the failure carries its id.
 
     With `max_pixels`, a bigger image is shrunk by a whole-number factor first
-    (`shrink_factor`, `shrink`); coordinates in and out stay in the image's own pixels."""
+    (`shrink_factor`, `shrink`); coordinates in and out stay in the image's own pixels.
+    `cell_aspect` is a stitch's height over its width (the swatch), for pictures."""
     k = shrink_factor(int(width), int(height), max_pixels)
     try:
         img = _rgb_from_rgba(rgba, width, height, k)
+        on_white = _on_white(rgba, width, height, k)
     except ValueError as err:
         return _error("BAD_IMAGE", str(err))
     session_id = next(_ids)
     session = _Session(img=img, width=int(width), height=int(height), scale=k,
-                       delta_e=float(delta_e), state=None, lattice_warnings=[])
+                       delta_e=float(delta_e), state=None, lattice_warnings=[],
+                       picture_img=on_white, cell_aspect=_aspect(cell_aspect, 1.0))
     _sessions[session_id] = session
     return _detect(session_id, session, crop=None if crop is None else tuple(crop))
+
+
+def _aspect(value, fallback: float) -> float:
+    """A usable stitch aspect: positive and not absurd, else `fallback`."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return v if 0.2 <= v <= 5.0 else fallback
+
+
+@_out_of_memory_as_data
+def set_mode(session: int, mode: str) -> dict:
+    """Read the image as a "chart" or turn it into a pattern as a "picture", and return
+    that preview. A picture starts over the whole image; a chart needs a detected grid."""
+    s = _session(session)
+    if isinstance(s, dict):
+        return s
+    if mode not in ("chart", "picture"):
+        return _error("BAD_MODE", f"No such mode {mode!r}.")
+    if mode == "chart" and s.state is None:
+        return _error("NO_DETECTION", "There is no detected grid to read as a chart.")
+    s.mode = mode
+    return _preview_payload(int(session), s)
 
 
 @_out_of_memory_as_data
@@ -246,12 +371,35 @@ def redetect(session: int, crop=None, delta_e: float | None = None) -> dict:
 
 @_out_of_memory_as_data
 def set_params(session: int, rows: int | None = None, cols: int | None = None,
-               delta_e: float | None = None, extent=None) -> dict:
-    """Change the settings. Nothing is detected or resampled until `preview`. `extent` is
-    a dict with x0, y0, x1, y1 in image pixels."""
+               delta_e: float | None = None, extent=None, width: int | None = None,
+               colours: int | None = None, detail: float | None = None,
+               cell_aspect: float | None = None) -> dict:
+    """Change the settings of the mode the session is in. Nothing is detected or resampled
+    until `preview`. `extent` is a dict with x0, y0, x1, y1 in image pixels.
+
+    A chart takes rows, cols, delta_e and extent. A picture takes extent (what of the
+    image is used), width (stitches across; `cols` means the same, and the rows follow),
+    colours, detail (0..1) and cell_aspect; rows and delta_e don't apply to it."""
     s = _session(session)
     if isinstance(s, dict):
         return s
+    if cell_aspect is not None:
+        s.cell_aspect = _aspect(cell_aspect, s.cell_aspect)
+        if s.picture is not None:
+            s.picture.set_cell_aspect(s.cell_aspect)
+    if s.mode == "picture":
+        ps = _picture(s)
+        if extent is not None:
+            w = s.edge_to_work
+            ps.set_extent(Extent(w(float(extent["x0"])), w(float(extent["y0"])),
+                                 w(float(extent["x1"])), w(float(extent["y1"]))))
+        if width is not None or cols is not None:
+            ps.set_width(int(width if width is not None else cols))
+        if colours is not None:
+            ps.set_colours(int(colours))
+        if detail is not None:
+            ps.set_detail(float(detail))
+        return {"ok": True}
     if delta_e is not None:
         s.delta_e = float(delta_e)
     if s.state is None:
@@ -275,7 +423,7 @@ def preview(session: int) -> dict:
     s = _session(session)
     if isinstance(s, dict):
         return s
-    if s.state is None:
+    if s.mode == "chart" and s.state is None:
         return _error("NO_DETECTION", "There is no detected grid to preview.")
     return _preview_payload(int(session), s)
 
@@ -286,9 +434,12 @@ def commit(session: int, name: str) -> dict:
     s = _session(session)
     if isinstance(s, dict):
         return s
-    if s.state is None:
+    if s.mode == "picture":
+        p = pattern_from_preview(_picture(s).preview(), str(name))
+    elif s.state is None:
         return _error("NO_DETECTION", "There is no detected grid to save.")
-    p = pattern_from_preview(s.state.preview(), str(name))
+    else:
+        p = pattern_from_preview(s.state.preview(), str(name))
     return {
         "ok": True,
         "pattern": {

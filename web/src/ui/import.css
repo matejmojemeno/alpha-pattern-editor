@@ -376,6 +376,67 @@
   color: var(--warn);
 }
 
+/* What the image was read as (chart or picture), and the way to the other reading: one
+   quiet line, set apart only when the chart reading is in doubt. Outside the size
+   container, so it takes its height from the stages, as the warnings do. */
+.confirm__kind {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.confirm__kind[data-prominent] {
+  color: var(--warn);
+}
+
+/* --- a picture's settings, above the colour list ------------------------------------- */
+
+.picture-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: none;
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.picture-controls__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.picture-controls__label {
+  font-weight: 600;
+}
+
+.picture-controls__value {
+  font-variant-numeric: tabular-nums;
+}
+
+.picture-controls__slider {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.picture-controls__note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.picture-controls__ends {
+  display: flex;
+  justify-content: space-between;
+}
+
 /* --- source image --------------------------------------------------------------------- */
 
 /* The stage itself; the image fits it (letterbox.ts's fitRect), so it fills it unless

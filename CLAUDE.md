@@ -38,8 +38,9 @@ golden fixtures:
    stale.
 3. Change the TypeScript until `web/tests/*golden*` replays the fixtures.
 
-After touching `core/detect`, run `python scripts/parity/check.py`: 89/89 bit-identical
-between CPython and Pyodide. Don't "simplify" `_nd.py`; `docs/dev/rules.md#nd-py` says why.
+After touching `core/detect` or the picture readers, run `python scripts/parity/check.py`:
+114/114 bit-identical between CPython and Pyodide. Don't "simplify" `_nd.py`;
+`docs/dev/rules.md#nd-py` says why.
 
 ## How a change is made
 

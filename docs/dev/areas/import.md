@@ -124,6 +124,53 @@ Newest last, as they were built.
   - Tier A (Vite's figures, gzipped, measured before and after): main entry chunk
     104.7 KB (unchanged), Import 9.0 KB (from 20.3) + 2.4 KB CSS (from 3.7), Design
     27.4 KB (from 16.5) + 3.5 KB CSS (from 2.6); nothing else loaded up front.
+- <a id="picture-import"></a>**Picture import** (`core/kind.py`, `core/convert.py`, the bridge,
+  `ui/screens/Import.tsx`, `importer/picture.ts`; spec.md §5a). Any image can be
+  imported, from the same drop zone, paste or picker: a chart is read, anything else is
+  turned into a pattern, and there is no choice to make up front.
+  - **The screen:** one line above the stages says what was read ("Read from the squares
+    of your chart." / "This looks like a picture, not a chart, so it was turned into a
+    pattern."), in muted text, with a small button to the other reading ("Turn it into a
+    pattern instead" / "Read it as a chart instead", the latter only if a grid was
+    found). A chart read with doubts (over 15% unsure) says "Not sure this is a chart" in
+    the warning colour. A chart detection refuses as too fine or tilted keeps its advice
+    and adds "Turn it into a pattern anyway": such an image is never converted unasked.
+    For a chart, that one line is all that changes.
+  - **A picture's controls:** Width (a slider, stitches across; rows follow; "60 × 45
+    stitches, about 38 × 28 cm" once the swatch is measured) and Detail (Smoothest …
+    Every stitch) sit above the colour list, so the stages' chrome (`--col-chrome`) is
+    unchanged. The colour count's − and + make it again with one colour fewer or more
+    (from what's shown, 2–24). The outline and a box drawn on the image crop what's used,
+    the width staying; "Reset to detected grid" becomes "Use the whole picture". No
+    warnings or shrink notice. The stitch shape is the swatch's (square until measured).
+  - Behaviour that differs from the desktop: the desktop imports charts only.
+  - **Why not just "detection failed = picture":** of 25 CC0 pictures in
+    `test_images/pictures/` (fetched with provenance by `scripts/fetch_test_pictures.py`),
+    11 fail as LOW_RESOLUTION, like `garment.png`, a real chart; 12 fit a grid, the dice
+    10×4 at 78% unsure. `kind.py` asks whether the grid looks like one: square-ish cells,
+    spanning the image, edge strength on the lattice at least twice that between lines
+    (every chart 5.8–108, every picture 1.5 or less). All 9 charts and 25 pictures come out
+    right; `bunny.jpg` (34% unsure) is a chart with doubts.
+  - **Why not the other tools' method:** research (Stitch Fiddle, ArtPatt, Stitchmate and
+    others; users' #1 complaint is confetti, lone stitches) and a prototype showed that
+    shrinking, reducing colours by area and a majority filter erase eyes and dots with the
+    noise. `convert.py` scores each stitch against all the pixels it covers, charges for
+    colour changes (twice as much along a row as up a column), and gives a colour to any
+    small group far from every colour. Tests: a pupil in a gradient keeps its colour, a
+    white half keeps white, a one-stitch line survives, speckle drops by over 3×.
+  - Bridge: `open_session(cell_aspect=)`, `set_mode`, picture parameters in `set_params`
+    (width, colours, detail, cell_aspect, extent), `mode`/`reading`/`picture` in every
+    preview; a chart's refusal carries `reading` so the screen can offer the picture.
+  - Speed (desktop, 60 wide): first conversion 0.2–0.6 s, Detail 0.01 s, colours
+    0.15–0.6 s, 120 wide 0.3–0.9 s. Pyodide runs detection and conversion about 2.1× slower.
+  - e2e (`import.spec.ts`): a generated picture, and the same at 40 wide, 5 colours and
+    detail 0.2 set through the controls, save exactly the cells `scripts/desktop_import.py
+    picture` makes; so does garment.png turned into a pattern anyway; a chart switched to a
+    picture and back saves the desktop's chart.
+  - Tier A: the main entry chunk 104.7 KB gzipped (unchanged), Import 10.6 KB (from 9.0)
+    + 2.6 KB CSS, Design 27.4 KB (unchanged). `importer/picture.ts` repeats usage.ts's
+    four-line stitch size instead of importing it, which split usage.ts into a shared
+    4.8 KB chunk.
 
 ## During the port
 
