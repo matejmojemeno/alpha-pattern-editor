@@ -157,13 +157,15 @@ describe('y offsets', () => {
 })
 
 describe('fit or scroll', () => {
-  it('switches at a 2:1 aspect ratio', () => {
+  it('switches at a 2:1 aspect ratio, for tall charts only', () => {
     expect(shouldScroll(40, 20)).toBe(false)
     expect(shouldScroll(41, 20)).toBe(true)
     expect(shouldScroll(20, 40)).toBe(false)
-    expect(shouldScroll(20, 41)).toBe(true)
+    expect(shouldScroll(20, 41)).toBe(false)
+    expect(shouldScroll(20, 400)).toBe(false)
     expect(layout({ rows: 40, cols: 20 }).mode).toBe('fit')
     expect(layout({ rows: 41, cols: 20 }).mode).toBe('scroll')
+    expect(layout({ rows: 20, cols: 41 }).mode).toBe('fit')
   })
 
   it('fits a chart up to 2:1 into the space, like the desktop', () => {
@@ -184,12 +186,19 @@ describe('fit or scroll', () => {
     expect(l.maxScrollY).toBe(1600)
   })
 
-  it('sizes a wide chart to its height and scrolls it horizontally', () => {
+  it('fits a wide chart whole, so each row is on screen at once', () => {
     const l = layout({ rows: 40, cols: 200 })
-    expect(l.cell).toBe(10) // 400 / 40
-    expect(l.gridHeight).toBe(400)
+    expect(l.mode).toBe('fit')
+    expect(l.cell).toBe(MIN_CELL) // max(3, 400 / 200)
+    expect(l.gridWidth).toBe(600)
+    expect(l.gridHeight).toBe(120)
     expect(l.maxScrollY).toBe(0)
-    expect(l.maxScrollX).toBe(1600)
+    // Only past the smallest cells does it scroll across.
+    expect(l.maxScrollX).toBe(200)
+    const scarf = layout({ rows: 20, cols: 98 })
+    expect(scarf.mode).toBe('fit')
+    expect(scarf.maxScrollX).toBe(0)
+    expect(scarf.maxScrollY).toBe(0)
   })
 
   it('scrolls a fitted chart too once its cells would drop below the minimum', () => {
@@ -291,9 +300,9 @@ describe('axis numbers', () => {
 })
 
 describe('your place in the row stays in view across', () => {
-  // 100 × 20 in a 400 × 200 view: 10 px cells, a 1000 px grid, scrolling 0..600 across,
-  // and a 30 px margin (three cells).
-  const wide = () => layout({ rows: 20, cols: 100, current: 5, ...area(400, 200) })
+  // 100 × 20 in a 400 × 200 view fits at 4 px cells; zoomed 2.5× that's 10 px cells, a
+  // 1000 px grid, scrolling 0..600 across, and a 30 px margin (three cells).
+  const wide = () => layout({ rows: 20, cols: 100, current: 5, zoom: 2.5, ...area(400, 200) })
   /** Ten segments of ten stitches, in working order. */
   const tens = Array.from({ length: 10 }, (_, i) => ({ start_col: i * 10, count: 10 }))
   const at = (runIndex: number, stitches: number, direction: Direction, runs = tens): RowPlace => ({
@@ -466,7 +475,7 @@ describe('your place in the row stays in view across', () => {
   it('only clamps without a current row or a place', () => {
     expect(followCurrentX(wide(), null, 250)).toBe(250)
     expect(followCurrentX(wide(), null, 900)).toBe(600)
-    const finished = layout({ rows: 20, cols: 100, current: null, ...area(400, 200) })
+    const finished = layout({ rows: 20, cols: 100, current: null, zoom: 2.5, ...area(400, 200) })
     expect(followCurrentX(finished, at(5, 0, 'LTR'), 250)).toBe(250)
   })
 })

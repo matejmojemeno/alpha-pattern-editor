@@ -1,6 +1,10 @@
 /**
  * On a phone, a chart wider than the screen scrolls across to keep your place in the row
  * in view: through every segment, with partial stitches, on rows worked either way.
+ *
+ * A wide chart fits the screen whole when it can (layout.ts, shouldScroll: only tall
+ * charts are sized to scroll), so it scrolls across only once its cells reach the
+ * smallest size.
  */
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -16,21 +20,22 @@ test.use({ viewport: { width: 400, height: 860 }, hasTouch: true, isMobile: true
 
 const BASIC = resolve(import.meta.dirname, '../../fixtures/alpha/desktop/basic.alpha')
 const ROWS = 20
-const COLS = 98
+const COLS = 300
 
-/** 98 × 20, bands of 7 stitches in three colours, shifted a stitch each row: 14 or 15
- *  segments a row, and far wider than a phone. Row 1 (the bottom) reads left to right. */
-function wideProject(): Project {
-  const cells = new Uint16Array(ROWS * COLS)
-  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) cells[r * COLS + c] = Math.floor((c + r) / 7) % 3
+/** `cols` × 20, bands of 7 stitches in three colours, shifted a stitch each row: 43 or 44
+ *  segments a row at 300 columns, and far wider than a phone even at the smallest cells.
+ *  Row 1 (the bottom) reads left to right. */
+function wideProject(cols = COLS, name = 'Wide scarf'): Project {
+  const cells = new Uint16Array(ROWS * cols)
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < cols; c++) cells[r * cols + c] = Math.floor((c + r) / 7) % 3
   const colours = ['#8b5a2b', '#f5f5f0', '#c0392b']
   const pattern: Pattern = {
-    id: 'e2e-wide',
-    name: 'Wide scarf',
+    id: `e2e-wide-${cols}`,
+    name,
     created_at: 1_700_000_000,
     updated_at: 1_700_000_000,
     rows: ROWS,
-    cols: COLS,
+    cols,
     row_ids: Array.from({ length: ROWS }, (_, i) => `row-${i}`),
     cells,
     palette: colours.map((hex, i) => ({
@@ -165,6 +170,27 @@ test('the chart follows your place across a wide chart', async ({ page }, testIn
   await expect(rowLabel(page)).toHaveText(`Row 3 of ${ROWS} →`)
   s = await expectPlaceInView(page, 3, 0, 0)
   expect(s.left).toBe(0)
+})
+
+test('a wide chart that fits on screen is shown whole, never scrolled', async ({ page }, testInfo) => {
+  // 98 × 20 (a scarf worked sideways): about 3.7 px cells across a 400 px phone.
+  const scarf = wideProject(98, 'Narrow scarf')
+  const file = testInfo.outputPath('narrow-scarf.alpha')
+  writeFileSync(file, writeAlpha(scarf).bytes)
+  await page.goto('/#/library')
+  await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(file)
+  await page.getByRole('listitem').filter({ hasText: 'Narrow scarf' }).getByRole('link').click()
+  await expect(rowLabel(page)).toHaveText(`Row 1 of ${ROWS} →`)
+  const fits = () =>
+    scroller(page).evaluate((el) => ({ x: el.scrollWidth - el.clientWidth, y: el.scrollHeight - el.clientHeight }))
+  expect(await fits()).toEqual({ x: 0, y: 0 })
+  for (const key of ['ArrowRight', 'ArrowRight', 'ArrowLeft']) {
+    await page.keyboard.press(key)
+    const s = await settledScroll(page)
+    expect(s.max).toBe(0)
+    expect(s.left).toBe(0)
+  }
+  expect(await fits()).toEqual({ x: 0, y: 0 })
 })
 
 test('a chart that fits across never scrolls sideways', async ({ page }) => {

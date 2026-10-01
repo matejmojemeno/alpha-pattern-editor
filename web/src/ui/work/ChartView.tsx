@@ -287,9 +287,9 @@ export function ChartView({
   // Anything drawn changed.
   useLayoutEffect(() => draw.current(), [layout, image, pattern, completed, place, carries, dpr, themeKey, dark])
 
-  // A tall chart scrolls down and a wide one across (layout.ts, shouldScroll); zoomed in,
-  // any chart may scroll both ways.
-  const scrolls = zoom > 1 ? 'both' : layout.mode === 'scroll' ? (pattern.rows > pattern.cols ? 'y' : 'x') : null
+  // A tall chart scrolls down (layout.ts, shouldScroll); zoomed in, any chart may scroll
+  // both ways.
+  const scrolls = zoom > 1 ? 'both' : layout.mode === 'scroll' ? 'y' : null
   return (
     <div ref={wrap} className="chart" role="img" aria-label={label}>
       <canvas
