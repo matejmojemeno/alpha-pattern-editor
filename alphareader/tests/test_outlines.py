@@ -192,3 +192,37 @@ def test_the_coat_of_arms_loses_its_edge_smudge():
     on = convert.convert_picture(img, cols=40, colours=6, outlines=True)
     assert len(on.palette) < len(off.palette)
     assert {"White", "Black", "Red"} <= {e.name for e in on.palette}
+
+
+def _soft_ring(h=400, w=400, r=150, width=1.6, line=(60, 40, 40)) -> np.ndarray:
+    """A thin circle drawn anti-aliased, as drawings are: each pixel is ink by the share of
+    it the line covers (4 × 4 supersampled), so the line drifts across pixels."""
+    s = 4
+    y, x = np.mgrid[0:h * s, 0:w * s] / s + 0.5 / s
+    cover = (np.abs(np.hypot(y - h / 2, x - w / 2) - r) < width / 2).reshape(h, s, w, s).mean(axis=(1, 3))
+    img = 255 - cover[..., None] * (255 - np.array(line, float))
+    return np.round(img).astype(np.uint8)
+
+
+def test_a_thin_anti_aliased_line_is_ink_all_the_way_round():
+    """The Moon Stick's outer circle is under 2 px wide and drifts a pixel within a few
+    pixels' length; looked for exactly in line, a third of it was missed."""
+    img = _soft_ring()
+    ink, _ = ink_mask(img)
+    found = 0
+    for t in np.linspace(0, 2 * np.pi, 360, endpoint=False):
+        cy, cx = 200 + 150 * np.sin(t), 200 + 150 * np.cos(t)
+        y0, x0 = int(round(cy)), int(round(cx))
+        found += bool(ink[y0 - 1:y0 + 2, x0 - 1:x0 + 2].any())
+    assert found >= 0.97 * 360, found
+
+
+def test_a_line_the_pictures_edge_cuts_is_still_ink():
+    """The top of the Moon Stick's circle runs off the picture: half a line along the edge,
+    which beyond the picture has nothing lighter to compare with."""
+    img = np.full((120, 300, 3), 255, np.uint8)
+    img[0:2, 40:260] = (30, 30, 30)                  # the lower half of a 4 px line
+    img[60:120, 100:200] = (30, 30, 30)              # a dark area touching the bottom edge
+    ink, _ = ink_mask(img)
+    assert ink[0:2, 60:240].any(axis=0).mean() > 0.9
+    assert not ink[60:120, 105:195].any()            # still not an area's edge or inside

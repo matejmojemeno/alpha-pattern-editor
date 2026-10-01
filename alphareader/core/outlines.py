@@ -7,7 +7,8 @@ of the Moon Stick's crescent is white on white, drawn only by its outline). So w
 1. **Ink:** pixels dark (L* < 55) and darker by 12 or more than the pixels on both sides
    of them, 3 or 6 pixels away across, down or diagonally: a dark ridge, which a drawn
    line is and the edge of a dark area isn't. 55, not darker: drawn lines taper, and the
-   Moon Stick's get as light as L* 49 at their ends.
+   Moon Stick's get as light as L* 49 at their ends. The ridge must go on along itself,
+   give or take a pixel; beyond the picture's edge counts as lighter (see ink_mask).
 2. **Centrelines:** the ink thinned to one pixel (Zhang–Suen), so a line is followed
    wherever it goes and stays connected, however it crosses the stitches.
 3. **Stitches:** every stitch a centreline passes through, less those it only clips (under
@@ -39,14 +40,16 @@ _INK_REACH = (3, 6)      # "both sides": this many pixels away, for lines up to 
 _CLIP = 1 / 3            # a stitch the centreline crosses for less than this share is clipped
 _MIN_SPECK = 3           # fewer stitches than this, alone, is a speck
 _CLUMP = 6               # lines in this many of a stitch's 3 × 3 make a clump
+_OUTSIDE_L = 100.0       # L* taken for beyond the image's edge, when looking across a line
 _DECIMALS = 6
 
 
-def _shifted(L: np.ndarray, dy: int, dx: int) -> np.ndarray:
-    """L moved by (dy, dx), edges repeated: out[y, x] = L[y + dy, x + dx]."""
+def _shifted(L: np.ndarray, dy: int, dx: int, fill: float | None = None) -> np.ndarray:
+    """L moved by (dy, dx): out[y, x] = L[y + dy, x + dx], with the edges repeated beyond
+    the image, or `fill` there if given."""
     h, w = L.shape
     r = max(abs(dy), abs(dx))
-    p = np.pad(L, r, mode="edge")
+    p = np.pad(L, r, mode="edge") if fill is None else np.pad(L, r, constant_values=fill)
     return p[r + dy:r + dy + h, r + dx:r + dx + w]
 
 
@@ -64,11 +67,22 @@ def ink_mask(img: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
             # A line runs across (dy, dx): it goes on along (dx, -dy), both ways, in the same
             # ink, at least as far as it is looked across. Near the corner of a dark shape
             # both diagonal sides are lighter too, but the shape doesn't go on that far.
+            # "Goes on" allows a pixel either side across, and ink as dark or darker: a thin
+            # anti-aliased line drifts by a pixel within a few pixels' length, darker where
+            # it fills a pixel, and looked for exactly in line in exactly the same ink, the
+            # Moon Stick's thin outer circle was missed for a third of its length.
             goes_on = dark
             for sy, sx in ((dx * d, -dy * d), (-dx * d, dy * d)):
-                goes_on = goes_on & (np.abs(_shifted(L, sy, sx) - L) < _INK_CONTRAST)
-            ridge |= goes_on & ((_shifted(L, dy * d, dx * d) - L >= _INK_CONTRAST)
-                                & (_shifted(L, -dy * d, -dx * d) - L >= _INK_CONTRAST))
+                on = np.minimum(_shifted(L, sy, sx),
+                                np.minimum(_shifted(L, sy + dy, sx + dx), _shifted(L, sy - dy, sx - dx)))
+                goes_on = goes_on & (on - L < _INK_CONTRAST)
+            # Beyond the image is background, looking straight across or down: a line the
+            # picture's edge cuts through (the top of the Moon Stick's circle) is still a
+            # line, and a dark area's edge isn't, as inside it, it isn't lighter. Not
+            # diagonally: there, the corner of a dark area at the edge would be a line.
+            outside = _OUTSIDE_L if dy == 0 or dx == 0 else None
+            ridge |= goes_on & ((_shifted(L, dy * d, dx * d, outside) - L >= _INK_CONTRAST)
+                                & (_shifted(L, -dy * d, -dx * d, outside) - L >= _INK_CONTRAST))
     return ridge, L
 
 
