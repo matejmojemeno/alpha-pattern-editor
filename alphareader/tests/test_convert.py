@@ -122,6 +122,35 @@ def test_a_thin_line_survives_default_smoothing():
     assert max(rows_with_line) > 0.9
 
 
+def test_two_colours_in_one_are_one_of_them_not_their_mean():
+    """With fewer colours than the picture has, yellow and orange share one, and it must be
+    one of them: their mean made the Moon Stick's crescent an olive beige."""
+    yellow, orange = np.array([250, 210, 75]), np.array([235, 170, 72])
+    img = _field(colour=(255, 255, 255))
+    img[40:200, 20:150] = yellow
+    img[40:200, 170:280] = orange
+    p = convert.convert_picture(img, cols=40, colours=2)
+    (shared,) = [_hex_rgb(e.hex) for e in p.palette if e.hex != "#ffffff"]
+    assert min(np.abs(shared - yellow).max(), np.abs(shared - orange).max()) <= 3, shared
+
+
+def test_a_photos_colours_are_still_means():
+    """A photo's colour is a spread of shades, and its mean stands for it better than its
+    most common shade (a parrot's red beak, sharing a colour with brown ground, went
+    brown): the most common shade is for drawings, which are flat colour."""
+    rng = np.random.default_rng(3)
+    yellow, orange = np.array([250, 210, 75]), np.array([235, 170, 72])
+    img = _field(colour=(255, 255, 255)).astype(np.float64)
+    img[40:200, 20:150] = yellow
+    img[40:200, 170:280] = orange
+    img = np.clip(img + rng.normal(0, 6, img.shape), 0, 255).astype(np.uint8)   # grain
+    st = convert.PictureState(img=img, extent=convert.whole(img), cols=40, colours=2)
+    p = st.preview()
+    assert st._samples[1].flat < convert._FLAT_SHARE
+    (shared,) = [_hex_rgb(e.hex) for e in p.palette if _hex_rgb(e.hex).min() < 200]
+    assert min(np.abs(shared - yellow).max(), np.abs(shared - orange).max()) > 8, shared
+
+
 def test_the_state_caches_each_step(monkeypatch):
     st = convert.PictureState(img=_gradient(), extent=Extent(0, 0, 320, 240))
     calls = {"sample": 0, "colours": 0, "assign": 0}
