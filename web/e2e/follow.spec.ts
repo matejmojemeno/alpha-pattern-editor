@@ -43,6 +43,7 @@ function wideProject(): Project {
     start_direction: 'LTR',
     alternate_direction: true,
     bottom_up: true,
+    craft: 'tapestry',
   }
   return { pattern, progress: emptyProgress(), stage: 'work' }
 }

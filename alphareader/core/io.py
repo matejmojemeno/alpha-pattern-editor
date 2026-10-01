@@ -23,6 +23,9 @@ from .model import PaletteEntry, Pattern, Progress, Project
 
 FORMAT_VERSION = 1
 
+# pattern.json has no "craft" for tapestry crochet (§15).
+DEFAULT_CRAFT = "tapestry"
+
 # Project root = two levels up from this file (…/alpha-pattern-editor).
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SAVED_DIR = os.path.join(_ROOT, "saved")
@@ -55,6 +58,9 @@ def _pattern_to_json(p: Pattern) -> dict:
         "start_direction": p.start_direction,
         "alternate_direction": p.alternate_direction,
         "bottom_up": p.bottom_up,
+        # Left out for tapestry crochet, the default, so a pattern that never chose a
+        # craft is written byte for byte as before crafts existed.
+        **({} if p.craft == DEFAULT_CRAFT else {"craft": p.craft}),
     }
 
 
@@ -69,6 +75,7 @@ def _pattern_from_json(d: dict, cells: np.ndarray) -> Pattern:
         start_direction=d.get("start_direction", "LTR"),
         alternate_direction=d.get("alternate_direction", True),
         bottom_up=d.get("bottom_up", True),
+        craft=d.get("craft", DEFAULT_CRAFT),
     )
 
 

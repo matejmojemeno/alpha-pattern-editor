@@ -59,6 +59,7 @@ function toPattern(r: PatternRecord): Pattern {
     start_direction: r.start_direction,
     alternate_direction: r.alternate_direction,
     bottom_up: r.bottom_up,
+    craft: 'tapestry',
   }
 }
 

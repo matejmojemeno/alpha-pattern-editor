@@ -54,8 +54,8 @@ def _assert_matches(proj, want: dict, path: str) -> None:
     assert [vars(e) for e in p.palette] == wp["palette"]
     assert p.row_ids == wp["row_ids"]
     assert (p.id, p.name, p.rows, p.cols) == (wp["id"], wp["name"], wp["rows"], wp["cols"])
-    assert (p.start_direction, p.alternate_direction, p.bottom_up) == (
-        wp["start_direction"], wp["alternate_direction"], wp["bottom_up"])
+    assert (p.start_direction, p.alternate_direction, p.bottom_up, p.craft) == (
+        wp["start_direction"], wp["alternate_direction"], wp["bottom_up"], wp["craft"])
     assert proj.stage == want["stage"]
 
     assert pr.completed_row_ids == set(wpr["completed_row_ids"])
@@ -89,7 +89,8 @@ def test_ts_roundtrip_matches_the_desktop_original(name):
     assert np.array_equal(a.pattern.cells, b.pattern.cells)
     assert a.pattern.cells.dtype == b.pattern.cells.dtype == np.uint16
     for field in ("id", "name", "created_at", "updated_at", "rows", "cols", "row_ids",
-                  "palette", "start_direction", "alternate_direction", "bottom_up"):
+                  "palette", "start_direction", "alternate_direction", "bottom_up",
+                  "craft"):
         assert getattr(a.pattern, field) == getattr(b.pattern, field), field
     assert a.progress == b.progress
     assert a.stage == b.stage

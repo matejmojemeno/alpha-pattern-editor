@@ -127,6 +127,7 @@ export function detectingWorker({ failWith }: { failWith?: string } = {}): FakeW
             start_direction: 'RTL',
             alternate_direction: true,
             bottom_up: true,
+            craft: 'tapestry',
           },
         }
       default:

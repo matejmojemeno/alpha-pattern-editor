@@ -30,6 +30,7 @@ function project(overrides: Partial<Project['pattern']> = {}): Project {
       start_direction: 'RTL',
       alternate_direction: true,
       bottom_up: true,
+      craft: 'tapestry',
       ...overrides,
     },
     progress: {
@@ -119,6 +120,20 @@ describe('writeAlpha / readAlpha', () => {
     expect(p.pattern.bottom_up).toBe(true)
     expect(p.pattern.palette).toEqual([{ id: 'a', hex: '#fff', name: 'W', dmc: null, count: 0 }])
     expect(p.progress).toEqual(emptyProgress())
+  })
+
+  it('leaves tapestry crochet out of pattern.json, and reads none as tapestry', () => {
+    const files = unzipSync(writeAlpha(project()).bytes)
+    expect(strFromU8(files['pattern.json']!)).not.toContain('craft')
+    expect(readAlpha(writeAlpha(project()).bytes).project.pattern.craft).toBe('tapestry')
+  })
+
+  it('writes any other craft last, and keeps one it does not know', () => {
+    for (const craft of ['bracelet', 'from-a-newer-build']) {
+      const { bytes } = writeAlpha(project({ craft }))
+      expect(strFromU8(unzipSync(bytes)['pattern.json']!)).toMatch(new RegExp(`"bottom_up": true, "craft": "${craft}"}$`))
+      expect(readAlpha(bytes).project.pattern.craft).toBe(craft)
+    }
   })
 
   it('keeps an explicit null, as dict.get does', () => {

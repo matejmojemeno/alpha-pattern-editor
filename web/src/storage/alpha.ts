@@ -20,7 +20,7 @@ import {
   type PatternJson,
   type ProgressJson,
 } from '../model/alphaJson.ts'
-import type { Direction, PaletteEntry, Pattern, Progress, Project, Stage } from '../model/types.ts'
+import { PATTERN_DEFAULTS, type Direction, type PaletteEntry, type Pattern, type Progress, type Project, type Stage } from '../model/types.ts'
 import { readNpyU16, writeNpyU16 } from './npy.ts'
 import { pyJsonDumps, type PyJson } from './pyjson.ts'
 
@@ -62,6 +62,9 @@ function patternToJson(p: Pattern): PatternJson {
     start_direction: p.start_direction,
     alternate_direction: p.alternate_direction,
     bottom_up: p.bottom_up,
+    // Left out for tapestry crochet, as io.py does, so a pattern that never chose a
+    // craft saves byte for byte as before crafts existed.
+    ...(p.craft === PATTERN_DEFAULTS.craft ? {} : { craft: p.craft }),
   }
 }
 
@@ -194,6 +197,7 @@ export function readAlpha(bytes: Uint8Array): AlphaContents {
     start_direction: get(pj, 'start_direction', 'LTR' as Direction),
     alternate_direction: get(pj, 'alternate_direction', true),
     bottom_up: get(pj, 'bottom_up', true),
+    craft: get(pj, 'craft', PATTERN_DEFAULTS.craft),
   }
 
   const prj = json<ProgressJson>(files, 'progress.json')

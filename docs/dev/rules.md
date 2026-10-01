@@ -138,6 +138,15 @@ break without noticing.
   when loading a file, while the `model.py` dataclass defaults to `"RTL"`. This is
   deliberate: it keeps files written before right-to-left became the default reading
   correctly. Unifying the two would silently mirror every old project.
+- <a id="craft-default-omitted"></a>**`pattern.json` has no `"craft"` for tapestry crochet,
+  and an unknown craft is kept.** Both `io.py` and `storage/alpha.ts` leave the key out
+  when it is `"tapestry"`. That is what keeps every file written before crafts existed,
+  and every pattern that never picks one, byte for byte the same; the pristine desktop
+  fixtures check it. `Pattern.craft` is a plain string, and `craftOf` reads an id it
+  doesn't know as tapestry crochet without changing it, so a newer build's craft survives
+  a trip through an older one. A new field that the bridge sends must be added to
+  `bridge.commit` too: it lists every field by hand, and `test_bridge.py` checks it sends
+  all of them.
 - <a id="debug-layers"></a>**`DebugLayers` never crosses the worker boundary.** It holds full-resolution masks,
   megabytes per message.
 - <a id="nd-py"></a>**Don't "simplify" `_nd.py`.** `find_peaks` applies `distance` *before* `prominence`,

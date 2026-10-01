@@ -30,6 +30,9 @@ back from it: cells, palette, row_ids, direction flags, progress, stage and a sh
   not the dataclass default `"RTL"` (see [the rule](../../docs/dev/rules.md#start-direction)).
 - `unicode`: non-ASCII, astral and control characters in names.
 - `large`: 120×150, so the `.npy` header has 3-digit dimensions.
+- `craft`: a craft chosen (`"bracelet"`), so `pattern.json` has a `"craft"` key; every
+  other file has none, as tapestry crochet is left out, and reads back as `"tapestry"`.
+- `craft-unknown`: a craft this build doesn't know, which must be kept as it is.
 - `newer-format`: `format_version: 999`. Both sides must refuse it.
 
 `expected.json` marks each file `pristine` if it came straight out of `save_project`.
@@ -41,7 +44,8 @@ suite also checks that saving them again produces **byte-identical** `meta.json`
 - `roundtrip-*`: every loadable desktop file, opened and saved again by TS. The pytest
   test checks that each one reads back exactly as its desktop original.
 - `built-edge`: built in TS from scratch, with integral timestamps (Python must still
-  read them back as floats), awkward strings and 0xFFFF cells.
+  read them back as floats), awkward strings, 0xFFFF cells and a craft
+  (`"stranded-knit"`).
 - `built-empty`: a 0×0 pattern.
 - `newer-format`: a TS-written archive with `format_version: 999`.
 

@@ -29,6 +29,29 @@ Newest last, as they were built.
   in the Python: the desktop never showed it, and it only reads the pattern. Tested
   against the strands themselves: over 800 random patterns, every strand enters a row
   where it left the one before when rows alternate, carried exactly |q − p|.
+- <a id="crafts"></a>**Crafts** (`web/src/craft/crafts.ts`, §15; Work stage, **Options**).
+  - **Craft** (tapestry crochet, intarsia crochet, stranded knitting, intarsia knitting,
+    alpha friendship bracelet, bead loom) is saved on the pattern as `craft`.
+  - Picking one sets the reading order its source gives. Each convention is cited in
+    [`craft/README.md`](../../../web/src/craft/README.md).
+  - It also sets the unit in the stitch count and the **Record progress** dialog
+    ("knots", "beads").
+  - **Show where to carry yarn** shows only for tapestry crochet. Other crafts don't carry
+    inside stitches, and the app-wide setting is left as it is.
+  - **Start from the top row** (`bottom_up`) and **Rows turn** (`alternate_direction`)
+    join **Start rows from the right**.
+  - Every one of these changes goes through `reorder` (`logic/progress.ts`):
+    - Rows marked done stay done, as row ids do.
+    - When the row partway through would read differently, the Work stage asks
+      (**Start row N again?**) before sending it back to the start of the row.
+    - With nothing recorded yet, the place moves to the first row of the new order.
+  - Before this, **Start rows from the right** kept the cursor's segment index on a row
+    that now read the other way. It then pointed at a different stitch than the maker
+    had reached.
+  - Not in the Python: `craft` is stored there (`model.py`, `io.py`, sent by
+    `bridge.commit`), but nothing reads it.
+  - The other crafts considered, and what each would take, are in
+    [`crafts.md`](../crafts.md).
 
 ## During the port
 

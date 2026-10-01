@@ -38,6 +38,9 @@ export interface Pattern {
   readonly alternate_direction: boolean
   /** Work is followed bottom row first (§4.4). */
   readonly bottom_up: boolean
+  /** What it's made in: an id from craft/crafts.ts (§15). Any string, so that a newer
+   *  build's craft is kept as it is; `craftOf` reads an unknown one as tapestry. */
+  readonly craft: string
 }
 
 /** Dataclass defaults for a *new* Pattern. Loading a file uses different ones for
@@ -46,7 +49,8 @@ export const PATTERN_DEFAULTS = {
   start_direction: 'RTL',
   alternate_direction: true,
   bottom_up: true,
-} as const satisfies Pick<Pattern, 'start_direction' | 'alternate_direction' | 'bottom_up'>
+  craft: 'tapestry',
+} as const satisfies Pick<Pattern, 'start_direction' | 'alternate_direction' | 'bottom_up' | 'craft'>
 
 export interface Progress {
   readonly completed_row_ids: ReadonlySet<string>

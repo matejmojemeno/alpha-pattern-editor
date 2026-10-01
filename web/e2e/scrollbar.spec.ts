@@ -54,6 +54,7 @@ function edgesProject(name: string, cols: number, rows: number): Project {
     alternate_direction: true,
     // Top-down, so the current row (drawn taller) is the first, far from the last.
     bottom_up: false,
+    craft: 'tapestry',
   }
   return { pattern, progress: emptyProgress(), stage: 'work' }
 }

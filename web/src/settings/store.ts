@@ -2,10 +2,9 @@
  * App-wide preferences, kept in localStorage.
  *
  * Only *how the app looks* and the yarn you buy live here. Anything that changes how a
- * pattern is read, such as start_direction, stays on the pattern and travels with its
- * `.alpha` file. The colour library and the yarn estimate's inputs are app-wide because
- * they describe the crocheter's yarn and hands, not the chart, and because a field on the
- * pattern would have to round-trip through the desktop app, which knows nothing of it.
+ * pattern is read, such as start_direction or the craft, stays on the pattern and
+ * travels with its `.alpha` file. The colour library and the yarn estimate's inputs are
+ * app-wide because they describe the crocheter's yarn and hands, not the chart.
  *
  * Storage can be missing or hostile: Safari private windows, blocked site data and
  * sandboxed iframes all make localStorage throw, sometimes just for touching the

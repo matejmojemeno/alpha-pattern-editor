@@ -27,6 +27,7 @@ function project(id: string, name = id): Project {
       start_direction: 'RTL',
       alternate_direction: true,
       bottom_up: true,
+      craft: 'tapestry',
     },
     progress: emptyProgress(),
   }

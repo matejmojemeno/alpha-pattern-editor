@@ -21,6 +21,7 @@ function pattern(rows: number, cols: number, cells?: number[]): Pattern {
     start_direction: 'RTL',
     alternate_direction: true,
     bottom_up: true,
+    craft: 'tapestry',
   }
 }
 

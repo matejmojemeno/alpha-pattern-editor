@@ -245,26 +245,75 @@ describe('buttons', () => {
 })
 
 describe('options', () => {
-  it('"Start rows from the right" flips how rows read, and keeps progress', async () => {
+  it('"Start rows from the right" flips how rows read, asking first when the row partway through starts again', async () => {
     const { project } = await openWork('partial-row.alpha')
     const p = project.pattern
     expect(p.start_direction).toBe('LTR')
     const before = rowLabel()
     const cursorChip = chips().findIndex((c) => c.className.includes('chip--current'))
+    expect(cursorChip).toBeGreaterThan(0)
     const box = screen.getByLabelText<HTMLInputElement>('Start rows from the right')
     expect(box.checked).toBe(false)
+    const r = work.rowIndex(p, project.progress.current_row_id)!
+
+    // The row partway through would read the other way: asked first, and Cancel keeps it.
+    await userEvent.click(box)
+    const dialog = screen.getByRole('alertdialog', { name: `Start row ${workingNumber(p, r)} again?` })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(box.checked).toBe(false)
+    expect(rowLabel()).toBe(before)
+    expect(chips().findIndex((c) => c.className.includes('chip--current'))).toBe(cursorChip)
 
     await userEvent.click(box)
+    await userEvent.click(screen.getByRole('button', { name: 'Change it' }))
     expect(box.checked).toBe(true)
-    // The same row, now read from the other side...
-    const r = work.rowIndex(p, project.progress.current_row_id)!
+    // The same row, now read from the other side, from its start...
     expect(rowLabel()).toBe(before!.replace('→', '←'))
     const flipped = encodeRow({ ...p, start_direction: 'RTL' }, r)
     const names = chips().map((c) => c.querySelector('.chip__text')!.textContent)
     expect(names).toEqual(flipped.map((run) => `${run.count} ${p.palette[run.palette_index]!.name}`))
-    // ...with the stored cursor where it was.
-    expect(chips().findIndex((c) => c.className.includes('chip--current'))).toBe(cursorChip)
+    expect(chips().findIndex((c) => c.className.includes('chip--current'))).toBe(0)
     expect(screen.getByText(`Next: Row ${workingNumber(p, r) + 1}: ${formatRowText({ ...p, start_direction: 'RTL' }, r + 1)}`)).toBeTruthy()
+
+    // ...and at the start of a row, nothing to ask: back it goes at once.
+    await userEvent.click(box)
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(box.checked).toBe(false)
+  })
+
+  it('a craft sets the reading order, the words and whether carrying is offered', async () => {
+    const settle = () => new Promise((r) => setTimeout(r, 400))
+    const { repo, project } = await openWork('basic.alpha')
+    const p = project.pattern
+    const craft = screen.getByLabelText<HTMLSelectElement>('Craft')
+    expect(craft.value).toBe('tapestry')
+    expect(screen.getByLabelText('Show where to carry yarn')).toBeTruthy()
+    expect(document.querySelector('.work__stitches')!.textContent).toBe(`0 / ${p.rows * p.cols} stitches`)
+
+    // Bracelets are knotted from the top, the first row left to right.
+    await userEvent.selectOptions(craft, 'bracelet')
+    expect(document.querySelector('.work__stitches')!.textContent).toBe(`0 / ${p.rows * p.cols} knots`)
+    expect(screen.queryByLabelText('Show where to carry yarn')).toBeNull()
+    expect(screen.getByLabelText<HTMLInputElement>('Start from the top row').checked).toBe(true)
+    expect(screen.getByLabelText<HTMLInputElement>('Start rows from the right').checked).toBe(false)
+    expect(screen.getByLabelText<HTMLInputElement>('Rows turn (off in the round)').checked).toBe(true)
+    const top = { ...p, bottom_up: false, start_direction: 'LTR' as const }
+    expect(rowLabel()).toBe('Row 1 of 5 →')
+    const names = chips().map((c) => c.querySelector('.chip__text')!.textContent)
+    expect(names).toEqual(encodeRow(top, 0).map((run) => `${run.count} ${p.palette[run.palette_index]!.name}`))
+    await userEvent.click(chips()[0]!)
+    expect(screen.getByLabelText('Knots done')).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    // Saved with the pattern.
+    await settle()
+    const saved = (await repo.open(p.id)).project.pattern
+    expect([saved.craft, saved.bottom_up, saved.start_direction, saved.alternate_direction]).toEqual(['bracelet', false, 'LTR', true])
+
+    // A bead loom: every row the same way, beads.
+    await userEvent.selectOptions(craft, 'bead-loom')
+    expect(screen.getByLabelText<HTMLInputElement>('Rows turn (off in the round)').checked).toBe(false)
+    expect(document.querySelector('.work__stitches')!.textContent).toBe(`0 / ${p.rows * p.cols} beads`)
   })
 
   it('shows where to carry yarn only when asked, on the chips of the row being worked', async () => {
@@ -387,15 +436,16 @@ describe('saving', () => {
     expect(after.sourcePng).toEqual(before)
   })
 
-  it('saves "Start rows from the right" with the pattern, leaving progress as it was', async () => {
+  it('saves "Start rows from the right" with the pattern, the row partway through started again', async () => {
     const { repo, project } = await openWork('partial-row.alpha')
     await userEvent.click(screen.getByLabelText('Start rows from the right'))
+    await userEvent.click(screen.getByRole('button', { name: 'Change it' }))
     await settle()
     const saved = (await repo.open(project.pattern.id)).project
     expect(saved.pattern.start_direction).toBe('RTL')
     expect(saved.progress.current_row_id).toBe(project.progress.current_row_id)
-    expect(saved.progress.current_run_index).toBe(project.progress.current_run_index)
-    expect(saved.progress.current_run_stitches).toBe(project.progress.current_run_stitches)
+    expect(saved.progress.current_run_index).toBe(0)
+    expect(saved.progress.current_run_stitches).toBe(0)
     expect([...saved.progress.completed_row_ids].sort()).toEqual([...project.progress.completed_row_ids].sort())
   })
 

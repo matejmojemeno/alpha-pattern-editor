@@ -52,6 +52,7 @@
      ]
     ],
     "cols": 7,
+    "craft": "tapestry",
     "created_at": 1758600000.125,
     "id": "f17aaabc20bfe045075927934fed52d2",
     "name": "basic",
@@ -87,6 +88,158 @@
     ],
     "rows": 5,
     "start_direction": "RTL",
+    "updated_at": 1758700000.123456
+   },
+   "pristine": true,
+   "progress": {
+    "completed_row_ids": [],
+    "current_row_id": null,
+    "current_run_index": 0,
+    "current_run_stitches": 0,
+    "started_at": null
+   },
+   "source_png_sha256": null,
+   "stage": "design"
+  },
+  "craft-unknown.alpha": {
+   "pattern": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      1,
+      1,
+      0,
+      1
+     ],
+     [
+      1,
+      0,
+      0,
+      1
+     ],
+     [
+      0,
+      1,
+      1,
+      0
+     ]
+    ],
+    "cols": 4,
+    "craft": "c2c-someday",
+    "created_at": 1758600000.125,
+    "id": "ab06e2d71f6d9b26507d0ca5f1262b43",
+    "name": "craft-unknown",
+    "palette": [
+     {
+      "count": 5,
+      "dmc": "B5200",
+      "hex": "#ffffff",
+      "id": "c0",
+      "name": "White"
+     },
+     {
+      "count": 7,
+      "dmc": "433",
+      "hex": "#6b3e26",
+      "id": "c1",
+      "name": "Brown"
+     }
+    ],
+    "row_ids": [
+     "e563ca607a4dc416aa82d59f818f6ab4",
+     "9f426cd73ea5ba033a7ed1f9018ed37d",
+     "3cbc461ab7533c74e31d2dfe2d61a1fb"
+    ],
+    "rows": 3,
+    "start_direction": "RTL",
+    "updated_at": 1758700000.123456
+   },
+   "pristine": true,
+   "progress": {
+    "completed_row_ids": [],
+    "current_row_id": null,
+    "current_run_index": 0,
+    "current_run_stitches": 0,
+    "started_at": null
+   },
+   "source_png_sha256": null,
+   "stage": "design"
+  },
+  "craft.alpha": {
+   "pattern": {
+    "alternate_direction": true,
+    "bottom_up": false,
+    "cells": [
+     [
+      0,
+      2,
+      0,
+      0,
+      1,
+      1
+     ],
+     [
+      0,
+      2,
+      2,
+      2,
+      0,
+      2
+     ],
+     [
+      0,
+      2,
+      1,
+      1,
+      0,
+      1
+     ],
+     [
+      0,
+      0,
+      0,
+      1,
+      0,
+      2
+     ]
+    ],
+    "cols": 6,
+    "craft": "bracelet",
+    "created_at": 1758600000.125,
+    "id": "23ca2c6b139fb6ff9654c1b197a4db3a",
+    "name": "craft",
+    "palette": [
+     {
+      "count": 11,
+      "dmc": "B5200",
+      "hex": "#ffffff",
+      "id": "c0",
+      "name": "White"
+     },
+     {
+      "count": 6,
+      "dmc": "433",
+      "hex": "#6b3e26",
+      "id": "c1",
+      "name": "Brown"
+     },
+     {
+      "count": 7,
+      "dmc": "321",
+      "hex": "#d93a3a",
+      "id": "c2",
+      "name": "Red"
+     }
+    ],
+    "row_ids": [
+     "13d4a50a69e8092d3a31b74985c65004",
+     "9bc8059234ed49598a3e69619db78c6e",
+     "f8ed0f41eb3bd42f16bf73628c5879c3",
+     "64a9dea55179827d0cc938864b275cc3"
+    ],
+    "rows": 4,
+    "start_direction": "LTR",
     "updated_at": 1758700000.123456
    },
    "pristine": true,
@@ -18347,6 +18500,7 @@
      ]
     ],
     "cols": 150,
+    "craft": "tapestry",
     "created_at": 1758600000.125,
     "id": "afacdb0a401ccdf6b48551bbc00e8a74",
     "name": "large",
@@ -18549,6 +18703,7 @@
      ]
     ],
     "cols": 4,
+    "craft": "tapestry",
     "created_at": 1758600000.125,
     "id": "6ad5211669354011346d0400ea42bf6a",
     "name": "legacy-pattern",
@@ -18627,6 +18782,7 @@
      ]
     ],
     "cols": 5,
+    "craft": "tapestry",
     "created_at": 1758600000.125,
     "id": "2fd51d0f0dfb4be02ccf073fa5de4cef",
     "name": "old-progress",
@@ -18779,6 +18935,7 @@
      ]
     ],
     "cols": 10,
+    "craft": "tapestry",
     "created_at": 1758600000.125,
     "id": "da8565e3660292084214a2cdd3349226",
     "name": "partial-row",
@@ -18873,6 +19030,7 @@
      ]
     ],
     "cols": 6,
+    "craft": "tapestry",
     "created_at": 1758600000.125,
     "id": "840809e60e0987c87dced572e006a249",
     "name": "skip-cells",
@@ -18935,6 +19093,7 @@
      ]
     ],
     "cols": 3,
+    "craft": "tapestry",
     "created_at": 1758600000.125,
     "id": "8ab3b19e134f01fbaf94b8e15f3df090",
     "name": "Žlutý kůň 🐴 \"quoted\"\ttab\\slash",
@@ -19048,6 +19207,7 @@
      ]
     ],
     "cols": 8,
+    "craft": "tapestry",
     "created_at": 1758600000.125,
     "id": "b9b9ba3f4de1a2037c977ca2b363871c",
     "name": "with-source",

@@ -19,6 +19,12 @@ line per change, under the release it's in.
   back** to undo it.
 - **Select object** (`W`) in Design: click a shape, such as one cat in a row of cats, to
   select it without its background, and drag it straight away.
+- **Craft** in the Work stage's **Options**: follow a pattern as stranded or intarsia
+  knitting, intarsia crochet, an alpha friendship bracelet or on a bead loom, as well as
+  tapestry crochet. Each sets which row is first and which way rows run, and counts
+  knots or beads where that's the word.
+- **Start from the top row** and **Rows turn** in the Work stage's **Options**, for
+  patterns worked from the top, or in the round.
 
 ### Changed
 
@@ -28,4 +34,6 @@ line per change, under the release it's in.
 ### Fixed
 
 - Rotating a selection four times, or once each way, puts it back exactly where it was.
+- Changing **Start rows from the right** partway through a row no longer leaves your place
+  on the wrong stitch: the app asks, then starts that row again.
   Before, a selection whose width and height differed by an odd number crept up and left.

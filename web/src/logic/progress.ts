@@ -78,6 +78,29 @@ export function carryProgress(before: Pattern, pr: Progress, after: Pattern): Pr
   return repairProgress(after, moved)
 }
 
+/**
+ * The Work stage reading `p` in another order (`next`: the same rows, started from the
+ * other end or side, turning or not, as a craft or an option sets it). Rows marked done
+ * stay done, as ids do; the progress is carried as an edit's is, and `restartsRow` says
+ * whether the row partway through goes back to its start because it now reads
+ * differently. The Work stage asks before that. With nothing recorded yet (no row done,
+ * nothing of the current one), the place is simply the first row in the new order.
+ */
+export function reorder(p: Pattern, pr: Progress, next: Pattern): { progress: Progress; restartsRow: boolean } {
+  let progress = carryProgress(p, pr, next)
+  const partway = pr.current_run_index > 0 || pr.current_run_stitches > 0
+  if (!partway && pr.completed_row_ids.size === 0 && progress.current_row_id !== null) {
+    const first = firstIncompleteRow(next, progress)
+    if (first && first !== progress.current_row_id) progress = { ...progress, current_row_id: first }
+  }
+  const restartsRow =
+    partway &&
+    progress.current_row_id === pr.current_row_id &&
+    progress.current_run_index === 0 &&
+    progress.current_run_stitches === 0
+  return { progress, restartsRow }
+}
+
 /** What an edit from `p` to `next` would lose of the progress `pr` (made for `p`). */
 export interface ProgressLoss {
   /** Rows marked done that the edit removes. */

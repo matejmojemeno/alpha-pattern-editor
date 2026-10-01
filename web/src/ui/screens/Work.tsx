@@ -27,12 +27,13 @@ import {
   setRunStitches,
   workSequence,
 } from '../../logic/work.ts'
-import { repairProgress } from '../../logic/progress.ts'
-import type { Project } from '../../model/types.ts'
+import { reorder, repairProgress } from '../../logic/progress.ts'
+import { countOf, craftOf, CRAFTS, isCraftId, withCraft, type CraftId } from '../../craft/crafts.ts'
+import type { Pattern, Project } from '../../model/types.ts'
 import type { RowPlace } from '../../render/layout.ts'
 import { progressPct } from '../../storage/alpha.ts'
 import type { ProjectRepo } from '../../storage/repo.ts'
-import { HelpLink, ProgressBar, RenameForm } from '../components.tsx'
+import { ConfirmDialog, HelpLink, ProgressBar, RenameForm } from '../components.tsx'
 import { useDocumentTitle } from '../hooks.ts'
 import { ProjectGate } from '../ProjectGate.tsx'
 import { ChartView } from '../work/ChartView.tsx'
@@ -127,6 +128,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
   }, [])
 
   const { pattern: p, progress: pr } = project
+  const craft = craftOf(p)
   const done = isComplete(p, pr)
   const cur = done ? null : rowIndex(p, pr.current_row_id)
   const runs = useMemo(() => (cur === null ? [] : encodeRow(p, cur)), [p, cur])
@@ -146,7 +148,10 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
     [p, cur, runs, pr],
   )
   // Where to carry each colour, for the whole chart: only worked out when asked for.
-  const carries = useMemo(() => (settings.showCarries ? carryPlan(p) : null), [p, settings.showCarries])
+  const carries = useMemo(
+    () => (settings.showCarries && craftOf(p).carries ? carryPlan(p) : null),
+    [p, settings.showCarries],
+  )
   const runCarries = useMemo(
     () => (carries === null || cur === null ? null : carriesByRun(p.cols, runs, carries[cur]!, rowDirection(p, cur))),
     [p, cur, runs, carries],
@@ -196,8 +201,31 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [segment, completeRow, previousRow, saver])
 
-  const setStartRight = (right: boolean) =>
-    change((x) => ({ ...x, pattern: { ...x.pattern, start_direction: right ? 'RTL' : 'LTR' } }))
+  // The craft and the reading-order options read the same rows another way. Progress is
+  // carried as after an edit; if that sends the row partway through back to its start,
+  // ask first (logic/progress.ts `reorder`).
+  const [restart, setRestart] = useState<{ next: Pattern; row: number } | null>(null)
+  const reread = (make: (q: Pattern) => Pattern) => {
+    const x = latest.current
+    const next = make(x.pattern)
+    const { progress, restartsRow } = reorder(x.pattern, x.progress, next)
+    if (restartsRow) {
+      const r = rowIndex(x.pattern, x.progress.current_row_id)!
+      setRestart({ next, row: workingNumber(x.pattern, r) })
+      return
+    }
+    change((y) => ({ ...y, pattern: next, progress }))
+  }
+  const confirmRestart = () => {
+    if (!restart) return
+    const { next } = restart
+    setRestart(null)
+    change((y) => ({ ...y, pattern: next, progress: reorder(y.pattern, y.progress, next).progress }))
+  }
+  const setCraft = (id: CraftId) => reread((q) => withCraft(q, id))
+  const setStartRight = (right: boolean) => reread((q) => ({ ...q, start_direction: right ? 'RTL' : 'LTR' }))
+  const setTurning = (turn: boolean) => reread((q) => ({ ...q, alternate_direction: turn }))
+  const setFromTop = (top: boolean) => reread((q) => ({ ...q, bottom_up: !top }))
 
   // Back to Design (§6.4), a deliberate action in the Options menu. The project is saved
   // as a Design-stage one first, as the desktop did, so it reopens there.
@@ -253,6 +281,16 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
             >
               Rename…
             </button>
+            <label className="work__craft">
+              Craft
+              <select value={isCraftId(p.craft) ? p.craft : craft.id} onChange={(e) => setCraft(e.target.value as CraftId)}>
+                {CRAFTS.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="check">
               <input
                 type="checkbox"
@@ -262,17 +300,27 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
               Start rows from the right
             </label>
             <label className="check">
+              <input type="checkbox" checked={!p.bottom_up} onChange={(e) => setFromTop(e.target.checked)} />
+              Start from the top row
+            </label>
+            <label className="check">
+              <input type="checkbox" checked={p.alternate_direction} onChange={(e) => setTurning(e.target.checked)} />
+              Rows turn (off in the round)
+            </label>
+            <label className="check">
               <input type="checkbox" checked={settings.focusMode} onChange={(e) => setSettings({ focusMode: e.target.checked })} />
               Focus mode
             </label>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={settings.showCarries}
-                onChange={(e) => setSettings({ showCarries: e.target.checked })}
-              />
-              Show where to carry yarn
-            </label>
+            {craft.carries && (
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={settings.showCarries}
+                  onChange={(e) => setSettings({ showCarries: e.target.checked })}
+                />
+                Show where to carry yarn
+              </label>
+            )}
             <label className="check">
               <input
                 type="checkbox"
@@ -320,7 +368,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
           )}
         </p>
         <p className="work__stitches">
-          {stitchesDone} / {total} stitches
+          {stitchesDone} / {countOf(craft, total)}
         </p>
         <ProgressBar pct={progressPct(p, pr)} />
       </section>
@@ -375,6 +423,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
         <SegmentDialog
           entry={entryFor(p, openRun.palette_index)}
           count={openRun.count}
+          units={craft.units}
           done={segment === pr.current_run_index ? pr.current_run_stitches : 0}
           onCancel={() => setSegment(null)}
           onComplete={() => {
@@ -388,6 +437,20 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
             change((x) => ({ ...x, progress: setRunStitches(x.pattern, x.progress, i, n) }))
           }}
         />
+      )}
+
+      {restart && (
+        <ConfirmDialog
+          title={`Start row ${restart.row} again?`}
+          confirmLabel="Change it"
+          onCancel={() => setRestart(null)}
+          onConfirm={confirmRestart}
+        >
+          <p>
+            Row {restart.row} would read differently, so the part of it you've recorded goes back to the start of the row.
+            Rows marked done stay done.
+          </p>
+        </ConfirmDialog>
       )}
     </main>
   )

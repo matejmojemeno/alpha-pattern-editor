@@ -3,13 +3,14 @@ runs. The worker converts every payload with `create_pyproxies: false`, so anyth
 that isn't plain data or a 1-D typed-array-shaped numpy array would throw in the browser."""
 from __future__ import annotations
 
+import dataclasses
 import numpy as np
 import pytest
 
 from ..core import bridge, convert, kind
 from ..core.confirm import ConfirmState, pattern_from_preview
 from ..core.detect import detect_pattern
-from ..core.model import DetectionError
+from ..core.model import DetectionError, Pattern
 from . import synth
 
 # numpy dtypes Pyodide turns into typed arrays of the same element type.
@@ -148,6 +149,9 @@ def test_the_result_is_what_the_desktop_commits():
         [(e.hex, e.name, e.dmc, e.count) for e in desktop.palette]
     assert len(web["row_ids"]) == web["rows"] == len(set(web["row_ids"]))
     assert web["start_direction"] == "RTL"
+    # Every field a Pattern has, so the web app gets a whole one (craft included).
+    assert set(web) == {f.name for f in dataclasses.fields(Pattern)}
+    assert web["craft"] == "tapestry"
 
 
 def test_alpha_is_dropped_not_composited():

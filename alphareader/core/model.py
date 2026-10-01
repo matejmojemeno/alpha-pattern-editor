@@ -34,6 +34,10 @@ class Pattern:
     start_direction: Literal["LTR", "RTL"] = "RTL"   # row 1 (bottom) reads right->left
     alternate_direction: bool = True
     bottom_up: bool = True                # work is followed bottom row first (§4.4)
+    # What it's made in, as a craft id from web/src/craft/crafts.ts (§15). Only the web
+    # app reads it, for the Work stage's words and hints; readout and progress ignore it.
+    # An id this code doesn't know is kept as it is, so a newer build's craft survives.
+    craft: str = "tapestry"
 
 
 @dataclass
