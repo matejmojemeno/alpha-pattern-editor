@@ -5,17 +5,18 @@
  * The cells are drawn once, one pixel per cell, into an offscreen image whenever the
  * pattern changes (`buildCellImage`). Each frame then scales bands of that image onto
  * the visible canvas with smoothing off, and draws the few things that depend on
- * progress and scroll position over it: gridlines, the strands to carry (when asked
- * for), the done-wash and strike line (over done rows and the part of the current row
- * already worked), the current-row outline and the axis numbers. Nothing fills cells one at a time per frame,
- * which is what keeps an 88×194 chart scrolling smoothly on a phone.
+ * progress and scroll position over it: gridlines, the stitch numbers and the strands to
+ * carry (each when asked for), the done-wash and strike line (over done rows and the part
+ * of the current row already worked), the current-row outline and the axis numbers.
+ * Nothing fills cells one at a time per frame, which is what keeps an 88×194 chart
+ * scrolling smoothly on a phone.
  *
  * The visible canvas is the size of the chart area, not of the chart: a scrolled chart
  * is drawn from an offset, so a long pattern never needs a canvas taller than the screen.
  */
 import type { Carry } from '../logic/carry.ts'
-import { workingNumber } from '../logic/readout.ts'
-import type { Pattern } from '../model/types.ts'
+import { encodeRow, rowDirection, workingNumber } from '../logic/readout.ts'
+import { SKIP_INDEX, type Pattern } from '../model/types.ts'
 import { contrastOn, hexToRgb } from '../theme/contrast.ts'
 import { AXIS_LEFT, AXIS_TOP, placeDone, rowsInViewport, showAxisNumber, type ChartLayout, type RowPlace } from './layout.ts'
 
@@ -118,6 +119,8 @@ export interface DrawInput {
   place?: RowPlace | null
   /** Strands to draw carried inside stitches, per image row (logic/carry.ts), or none. */
   carries?: readonly (readonly Carry[])[] | null
+  /** Number each stitch within its run of one colour (`stitchNumbers`). */
+  numbers?: boolean
   scrollX: number
   scrollY: number
   /** The canvas size in CSS pixels. */
@@ -189,6 +192,85 @@ function drawCarries(
   }
 }
 
+/** Each stitch's place in its run of one colour, counted the way row `r` is worked, by
+ *  image column: on a right-to-left row the count starts at the right. 0 for a skipped
+ *  cell, which is not worked. */
+export function stitchNumbers(p: Pattern, r: number): Uint16Array {
+  const out = new Uint16Array(p.cols)
+  const rtl = rowDirection(p, r) === 'RTL'
+  for (const run of encodeRow(p, r)) {
+    if (run.palette_index === SKIP_INDEX) continue
+    for (let k = 0; k < run.count; k++) {
+      const pos = run.start_col + k
+      out[rtl ? p.cols - 1 - pos : pos] = k + 1
+    }
+  }
+  return out
+}
+
+/** The smallest stitch number drawn, in CSS px: below it a number is a smudge, and the
+ *  cell is left plain. */
+export const NUMBER_MIN_FONT = 8
+
+/** The font size a number of `digits` digits gets in a cell `w` wide and `h` tall, or 0
+ *  when it wouldn't be readable there. */
+export function numberFont(w: number, h: number, digits: number): number {
+  const fs = Math.floor(Math.min(h * 0.6, (w * 0.85) / (0.6 * digits), 16))
+  return fs >= NUMBER_MIN_FONT ? fs : 0
+}
+
+/** The stitch numbers, in black or white, whichever reads on the stitch's colour. Where a
+ *  carried strand runs through the stitch, its number is outlined in the other one, so it
+ *  reads on the strand's colour too. */
+function drawNumbers(ctx: CanvasRenderingContext2D, d: DrawInput, from: number, to: number, c0: number, c1: number, ox: number, oy: number): void {
+  const { layout: l, pattern } = d
+  const ink = pattern.palette.map((e) => {
+    try {
+      return contrastOn(e.hex)
+    } catch {
+      return '#000000'
+    }
+  })
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  for (let i = from; i < to; i++) {
+    const h = l.heights[i]!
+    // Not even one digit fits: nothing in this row will.
+    if (numberFont(l.cell, h, 1) === 0) continue
+    const r = l.range.start + i
+    const nums = stitchNumbers(pattern, r)
+    const mid = oy + l.offsets[i]! + h / 2
+    // One size for the whole row, set by its longest number, so a 10 isn't smaller than
+    // the 9 beside it; only where that one can't fit at all does each number fit itself.
+    const carried = new Set<number>()
+    for (const k of d.carries?.[r] ?? []) for (let c = k.from; c < k.to; c++) carried.add(c)
+    let longest = 0
+    for (let c = c0; c < c1; c++) longest = Math.max(longest, nums[c]!)
+    const rowFont = numberFont(l.cell, h, String(longest).length)
+    let font = 0
+    for (let c = c0; c < c1; c++) {
+      const n = nums[c]!
+      if (n === 0) continue
+      const fs = rowFont || numberFont(l.cell, h, String(n).length)
+      if (fs === 0) continue
+      if (fs !== font) {
+        ctx.font = `${fs}px ${d.colors.fontFamily}`
+        font = fs
+      }
+      const fill = ink[pattern.cells[r * pattern.cols + c]!] ?? '#000000'
+      const x = ox + c * l.cell + l.cell / 2
+      if (carried.has(c)) {
+        ctx.strokeStyle = fill === '#000000' ? '#ffffff' : '#000000'
+        ctx.lineWidth = 3
+        ctx.lineJoin = 'round'
+        ctx.strokeText(String(n), x, mid)
+      }
+      ctx.fillStyle = fill
+      ctx.fillText(String(n), x, mid)
+    }
+  }
+}
+
 /** Snap a CSS length to whole device pixels. */
 const px = (v: number, dpr: number) => Math.round(v * dpr) / dpr
 
@@ -237,6 +319,9 @@ export function drawChart(ctx: CanvasRenderingContext2D, d: DrawInput): void {
   ctx.fill()
 
   if (d.carries) drawCarries(ctx, d, d.carries, from, to, ox, oy)
+  // Over the strands, which run through the middle of the stitches where the numbers sit,
+  // and under the done wash, which fades them with the rest of a finished row.
+  if (d.numbers) drawNumbers(ctx, d, from, to, c0, c1, ox, oy)
 
   const markDone = (i: number, x: number, w: number) => {
     const y = oy + l.offsets[i]!

@@ -1,7 +1,21 @@
 import { describe, expect, it } from 'vitest'
 
-import { CARRY_MIN_ROW, DONE_STRIKE, DONE_WASH, GRID_COLOR, bands, carryEdge, cellPixels, drawChart, spotlightPixels, type CellImage } from '../../src/render/chart.ts'
-import { AXIS_TOP, computeLayout, type RowPlace } from '../../src/render/layout.ts'
+import {
+  CARRY_MIN_ROW,
+  DONE_STRIKE,
+  DONE_WASH,
+  GRID_COLOR,
+  NUMBER_MIN_FONT,
+  bands,
+  carryEdge,
+  cellPixels,
+  drawChart,
+  numberFont,
+  spotlightPixels,
+  stitchNumbers,
+  type CellImage,
+} from '../../src/render/chart.ts'
+import { AXIS_LEFT, AXIS_TOP, computeLayout, type RowPlace } from '../../src/render/layout.ts'
 import { SKIP_INDEX, type Pattern } from '../../src/model/types.ts'
 
 function pattern(rows: number, cols: number, cells?: number[]): Pattern {
@@ -44,6 +58,41 @@ describe('spotlightPixels', () => {
   })
 })
 
+describe('stitchNumbers', () => {
+  // One row: Red Red Red Green Green Red Red Red Red, as image columns.
+  const row = [0, 0, 0, 1, 1, 0, 0, 0, 0]
+  const one = (over: Partial<Pattern>) => ({ ...pattern(1, 9, row), ...over })
+
+  it('counts each run of one colour from 1, left to right on a left-to-right row', () => {
+    expect([...stitchNumbers(one({ start_direction: 'LTR' }), 0)]).toEqual([1, 2, 3, 1, 2, 1, 2, 3, 4])
+  })
+
+  it('counts from the right on a right-to-left row', () => {
+    expect([...stitchNumbers(one({ start_direction: 'RTL' }), 0)]).toEqual([3, 2, 1, 2, 1, 4, 3, 2, 1])
+  })
+
+  it('follows each row’s own direction when rows turn, and leaves skipped cells unnumbered', () => {
+    // bottom_up, starting from the right: image row 1 is worked first (right to left),
+    // image row 0 second (left to right).
+    const p = pattern(2, 4, [0, 0, SKIP_INDEX, 1, 1, 0, 0, 0])
+    expect([...stitchNumbers(p, 1)]).toEqual([1, 3, 2, 1])
+    expect([...stitchNumbers(p, 0)]).toEqual([1, 2, 0, 1])
+  })
+})
+
+describe('numberFont', () => {
+  it('shrinks with the digits, and gives up below the smallest readable size', () => {
+    expect(numberFont(24, 24, 1)).toBe(14)
+    expect(numberFont(24, 24, 2)).toBe(14)
+    expect(numberFont(24, 24, 3)).toBe(11)
+    expect(numberFont(10, 24, 1)).toBe(14)
+    expect(numberFont(10, 24, 2)).toBe(0)
+    expect(numberFont(24, 12, 1)).toBe(0)
+    expect(numberFont(100, 100, 1)).toBe(16)
+    expect(numberFont(24, 14, 1)).toBeGreaterThanOrEqual(NUMBER_MIN_FONT)
+  })
+})
+
 describe('bands', () => {
   it('groups consecutive rows of equal height', () => {
     expect(bands([5, 5, 8, 8, 8, 5, 5], 0, 7)).toEqual([
@@ -60,12 +109,12 @@ describe('bands', () => {
 
 /** A 2D context that records what is drawn. */
 function recorder() {
-  const calls: { op: string; args: unknown[]; fillStyle: unknown; strokeStyle: unknown }[] = []
+  const calls: { op: string; args: unknown[]; fillStyle: unknown; strokeStyle: unknown; font: unknown }[] = []
   const state: Record<string, unknown> = {}
   const ctx = new Proxy(state, {
     get(target, key: string) {
       if (key in target) return target[key]
-      return (...args: unknown[]) => calls.push({ op: key, args, fillStyle: target.fillStyle, strokeStyle: target.strokeStyle })
+      return (...args: unknown[]) => calls.push({ op: key, args, fillStyle: target.fillStyle, strokeStyle: target.strokeStyle, font: target.font })
     },
     set(target, key: string, v) {
       target[key] = v
@@ -186,6 +235,81 @@ describe('drawChart', () => {
     }
     expect(draw(carries)).toHaveLength(tall)
     expect(draw(null)).toHaveLength(0)
+  })
+
+  it('numbers the stitches only when asked, in black or white for the stitch, under the done wash', () => {
+    const p = { ...pattern(2, 4, [0, 0, 1, 1, 1, 0, 0, 0]), palette: [
+      { id: 'a', hex: '#ffffff', name: 'White', dmc: null, count: 0 },
+      { id: 'b', hex: '#000000', name: 'Black', dmc: null, count: 0 },
+    ] }
+    const layout = computeLayout({ rows: 2, cols: 4, current: 1, emphasise: false, focus: false, width: 240, height: 228 })
+    expect(numberFont(layout.cell, layout.heights[0]!, 1)).toBeGreaterThan(0)
+    const draw = (numbers: boolean) => {
+      const { ctx, calls } = recorder()
+      drawChart(ctx, { layout, image: {} as CellImage, pattern: p, completed: new Set([0]), numbers, scrollX: 0, scrollY: 0, width: 240, height: 228, dpr: 1, colors })
+      return calls
+    }
+    const ink = (calls: ReturnType<typeof draw>) =>
+      calls.filter((c) => c.op === 'fillText' && (c.fillStyle === '#000000' || c.fillStyle === '#ffffff')).map((c) => [c.args[0], c.fillStyle])
+    expect(ink(draw(false))).toEqual([])
+    const calls = draw(true)
+    // Image row 0 is worked second, left to right; row 1 first, right to left.
+    expect(ink(calls)).toEqual([
+      ['1', '#000000'],
+      ['2', '#000000'],
+      ['1', '#ffffff'],
+      ['2', '#ffffff'],
+      ['1', '#ffffff'],
+      ['3', '#000000'],
+      ['2', '#000000'],
+      ['1', '#000000'],
+    ])
+    const wash = calls.findIndex((c) => c.op === 'fillRect' && c.fillStyle === DONE_WASH)
+    const lastNumber = calls.findLastIndex((c) => c.op === 'fillText' && (c.fillStyle === '#000000' || c.fillStyle === '#ffffff'))
+    expect(lastNumber).toBeLessThan(wash)
+  })
+
+  it('gives a row’s numbers one size, set by its longest, unless that one can’t fit', () => {
+    // Each row 12 red stitches in one run. The current row, drawn taller, has room for a
+    // bigger single digit than for 10, but 1..9 and 10..12 are drawn at the same size.
+    const p = pattern(10, 12, Array.from({ length: 120 }, () => 0))
+    const layout = computeLayout({ rows: 10, cols: 12, current: 5, emphasise: true, focus: false, width: 200, height: 400 })
+    const h = layout.heights[5 - layout.range.start]!
+    const two = numberFont(layout.cell, h, 2)
+    expect(two).toBeGreaterThan(0)
+    expect(two).toBeLessThan(numberFont(layout.cell, h, 1))
+    const { ctx, calls } = recorder()
+    drawChart(ctx, { layout, image: {} as CellImage, pattern: p, completed: new Set(), numbers: true, scrollX: 0, scrollY: 0, width: 200, height: 400, dpr: 1, colors })
+    const ink = calls.filter((c) => c.op === 'fillText' && c.fillStyle === '#ffffff')
+    const mid = AXIS_TOP + layout.offsets[5 - layout.range.start]! + h / 2
+    const current = ink.filter((c) => Math.abs((c.args[2] as number) - mid) < 0.01)
+    expect(current).toHaveLength(12)
+    expect(new Set(current.map((c) => c.font))).toEqual(new Set([`${two}px sans-serif`]))
+  })
+
+  it('outlines the numbers of stitches a strand is carried in, over the strand, and no others', () => {
+    const p = pattern(10, 10, Array.from({ length: 100 }, () => 0))
+    const layout = computeLayout({ rows: 10, cols: 10, current: 9, emphasise: false, focus: false, width: 240, height: 228 })
+    const carries = Array.from({ length: 10 }, () => [] as { palette_index: number; from: number; to: number; kind: 'on' | 'pickup' }[])
+    carries[4] = [{ palette_index: 1, from: 2, to: 5, kind: 'on' }]
+    const { ctx, calls } = recorder()
+    drawChart(ctx, { layout, image: {} as CellImage, pattern: p, completed: new Set(), carries, numbers: true, scrollX: 0, scrollY: 0, width: 240, height: 228, dpr: 1, colors })
+    const halos = calls.filter((c) => c.op === 'strokeText')
+    // Red stitches take white numbers, so the outline is black; across columns 3 to 5.
+    expect(halos.map((c) => c.strokeStyle)).toEqual(['#000000', '#000000', '#000000'])
+    const x = (col: number) => AXIS_LEFT + col * layout.cell + layout.cell / 2
+    expect(halos.map((c) => c.args[1])).toEqual([x(2), x(3), x(4)])
+    // After the strand, so they sit on it.
+    expect(calls.findIndex((c) => c.op === 'strokeText')).toBeGreaterThan(calls.findIndex((c) => c.op === 'fillRect' && c.fillStyle === '#00ff00'))
+  })
+
+  it('draws no stitch numbers where the cells are too small to hold one', () => {
+    const p = pattern(50, 120)
+    const layout = computeLayout({ rows: 50, cols: 120, current: 25, emphasise: false, focus: false, width: 600, height: 400 })
+    expect(numberFont(layout.cell, Math.max(...layout.heights), 1)).toBe(0)
+    const { ctx, calls } = recorder()
+    drawChart(ctx, { layout, image: {} as CellImage, pattern: p, completed: new Set(), numbers: true, scrollX: 0, scrollY: 0, width: 600, height: 400, dpr: 1, colors })
+    expect(calls.filter((c) => c.op === 'fillText' && (c.fillStyle === '#000000' || c.fillStyle === '#ffffff'))).toHaveLength(0)
   })
 
   it('edges a pale strand dark and a dark one pale', () => {

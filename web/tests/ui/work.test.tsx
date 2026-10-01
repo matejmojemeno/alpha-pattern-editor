@@ -316,6 +316,16 @@ describe('options', () => {
     expect(document.querySelector('.work__stitches')!.textContent).toBe(`0 / ${p.rows * p.cols} beads`)
   })
 
+  it('numbers the stitches unless turned off in Options, app-wide', async () => {
+    const { settings } = await openWork('basic.alpha')
+    const box = screen.getByLabelText<HTMLInputElement>('Number the stitches')
+    expect(box.checked).toBe(true)
+    await userEvent.click(box)
+    expect(settings.get().stitchNumbers).toBe(false)
+    await userEvent.click(box)
+    expect(settings.get().stitchNumbers).toBe(true)
+  })
+
   it('shows where to carry yarn only when asked, on the chips of the row being worked', async () => {
     const { project, settings } = await openWork('basic.alpha')
     const p = project.pattern

@@ -52,6 +52,8 @@ describe('Settings screen', () => {
     await renderApp('#/settings', { settings })
     await userEvent.click(screen.getByRole('switch', { name: 'Focus mode' }))
     await userEvent.click(screen.getByRole('switch', { name: 'Show where to carry yarn' }))
+    expect(screen.getByRole<HTMLInputElement>('switch', { name: 'Number the stitches' }).checked).toBe(true)
+    await userEvent.click(screen.getByRole('switch', { name: 'Number the stitches' }))
     await userEvent.click(screen.getByRole('switch', { name: 'Emphasise the rows around the current one' }))
     expect(createSettingsStore(() => storage).get()).toEqual({
       ...DEFAULT_SETTINGS,
@@ -59,6 +61,7 @@ describe('Settings screen', () => {
       highContrast: false,
       focusMode: true,
       showCarries: true,
+      stitchNumbers: false,
     })
   })
 
