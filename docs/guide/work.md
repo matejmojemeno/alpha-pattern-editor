@@ -1,9 +1,10 @@
 # Following a pattern
 
-The Work stage is for crocheting: it shows the row you're on as a list of colours and
-stitch counts, in the order you work them, and keeps your place. It's made for a phone or
-tablet propped up next to your hook, and works just as well on a computer. Your place is
-saved as you go; there's no Save button.
+The Work stage is for making the pattern: it shows the row you're on as a list of colours
+and stitch counts, in the order you work them, and keeps your place. It's made for a phone
+or tablet propped up next to your hook or needles, and works just as well on a computer.
+Your place is saved as you go; there's no Save button. It follows tapestry crochet unless
+you [choose another craft](#choose-your-craft).
 
 <p>
   <img src="media/work.png" alt="The Work screen: Row 7 of 30 with an arrow pointing left, the current row as colour chips (1 Red, 8 Blue, 2 Beige, 10 White…), the chart with the current row outlined and finished rows greyed, and a Row complete button" width="600">
@@ -21,15 +22,39 @@ saved as you go; there's no Save button.
 - The chart shows the whole pattern with the current row outlined and the rows you've
   finished greyed out. It scrolls to keep your place in view.
 
+## Choose your craft
+
+Open **Options** and pick what you're making under **Craft**:
+
+| Craft | Row 1 | Rows |
+|---|---|---|
+| **Tapestry crochet** | the bottom row, from the right | turn at each end |
+| **Intarsia crochet** | the bottom row, from the right | turn at each end |
+| **Stranded knitting (Fair Isle)** | the bottom row, from the right | turn at each end |
+| **Intarsia knitting** | the bottom row, from the right | turn at each end |
+| **Alpha friendship bracelet** | the top row, from the left | turn at each end |
+| **Bead loom** | as the pattern already has it | all run the same way |
+
+Picking a craft sets which row is row 1 and which way the rows run, as charts for that
+craft are read. The stitch count and **Record progress** say "knots" for a bracelet and
+"beads" on a loom. **Show where to carry yarn** is there for tapestry crochet only. The
+craft is saved with the pattern.
+
 ## Which row is row 1, and which way it runs
 
-Row 1 is the bottom row of the chart, as you'd crochet it from the foundation up. Rows
-turn at each end: if row 1 runs right to left, row 2 runs left to right, and so on.
+Your craft sets these, and you can change them in **Options**:
 
-A new pattern starts its rows from the right, as a right-handed crocheter works row 1.
-To start from the left instead (for example if you crochet left-handed), open
-**Options** and untick **Start rows from the right**. This is saved with the pattern, and
-every row's colours and arrow change to match.
+- **Start rows from the right:** row 1 runs right to left. Untick it to start from the
+  left, for example if you crochet or knit left-handed.
+- **Start from the top row:** row 1 is the top row of the chart, not the bottom one.
+- **Rows turn (off in the round):** each row runs the opposite way to the one before. Untick
+  it when you work in the round, or only on the right side, so that every row runs the
+  same way.
+
+Each of these is saved with the pattern, and every row's colours and arrow change to
+match. If you're partway through a row and it would now read the other way, the app asks
+first (**Start row 7 again?**): your place goes back to the start of that row. Rows you've
+marked done stay done.
 
 ## Finish a row, or go back
 
@@ -58,7 +83,7 @@ until you come back.
 
 For tapestry crochet, where the colours you aren't using are carried inside the stitches
 rather than left hanging at the back, turn on **Show where to carry yarn** in **Options**
-(or in [Settings](settings.md)).
+(or in [Settings](settings.md)). It's only there when the craft is **Tapestry crochet**.
 
 <img src="media/work-carry-yarn.png" alt="Show where to carry yarn: coloured lines run through the chart's stitches where a colour is carried, and the 10 White chip says carry Beige over the first 1" width="700">
 

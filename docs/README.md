@@ -45,6 +45,7 @@ How the guide is written:
 | [`dev/rules.md`](dev/rules.md) | The non-obvious rules nobody may break. Each has an anchor that code cites, such as [`rules.md#nd-py`](dev/rules.md#nd-py). |
 | [`dev/spec.md`](dev/spec.md) | The product spec, written for the desktop app. Code cites it as §N; the numbers never change. |
 | [`dev/areas/`](dev/areas/) | One note per area of the app: what was built, the invariants, the measured sizes, the fixtures, and why. |
+| [`dev/crafts.md`](dev/crafts.md) | Other colourwork crafts (knitting, intarsia, bracelets, beads, C2C…): which fit the Work stage, what each takes, and what's built. |
 | [`dev/history/web-port.md`](dev/history/web-port.md) | How the desktop app was ported to the web, Phases 0–3: a frozen record. |
 
 The area notes: [Import](dev/areas/import.md), [Detection](dev/areas/detection.md),
@@ -69,6 +70,7 @@ Some folders document themselves, in a README next to what it describes:
 | [`web/src/yarn/data/README.md`](../web/src/yarn/data/README.md) | Where each yarn colour table comes from, and its licence. |
 | [`web/src/importer/README.md`](../web/src/importer/README.md) | Where the everyday colour names come from. |
 | [`web/src/stitch/README.md`](../web/src/stitch/README.md) | The sources for Visualize's stitch proportions. |
+| [`web/src/craft/README.md`](../web/src/craft/README.md) | The sources for each craft's reading order in the Work stage. |
 | [`test_images/README.md`](../test_images/README.md) | The chart images the tests detect. |
 
 ## Keeping the docs true

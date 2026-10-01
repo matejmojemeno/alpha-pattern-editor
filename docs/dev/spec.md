@@ -521,3 +521,21 @@ M0 carries all the risk and everything depends on its output shape. Don't start 
 - Stitch aspect ratio: real stitches aren't square, so a "true proportions" preview would render cells at roughly 5:6 or 2:3. Rendering-only; the data model is unaffected.
 - Yarn/thread length estimation from per-color counts.
 - Photo-of-paper import via four-corner homography.
+
+---
+
+## 15. Crafts
+
+A pattern records the craft it's made in, `Pattern.craft`: an id from
+`web/src/craft/crafts.ts`, default `"tapestry"`. It is stored in `pattern.json` only
+when it isn't tapestry crochet, so a pattern that never chose one saves byte for byte as
+before. An id a build doesn't know reads as tapestry crochet and is kept unchanged.
+
+- Picking a craft in the Work stage sets the reading order its source gives
+  (`bottom_up`, `start_direction`, `alternate_direction`). A craft whose sources don't
+  settle one of them leaves it as the pattern has it.
+- The craft names the unit (stitch, knot, bead) and says whether carrying hints apply.
+- Readout, progress and editing ignore it: they read the three order fields, as before.
+
+Which crafts fit the Work stage and why, and what could come next, is in
+[`crafts.md`](crafts.md).
