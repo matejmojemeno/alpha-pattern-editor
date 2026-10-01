@@ -52,6 +52,10 @@ Newest last, as they were built.
     `bridge.commit`), but nothing reads it.
   - The other crafts considered, and what each would take, are in
     [`crafts.md`](../crafts.md).
+- <a id="full-width"></a>**The window's whole width**: the Work screen was capped at 90rem
+  (1440 px), so on a wide monitor it sat in the middle with empty margins while Import
+  and Design filled the window. Now it has no cap, like them, and the chart can use the
+  extra width.
 
 ## During the port
 
