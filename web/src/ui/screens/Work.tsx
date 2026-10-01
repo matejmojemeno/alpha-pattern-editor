@@ -14,7 +14,7 @@ import { helpUrl } from '../../app/help.ts'
 import { href, navigate, paths } from '../../app/router.ts'
 import { trackSave } from '../../app/saving.ts'
 import { keepScreenAwake } from '../../app/wakeLock.ts'
-import { carriesByRun, carryPlan } from '../../logic/carry.ts'
+import { carriesByRun, carryPlan, countedCarries } from '../../logic/carry.ts'
 import { encodeRow, exportAllRowsText, formatRowText, rowDirection, workingNumber } from '../../logic/readout.ts'
 import {
   completeCurrentRow,
@@ -147,9 +147,10 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
           },
     [p, cur, runs, pr],
   )
-  // Where to carry each colour, for the whole chart: only worked out when asked for.
+  // Where to carry each colour, for the whole chart: only worked out when asked for, and
+  // only where a carry starts or stops partway through a row (countedCarries).
   const carries = useMemo(
-    () => (settings.showCarries && craftOf(p).carries ? carryPlan(p) : null),
+    () => (settings.showCarries && craftOf(p).carries ? countedCarries(p.cols, carryPlan(p)) : null),
     [p, settings.showCarries],
   )
   const runCarries = useMemo(

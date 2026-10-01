@@ -103,6 +103,17 @@ export interface RunCarry {
   readonly pickUp: boolean
 }
 
+/**
+ * The carries worth showing: those that start or stop partway through a row, where the
+ * maker has to count to know where to drop a strand or pick one up. A carry that runs to
+ * either end of the row is the usual "carry it to the end" (or, from the start, the
+ * strand already in hand as the row begins): nothing to count, so it isn't shown, though
+ * it's still carried, and still counted in the yarn estimate (`carriedStitches`).
+ */
+export function countedCarries(cols: number, plan: readonly (readonly Carry[])[]): Carry[][] {
+  return plan.map((row) => row.filter((c) => c.from > 0 && c.to < cols))
+}
+
 /** The carries of a row, split over its runs (encodeRow), in the same order. */
 export function carriesByRun(
   cols: number,

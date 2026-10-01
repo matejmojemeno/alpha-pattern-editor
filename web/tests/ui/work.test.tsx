@@ -3,7 +3,7 @@ import { fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { carriesByRun, carryPlan } from '../../src/logic/carry.ts'
+import { carriesByRun, carryPlan, countedCarries } from '../../src/logic/carry.ts'
 import * as work from '../../src/logic/work.ts'
 import { encodeRow, formatRowText, rowDirection, workingNumber } from '../../src/logic/readout.ts'
 import { readAlpha } from '../../src/storage/alpha.ts'
@@ -326,10 +326,29 @@ describe('options', () => {
     expect(settings.get().stitchNumbers).toBe(true)
   })
 
+  it('says nothing about a carry that runs to the end of a row: there is nothing to count', async () => {
+    const { project } = await openWork('basic.alpha')
+    const p = project.pattern
+    const full = carryPlan(p)
+    await userEvent.click(screen.getByLabelText('Show where to carry yarn'))
+    const seq = work.workSequence(p)
+    // The first row with a carry that reaches an end of the row.
+    const k = seq.findIndex((r) => full[r]!.some((c) => c.from === 0 || c.to === p.cols))
+    expect(k).toBeGreaterThanOrEqual(0)
+    for (let i = 0; i < k; i++) await userEvent.click(screen.getByRole('button', { name: /Row complete/ }))
+    const r = seq[k]!
+    const shown = countedCarries(p.cols, full)[r]!
+    expect(shown.length).toBeLessThan(full[r]!.length)
+    expect(document.querySelectorAll('.chip__carry')).toHaveLength(
+      carriesByRun(p.cols, encodeRow(p, r), shown, rowDirection(p, r)).flat().length,
+    )
+  })
+
   it('shows where to carry yarn only when asked, on the chips of the row being worked', async () => {
     const { project, settings } = await openWork('basic.alpha')
     const p = project.pattern
-    const plan = carryPlan(p)
+    // Only the carries that start or stop partway through a row.
+    const plan = countedCarries(p.cols, carryPlan(p))
     expect(document.querySelector('.chip__carry')).toBeNull()
     await userEvent.click(screen.getByLabelText('Show where to carry yarn'))
     expect(settings.get().showCarries).toBe(true)

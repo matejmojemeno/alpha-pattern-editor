@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { carriedStitches, carriesByRun, carryPlan, type Carry } from '../../src/logic/carry.ts'
+import { carriedStitches, carriesByRun, carryPlan, countedCarries, type Carry } from '../../src/logic/carry.ts'
 import { encodeRow, rowDirection } from '../../src/logic/readout.ts'
 import { workSequence } from '../../src/logic/work.ts'
 import { SKIP_INDEX, type Pattern } from '../../src/model/types.ts'
@@ -77,6 +77,39 @@ describe('carryPlan', () => {
     // Ahead of it: carried on in the row below.
     const ahead = pattern(['0000110', '0110000'], { alternate_direction: false })
     expect(carryPlan(ahead)[1]).toEqual([{ palette_index: 1, from: 3, to: 5, kind: 'on' }])
+  })
+})
+
+describe('countedCarries', () => {
+  // The owner's cats: a black cat reaching the left edge of a row worked right to left
+  // (the bottom row here), under a row worked left to right that starts in white.
+  const cats = pattern(['0000000011', '1110000000'], { start_direction: 'RTL' })
+
+  it('drops the carries that run to either end of a row: nothing to count there', () => {
+    expect(rowDirection(cats, 1)).toBe('RTL')
+    const full = carryPlan(cats)
+    // White is carried on through the cat to the end of the row, where the next row
+    // starts with it: the usual "carry it to the end".
+    expect(full[1]).toEqual([{ palette_index: 0, from: 0, to: 3, kind: 'on' }])
+    // Black, left at the start of the next row, is in hand as it begins, up to its
+    // first stitch.
+    expect(full[0]).toEqual([{ palette_index: 1, from: 0, to: 8, kind: 'pickup' }])
+    expect(countedCarries(cats.cols, full)).toEqual([[], []])
+  })
+
+  it('keeps those that start or stop partway through a row, where you count', () => {
+    // Carried on over one stitch, then dropped.
+    const on = pattern(['0011010000', '0011100000'])
+    expect(carryPlan(on)[1]).toEqual([{ palette_index: 1, from: 5, to: 6, kind: 'on' }])
+    expect(countedCarries(on.cols, carryPlan(on))).toEqual(carryPlan(on))
+    // Picked up two stitches before it's needed.
+    const pick = pattern(['0001100000', '0011111000'])
+    expect(carryPlan(pick)[0]).toEqual([{ palette_index: 1, from: 5, to: 7, kind: 'pickup' }])
+    expect(countedCarries(pick.cols, carryPlan(pick))).toEqual(carryPlan(pick))
+  })
+
+  it('leaves the yarn estimate counting every carry, shown or not', () => {
+    expect(carriedStitches(cats)).toEqual([3, 8, 0, 0])
   })
 })
 
