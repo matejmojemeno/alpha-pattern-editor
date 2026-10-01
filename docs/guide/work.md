@@ -20,7 +20,9 @@ you [choose another craft](#choose-your-craft).
   and so on. The colour you're on is outlined.
 - **Next:** shows the row after this one, so you can see what's coming.
 - The chart shows the whole pattern with the current row outlined and the rows you've
-  finished greyed out. It scrolls to keep your place in view.
+  finished greyed out. A pattern more than twice as tall as it is wide fills the width
+  and scrolls down with you, keeping your row in the middle. A wide pattern fits the
+  screen whole, so you see each row at once without scrolling sideways.
 
 ## Choose your craft
 
