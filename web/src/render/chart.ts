@@ -155,9 +155,31 @@ export function carryEdge(hex: string): string {
   }
 }
 
-/** Each carried strand as a band of its colour along the middle of the stitches it's
- *  carried in, open at the ends, so it runs on out of the colour's own stitches. Several
- *  strands in one row are stacked, one lane per colour. */
+/** How thick each strand is, and how much of the bottom of the row the strands take,
+ *  when they're drawn along the foot of the stitches under the stitch numbers: about an
+ *  eighth of the row each, 2 to 4 px, one lane per colour, each with its 1 px edges. */
+export function carryStrip(h: number, lanes: number): { thickness: number; height: number } {
+  const thickness = Math.max(2, Math.min(4, Math.round(h * 0.12)))
+  return { thickness, height: lanes * (thickness + 2) + 1 }
+}
+
+/** Where row `i`'s strands go: along the foot of its stitches (returning the strip's
+ *  height) when it's numbered and a number still fits above them, or 0 for through the
+ *  middle, as without numbers. */
+function footStrip(d: DrawInput, i: number): number {
+  const l = d.layout
+  const row = d.carries?.[l.range.start + i]
+  const h = l.heights[i]!
+  if (!d.numbers || !row?.length || h < CARRY_MIN_ROW) return 0
+  const strip = carryStrip(h, new Set(row.map((c) => c.palette_index)).size).height
+  return numberFont(l.cell, h, 1, strip) > 0 ? strip : 0
+}
+
+/** Each carried strand as a band of its colour through the stitches it's carried in,
+ *  open at the ends, so it runs on out of the colour's own stitches. Several strands in
+ *  one row are stacked, one lane per colour. Through the middle of the stitches; or, in a
+ *  numbered row, along their foot, under the numbers, where the strand lies as you work
+ *  over it. */
 function drawCarries(
   ctx: CanvasRenderingContext2D,
   d: DrawInput,
@@ -173,12 +195,17 @@ function drawCarries(
     const h = l.heights[i]!
     if (!row?.length || h < CARRY_MIN_ROW) continue
     const lanes = [...new Set(row.map((c) => c.palette_index))]
+    const foot = footStrip(d, i) > 0
     // About a third of the row, and never so thick that the lanes, each with its 1 px
     // edges, overflow it.
-    const t = Math.min(Math.max(2, Math.min(8, Math.round(h * 0.3))), Math.floor((h - 2) / lanes.length) - 2)
+    const t = foot
+      ? carryStrip(h, lanes.length).thickness
+      : Math.min(Math.max(2, Math.min(8, Math.round(h * 0.3))), Math.floor((h - 2) / lanes.length) - 2)
     if (t < 1) continue
     const pitch = t + 2
-    const top = oy + l.offsets[i]! + h / 2 - (lanes.length * pitch - 2) / 2
+    const top = foot
+      ? oy + l.offsets[i]! + h - carryStrip(h, lanes.length).height + 1
+      : oy + l.offsets[i]! + h / 2 - (lanes.length * pitch - 2) / 2
     for (const c of row) {
       const hex = pattern.palette[c.palette_index]?.hex ?? '#c8c8c8'
       const x = ox + c.from * l.cell
@@ -212,16 +239,20 @@ export function stitchNumbers(p: Pattern, r: number): Uint16Array {
  *  cell is left plain. */
 export const NUMBER_MIN_FONT = 8
 
+/** How tall a numeral's ink is, for its font size: digits stand about ¾ of the em. */
+const DIGIT_HEIGHT = 0.75
+
 /** The font size a number of `digits` digits gets in a cell `w` wide and `h` tall, or 0
- *  when it wouldn't be readable there. */
-export function numberFont(w: number, h: number, digits: number): number {
-  const fs = Math.floor(Math.min(h * 0.6, (w * 0.85) / (0.6 * digits), 16))
+ *  when it wouldn't be readable there. With `foot` px of the cell taken by strands along
+ *  its bottom, the size stays the cell's own as long as the digits still clear them. */
+export function numberFont(w: number, h: number, digits: number, foot = 0): number {
+  const fs = Math.floor(Math.min(h * 0.6, (h - foot - 1) / DIGIT_HEIGHT, (w * 0.85) / (0.6 * digits), 16))
   return fs >= NUMBER_MIN_FONT ? fs : 0
 }
 
-/** The stitch numbers, in black or white, whichever reads on the stitch's colour. Where a
- *  carried strand runs through the stitch, its number is outlined in the other one, so it
- *  reads on the strand's colour too. */
+/** The stitch numbers, in black or white, whichever reads on the stitch's colour. In a
+ *  row with strands along its foot, they're centred in the space above them; where the
+ *  strands run through the middle, the stitches they cross get none. */
 function drawNumbers(ctx: CanvasRenderingContext2D, d: DrawInput, from: number, to: number, c0: number, c1: number, ox: number, oy: number): void {
   const { layout: l, pattern } = d
   const ink = pattern.palette.map((e) => {
@@ -235,38 +266,33 @@ function drawNumbers(ctx: CanvasRenderingContext2D, d: DrawInput, from: number, 
   ctx.textBaseline = 'middle'
   for (let i = from; i < to; i++) {
     const h = l.heights[i]!
+    const foot = footStrip(d, i)
     // Not even one digit fits: nothing in this row will.
-    if (numberFont(l.cell, h, 1) === 0) continue
+    if (numberFont(l.cell, h, 1, foot) === 0) continue
     const r = l.range.start + i
     const nums = stitchNumbers(pattern, r)
-    const mid = oy + l.offsets[i]! + h / 2
+    const mid = oy + l.offsets[i]! + (h - foot) / 2
+    // Strands that stay through the middle (no room at the foot) would cover a number:
+    // the strand is the instruction, so those stitches go without.
+    const covered = new Uint8Array(pattern.cols)
+    if (foot === 0 && h >= CARRY_MIN_ROW) for (const k of d.carries?.[r] ?? []) covered.fill(1, k.from, k.to)
     // One size for the whole row, set by its longest number, so a 10 isn't smaller than
     // the 9 beside it; only where that one can't fit at all does each number fit itself.
-    const carried = new Set<number>()
-    for (const k of d.carries?.[r] ?? []) for (let c = k.from; c < k.to; c++) carried.add(c)
     let longest = 0
     for (let c = c0; c < c1; c++) longest = Math.max(longest, nums[c]!)
-    const rowFont = numberFont(l.cell, h, String(longest).length)
+    const rowFont = numberFont(l.cell, h, String(longest).length, foot)
     let font = 0
     for (let c = c0; c < c1; c++) {
       const n = nums[c]!
-      if (n === 0) continue
-      const fs = rowFont || numberFont(l.cell, h, String(n).length)
+      if (n === 0 || covered[c]) continue
+      const fs = rowFont || numberFont(l.cell, h, String(n).length, foot)
       if (fs === 0) continue
       if (fs !== font) {
         ctx.font = `${fs}px ${d.colors.fontFamily}`
         font = fs
       }
-      const fill = ink[pattern.cells[r * pattern.cols + c]!] ?? '#000000'
-      const x = ox + c * l.cell + l.cell / 2
-      if (carried.has(c)) {
-        ctx.strokeStyle = fill === '#000000' ? '#ffffff' : '#000000'
-        ctx.lineWidth = 3
-        ctx.lineJoin = 'round'
-        ctx.strokeText(String(n), x, mid)
-      }
-      ctx.fillStyle = fill
-      ctx.fillText(String(n), x, mid)
+      ctx.fillStyle = ink[pattern.cells[r * pattern.cols + c]!] ?? '#000000'
+      ctx.fillText(String(n), ox + c * l.cell + l.cell / 2, mid)
     }
   }
 }
@@ -319,8 +345,7 @@ export function drawChart(ctx: CanvasRenderingContext2D, d: DrawInput): void {
   ctx.fill()
 
   if (d.carries) drawCarries(ctx, d, d.carries, from, to, ox, oy)
-  // Over the strands, which run through the middle of the stitches where the numbers sit,
-  // and under the done wash, which fades them with the rest of a finished row.
+  // Under the done wash, which fades them with the rest of a finished row.
   if (d.numbers) drawNumbers(ctx, d, from, to, c0, c1, ox, oy)
 
   const markDone = (i: number, x: number, w: number) => {

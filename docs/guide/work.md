@@ -92,7 +92,8 @@ rather than left hanging at the back, turn on **Show where to carry yarn** in **
 
 Each colour is kept only until the next row needs it, so you never carry more than you
 must. On the chart, a line of a colour through a run of stitches means: carry that colour
-inside those stitches. In **This row**, a colour's chip says what to do while you work it,
+inside those stitches. With [stitch numbers](#count-stitches-on-the-chart) on, the line
+runs along the bottom of each stitch, under its number. In **This row**, a colour's chip says what to do while you work it,
 such as "carry Beige over the first 1", or "pick up Black, carry over the last 3".
 
 ## Count stitches on the chart

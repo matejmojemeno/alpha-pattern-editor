@@ -24,7 +24,8 @@ Newest last, as they were built.
   anyway), a colour missing from the next row is dropped, and when rows don't alternate
   a strand the next row needs behind it gets no suggestion (it can't be reached without a
   float). The chart draws each strand as a band of its colour through the middle of the
-  stitches it's carried in (rows under 6 px tall get none), and each chip of the current
+  stitches it's carried in (rows under 6 px tall get none), or along their foot when
+  they're numbered (see [Stitch numbers](#stitch-numbers)), and each chip of the current
   row says "carry Black over the first 2" or "pick up Black, carry over the last 3". Not
   in the Python: the desktop never showed it, and it only reads the pattern. Tested
   against the strands themselves: over 800 random patterns, every strand enters a row
@@ -70,9 +71,16 @@ Newest last, as they were built.
   `settings.stitchNumbers`). Every stitch on the chart shows its place in its run of one
   colour, counted in the row's working direction (`encodeRow` and `rowDirection`, so it
   agrees with the chips), from 1 at the start of each run. Skipped cells get none.
-  - Drawn per frame for the visible cells, over the strands and under the done wash, in
-    black or white by `contrastOn` of the stitch's colour. A number in a stitch a strand
-    is carried in is outlined in the other one, or a white strand hides a white numeral.
+  - Drawn per frame for the visible cells, under the done wash, in black or white by
+    `contrastOn` of the stitch's colour.
+  - With carry hints on, a numbered row's strands move from the middle of the stitches,
+    where they covered the numbers, to a strip along their foot (`carryStrip`: 2 to 4 px
+    per strand), and the numbers are centred above it. They keep the size of a row
+    without strands as long as the digits (about ¾ of the font size, `DIGIT_HEIGHT`)
+    clear the strip, which they do on a plain 14 px row with one strand. Where they
+    can't, the strands stay in the middle and the stitches they cross get no number:
+    the strand is the instruction, so it is never the one hidden. An outline round
+    the numbers over a middle strand was tried first; it was legible but busy.
   - One font size per row, set by its longest number (so a 10 isn't smaller than the 9
     beside it), at most 16 px; under `NUMBER_MIN_FONT` (8 px) the cell stays plain, so a
     big chart shows numbers only on its taller rows, or once zoomed in.

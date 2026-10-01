@@ -7,6 +7,7 @@ import {
   GRID_COLOR,
   NUMBER_MIN_FONT,
   bands,
+  carryStrip,
   carryEdge,
   cellPixels,
   drawChart,
@@ -287,20 +288,57 @@ describe('drawChart', () => {
     expect(new Set(current.map((c) => c.font))).toEqual(new Set([`${two}px sans-serif`]))
   })
 
-  it('outlines the numbers of stitches a strand is carried in, over the strand, and no others', () => {
+  it('in a numbered row, lays the strands along the foot of the stitches, under numbers of the usual size', () => {
     const p = pattern(10, 10, Array.from({ length: 100 }, () => 0))
     const layout = computeLayout({ rows: 10, cols: 10, current: 9, emphasise: false, focus: false, width: 240, height: 228 })
+    const h = layout.heights[4]!
     const carries = Array.from({ length: 10 }, () => [] as { palette_index: number; from: number; to: number; kind: 'on' | 'pickup' }[])
     carries[4] = [{ palette_index: 1, from: 2, to: 5, kind: 'on' }]
+    const draw = (numbers: boolean) => {
+      const { ctx, calls } = recorder()
+      drawChart(ctx, { layout, image: {} as CellImage, pattern: p, completed: new Set(), carries, numbers, scrollX: 0, scrollY: 0, width: 240, height: 228, dpr: 1, colors })
+      return calls
+    }
+    const rowTop = AXIS_TOP + layout.offsets[4]!
+    const strand = (calls: ReturnType<typeof draw>) => calls.find((c) => c.op === 'fillRect' && c.fillStyle === '#00ff00')!.args as number[]
+
+    // Without numbers: through the middle, as before.
+    const [, my, , mt] = strand(draw(false))
+    expect(my! + mt! / 2).toBeCloseTo(rowTop + h / 2, 0)
+
+    // With them: in the strip at the bottom, and the row's numbers centred above it.
+    const calls = draw(true)
+    const { thickness, height } = carryStrip(h, 1)
+    const [, y, , t] = strand(calls)
+    expect(t).toBe(thickness)
+    // Its lower edge ends a pixel short of the gridline under the row.
+    expect(y! + t! + 1).toBeCloseTo(rowTop + h - 1, 0)
+    const row4 = calls.filter((c) => c.op === 'fillText' && c.fillStyle === '#ffffff' && (c.args[2] as number) < rowTop + h && (c.args[2] as number) > rowTop)
+    expect(row4).toHaveLength(10)
+    for (const c of row4) expect(c.args[2]).toBeCloseTo(rowTop + (h - height) / 2)
+    // The same size as a row with no strands, and the digits clear the strip.
+    const fs = numberFont(layout.cell, h, 1)
+    expect(new Set(row4.map((c) => c.font))).toEqual(new Set([`${fs}px sans-serif`]))
+    expect(rowTop + (h - height) / 2 + (0.75 * fs) / 2).toBeLessThanOrEqual(y! - 1)
+  })
+
+  it('leaves the number off a stitch whose strand has to stay in the middle', () => {
+    // A 14 px row with three strands: no room at the foot.
+    const p = pattern(1, 4, [0, 0, 0, 0])
+    const layout = { ...computeLayout({ rows: 1, cols: 4, current: 0, emphasise: false, focus: false, width: 200, height: 228 }) }
+    const l = { ...layout, cell: 24, heights: [14], offsets: [0, 14], gridWidth: 96, gridHeight: 14 }
+    const carries = [[0, 1, 2].map((k) => ({ palette_index: k, from: 1, to: 3, kind: 'on' as const }))]
     const { ctx, calls } = recorder()
-    drawChart(ctx, { layout, image: {} as CellImage, pattern: p, completed: new Set(), carries, numbers: true, scrollX: 0, scrollY: 0, width: 240, height: 228, dpr: 1, colors })
-    const halos = calls.filter((c) => c.op === 'strokeText')
-    // Red stitches take white numbers, so the outline is black; across columns 3 to 5.
-    expect(halos.map((c) => c.strokeStyle)).toEqual(['#000000', '#000000', '#000000'])
-    const x = (col: number) => AXIS_LEFT + col * layout.cell + layout.cell / 2
-    expect(halos.map((c) => c.args[1])).toEqual([x(2), x(3), x(4)])
-    // After the strand, so they sit on it.
-    expect(calls.findIndex((c) => c.op === 'strokeText')).toBeGreaterThan(calls.findIndex((c) => c.op === 'fillRect' && c.fillStyle === '#00ff00'))
+    drawChart(ctx, { layout: l, image: {} as CellImage, pattern: p, completed: new Set(), carries, numbers: true, scrollX: 0, scrollY: 0, width: 200, height: 228, dpr: 1, colors })
+    const xs = calls.filter((c) => c.op === 'fillText' && c.fillStyle === '#ffffff').map((c) => c.args[1])
+    expect(xs).toEqual([AXIS_LEFT + 12, AXIS_LEFT + 3 * 24 + 12])
+  })
+
+  it('keeps the strands through the middle where a number wouldn’t clear them at the foot', () => {
+    expect(numberFont(24, 24, 1, carryStrip(24, 1).height)).toBe(numberFont(24, 24, 1))
+    // Three strands at once in a 14 px row: no room above them.
+    expect(numberFont(24, 14, 1, carryStrip(14, 3).height)).toBe(0)
+    expect(numberFont(24, 14, 1, carryStrip(14, 1).height)).toBeGreaterThanOrEqual(NUMBER_MIN_FONT)
   })
 
   it('draws no stitch numbers where the cells are too small to hold one', () => {
