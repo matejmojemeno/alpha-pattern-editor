@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import * as edit from '../../src/logic/edit.ts'
 import { encodeRow } from '../../src/logic/readout.ts'
-import { carryProgress, losesProgress, progressLoss, repairProgress } from '../../src/logic/progress.ts'
+import { carryProgress, losesProgress, progressLoss, reorder, repairProgress } from '../../src/logic/progress.ts'
 import { completeCurrentRow, ensureStarted, isComplete, remainingStitches, rowIndex, setRunStitches } from '../../src/logic/work.ts'
 import { emptyProgress, type Pattern, type Progress } from '../../src/model/types.ts'
 
@@ -27,6 +27,52 @@ function worked(p: Pattern): Progress {
 }
 
 const ids = (p: Pattern, rows: number[]) => rows.map((r) => p.row_ids[r]!)
+
+describe('reorder', () => {
+  const p = pattern()
+  const pr = worked(p)
+  // Row 2 reads "3 white, 1 black" as worked; we're 2 stitches into its whites.
+
+  it('keeps the place when the current row still reads the same', () => {
+    const r = reorder(p, pr, { ...p })
+    expect(r.restartsRow).toBe(false)
+    expect(r.progress).toEqual(pr)
+  })
+
+  for (const [what, next] of [
+    ['rows started from the other side', { start_direction: 'LTR' }],
+    ['rows that no longer turn', { alternate_direction: false }],
+    ['rows worked from the top', { bottom_up: false }],
+  ] as const) {
+    it(`sends the row partway through back to its start for ${what}`, () => {
+      const r = reorder(p, pr, { ...p, ...next })
+      expect(r.restartsRow).toBe(true)
+      expect(r.progress.current_row_id).toBe(pr.current_row_id)
+      expect([r.progress.current_run_index, r.progress.current_run_stitches]).toEqual([0, 0])
+      // Rows marked done stay done.
+      expect(r.progress.completed_row_ids).toEqual(pr.completed_row_ids)
+    })
+  }
+
+  it('has nothing to restart at the start of a row', () => {
+    const atStart = { ...pr, current_run_index: 0, current_run_stitches: 0 }
+    expect(reorder(p, atStart, { ...p, start_direction: 'LTR' }).restartsRow).toBe(false)
+  })
+
+  it('with nothing recorded, starts at the first row of the new order', () => {
+    const fresh = ensureStarted(p, emptyProgress(), () => 1)
+    expect(rowIndex(p, fresh.current_row_id)).toBe(5)
+    const r = reorder(p, fresh, { ...p, bottom_up: false })
+    expect(rowIndex(p, r.progress.current_row_id)).toBe(0)
+    expect(r.restartsRow).toBe(false)
+    expect(r.progress.started_at).toBe(fresh.started_at)
+  })
+
+  it('with rows done, keeps the current row where it is', () => {
+    const atStart = { ...pr, current_run_index: 0, current_run_stitches: 0 }
+    expect(reorder(p, atStart, { ...p, bottom_up: false }).progress.current_row_id).toBe(pr.current_row_id)
+  })
+})
 
 describe('carryProgress', () => {
   const p = pattern()

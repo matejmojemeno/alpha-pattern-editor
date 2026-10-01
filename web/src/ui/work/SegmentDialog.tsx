@@ -13,6 +13,7 @@ import { Swatch } from './Chips.tsx'
 export function SegmentDialog({
   entry,
   count,
+  units = 'stitches',
   done,
   onSave,
   onComplete,
@@ -20,6 +21,8 @@ export function SegmentDialog({
 }: {
   entry: PaletteEntry
   count: number
+  /** What the craft calls its cells: "stitches", "knots", "beads" (craft/crafts.ts). */
+  units?: string
   /** Stitches already recorded on this segment. */
   done: number
   onSave: (stitches: number) => void
@@ -50,7 +53,9 @@ export function SegmentDialog({
           </strong>
         </p>
         <div className="segment__stitches">
-          <label htmlFor={`${id}-n`}>Stitches done</label>
+          <label htmlFor={`${id}-n`}>
+            {units.charAt(0).toUpperCase() + units.slice(1)} done
+          </label>
           <div className="stepper">
             <button type="button" className="button" aria-label="One fewer" onClick={() => step(-1)} disabled={stitches <= 0}>
               −
