@@ -124,17 +124,61 @@ def test_outlines_on_draw_a_shape_that_is_only_its_line():
 
 
 def test_the_ink_is_the_pictures_black_when_it_has_one():
-    """with_ink: reuse a colour within ΔE 20, replace one within 45, else add."""
+    """with_ink: reuse a colour within ΔE 20, else add the ink; never replace a colour."""
     black = np.array([[0.0, 0.0, 0.0], [255.0, 255.0, 255.0]])
     lab = convert.srgb_to_lab(black)
     _, _, index, added = convert.with_ink(lab, black, np.array([12.0, 12.0, 12.0]))
     assert (index, added) == (0, False)
-    grey = np.array([[90.0, 90.0, 90.0], [255.0, 255.0, 255.0]])
-    lab2, rgb2, index, added = convert.with_ink(convert.srgb_to_lab(grey), grey, np.array([20.0, 20.0, 20.0]))
-    assert (index, added, list(rgb2[0])) == (0, False, [20.0, 20.0, 20.0])
-    pale = np.array([[250.0, 220.0, 120.0], [255.0, 255.0, 255.0]])
-    lab3, rgb3, index, added = convert.with_ink(convert.srgb_to_lab(pale), pale, np.array([20.0, 20.0, 20.0]))
-    assert (index, added, rgb3.shape[0]) == (2, True, 3)
+    # The Moon Stick's pink handle is within ΔE 45 of its burgundy ink: once replaced by
+    # it, the handle was crocheted in the gem's red.
+    pink = np.array([[213.0, 93.0, 137.0], [255.0, 255.0, 255.0]])
+    lab2, rgb2, index, added = convert.with_ink(convert.srgb_to_lab(pink), pink, np.array([92.0, 48.0, 48.0]))
+    assert (index, added, rgb2.shape[0]) == (2, True, 3)
+    assert list(rgb2[0]) == [213.0, 93.0, 137.0]
+
+
+def test_the_ink_is_one_of_the_colours_asked_for():
+    img = _ring(inside=(213, 93, 137), line=(92, 48, 48))
+    for colours in (2, 3, 4):
+        p = convert.convert_picture(img, cols=40, colours=colours, outlines=True)
+        assert len(p.palette) <= colours
+        assert any(abs(int(e.hex[1:3], 16) - 92) <= 2 for e in p.palette)    # the ink
+    p = convert.convert_picture(img, cols=40, colours=3, outlines=True)
+    assert len(p.palette) == 3                     # white, pink and the ink: nothing lost
+
+
+def _soft_ring(h=400, w=400, r=150, width=1.6, line=(60, 40, 40)) -> np.ndarray:
+    """A thin circle drawn anti-aliased, as drawings are: each pixel is ink by the share of
+    it the line covers (4 × 4 supersampled), so the line drifts across pixels."""
+    s = 4
+    y, x = np.mgrid[0:h * s, 0:w * s] / s + 0.5 / s
+    cover = (np.abs(np.hypot(y - h / 2, x - w / 2) - r) < width / 2).reshape(h, s, w, s).mean(axis=(1, 3))
+    img = 255 - cover[..., None] * (255 - np.array(line, float))
+    return np.round(img).astype(np.uint8)
+
+
+def test_a_thin_anti_aliased_line_is_ink_all_the_way_round():
+    """The Moon Stick's outer circle is under 2 px wide and drifts a pixel within a few
+    pixels' length; looked for exactly in line, a third of it was missed."""
+    img = _soft_ring()
+    ink, _ = ink_mask(img)
+    found = 0
+    for t in np.linspace(0, 2 * np.pi, 360, endpoint=False):
+        cy, cx = 200 + 150 * np.sin(t), 200 + 150 * np.cos(t)
+        y0, x0 = int(round(cy)), int(round(cx))
+        found += bool(ink[y0 - 1:y0 + 2, x0 - 1:x0 + 2].any())
+    assert found >= 0.97 * 360, found
+
+
+def test_a_line_the_pictures_edge_cuts_is_still_ink():
+    """The top of the Moon Stick's circle runs off the picture: half a line along the edge,
+    which beyond the picture has nothing lighter to compare with."""
+    img = np.full((120, 300, 3), 255, np.uint8)
+    img[0:2, 40:260] = (30, 30, 30)                  # the lower half of a 4 px line
+    img[60:120, 100:200] = (30, 30, 30)              # a dark area touching the bottom edge
+    ink, _ = ink_mask(img)
+    assert ink[0:2, 60:240].any(axis=0).mean() > 0.9
+    assert not ink[60:120, 105:195].any()            # still not an area's edge or inside
 
 
 def test_outline_stitches_are_ink_whatever_the_smoothing():
@@ -194,35 +238,10 @@ def test_the_coat_of_arms_loses_its_edge_smudge():
     assert {"White", "Black", "Red"} <= {e.name for e in on.palette}
 
 
-def _soft_ring(h=400, w=400, r=150, width=1.6, line=(60, 40, 40)) -> np.ndarray:
-    """A thin circle drawn anti-aliased, as drawings are: each pixel is ink by the share of
-    it the line covers (4 × 4 supersampled), so the line drifts across pixels."""
-    s = 4
-    y, x = np.mgrid[0:h * s, 0:w * s] / s + 0.5 / s
-    cover = (np.abs(np.hypot(y - h / 2, x - w / 2) - r) < width / 2).reshape(h, s, w, s).mean(axis=(1, 3))
-    img = 255 - cover[..., None] * (255 - np.array(line, float))
-    return np.round(img).astype(np.uint8)
-
-
-def test_a_thin_anti_aliased_line_is_ink_all_the_way_round():
-    """The Moon Stick's outer circle is under 2 px wide and drifts a pixel within a few
-    pixels' length; looked for exactly in line, a third of it was missed."""
-    img = _soft_ring()
-    ink, _ = ink_mask(img)
-    found = 0
-    for t in np.linspace(0, 2 * np.pi, 360, endpoint=False):
-        cy, cx = 200 + 150 * np.sin(t), 200 + 150 * np.cos(t)
-        y0, x0 = int(round(cy)), int(round(cx))
-        found += bool(ink[y0 - 1:y0 + 2, x0 - 1:x0 + 2].any())
-    assert found >= 0.97 * 360, found
-
-
-def test_a_line_the_pictures_edge_cuts_is_still_ink():
-    """The top of the Moon Stick's circle runs off the picture: half a line along the edge,
-    which beyond the picture has nothing lighter to compare with."""
-    img = np.full((120, 300, 3), 255, np.uint8)
-    img[0:2, 40:260] = (30, 30, 30)                  # the lower half of a 4 px line
-    img[60:120, 100:200] = (30, 30, 30)              # a dark area touching the bottom edge
-    ink, _ = ink_mask(img)
-    assert ink[0:2, 60:240].any(axis=0).mean() > 0.9
-    assert not ink[60:120, 105:195].any()            # still not an area's edge or inside
+@pytest.mark.parametrize("cols", [40, 80])
+def test_a_drawing_gets_its_own_colours_and_no_edge_smudge(cols):
+    """The smiley has five colours. Asked for six, the sixth was the average of its black
+    outline and yellow face (an olive), or a grey took white's place and its pink tongue,
+    left sharing a colour with the white, came out white."""
+    p = convert.convert_picture(_corpus("smiley.png"), cols=cols, colours=6)
+    assert sorted(e.name for e in p.palette) == ["Black", "Burgundy", "Pink", "White", "Yellow"]

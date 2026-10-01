@@ -19,8 +19,9 @@ of the Moon Stick's crescent is white on white, drawn only by its outline). So w
    - lines that touch side by side are thinned to one (Zhang–Suen again, on the stitches);
    - specks of fewer than 3 stitches are dropped.
 4. **Colour:** the darkest quarter of the ink, so blurred edges don't lighten it. It is
-   the palette's own colour if one is within ΔE 20 of it, else it replaces the palette's
-   colour nearest to it (within ΔE 45), else it is added.
+   the palette's own colour if one is within ΔE 20 of it, else it is added, as one of
+   the colours asked for (convert.with_ink). The ink and the _FRINGE px around it, where
+   its edges blend into the colours beside it, choose no colours in a drawing.
 
 Whether an image has drawn outlines at all can't be told reliably from simple measures
 (docs/web-port-plan.md, "Keep outlines"), so this is the user's switch, off by default,
@@ -41,6 +42,7 @@ _CLIP = 1 / 3            # a stitch the centreline crosses for less than this sh
 _MIN_SPECK = 3           # fewer stitches than this, alone, is a speck
 _CLUMP = 6               # lines in this many of a stitch's 3 × 3 make a clump
 _OUTSIDE_L = 100.0       # L* taken for beyond the image's edge, when looking across a line
+_FRINGE = 2              # px around the ink that its anti-aliased edges blend into
 _DECIMALS = 6
 
 
@@ -115,16 +117,28 @@ def thin(mask: np.ndarray) -> np.ndarray:
             return m.astype(bool)
 
 
-def centrelines(img: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """(centrelines, ink colour): the drawing's lines, one pixel wide, and their colour as
-    an sRGB triple of floats (the darkest quarter of the ink), or None if there's no ink."""
+def drawn_lines(img: np.ndarray) -> tuple[np.ndarray, np.ndarray | None, np.ndarray]:
+    """(centrelines, ink colour, ink): the drawing's lines, one pixel wide; their colour as
+    an sRGB triple of floats (the darkest quarter of the ink), or None if there's no ink;
+    and the ink itself, with the pixels its anti-aliased edges blend into (_FRINGE px
+    around it), which aren't the colours of what the lines are drawn around."""
     ink, L = ink_mask(img)
     if not ink.any():
-        return np.zeros(ink.shape, bool), None
+        return np.zeros(ink.shape, bool), None, ink
     lightness = L[ink]
     darkest = ink & (L <= np.percentile(lightness, 25))
     colour = np.round(img[darkest][:, :3].astype(np.float64).mean(axis=0), _DECIMALS)
-    return thin(ink), colour
+    fringe = ink.copy()
+    for dy in range(-_FRINGE, _FRINGE + 1):
+        for dx in range(-_FRINGE, _FRINGE + 1):
+            fringe |= _shifted(ink.astype(np.uint8), dy, dx, 0).astype(bool)
+    return thin(ink), colour, fringe
+
+
+def centrelines(img: np.ndarray) -> tuple[np.ndarray, np.ndarray | None]:
+    """(centrelines, ink colour), as drawn_lines."""
+    lines, colour, _ = drawn_lines(img)
+    return lines, colour
 
 
 def _edges(lo: float, hi: float, n: int, limit: int) -> np.ndarray:
