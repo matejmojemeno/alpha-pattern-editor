@@ -114,7 +114,8 @@ Newest last, as they were built.
     tablet, which then scrolls further so no row stays hidden under them): Copy, Cut,
     Paste (`Cmd/Ctrl+C`, `X`, `V`), Delete (the Delete key: empties it to the background;
     a floating block is taken away instead), Mirror, Flip, Rotate clockwise and anticlockwise (a quarter
-    turn about its centre, the odd half cell going up and left), Fill with the colour
+    turn about its centre; see [the rule](../rules.md#turn-rect) for the odd half cell),
+    Remove background (below), Fill with the colour
     painted with, Crop to selection (`add_border` with negative sides, so the rows kept
     keep their ids and their progress; it asks first when rows done in Work go), Select
     all and Deselect.
@@ -128,6 +129,29 @@ Newest last, as they were built.
     another pattern, each colour is found by id (with the same hex), then by hex, and any
     it lacks is added under its own name, all in the same undo step. Skip cells stay skip
     cells.
+  - <a id="remove-background"></a>**Remove background** (a toggle; the button then reads Put background back):
+    the floating block gets a see-through mask (`Floating.clear`), and every write of the
+    block (`over` in `editor.ts`) first fills its see-through cells from `under`
+    (`seeThrough`), so `paste_block` itself is unchanged. The background is the block's
+    own edge majority (not the pattern's), and only the cells of it joined to the edge
+    side by side go (`backgroundMask`), so a motif keeps that colour inside it. The mask
+    turns with the block and rides the clipboard (`Clip.clear`). One undo step when the
+    chart changes; in place it usually doesn't, since the lifted cells are already the
+    pattern's background.
+  - <a id="select-object"></a>**Select object** (`W`, a magic wand; `objectAt`, `pickObject`): a press on a
+    cell that isn't the pattern's background selects its object and takes hold of it,
+    so the same press drags it. The object is the non-background cells joined to it
+    8-way (a tail drawn as a diagonal staircase), any colours, plus what it encloses:
+    everything in its rectangle that can't be reached 4-way from the rectangle's edge
+    without crossing it (an 8-way wall stops a 4-way flood), so eyes come along. The rest
+    of the rectangle is the see-through mask of Remove background. Under it, only the
+    object's own cells become the background (not the whole rectangle, as `lift` does),
+    so a neighbour inside the rectangle stays. A press on a see-through cell doesn't
+    take hold of the selection (`grabs`), for either tool: it picks what shows through.
+    The selection is shared with Select (`selects(tool)`); Paste and Select all keep
+    whichever of the two is chosen. Checked on a real chart of five cats (76 × 24, as
+    imported): a click on any black cell of a cat gives that cat alone, with its eyes,
+    and nothing of its neighbours.
   - Web only: the desktop has no selection. The `.alpha` file is unchanged.
   - `paste_block` went into `edit.py` first, with tests and ten golden cases (176 calls
     now); `edit.ts` replays them, and 1,159 random pastes in 300 chains over random
@@ -140,7 +164,7 @@ Newest last, as they were built.
   tool was the same 3×3 grid with a different few cells inked (Paint one cell, Fill an
   L, Pick colour a diagonal), so on a tablet, where the toolbar shows icons without
   words, they couldn't be told apart, and Fill row and Add row differed only by a small
-  plus. Now: a dashed marquee (Select), a pencil (Paint), a paint bucket (Fill), a
+  plus. Now: a dashed marquee (Select), a magic wand (Select object, added later), a pencil (Paint), a paint bucket (Fill), a
   rectangle, a pipette (Pick colour), the grid with its middle row or column inked in
   the accent colour (Fill row, Fill column: drawn here in Lucide's style, since Lucide
   has the grid but not the inked band), and Lucide's "insert between" for Add row and

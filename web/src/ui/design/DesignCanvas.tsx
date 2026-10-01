@@ -46,7 +46,7 @@ import {
   type CellRect,
   type Overlay,
 } from '../../render/design.ts'
-import { ADD_TOOLS, type Tool } from '../../design/editor.ts'
+import { ADD_TOOLS, selects, type Tool } from '../../design/editor.ts'
 import { readColors, useDarkScheme } from '../chartColors.ts'
 import { TwoFingers, type PinchStep } from '../gestures.ts'
 
@@ -55,6 +55,7 @@ const MAX_DPR = 2
 /** A crosshair where cells are placed precisely; a hand where something is picked. */
 const CURSORS: Record<Tool, string> = {
   select: 'crosshair',
+  object: 'pointer',
   paint: 'crosshair',
   rect: 'crosshair',
   row: 'crosshair',
@@ -344,10 +345,10 @@ export function DesignCanvas(props: DesignCanvasProps) {
       if (fingers.current.pinching) return
     }
     const sel = latest.current.selection
-    if (!dragging.current && (latest.current.mode ?? 'edit') === 'edit' && latest.current.tool === 'select') {
+    if (!dragging.current && (latest.current.mode ?? 'edit') === 'edit' && selects(latest.current.tool)) {
       const at = locate(e, false)
       const inside = !!sel && !!at && at.r >= sel.r0 && at.r < sel.r1 && at.c >= sel.c0 && at.c < sel.c1
-      e.currentTarget.style.cursor = inside ? 'move' : CURSORS.select
+      e.currentTarget.style.cursor = inside ? 'move' : CURSORS[latest.current.tool]
     }
     if (adds()) {
       // A mouse or a pen points without pressing; a finger has to be down.

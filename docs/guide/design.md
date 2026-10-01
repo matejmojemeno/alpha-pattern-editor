@@ -31,6 +31,7 @@ tools ("Painting with **Blue**"); choose another in the **Colours** list.
 | Tool | Key | What it does |
 |---|---|---|
 | **Select** | `S` | Select part of the pattern to copy, move or turn it ([below](#copy-move-and-turn-part-of-the-pattern)). |
+| **Select object** | `W` | Click a shape, such as one animal in a row of them, to select it without its background ([below](#select-a-shape-with-one-click)). |
 | **Paint** | `B` | Click a stitch to paint it; drag to paint a line of stitches. |
 | **Fill** | `F` | Click a stitch to paint it and every touching stitch of the same colour. |
 | **Rectangle** | `R` | Drag from corner to corner to fill a rectangle. `Escape` while dragging cancels it. |
@@ -78,7 +79,12 @@ click selects one stitch, and a click outside the selection drops it.
   too: open it in Design and paste. Colours it doesn't have are added. What you copy is
   kept until you reload the page.
 - **Turn it:** **Mirror ⇄**, **Flip ⇅**, **Rotate ↻** and **Rotate ↺** turn just the
-  selection.
+  selection. Four turns the same way, or one each way, put it back where it was.
+- **Remove background:** makes the selection's background see-through, so when you drag
+  or turn it, only the motif moves, over whatever is there. The background is the colour
+  most of the selection's edge is, where it touches the edge: the same colour inside the
+  motif (the middle of an O, say) stays. **Put background back** returns it. Copy and
+  paste keep it see-through.
 - **Fill with** the colour you're painting with, or **Delete** (the `Delete` or `Backspace` key) to
   empty it to the background colour.
 - **Crop to selection** keeps only the selected stitches.
@@ -88,6 +94,20 @@ While you move, turn or paste, the selection floats over the pattern: drag it pa
 edge and back, and it comes back whole. It's put down when you click outside it, press
 `Enter`, choose another tool, or make any other change; whatever still hangs over the
 edge then is dropped.
+
+### Select a shape with one click
+
+Choose **Select object** (`W`) and click a shape: it's selected without the background
+around it, and you can drag it at once, in the same press. A shape is every stitch
+that isn't the background joined to the one you clicked, corner to corner too (so a
+tail drawn as a staircase comes along), whatever its colours, with whatever it
+encloses, such as its eyes. The background is the colour most of the pattern's edge
+is. Other shapes that fall inside its rectangle stay where they are.
+
+The selection works as one made with **Select**: the same buttons turn, copy or delete
+it, and **Put background back** brings back the rest of its rectangle. Click another
+shape to select that one, or the background to drop the selection. Shapes that touch
+each other, even at a corner, count as one.
 
 ## Change a colour or its name
 
