@@ -380,6 +380,11 @@ code {
 
 /* --- library --------------------------------------------------------------------------- */
 
+/* The window's whole width, like Import, Design and Work: the cards add columns. */
+.screen.library {
+  max-width: none;
+}
+
 .cards {
   list-style: none;
   margin: 0 0 2rem;
@@ -638,7 +643,7 @@ code {
   height: 100vh;
   height: 100dvh;
   min-height: 0;
-  max-width: 90rem;
+  max-width: none;
   padding-top: max(0.5rem, env(safe-area-inset-top));
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
   overflow: hidden;

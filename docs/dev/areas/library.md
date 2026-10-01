@@ -51,6 +51,10 @@ Newest last, as they were built.
   copies `docs/guide/media/design.png` into the build as `/social.png` (outside
   `/assets`, so not cached for good). The tags need absolute URLs, so they name the
   production address; a custom domain means changing them.
+- <a id="full-width"></a>**The Library uses the whole width**: it was capped at 72rem (1152 px)
+  like every screen, while Import and Design filled the window. Now `.screen.library`
+  has no cap and the card grid adds columns. The home screen and Settings keep 72rem:
+  their tiles and form would only spread out.
 
 ## During the port
 
