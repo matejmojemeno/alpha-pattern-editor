@@ -30,8 +30,12 @@ export function swatchBorder(hex: string): string {
 }
 
 /** A chip's note for a colour carried over some of its stitches (logic/carry.ts), e.g.
- *  "carry Black over the first 2" or "pick up Black, carry over the last 3". */
-export function carryNote(name: string, c: Pick<RunCarry, 'count' | 'part' | 'pickUp'>): string {
+ *  "carry Black over the first 2" or "pick up Black, carry over the last 3"; or, for one
+ *  that runs to an end of the row, "carry Black on to the end of the row" or "carry Black
+ *  from the start of the row". */
+export function carryNote(name: string, c: Pick<RunCarry, 'count' | 'part' | 'pickUp'> & { reach?: RunCarry['reach'] }): string {
+  if (c.reach === 'end') return `carry ${name} on to the end of the row`
+  if (c.reach === 'start') return `carry ${name} from the start of the row`
   const over = c.part === 'all' ? `all ${c.count}` : `the ${c.part} ${c.count}`
   return c.pickUp ? `pick up ${name}, carry over ${over}` : `carry ${name} over ${over}`
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { carriedStitches, carriesByRun, carryPlan, countedCarries, type Carry } from '../../src/logic/carry.ts'
+import { carriedStitches, carriesByRun, carryPlan, carryReach, type Carry } from '../../src/logic/carry.ts'
 import { encodeRow, rowDirection } from '../../src/logic/readout.ts'
 import { workSequence } from '../../src/logic/work.ts'
 import { SKIP_INDEX, type Pattern } from '../../src/model/types.ts'
@@ -80,36 +80,36 @@ describe('carryPlan', () => {
   })
 })
 
-describe('countedCarries', () => {
+describe('carryReach', () => {
   // The owner's cats: a black cat reaching the left edge of a row worked right to left
   // (the bottom row here), under a row worked left to right that starts in white.
   const cats = pattern(['0000000011', '1110000000'], { start_direction: 'RTL' })
 
-  it('drops the carries that run to either end of a row: nothing to count there', () => {
+  it('marks a carry that runs on to the end of its row, or from its start', () => {
     expect(rowDirection(cats, 1)).toBe('RTL')
-    const full = carryPlan(cats)
+    const plan = carryPlan(cats)
     // White is carried on through the cat to the end of the row, where the next row
     // starts with it: the usual "carry it to the end".
-    expect(full[1]).toEqual([{ palette_index: 0, from: 0, to: 3, kind: 'on' }])
-    // Black, left at the start of the next row, is in hand as it begins, up to its
+    expect(plan[1]).toEqual([{ palette_index: 0, from: 0, to: 3, kind: 'on' }])
+    expect(carryReach(cats.cols, plan[1]![0]!, 'RTL')).toBe('end')
+    // Black, left at the start of the next row, is carried from its start up to its
     // first stitch.
-    expect(full[0]).toEqual([{ palette_index: 1, from: 0, to: 8, kind: 'pickup' }])
-    expect(countedCarries(cats.cols, full)).toEqual([[], []])
+    expect(plan[0]).toEqual([{ palette_index: 1, from: 0, to: 8, kind: 'pickup' }])
+    expect(carryReach(cats.cols, plan[0]![0]!, 'LTR')).toBe('start')
+    // Which end is which follows the row's direction.
+    expect(carryReach(10, { from: 7, to: 10 }, 'LTR')).toBe('end')
+    expect(carryReach(10, { from: 7, to: 10 }, 'RTL')).toBe('start')
   })
 
-  it('keeps those that start or stop partway through a row, where you count', () => {
+  it('marks nothing for one that starts and stops partway through a row, where you count', () => {
     // Carried on over one stitch, then dropped.
     const on = pattern(['0011010000', '0011100000'])
     expect(carryPlan(on)[1]).toEqual([{ palette_index: 1, from: 5, to: 6, kind: 'on' }])
-    expect(countedCarries(on.cols, carryPlan(on))).toEqual(carryPlan(on))
+    expect(carryReach(on.cols, carryPlan(on)[1]![0]!, 'LTR')).toBeNull()
     // Picked up two stitches before it's needed.
     const pick = pattern(['0001100000', '0011111000'])
     expect(carryPlan(pick)[0]).toEqual([{ palette_index: 1, from: 5, to: 7, kind: 'pickup' }])
-    expect(countedCarries(pick.cols, carryPlan(pick))).toEqual(carryPlan(pick))
-  })
-
-  it('leaves the yarn estimate counting every carry, shown or not', () => {
-    expect(carriedStitches(cats)).toEqual([3, 8, 0, 0])
+    expect(carryReach(pick.cols, carryPlan(pick)[0]![0]!, 'RTL')).toBeNull()
   })
 })
 
@@ -120,12 +120,31 @@ describe('carriesByRun', () => {
   ]
   it('splits carries over the runs they cross, as the first, last or all of each', () => {
     expect(carriesByRun(10, runs, [{ palette_index: 3, from: 1, to: 4, kind: 'pickup' }], 'LTR')).toEqual([
-      [{ palette_index: 3, count: 1, part: 'last', kind: 'pickup', pickUp: true }],
-      [{ palette_index: 3, count: 2, part: 'first', kind: 'pickup', pickUp: false }],
+      [{ palette_index: 3, count: 1, part: 'last', kind: 'pickup', pickUp: true, reach: null }],
+      [{ palette_index: 3, count: 2, part: 'first', kind: 'pickup', pickUp: false, reach: null }],
     ])
-    expect(carriesByRun(10, runs, [{ palette_index: 3, from: 0, to: 4, kind: 'on' }], 'LTR')).toEqual([
-      [{ palette_index: 3, count: 2, part: 'all', kind: 'on', pickUp: false }],
-      [{ palette_index: 3, count: 2, part: 'first', kind: 'on', pickUp: false }],
+    expect(carriesByRun(10, runs, [{ palette_index: 3, from: 3, to: 6, kind: 'on' }], 'LTR')).toEqual([
+      [],
+      [{ palette_index: 3, count: 3, part: 'last', kind: 'on', pickUp: false, reach: null }],
+    ])
+  })
+
+  it('gives a carry that reaches an end of the row only to the run it begins in', () => {
+    // Held from the start of the row (column 0) over both runs: said on the first.
+    expect(carriesByRun(10, runs, [{ palette_index: 3, from: 0, to: 4, kind: 'pickup' }], 'LTR')).toEqual([
+      [{ palette_index: 3, count: 2, part: 'all', kind: 'pickup', pickUp: true, reach: 'start' }],
+      [],
+    ])
+    // On to the end, from the 2nd stitch of the second run.
+    expect(carriesByRun(10, runs, [{ palette_index: 3, from: 3, to: 10, kind: 'on' }], 'LTR')).toEqual([
+      [],
+      [{ palette_index: 3, count: 7, part: 'last', kind: 'on', pickUp: false, reach: 'end' }],
+    ])
+    // Right to left, the end of the row is column 0: begun in the run at working
+    // position 5 (image column 4).
+    expect(carriesByRun(10, [{ start_col: 0, count: 5 }, { start_col: 5, count: 5 }], [{ palette_index: 1, from: 0, to: 5, kind: 'on' }], 'RTL')).toEqual([
+      [],
+      [{ palette_index: 1, count: 5, part: 'all', kind: 'on', pickUp: false, reach: 'end' }],
     ])
   })
 
@@ -133,22 +152,20 @@ describe('carriesByRun', () => {
     // Image columns 2..4 are working positions 5..7.
     expect(carriesByRun(10, [{ start_col: 0, count: 5 }, { start_col: 5, count: 5 }], [{ palette_index: 1, from: 2, to: 5, kind: 'on' }], 'RTL')).toEqual([
       [],
-      [{ palette_index: 1, count: 3, part: 'first', kind: 'on', pickUp: false }],
+      [{ palette_index: 1, count: 3, part: 'first', kind: 'on', pickUp: false, reach: null }],
     ])
   })
 
   it('agrees with encodeRow on a real row', () => {
     const p = pattern(['0000121', '0112000'])
     const byRun = carriesByRun(p.cols, encodeRow(p, 1), carryPlan(p)[1]!, rowDirection(p, 1))
-    // Runs 0, 11, 2, 000: 1 is carried over the 2 and the three 0s, 2 over two 0s.
+    // Runs 0, 11, 2, 000: 1 is carried on over the 2 and the three 0s, to the end of the
+    // row, so it's said once, where it begins; 2 over two of the 0s.
     expect(byRun).toEqual([
       [],
       [],
-      [{ palette_index: 1, count: 1, part: 'all', kind: 'on', pickUp: false }],
-      [
-        { palette_index: 1, count: 3, part: 'all', kind: 'on', pickUp: false },
-        { palette_index: 2, count: 2, part: 'first', kind: 'on', pickUp: false },
-      ],
+      [{ palette_index: 1, count: 1, part: 'all', kind: 'on', pickUp: false, reach: 'end' }],
+      [{ palette_index: 2, count: 2, part: 'first', kind: 'on', pickUp: false, reach: null }],
     ])
   })
 })
@@ -256,6 +273,8 @@ describe('carryNote', () => {
     expect(carryNote('Black', { count: 4, part: 'all', pickUp: false })).toBe('carry Black over all 4')
     expect(carryNote('Black', { count: 3, part: 'last', pickUp: true })).toBe('pick up Black, carry over the last 3')
     expect(carryNote('Black', { count: 2, part: 'all', pickUp: true })).toBe('pick up Black, carry over all 2')
+    expect(carryNote('Black', { count: 7, part: 'last', pickUp: false, reach: 'end' })).toBe('carry Black on to the end of the row')
+    expect(carryNote('Black', { count: 2, part: 'all', pickUp: true, reach: 'start' })).toBe('carry Black from the start of the row')
   })
 })
 

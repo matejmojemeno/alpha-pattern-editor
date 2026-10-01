@@ -363,6 +363,37 @@ describe('drawChart', () => {
     for (const c of strands) expect((c.args as number[])[3]).toBeLessThanOrEqual(3)
   })
 
+  it('draws a carry that runs to an end of the row as an arrow where it begins, pointing on', () => {
+    const p = pattern(10, 10)
+    const layout = computeLayout({ rows: 10, cols: 10, current: 9, emphasise: false, focus: false, width: 240, height: 228 })
+    // Bottom up from the right: image row 4 is worked left to right, row 5 right to left.
+    const carries = Array.from({ length: 10 }, () => [] as { palette_index: number; from: number; to: number; kind: 'on' | 'pickup' }[])
+    carries[4] = [{ palette_index: 0, from: 7, to: 10, kind: 'on' }] // on to the end
+    carries[5] = [{ palette_index: 1, from: 6, to: 10, kind: 'pickup' }] // from the start
+    const { ctx, calls } = recorder()
+    drawChart(ctx, { layout, image: {} as CellImage, pattern: p, completed: new Set(), carries, scrollX: 0, scrollY: 0, width: 240, height: 228, dpr: 1, colors })
+    const cell = layout.cell
+    const x0 = AXIS_LEFT
+    // No line along the carry: a shaft into its first stitch, and a head.
+    const red = calls.filter((c) => c.fillStyle === '#ff0000')
+    const shaft = red.filter((c) => c.op === 'fillRect').map((c) => c.args as number[])
+    expect(shaft).toHaveLength(1)
+    expect(shaft[0]![0]).toBeCloseTo(x0 + 7 * cell)
+    expect(shaft[0]![2]).toBeCloseTo(0.45 * cell)
+    expect(red.filter((c) => c.op === 'fill')).toHaveLength(1)
+    // The head's tip, rightwards, inside that stitch.
+    const tips = (from: number, to: number) =>
+      calls.slice(from, to).filter((c) => c.op === 'lineTo').map((c) => (c.args as number[])[0]!)
+    const redAt = calls.findIndex((c) => c.op === 'fillRect' && c.fillStyle === '#ff0000')
+    expect(Math.max(...tips(redAt, redAt + 6))).toBeCloseTo(x0 + 7.9 * cell)
+    // Right to left, from the start of the row at the right edge: leftwards from there.
+    const green = calls.filter((c) => c.op === 'fillRect' && c.fillStyle === '#00ff00').map((c) => c.args as number[])
+    expect(green).toHaveLength(1)
+    expect(green[0]![0]! + green[0]![2]!).toBeCloseTo(x0 + 10 * cell)
+    const greenAt = calls.findIndex((c) => c.op === 'fillRect' && c.fillStyle === '#00ff00')
+    expect(Math.min(...tips(greenAt, greenAt + 6))).toBeCloseTo(x0 + 9.1 * cell)
+  })
+
   it('edges a pale strand dark and a dark one pale', () => {
     expect(carryEdge('#ffffff')).toBe('#888888')
     expect(carryEdge('#000000')).toBe('#cccccc')
