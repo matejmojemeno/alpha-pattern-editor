@@ -34,9 +34,10 @@ in Design, and **Options** then **Edit pattern…** in Work. Everything is saved
 there's no Save button.
 
 The home screen leads to all of it: the big **Import pattern** area, and **Library**,
-**Design pattern**, **Settings** and **Feedback** beside it.
+**Design pattern**, **Settings**, **Help** and **Feedback** beside it. **Help** opens this
+guide, and the **?** at the top of every other screen opens the page about that screen.
 
-<img src="media/landing.png" alt="The home screen: a large dashed Import pattern area on the left, and the Library, Design pattern, Settings and Feedback tiles stacked on the right" width="700">
+<img src="media/landing.png" alt="The home screen: a large dashed Import pattern area on the left, and the Library, Design pattern, Settings, Help and Feedback tiles stacked on the right" width="700">
 
 ## Import your first chart
 

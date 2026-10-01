@@ -112,7 +112,9 @@ files.
   as strands of yarn (`geometry.ts`), the strands rasterised as shaded tubes
   (`raster.ts`), and the fabric drawn on a canvas (`fabric.ts`). Its dialog is
   `src/ui/design/Visualize.tsx`, part of the Design stage's chunk.
-- `src/app/`: hash router, app-wide context (repository, settings), persistence request.
+- `src/app/`: hash router, app-wide context (repository, settings), persistence request,
+  every link to the user guide (`help.ts`), and the build's version and commit
+  (`build.ts`, written in by `vite.config.ts`).
 - `src/settings/`: app-wide preferences in `localStorage` (display, the colour library,
   the yarn estimate's inputs), typed and fail-safe.
 - `src/theme/`: `tokens.css` (the port of `theme.py`) and `contrastOn()`.

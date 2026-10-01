@@ -121,6 +121,9 @@ break without noticing.
 - <a id="zero-pyodide"></a>**The Work and Design stages make zero Pyodide requests.** Keeping Pyodide out of the
   Work stage is what makes the app usable on a phone, and Design has no use for it
   either since `edit.py` moved to TypeScript. Treat any regression here as a bug.
+- <a id="help-links"></a>**Link to the guide only through `src/app/help.ts`.** Renaming or moving a guide page,
+  or a heading the app links to, breaks a link nobody sees until a user taps it;
+  `tests/docs.test.ts` checks every entry in `HELP`, and only entries there.
 - <a id="known-failure"></a>**The Python suite has one known failure,** `test_edge_numbers_all_sides`: a 44×5 chart
   whose dimensions come out one column short. It's documented in `test_images/README.md`.
   Any other failure is new.

@@ -26,6 +26,32 @@ Newest last, as they were built.
   same as the favicon. The import screen's warnings have a drawn warning triangle
   instead of ⚠, which some systems show as a colour emoji.
 
+- <a id="help-links"></a>**The app links to the guide** (`app/help.ts`, `HelpLink` in
+  `ui/components.tsx`): a **Help** tile on the home screen (a question mark in a circle,
+  between Settings and Feedback) opens `docs/guide/index.md`, and a small **?** at the end
+  of every header (Library, Settings, Import, Design, Work) opens that screen's page.
+  They open in a new tab, so the pattern on screen stays put. On a phone the Work
+  header has no room for it (the pattern's name was cut to "Toa…"), so below 700 px it's
+  hidden there and **Options** has a **Help** link instead, at every width. Every link is
+  in `help.ts`, and `tests/docs.test.ts` checks each page and anchor exists; the guide is
+  read on GitHub until it's on the website, and then only `GUIDE_BASE` changes.
+- <a id="about"></a>**About, at the bottom of Settings**: the version from
+  `web/package.json` (now `1.0.0`; the package is `alpha-pattern-editor`, not `web`) and
+  the commit the build was made from, linked on GitHub, with **What's new** linking
+  `CHANGELOG.md`. `vite.config.ts` writes both in (`src/app/build.ts`): the commit from
+  Cloudflare's `WORKERS_CI_COMMIT_SHA`, or `git rev-parse HEAD` elsewhere, or none.
+  The guide's screenshot build sets it empty, so `settings.png` doesn't change with
+  every commit. Writing the commit into the main chunk means its hash changes on every
+  deploy, which a new deploy's `index.html` asks for anyway.
+- <a id="description"></a>**What the app says it's for**: the home screen's subtitle and
+  `index.html`'s description are the README's sentence ("Turn a photo of a crochet alpha
+  chart into a pattern you can edit and follow row by row."), and the Settings tile
+  names all four preferences, carrying yarn included. `index.html` has Open Graph and
+  Twitter card tags, so a shared link shows the Design screenshot: `vite.config.ts`
+  copies `docs/guide/media/design.png` into the build as `/social.png` (outside
+  `/assets`, so not cached for good). The tags need absolute URLs, so they name the
+  production address; a custom domain means changing them.
+
 ## During the port
 
 What each phase of the port built here, newest first. The plan each phase followed is in

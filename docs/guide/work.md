@@ -83,6 +83,11 @@ While the Work stage is open, the app asks your device to keep the screen on, so
 doesn't go dark mid-row. Some browsers don't allow this, for example in a battery-saving
 mode; then the screen sleeps as usual, and your place is still saved.
 
+## Get help
+
+The **?** at the top of the screen opens this page. On a phone there isn't room for it,
+so it's **Options** then **Help**.
+
 ## Rename the pattern
 
 Open **Options** and choose **Rename…**. Type the new name, then press `Enter` to keep it
