@@ -62,7 +62,8 @@
     ],
     "start_direction": "RTL",
     "alternate_direction": true,
-    "bottom_up": false
+    "bottom_up": false,
+    "craft": "stranded-knit"
    },
    "progress": {
     "completed_row_ids": [
@@ -90,7 +91,8 @@
     "palette": [],
     "start_direction": "LTR",
     "alternate_direction": false,
-    "bottom_up": true
+    "bottom_up": true,
+    "craft": "tapestry"
    },
    "progress": {
     "completed_row_ids": [],
@@ -193,7 +195,160 @@
     ],
     "start_direction": "RTL",
     "alternate_direction": true,
-    "bottom_up": true
+    "bottom_up": true,
+    "craft": "tapestry"
+   },
+   "progress": {
+    "completed_row_ids": [],
+    "current_row_id": null,
+    "current_run_index": 0,
+    "current_run_stitches": 0,
+    "started_at": null
+   },
+   "source_png_sha256": null
+  },
+  "roundtrip-craft-unknown.alpha": {
+   "roundtrip_of": "craft-unknown.alpha",
+   "stage": "design",
+   "pattern": {
+    "id": "ab06e2d71f6d9b26507d0ca5f1262b43",
+    "name": "craft-unknown",
+    "created_at": 1758600000.125,
+    "updated_at": 1758700000.123456,
+    "rows": 3,
+    "cols": 4,
+    "row_ids": [
+     "e563ca607a4dc416aa82d59f818f6ab4",
+     "9f426cd73ea5ba033a7ed1f9018ed37d",
+     "3cbc461ab7533c74e31d2dfe2d61a1fb"
+    ],
+    "cells": [
+     [
+      1,
+      1,
+      0,
+      1
+     ],
+     [
+      1,
+      0,
+      0,
+      1
+     ],
+     [
+      0,
+      1,
+      1,
+      0
+     ]
+    ],
+    "palette": [
+     {
+      "id": "c0",
+      "hex": "#ffffff",
+      "name": "White",
+      "dmc": "B5200",
+      "count": 5
+     },
+     {
+      "id": "c1",
+      "hex": "#6b3e26",
+      "name": "Brown",
+      "dmc": "433",
+      "count": 7
+     }
+    ],
+    "start_direction": "RTL",
+    "alternate_direction": true,
+    "bottom_up": true,
+    "craft": "c2c-someday"
+   },
+   "progress": {
+    "completed_row_ids": [],
+    "current_row_id": null,
+    "current_run_index": 0,
+    "current_run_stitches": 0,
+    "started_at": null
+   },
+   "source_png_sha256": null
+  },
+  "roundtrip-craft.alpha": {
+   "roundtrip_of": "craft.alpha",
+   "stage": "design",
+   "pattern": {
+    "id": "23ca2c6b139fb6ff9654c1b197a4db3a",
+    "name": "craft",
+    "created_at": 1758600000.125,
+    "updated_at": 1758700000.123456,
+    "rows": 4,
+    "cols": 6,
+    "row_ids": [
+     "13d4a50a69e8092d3a31b74985c65004",
+     "9bc8059234ed49598a3e69619db78c6e",
+     "f8ed0f41eb3bd42f16bf73628c5879c3",
+     "64a9dea55179827d0cc938864b275cc3"
+    ],
+    "cells": [
+     [
+      0,
+      2,
+      0,
+      0,
+      1,
+      1
+     ],
+     [
+      0,
+      2,
+      2,
+      2,
+      0,
+      2
+     ],
+     [
+      0,
+      2,
+      1,
+      1,
+      0,
+      1
+     ],
+     [
+      0,
+      0,
+      0,
+      1,
+      0,
+      2
+     ]
+    ],
+    "palette": [
+     {
+      "id": "c0",
+      "hex": "#ffffff",
+      "name": "White",
+      "dmc": "B5200",
+      "count": 11
+     },
+     {
+      "id": "c1",
+      "hex": "#6b3e26",
+      "name": "Brown",
+      "dmc": "433",
+      "count": 6
+     },
+     {
+      "id": "c2",
+      "hex": "#d93a3a",
+      "name": "Red",
+      "dmc": "321",
+      "count": 7
+     }
+    ],
+    "start_direction": "LTR",
+    "alternate_direction": true,
+    "bottom_up": false,
+    "craft": "bracelet"
    },
    "progress": {
     "completed_row_ids": [],
@@ -18617,7 +18772,8 @@
     ],
     "start_direction": "RTL",
     "alternate_direction": true,
-    "bottom_up": true
+    "bottom_up": true,
+    "craft": "tapestry"
    },
    "progress": {
     "completed_row_ids": [],
@@ -18681,7 +18837,8 @@
     ],
     "start_direction": "LTR",
     "alternate_direction": true,
-    "bottom_up": true
+    "bottom_up": true,
+    "craft": "tapestry"
    },
    "progress": {
     "completed_row_ids": [],
@@ -18763,7 +18920,8 @@
     ],
     "start_direction": "RTL",
     "alternate_direction": true,
-    "bottom_up": true
+    "bottom_up": true,
+    "craft": "tapestry"
    },
    "progress": {
     "completed_row_ids": [
@@ -18919,7 +19077,8 @@
     ],
     "start_direction": "LTR",
     "alternate_direction": false,
-    "bottom_up": false
+    "bottom_up": false,
+    "craft": "tapestry"
    },
    "progress": {
     "completed_row_ids": [
@@ -19002,7 +19161,8 @@
     ],
     "start_direction": "RTL",
     "alternate_direction": true,
-    "bottom_up": true
+    "bottom_up": true,
+    "craft": "tapestry"
    },
    "progress": {
     "completed_row_ids": [],
@@ -19070,7 +19230,8 @@
     ],
     "start_direction": "RTL",
     "alternate_direction": true,
-    "bottom_up": true
+    "bottom_up": true,
+    "craft": "tapestry"
    },
    "progress": {
     "completed_row_ids": [],
@@ -19193,7 +19354,8 @@
     ],
     "start_direction": "RTL",
     "alternate_direction": true,
-    "bottom_up": true
+    "bottom_up": true,
+    "craft": "tapestry"
    },
    "progress": {
     "completed_row_ids": [

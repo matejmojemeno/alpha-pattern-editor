@@ -22,6 +22,7 @@ function pattern(rows: string[], opts: Partial<Pattern> = {}): Pattern {
     start_direction: 'LTR',
     alternate_direction: true,
     bottom_up: true,
+    craft: 'tapestry',
     ...opts,
   }
 }

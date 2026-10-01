@@ -39,6 +39,7 @@ export type ExpectedRecord =
         start_direction: string
         alternate_direction: boolean
         bottom_up: boolean
+        craft: string
       }
       progress: {
         completed_row_ids: string[]
@@ -84,6 +85,7 @@ export function record({ project, sourcePng }: AlphaContents) {
       start_direction: p.start_direction,
       alternate_direction: p.alternate_direction,
       bottom_up: p.bottom_up,
+      craft: p.craft,
     },
     progress: {
       completed_row_ids: [...pr.completed_row_ids].sort(),
@@ -125,6 +127,7 @@ function builtProjects(): Record<string, Project> {
         start_direction: 'RTL',
         alternate_direction: true,
         bottom_up: false,
+        craft: 'stranded-knit',
       },
       progress: {
         completed_row_ids: new Set([edgeIds[2]!, edgeIds[0]!]),
@@ -149,6 +152,7 @@ function builtProjects(): Record<string, Project> {
         start_direction: 'LTR',
         alternate_direction: false,
         bottom_up: true,
+        craft: 'tapestry',
       },
       progress: {
         completed_row_ids: new Set(),
