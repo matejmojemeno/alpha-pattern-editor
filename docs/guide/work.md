@@ -97,9 +97,12 @@ runs along the bottom of each stitch, under its number. In **This row**, a colou
 says what to do while you work it, such as "carry Beige over the first 1", or "pick up
 Black, carry over the last 3".
 
-Lines show only where carrying starts or stops partway through a row, where you need to
-count. Carrying a colour on to the end of the row, or holding it from the start of the
-row up to where it's first used, isn't marked: do it as usual.
+A line is drawn only where carrying starts and stops partway through a row, where you
+need to count. Where a colour is carried on to the end of the row, a short arrow of that
+colour points on from just after its last stitch, and the chip says "carry Black on to
+the end of the row". Where a colour is carried from the start of the row up to its first
+stitch, the arrow is in the row's first stitch, and the chip says "carry Black from the
+start of the row".
 
 ## Count stitches on the chart
 

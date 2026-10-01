@@ -30,15 +30,18 @@ Newest last, as they were built.
   in the Python: the desktop never showed it, and it only reads the pattern. Tested
   against the strands themselves: over 800 random patterns, every strand enters a row
   where it left the one before when rows alternate, carried exactly |q − p|.
-  - <a id="counted-carries"></a>**Only carries you count are shown** (`countedCarries`). A carry that
-    runs to either end of its row is left off the chart and the chips: carrying on to
-    the end of the row, or holding the strand from the start of one, is what a tapestry
-    crocheter does anyway, with nothing to count. Shown are those that start or stop
-    partway through a row, where you must know after how many stitches to drop a strand
-    or where to pick it up. The owner's two-colour cats had a strand along every row
-    where a cat met the side of the chart, which hid the few that matter. Everything is
-    still carried: the yarn estimate (`carriedStitches`) and Visualize use the whole
-    plan.
+  - <a id="counted-carries"></a>**A carry to an end of the row is an arrow, not a line**
+    (`carryReach`, `drawCarryArrow`). The owner's two-colour cats had a line along every
+    row where a cat met the side of the chart, which buried the few that need counting.
+    A carry that runs on to the end of its row, or from its start, needs no counting:
+    what matters is not dropping the strand. So it's drawn as a one-stitch arrow in its
+    colour where it begins (right after the colour's last stitch, or in the row's first
+    stitch), pointing the way the row is worked. Its chip note says it once, on the run
+    it begins in: "carry Black on to the end of the row" or "carry Black from the start
+    of the row" (`carriesByRun`, `carryNote`). A carry that starts and stops partway
+    through a row keeps its full line and its count. The yarn estimate and Visualize use
+    the whole plan as before. A first version hid these carries altogether; the owner
+    asked for them to be marked without the line.
   - The strands are lines, 2 or 3 px with 1 px edges (`carryThickness`, a tenth of the
     row), not the band of up to 8 px (a third of the row) they began as, which hid the
     stitches it crossed.
