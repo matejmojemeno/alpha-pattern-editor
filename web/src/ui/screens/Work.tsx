@@ -14,7 +14,7 @@ import { href, navigate, paths } from '../../app/router.ts'
 import { trackSave } from '../../app/saving.ts'
 import { keepScreenAwake } from '../../app/wakeLock.ts'
 import { carriesByRun, carryPlan } from '../../logic/carry.ts'
-import { encodeRow, exportAllRowsText, formatRowText, rowDirection, workingNumber } from '../../logic/readout.ts'
+import { encodeRow, formatRowText, rowDirection, workingNumber } from '../../logic/readout.ts'
 import {
   completeCurrentRow,
   ensureStarted,
@@ -29,6 +29,7 @@ import {
 import { reorder, repairProgress } from '../../logic/progress.ts'
 import { countOf, craftOf, withCraft, type CraftId } from '../../craft/crafts.ts'
 import type { Direction, Pattern, Project } from '../../model/types.ts'
+import { exportChartPng } from '../../render/chartPng.ts'
 import type { RowPlace } from '../../render/layout.ts'
 import { progressPct } from '../../storage/alpha.ts'
 import type { ProjectRepo } from '../../storage/repo.ts'
@@ -236,8 +237,15 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
     navigate(paths.design(latest.current.pattern.id))
   }
 
-  const exportReadout = () =>
-    downloadBlob(new Blob([exportAllRowsText(p)], { type: 'text/plain;charset=utf-8' }), `${p.name}.txt`)
+  // The chart as a picture, with the numbers and strands the chart shows now, but not
+  // your progress (render/chartPng.ts).
+  const exportChart = () => {
+    options.current?.removeAttribute('open')
+    exportChartPng(p, { numbers: settings.stitchNumbers, carries }).then(
+      ({ blob, filename }) => downloadBlob(blob, filename),
+      (error: unknown) => console.error(error),
+    )
+  }
 
   const openRun = segment === null ? undefined : runs[segment]
   const arrow = cur !== null && rowDirection(p, cur) === 'LTR' ? '→' : '←'
@@ -283,7 +291,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
               setRenaming(true)
             }}
             onEdit={editPattern}
-            onDownload={exportReadout}
+            onExportPng={exportChart}
           />
         </details>
         <HelpLink topic="work" />

@@ -28,7 +28,7 @@ export const CHART_OPTIONS: readonly { key: ChartSwitch; label: string; hint: st
   },
   {
     key: 'focusMode',
-    label: 'Hide the rest of the chart',
+    label: 'Focus mode',
     hint: 'Shows only the rows around the current one.',
     help: 'Draws only the rows around the current one, and hides the rest of the chart and the “Next” line under the colours.',
   },

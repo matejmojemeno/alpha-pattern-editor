@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { carriesByRun, carryPlan, carryReach } from '../../src/logic/carry.ts'
 import * as work from '../../src/logic/work.ts'
 import { encodeRow, formatRowText, rowDirection, workingNumber } from '../../src/logic/readout.ts'
+import { exportChartPng } from '../../src/render/chartPng.ts'
 import { readAlpha } from '../../src/storage/alpha.ts'
 import { carryNote } from '../../src/ui/work/segments.ts'
 import { fixture, freshRepo, renderApp, screen } from './helpers.tsx'
@@ -22,6 +23,12 @@ vi.mock('../../src/logic/work.ts', async (importOriginal) => {
     goPreviousRow: vi.fn(actual.goPreviousRow),
   }
 })
+
+// Export PNG draws on a canvas, which jsdom hasn't got: e2e/work-png.spec.ts checks the
+// picture itself; here, what the screen asks for.
+vi.mock('../../src/render/chartPng.ts', () => ({
+  exportChartPng: vi.fn(async (p: { name: string }) => ({ blob: new Blob(['png']), filename: `${p.name}.png` })),
+}))
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -197,7 +204,7 @@ describe('keyboard', () => {
     expect(rowLabel()).toMatch(/^Row 1 /)
 
     await user.keyboard('{Escape}')
-    const option = screen.getByLabelText('Hide the rest of the chart')
+    const option = screen.getByLabelText('Focus mode')
     fireEvent.keyDown(option, { key: 'ArrowRight' })
     expect(work.completeCurrentRow).not.toHaveBeenCalled()
 
@@ -431,26 +438,32 @@ describe('options', () => {
     expect(document.querySelector('.chip__carry')).toBeNull()
   })
 
-  it('"Hide the rest of the chart" hides the next-row preview', async () => {
+  it('focus mode hides the next-row preview', async () => {
     const { settings } = await openWork('basic.alpha')
     expect(screen.getByText(/^Next: Row 2/)).toBeTruthy()
-    await userEvent.click(screen.getByLabelText('Hide the rest of the chart'))
+    await userEvent.click(screen.getByLabelText('Focus mode'))
     expect(settings.get().focusMode).toBe(true)
     expect(screen.queryByText(/^Next:/)).toBeNull()
   })
 
-  it('downloads every row as text', async () => {
+  it('exports the chart as a PNG with the numbers and strands switched on, and no text export', async () => {
     const { project } = await openWork('basic.alpha')
+    const p = project.pattern
     const clicks: HTMLAnchorElement[] = []
     const spy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
       clicks.push(this)
     })
-    await userEvent.click(screen.getByRole('button', { name: 'Download as text' }))
-    expect(clicks).toHaveLength(1)
-    expect(clicks[0]!.download).toBe('basic.txt')
-    const blob = vi.mocked(URL.createObjectURL).mock.calls.at(-1)![0] as Blob
-    const { exportAllRowsText } = await import('../../src/logic/readout.ts')
-    await waitFor(async () => expect(await blob.text()).toBe(exportAllRowsText(project.pattern)))
+    expect(screen.queryByRole('button', { name: /text/i })).toBeNull()
+    // As it starts: numbers on, carrying off.
+    await userEvent.click(screen.getByRole('button', { name: 'Export PNG' }))
+    expect(vi.mocked(exportChartPng)).toHaveBeenLastCalledWith(expect.objectContaining({ id: p.id }), { numbers: true, carries: null })
+    await waitFor(() => expect(clicks.map((a) => a.download)).toEqual(['basic.png']))
+    // The other way round, partway through the pattern: the progress isn't asked for.
+    await userEvent.click(screen.getByRole('button', { name: /Row complete/ }))
+    await userEvent.click(screen.getByLabelText('Number the stitches'))
+    await userEvent.click(screen.getByLabelText('Show where to carry yarn'))
+    await userEvent.click(screen.getByRole('button', { name: 'Export PNG' }))
+    expect(vi.mocked(exportChartPng)).toHaveBeenLastCalledWith(expect.objectContaining({ id: p.id }), { numbers: false, carries: carryPlan(p) })
     spy.mockRestore()
   })
 })

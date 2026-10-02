@@ -6,7 +6,7 @@
  *   or more named sides is a set of radio buttons, so the side not chosen is in view too:
  *   a checkbox such as "Start rows from the right" left you to work out what unticked meant.
  * - **Chart**: switches for how the chart looks, app-wide (also in Settings).
- * - **Pattern**: rename, edit in Design, download the rows as text, and help.
+ * - **Pattern**: rename, edit in Design, export the chart as a picture, and help.
  */
 import { useId, type ReactNode } from 'react'
 
@@ -35,7 +35,8 @@ export interface OptionsMenuProps {
   onCorner: (bottomUp: boolean, start: Direction) => void
   onSameWay: (same: boolean) => void
   onRename: () => void
-  onDownload: () => void
+  /** Save the chart as a picture (render/chartPng.ts). */
+  onExportPng: () => void
   onEdit: () => void
 }
 
@@ -116,8 +117,8 @@ export function OptionsMenu(props: OptionsMenuProps) {
           <button type="button" className="button button--small" onClick={props.onEdit}>
             Edit in Design
           </button>
-          <button type="button" className="button button--small" onClick={props.onDownload}>
-            Download as text
+          <button type="button" className="button button--small" onClick={props.onExportPng} title="The chart as a picture, with stitch numbers and where to carry yarn when they are on. No progress is shown.">
+            Export PNG
           </button>
           {/* Also here, for phones, where the header has no room for its "?". */}
           <a className="button button--small" href={helpUrl('work')} target="_blank" rel="noopener noreferrer">
