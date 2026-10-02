@@ -311,6 +311,14 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
               <input type="checkbox" checked={settings.focusMode} onChange={(e) => setSettings({ focusMode: e.target.checked })} />
               Focus mode
             </label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={settings.stitchNumbers}
+                onChange={(e) => setSettings({ stitchNumbers: e.target.checked })}
+              />
+              Number the stitches
+            </label>
             {craft.carries && (
               <label className="check">
                 <input
@@ -405,6 +413,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
           themeKey={settings.highContrast ? 'high' : 'normal'}
           place={place}
           carries={carries}
+          numbers={settings.stitchNumbers}
           label={`Chart, ${p.cols} by ${p.rows}${cur === null ? '' : `, row ${workingNumber(p, cur)} outlined`}`}
         />
       </div>

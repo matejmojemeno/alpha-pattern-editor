@@ -1,10 +1,10 @@
 # Settings
 
 Settings are display preferences for the whole app. Open them from **Settings** on the
-home screen. They're saved in this browser and apply to every project. All four also appear in the
+home screen. They're saved in this browser and apply to every project. All five also appear in the
 Work stage's **Options**, so you can change them without leaving your pattern.
 
-<img src="media/settings.png" alt="The Settings screen: four switches, each with a line saying what it does, and About underneath" width="700">
+<img src="media/settings.png" alt="The Settings screen: five switches, each with a line saying what it does, and About underneath" width="700">
 
 ## Make the current row easier to find
 
@@ -19,6 +19,12 @@ Work stage's **Options**, so you can change them without leaving your pattern.
 
 **High contrast** uses light text on a near-black background, with stronger borders,
 across the whole app.
+
+## Number the stitches
+
+**Number the stitches** writes on each stitch of the Work chart which one it is in its
+block of one colour, counted the way you work the row. It's on to start with. See
+[Count stitches on the chart](work.md#count-stitches-on-the-chart).
 
 ## Show where to carry yarn
 
