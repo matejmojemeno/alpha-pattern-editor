@@ -18,9 +18,14 @@
  * Either way a colour is carried over |q − p| stitches between consecutive rows, where p
  * is its last column in one row and q its first in the next. Carrying between two runs
  * of the same colour in one row isn't listed: that's done anyway. A colour that isn't in
- * the next row is dropped, and joined again where it's next needed. When every row runs
- * the same way, a strand the next row needs *behind* it can't be reached without a
- * float, so nothing is suggested there.
+ * the next row is dropped, and joined again where it's next needed.
+ *
+ * When every row runs the same way (`alternate_direction` off), the work is in rounds:
+ * the last stitch of a round is followed by the first of the next. A strand the next
+ * round needs *behind* where it was left (q before p in working order) goes on round the
+ * join instead: carried over the rest of this round, then over the next round's stitches
+ * up to q, cols − 1 − (p − q) stitches in all, counted in working order. One the next
+ * round needs exactly where it was left waits there, right below it: nothing to carry.
  */
 import { SKIP_INDEX, type Pattern, type Run } from '../model/types.ts'
 import { rowDirection } from './readout.ts'
@@ -60,6 +65,8 @@ export function carryPlan(p: Pattern): Carry[][] {
   let left = new Map<number, number>()
   seq.forEach((r, k) => {
     const s = rowDirection(p, r) === 'LTR' ? 1 : -1
+    // Image columns where a row's working order starts and ends: every row the same way.
+    const [start, end] = s > 0 ? [0, p.cols - 1] : [p.cols - 1, 0]
     const next = used[k + 1]
     const exits = new Map<number, number>()
     for (const [v, { first, last }] of used[k]!) {
@@ -73,6 +80,12 @@ export function carryPlan(p: Pattern): Carry[][] {
       // The next row needs it further along: carried on to there.
       if (q !== undefined && (q - last) * s > 0) {
         plan[r]!.push({ palette_index: v, ...span(last + s, q), kind: 'on' })
+        exit = q
+      } else if (q !== undefined && q !== last && !p.alternate_direction) {
+        // In rounds, behind it: on round the join, to the end of this round…
+        if (last !== end) plan[r]!.push({ palette_index: v, ...span(last + s, end), kind: 'on' })
+        // …and from the start of the next one up to its first stitch there.
+        if (q !== start) plan[seq[k + 1]!]!.push({ palette_index: v, ...span(start, q - s), kind: 'on' })
         exit = q
       }
       exits.set(v, exit)

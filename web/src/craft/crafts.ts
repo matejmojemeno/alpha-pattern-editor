@@ -26,7 +26,13 @@ export interface Craft {
    *  strands (logic/carry.ts). Intarsia uses a bobbin per area, stranded knitting floats
    *  the yarn behind, and bracelets and beads carry nothing. */
   readonly carries: boolean
+  /** What the Work stage calls rows that don't turn (`alternate_direction` off): working
+   *  in rounds for crochet and knitting, every row the same way for a bracelet or loom. */
+  readonly sameWay: string
 }
+
+const IN_ROUNDS = 'Work in rounds (every row the same way)'
+const SAME_WAY = 'Every row the same way'
 
 /** Flat crochet: bottom right first, turning every row. */
 const CROCHET_FLAT: CraftOrder = { bottom_up: true, start_direction: 'RTL', alternate_direction: true }
@@ -34,10 +40,10 @@ const CROCHET_FLAT: CraftOrder = { bottom_up: true, start_direction: 'RTL', alte
 const KNIT_FLAT: CraftOrder = { bottom_up: true, start_direction: 'RTL', alternate_direction: true }
 
 export const CRAFTS: readonly Craft[] = [
-  { id: 'tapestry', label: 'Tapestry crochet', unit: 'stitch', units: 'stitches', order: CROCHET_FLAT, carries: true },
-  { id: 'intarsia-crochet', label: 'Intarsia crochet', unit: 'stitch', units: 'stitches', order: CROCHET_FLAT, carries: false },
-  { id: 'stranded-knit', label: 'Stranded knitting (Fair Isle)', unit: 'stitch', units: 'stitches', order: KNIT_FLAT, carries: false },
-  { id: 'intarsia-knit', label: 'Intarsia knitting', unit: 'stitch', units: 'stitches', order: KNIT_FLAT, carries: false },
+  { id: 'tapestry', label: 'Tapestry crochet', unit: 'stitch', units: 'stitches', order: CROCHET_FLAT, carries: true, sameWay: IN_ROUNDS },
+  { id: 'intarsia-crochet', label: 'Intarsia crochet', unit: 'stitch', units: 'stitches', order: CROCHET_FLAT, carries: false, sameWay: IN_ROUNDS },
+  { id: 'stranded-knit', label: 'Stranded knitting (Fair Isle)', unit: 'stitch', units: 'stitches', order: KNIT_FLAT, carries: false, sameWay: IN_ROUNDS },
+  { id: 'intarsia-knit', label: 'Intarsia knitting', unit: 'stitch', units: 'stitches', order: KNIT_FLAT, carries: false, sameWay: IN_ROUNDS },
   {
     id: 'bracelet',
     label: 'Alpha friendship bracelet',
@@ -46,6 +52,7 @@ export const CRAFTS: readonly Craft[] = [
     // From the top, the first row left to right, and back.
     order: { bottom_up: false, start_direction: 'LTR', alternate_direction: true },
     carries: false,
+    sameWay: SAME_WAY,
   },
   {
     id: 'bead-loom',
@@ -56,6 +63,7 @@ export const CRAFTS: readonly Craft[] = [
     // and the loom; no source settles it, so it stays as the pattern has it.
     order: { alternate_direction: false },
     carries: false,
+    sameWay: SAME_WAY,
   },
 ]
 
