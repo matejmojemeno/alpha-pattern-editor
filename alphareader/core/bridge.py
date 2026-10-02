@@ -202,11 +202,14 @@ def _reading_payload(session: _Session) -> dict:
     kind:     "chart" or "pixels" (kind.read_chart), or "picture" when that was asked for.
     sure:     False for a chart read with doubts: many of its squares are unsure, so the
               screen asks for it to be checked against the image.
+    photoLike: a grid read although kind.read_image judged the image a picture (most are
+              photos with a nonsense grid; some are charts), so Photo to pattern is
+              offered.
     failure:  the code of a chart's refusal (NO_GRIDLINES, LOW_RESOLUTION, ...), or None."""
     r = session.reading
     if r is None:
-        return {"kind": "chart", "sure": True, "failure": None}
-    return {"kind": r.kind, "sure": bool(r.sure),
+        return {"kind": "chart", "sure": True, "photoLike": False, "failure": None}
+    return {"kind": r.kind, "sure": bool(r.sure), "photoLike": bool(r.photo_like),
             "failure": None if r.error is None else r.error.code}
 
 

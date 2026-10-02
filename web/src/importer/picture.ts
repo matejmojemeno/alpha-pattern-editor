@@ -56,7 +56,8 @@ export interface ReadingNote {
 /** What to say about an image read as `mode`. Nothing for a chart read cleanly, or for a
  *  picture, whose screen is named for it; a note for pixel art, read block by block; a
  *  warning for a chart with many unsure squares, where the image may be a photo after
- *  all. */
+ *  all; and a quiet offer of Photo to pattern for a grid that looked more like a photo's
+ *  (most such are photos, with a nonsense grid; some are charts, read all the same). */
 export function readingNote(mode: Mode, reading: Reading): ReadingNote | null {
   if (mode === 'pixels') {
     return { text: 'Read as pixel art: each block of your image is one stitch.', warning: false, offerPhoto: false }
@@ -67,6 +68,9 @@ export function readingNote(mode: Mode, reading: Reading): ReadingNote | null {
       warning: true,
       offerPhoto: true,
     }
+  }
+  if (mode === 'chart' && reading.photoLike) {
+    return { text: 'Is this a photo or drawing, not a chart?', warning: false, offerPhoto: true }
   }
   return null
 }

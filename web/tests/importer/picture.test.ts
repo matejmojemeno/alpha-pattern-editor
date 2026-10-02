@@ -6,7 +6,7 @@ import { clampWidth, colourSteps, detailText, MAX_COLOURS, readingNote, sizeText
 import { finishedSize, type Swatch } from '../../src/yarn/usage.ts'
 
 const swatch = (over: Partial<Swatch> = {}): Swatch => ({ stitches: 10, rows: 10, widthCm: null, heightCm: null, grams: null, ...over })
-const reading = (over: Partial<Reading> = {}): Reading => ({ kind: 'chart', sure: true, failure: null, ...over })
+const reading = (over: Partial<Reading> = {}): Reading => ({ kind: 'chart', sure: true, photoLike: false, failure: null, ...over })
 const picture = (over: Partial<PictureSettings> = {}): PictureSettings => ({
   width: 60,
   maxWidth: 320,
@@ -50,6 +50,16 @@ describe('the note on what was read', () => {
       warning: true,
       offerPhoto: true,
     })
+  })
+
+  it('offers Photo to pattern quietly for a grid that looked more like a photo’s', () => {
+    expect(readingNote('chart', reading({ photoLike: true }))).toEqual({
+      text: 'Is this a photo or drawing, not a chart?',
+      warning: false,
+      offerPhoto: true,
+    })
+    // Many unsure squares say more, and win.
+    expect(readingNote('chart', reading({ photoLike: true, sure: false }))?.warning).toBe(true)
   })
 
   it('says pixel art is read block by block, with nothing to switch to', () => {

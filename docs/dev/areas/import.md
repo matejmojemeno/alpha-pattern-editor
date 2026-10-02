@@ -277,7 +277,11 @@ Newest last, as they were built.
     Nothing more is said of a clean chart. Over 15% of squares unsure: "⚠ Many squares
     were hard to read. Check the pattern against your image before you save." with
     "Use Photo to pattern instead". Pixel art: "Read as pixel art: each block of your
-    image is one stitch.", with nothing to switch to. No grid, or refused: detection's
+    image is one stitch.", with nothing to switch to. A grid `read_image` judged a
+    picture's (`reading.photoLike`), read cleanly: "Is this a photo or drawing, not a
+    chart?" quietly, with the same button; of the 25 corpus pictures given to Import a
+    chart, 16 are refused, 8 warned, and 1 (`arctic-fox.jpg`, a 51 × 6 grid on snow) has
+    only this line. No grid, or refused: detection's
     advice, then "Not a chart? Photo to pattern makes a new pattern from any photo or
     drawing." and **Use Photo to pattern**.
   - **Photo to pattern** (`#/photo`, a tile beside the drop zone): `open_session(intent=

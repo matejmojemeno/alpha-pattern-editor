@@ -351,7 +351,7 @@ describe('Import screen', () => {
 /** A worker that reads every image as bridge.py does for what's asked: as `first`
  *  ('chart' or 'pixels') for a chart, or failing with `failWith`; always as a picture
  *  when a picture is asked for, answering its settings. */
-function readingWorker(first: 'chart' | 'pixels', { sure = true, failWith = null as DetectionErrorCode | null } = {}) {
+function readingWorker(first: 'chart' | 'pixels', { sure = true, photoLike = false, failWith = null as DetectionErrorCode | null } = {}) {
   const w = detectingWorker()
   const auto = w.auto!
   const s = { width: 8, colours: 6, detail: 0.5, outlines: false, extent: { x0: 0, y0: 0, x1: 400, y1: 300 } }
@@ -359,7 +359,7 @@ function readingWorker(first: 'chart' | 'pixels', { sure = true, failWith = null
   const answer = (session: number) =>
     pictures.has(session)
       ? makePicturePreview(session, s)
-      : makePreview(session, 3, 4, { reading: { kind: first, sure, failure: null }, mode: first })
+      : makePreview(session, 3, 4, { reading: { kind: first, sure, photoLike, failure: null }, mode: first })
   w.auto = (msg) => {
     switch (msg.type) {
       case 'open': {
@@ -374,7 +374,7 @@ function readingWorker(first: 'chart' | 'pixels', { sure = true, failWith = null
             code: failWith,
             message: 'no chart',
             session: opened.session,
-            reading: { kind: 'chart', sure: true, failure: failWith },
+            reading: { kind: 'chart', sure: true, photoLike: false, failure: failWith },
           }
         }
         return answer(opened.session)
@@ -440,6 +440,17 @@ describe('Import a chart', () => {
     // The chart's session was closed; the worker kept (it holds Pyodide).
     expect(detection.worker.of('close').map((c) => c.session)).toEqual([1])
     expect(detection.release).not.toHaveBeenCalled()
+  })
+
+  it('reads a grid that looked more like a photo’s, and offers Photo to pattern quietly', async () => {
+    detection.reset(readingWorker('chart', { photoLike: true }))
+    await openImport()
+    await saveButton()
+    expect(sizeShown()).toBe('4 columns × 3 rows')
+    expect(noteText()).toBe('Is this a photo or drawing, not a chart?Use Photo to pattern instead')
+    expect(document.querySelector('.confirm__kind')!.hasAttribute('data-prominent')).toBe(false)
+    await userEvent.click(screen.getByRole('button', { name: 'Use Photo to pattern instead' }))
+    await screen.findByRole('heading', { level: 1, name: 'Photo to pattern' })
   })
 
   it.each(['NO_GRIDLINES', 'LOW_RESOLUTION'] as const)(

@@ -61,6 +61,9 @@ export interface Reading {
   kind: Mode
   /** False for a chart read with doubts: many squares unsure, so it should be checked. */
   sure: boolean
+  /** A grid read although it looked more like a photo's (core/kind.read_chart): Photo to
+   *  pattern is offered, quietly. */
+  photoLike: boolean
   /** Why a chart couldn't be read, or null. */
   failure: DetectionErrorCode | null
 }

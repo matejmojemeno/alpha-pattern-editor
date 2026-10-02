@@ -74,6 +74,11 @@ were hard to read" means many squares didn't come out as one clear colour: compa
 pattern with your image before you save. If your image is really a photo and not a chart,
 **Use Photo to pattern instead** beside it takes the same image there.
 
+"Is this a photo or drawing, not a chart?" above the image, with the same button, means
+the grid the app found looks more like a photo's than a chart's. It's read as a chart all
+the same, since some real charts look like that. If the pattern is nonsense, use the
+button.
+
 ## Fix a grid that's a row or column short
 
 The blue outline has a handle on each edge and corner. Drag an edge outwards to take in a

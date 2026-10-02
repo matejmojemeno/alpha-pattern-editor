@@ -57,7 +57,7 @@ export function makePreview(session: number, rows = 3, cols = 4, over: Partial<P
     ok: true,
     session,
     mode: 'chart',
-    reading: { kind: 'chart', sure: true, failure: null },
+    reading: { kind: 'chart', sure: true, photoLike: false, failure: null },
     picture: null,
     rows,
     cols,
@@ -87,7 +87,7 @@ export function makePicturePreview(
   const rows = Math.max(1, Math.round((width * (extent.y1 - extent.y0)) / (extent.x1 - extent.x0)))
   return makePreview(session, rows, width, {
     mode: 'picture',
-    reading: { kind: 'picture', sure: true, failure: null },
+    reading: { kind: 'picture', sure: true, photoLike: false, failure: null },
     picture: { width, maxWidth: 400, colours, detail, cellAspect: 1, outlines },
     extent,
     imageWidth: 400,

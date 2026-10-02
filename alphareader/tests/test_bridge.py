@@ -206,7 +206,7 @@ def test_a_charts_refusal_is_returned_not_raised(monkeypatch, code):
 
     monkeypatch.setattr(kind, "detect_pattern", failing)
     out = _open(_chart())
-    reading = {"kind": "chart", "sure": True, "failure": code}
+    reading = {"kind": "chart", "sure": True, "photoLike": False, "failure": code}
     assert out == {"ok": False, "code": code, "message": f"failed with {code}",
                    "session": out["session"], "reading": reading}
     # The session stays open so the user can crop and try again; the retry fails the same way.
@@ -231,10 +231,10 @@ def test_an_image_without_a_chart_is_a_charts_failure_never_a_picture(monkeypatc
     gradient = np.linspace(0, 255, 320)[None, :, None].repeat(240, 0).repeat(3, 2)
     out = _open(gradient.astype(np.uint8))
     assert out["ok"] is False and out["code"] == code
-    assert out["reading"] == {"kind": "chart", "sure": True, "failure": code}
+    assert out["reading"] == {"kind": "chart", "sure": True, "photoLike": False, "failure": code}
     pic = _open(gradient.astype(np.uint8), intent="picture")
     assert pic["ok"] is True and pic["mode"] == "picture"
-    assert pic["reading"] == {"kind": "picture", "sure": True, "failure": None}
+    assert pic["reading"] == {"kind": "picture", "sure": True, "photoLike": False, "failure": None}
     assert pic["warnings"] == [] and pic["picture"]["width"] == 60
 
 
@@ -500,7 +500,7 @@ def _photo(h: int = 240, w: int = 320) -> np.ndarray:
 def test_a_chart_is_read_as_a_chart():
     p = _open(_chart())
     assert p["mode"] == "chart" and p["picture"] is None
-    assert p["reading"] == {"kind": "chart", "sure": True, "failure": None}
+    assert p["reading"] == {"kind": "chart", "sure": True, "photoLike": False, "failure": None}
 
 
 def test_a_picture_opens_as_a_picture_and_saves_what_convert_makes(count_detections):
@@ -573,7 +573,7 @@ def test_a_grid_judged_a_pictures_is_still_read_as_a_chart(monkeypatch):
     monkeypatch.setattr(kind, "_chart_or_picture", as_picture)
     p = _open(_noisy_chart())
     assert (p["ok"], p["mode"], p["rows"]) == (True, "chart", 14)
-    assert p["reading"] == {"kind": "chart", "sure": True, "failure": None}
+    assert p["reading"] == {"kind": "chart", "sure": True, "photoLike": True, "failure": None}
     assert np.array_equal(p["cells"], want["cells"])
 
 

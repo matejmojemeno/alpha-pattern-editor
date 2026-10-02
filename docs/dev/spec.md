@@ -283,7 +283,9 @@ Asked for a chart, the app tries its hardest to read one and never converts unas
 any grid detection finds is read, whatever `kind.py` makes of it below
 (`kind.read_chart`), and with no grid the screen gives detection's advice, with a button
 to Photo to pattern. A chart read with more than 15% of its squares unsure is shown with
-a warning to check it, and the same button. Asked for a picture, nothing is detected.
+a warning to check it, and the same button; a grid `kind.py` judged a picture's,
+read cleanly, gets the button with a quiet question instead. Asked for a picture,
+nothing is detected.
 
 Before, one import decided by itself, and a chart judged a picture (most often a
 screenshot whose grid spans under 60% of one side) was converted, a dead end until the

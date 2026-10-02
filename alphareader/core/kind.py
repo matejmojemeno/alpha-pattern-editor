@@ -71,6 +71,8 @@ class Reading:
     reason:  a short note on why, for tests and bug reports (never shown as advice).
     pixels:  the image as uniform blocks (pixels.py), when it is read as pixels: kept
              after turning it into a pattern, to go back.
+    photo_like: a chart `read_chart` read although `read_image` judged the image a
+             picture: the screen then offers Photo to pattern, quietly.
     """
     kind: str
     sure: bool
@@ -78,6 +80,7 @@ class Reading:
     error: DetectionError | None
     reason: str
     pixels: PixelArt | None = None
+    photo_like: bool = False
 
 
 def line_contrast(prof: np.ndarray, x0: float, pitch: float, lo: float = 0.0,
@@ -195,7 +198,7 @@ def read_chart(img: np.ndarray, *, delta_e_threshold: float = DEFAULT_DELTA_E,
     if reading.result is not None:
         unsure = float(np.mean(reading.result.confidence < 0.6))
         return Reading("chart", unsure <= _SURE_UNSURE, reading.result, None,
-                       f"read as a chart on request ({reading.reason})")
+                       f"read as a chart on request ({reading.reason})", photo_like=True)
     error = reading.error or DetectionError("NO_GRIDLINES", "Couldn't find gridlines.")
     return Reading("chart", True, None, error, f"no grid ({reading.reason})")
 

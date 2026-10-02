@@ -102,7 +102,7 @@ def test_pictures_are_read_as_pictures(name):
 @pytest.mark.parametrize("name,kind,sure,failure", CHARTS)
 def test_read_chart_reads_every_chart_as_read_image_does(name, kind, sure, failure):
     r = read_chart(_load(os.path.join(IMAGES, name)))
-    assert (r.kind, r.sure) == (kind, sure), r.reason
+    assert (r.kind, r.sure, r.photo_like) == (kind, sure, False), r.reason
     assert (None if r.error is None else r.error.code) == failure, r.reason
 
 
@@ -119,6 +119,7 @@ def test_read_chart_reads_a_picture_as_a_chart_or_refuses_it(name):
         assert r.error.code == seen.error.code
     else:
         assert r.error is None and np.array_equal(r.result.cells, seen.result.cells)
+        assert r.photo_like  # so the screen offers Photo to pattern
 
 
 @pytest.mark.parametrize("name,kind,size", PIXELS)
