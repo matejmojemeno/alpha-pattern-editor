@@ -130,14 +130,34 @@ Newest last, as they were built.
   - **Chart** (app-wide, switches with a one-line hint, the same list as Settings):
     **Number the stitches**, **Show where to carry yarn** (tapestry crochet only),
     **Enlarge the current row** (was "Taller rows around the current one" here and
-    "Emphasise the rows around the current one" in Settings), **Hide the rest of the
-    chart** (was "Focus mode", a name that didn't say what it does). The setting keys
-    are unchanged, so stored preferences carry over.
+    "Emphasise the rows around the current one" in Settings), **Focus mode** (renamed
+    "Hide the rest of the chart" for a while; the owner preferred the old name, and the
+    hint says what it does). The setting keys are unchanged, so stored preferences carry
+    over.
   - **Pattern**: **Rename…**, **Edit in Design** (was "Edit pattern…", which didn't say
-    it leaves the Work stage), **Download as text** (was "Export readout"), **Help**.
+    it leaves the Work stage), **Export PNG** (see [Export PNG](#work-png)), **Help**.
+    "Export readout" (a .txt of every row) is gone: the owner saw no use for it.
+    `exportAllRowsText` stays in `logic/readout.ts`, a port of the Python kept in step by
+    the golden fixtures.
   - From 56rem wide the two settings groups sit side by side (the menu is 42rem); on a
     phone it's one column that scrolls inside itself (`max-height: 100dvh − 5rem`).
   - `Craft.sameWay` (a checkbox label) became `Craft.inRounds`.
+- <a id="work-png"></a>**Export PNG from Work** (`render/chartPng.ts`, web only). The
+  chart drawn by the Work stage's own `drawChart`, on a canvas the size of the whole
+  chart, with the stitch numbers and carried strands when they're switched on and the
+  axis numbers, but no progress: the layout has no current row and no emphasis
+  (`computeLayout` with `current: null`, every row 24 px), `completed` is empty and
+  `place` is null, so there is no outline, no done wash and no taller rows, and focus
+  mode is ignored. Always the light page colours (`CHART_PNG_COLORS`), so the same
+  settings give the same file whatever the theme. 24 px cells fit a two-digit stitch
+  number (`numberFont` needs about 11.3 px); a chart whose picture would pass 16 MP
+  (Safari's canvas limit) gets smaller cells, down to 8 px (`chartPngCell`). Design's
+  Export PNG (`render/png.ts`, the desktop's pixels) is unchanged.
+  - Tested in `e2e/work-png.spec.ts`: the PNG is decoded in Chromium and every cell
+    checked. With numbers and carrying off, every stitch's inside is its own colour and no
+    pixel is the outline's; it's byte-identical after rows are done, with focus mode on and
+    in dark mode; numbers mark every stitch, and carrying marks some. Planting a done row in
+    the export fails it (7 cells washed).
 - <a id="no-high-contrast"></a>**High contrast removed**, app-wide: the setting, the
   `[data-contrast]` tokens and rules, and the canvases' `themeKey`. A stored
   `highContrast` from an earlier version is ignored on load (as any unknown key is) and
@@ -185,7 +205,7 @@ What each phase of the port built here, newest first. The plan each phase follow
     the gridlines, done-wash, strike line, outline and axis numbers over it. An 88×194
     chart scrolls within one frame per step at 4× CPU throttling.
   - Header, chips, segment dialog, next-row preview, Previous row / Row complete, the
-    keyboard, the reading order (on the pattern), Download as text, and rename
+    keyboard, the reading order (on the pattern), Export PNG, and rename
     (also on each Library card).
   - Saving is automatic (`app/autosave.ts`): debounced ~300 ms, flushed on
     `visibilitychange`/`pagehide`/leaving, and stamps `stage: "work"`. There is no Save

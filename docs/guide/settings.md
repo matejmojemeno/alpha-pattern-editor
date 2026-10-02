@@ -25,7 +25,7 @@ the stitches, and over how many. It's off to start with. See
 - **Enlarge the current row** draws the row you're working, and the rows either side of
   it, taller than the rest of the chart, so your place is easier to find again. It's on
   to start with.
-- **Hide the rest of the chart** draws only the rows around the current one, and hides
+- **Focus mode** draws only the rows around the current one, and hides
   the rest of the chart and the **Next:** line.
 
 ## Which corner you start from

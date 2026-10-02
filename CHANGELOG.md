@@ -41,8 +41,11 @@ line per change, under the release it's in.
 - The Work stage's **Options** are in three groups: **How you work it**, **Chart** and
   **Pattern**. Pick the corner you start in under **First stitch**, and **Back and forth**
   or **In the round** under **Rows**, with a line that says what that means for row 1
-  and row 2. Several options have clearer names: **Enlarge the current row**, **Hide
-  the rest of the chart** (was Focus mode), **Edit in Design** and **Download as text**.
+  and row 2. Several options have clearer names: **Enlarge the current row** and
+  **Edit in Design**.
+- **Export PNG** in the Work stage's **Options** replaces **Export readout**: it saves
+  the chart as a picture, with stitch numbers and where to carry yarn when they're on,
+  and without your progress.
 
 ### Removed
 

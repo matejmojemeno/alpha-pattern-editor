@@ -32,9 +32,9 @@ you [choose another craft](#choose-your-craft).
 - **How you work it:** your craft, the corner you start in, and whether rows go back and
   forth or in the round. These are saved with the pattern.
 - **Chart:** how the chart looks, for every pattern: stitch numbers, where to carry yarn,
-  an enlarged current row, and hiding the rest of the chart. The same switches are in
+  an enlarged current row, and **Focus mode**. The same switches are in
   [Settings](settings.md).
-- **Pattern:** **Rename…**, **Edit in Design**, **Download as text** and **Help**.
+- **Pattern:** **Rename…**, **Edit in Design**, **Export PNG** and **Help**.
 
 ## Choose your craft
 
@@ -166,17 +166,19 @@ so it's **Options** then **Help**.
 Open **Options** and choose **Rename…**. Type the new name, then press `Enter` to keep it
 or `Escape` to leave it as it was.
 
-## Download the rows as text
+## Save the chart as a picture
 
-**Options** then **Download as text** saves a text file named after the pattern, with
-every row in working order, such as:
+**Options** then **Export PNG** saves the chart as an image named after the pattern, to
+print, share or keep with your yarn. It shows what you have switched on under **Chart**:
+the stitch numbers, and where to carry yarn. It has the row numbers in working order
+down the side and the column numbers along the top.
 
-```text
-Row 1 ←  30 Red
-Row 2 →  1 Red, 28 Green, 1 Red
-```
+It doesn't show your progress: no outline on the current row, no greyed-out finished
+rows, and no enlarged rows, and **Focus mode** doesn't hide any of the chart. It's drawn
+on a white background even when your device is in dark mode. A very large pattern is
+drawn with smaller squares, so the file isn't too big for the browser to save.
 
-Print it, or keep it with your yarn.
+**Export PNG** in [Design](design.md) saves the plain chart, with no numbers.
 
 ## Change the pattern
 
