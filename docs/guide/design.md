@@ -157,7 +157,8 @@ Open **Border & size** under **Structure**.
   opposite sides, so the pattern stays centred.
 - **Top**, **Right**, **Bottom** and **Left** set how many rows or columns to add on each
   side. Tick **Same on every side** to set all four at once. A negative number removes
-  rows or columns from that side.
+  rows or columns from that side. They all start at 0, so you can type a **Width** or
+  **Height** to pad the pattern without adding a border first.
 - **Colour** is the border's colour. It starts as the colour most of the edge already is.
 
 The chart previews the result. Drag the pattern on the preview to move it within the new

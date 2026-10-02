@@ -87,6 +87,8 @@ Newest last, as they were built.
   - A size past 2000 on a side is refused (the desktop's pad-to-size limit, which the
     web's padding had; the border had none). A quarter turn swaps the sides across, so
     a size set turns with the pattern, as the pad target did.
+  - The four sides start at 0 each time Design opens (they were 1): padding to a size
+    is the common use, and a 1 on every side had to be cleared first.
   - The Python is unchanged: `pad_to_size` stays in `edit.py`/`edit.ts` and the
     fixtures; the panel calls `addBorder`, and a unit test checks every size up to 12 × 11
     gives exactly what `padToSize` gives.

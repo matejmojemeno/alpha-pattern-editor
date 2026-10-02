@@ -32,7 +32,7 @@ export interface StructureForm {
 export function initialForm(): StructureForm {
   return {
     open: null,
-    border: { top: '1', right: '1', bottom: '1', left: '1', linked: true, colour: null, size: null },
+    border: { top: '0', right: '0', bottom: '0', left: '0', linked: true, colour: null, size: null },
     scale: 2,
   }
 }
