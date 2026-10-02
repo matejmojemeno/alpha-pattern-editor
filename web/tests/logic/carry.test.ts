@@ -317,6 +317,11 @@ describe('carryNote', () => {
     expect(carryNote('Black', { count: 2, part: 'all', pickUp: true })).toBe('pick up Black, carry over all 2')
     expect(carryNote('Black', { count: 7, part: 'last', pickUp: false, reach: 'end' })).toBe('carry Black on to the end of the row')
     expect(carryNote('Black', { count: 2, part: 'all', pickUp: true, reach: 'start' })).toBe('carry Black from the start of the row')
+    // In rounds.
+    expect(carryNote('Black', { count: 7, part: 'last', pickUp: false, reach: 'end' }, 'round')).toBe('carry Black on to the end of the round')
+    expect(carryNote('Black', { count: 2, part: 'all', pickUp: true, reach: 'start' }, 'round')).toBe('carry Black from the start of the round')
+    // A count reads the same either way.
+    expect(carryNote('Black', { count: 1, part: 'first', pickUp: false }, 'round')).toBe('carry Black over the first 1')
   })
 })
 

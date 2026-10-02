@@ -350,6 +350,21 @@ describe('options', () => {
     }
   })
 
+  it('says "round" in place of "row" when worked in rounds', async () => {
+    const { project } = await openWork('basic.alpha')
+    await userEvent.click(screen.getByLabelText('Work in rounds (every row the same way)'))
+    await userEvent.click(screen.getByLabelText('Show where to carry yarn'))
+    const p = { ...project.pattern, alternate_direction: false }
+    const plan = carryPlan(p)
+    const seq = work.workSequence(p)
+    const k = seq.findIndex((r) => plan[r]!.some((c) => carryReach(p.cols, c, rowDirection(p, r))))
+    expect(k).toBeGreaterThanOrEqual(0)
+    for (let i = 0; i < k; i++) await userEvent.click(screen.getByRole('button', { name: /Row complete/ }))
+    const notes = [...document.querySelectorAll('.chip__carry')].map((n) => n.textContent!)
+    expect(notes.some((n) => / (on to the end|from the start) of the round$/.test(n))).toBe(true)
+    expect(notes.filter((n) => / of the row$/.test(n))).toEqual([])
+  })
+
   it('shows where to carry yarn only when asked, on the chips of the row being worked', async () => {
     const { project, settings } = await openWork('basic.alpha')
     const p = project.pattern

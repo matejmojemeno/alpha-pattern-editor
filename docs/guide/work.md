@@ -109,6 +109,9 @@ When you work in rounds, the end of one round runs straight into the start of th
 A colour the next round needs before the place where you left it is carried on round
 that join: over the rest of this round, then over the first stitches of the next, up to
 where it's needed. On some patterns that means carrying a colour almost all the time.
+On the chart that's an arrow at the end of one round and another at the start of the
+next, and the chips say "carry Black on to the end of the round" and "carry Black from
+the start of the round".
 
 ## Count stitches on the chart
 
