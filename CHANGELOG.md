@@ -28,6 +28,11 @@ line per change, under the release it's in.
 
 ### Changed
 
+- Importing is two things now. **Import a chart** (the big area on the home screen, and
+  pasting) always reads your image as a chart: it no longer decides that a chart is a
+  picture and turns it into a different pattern. **Photo to pattern**, a new tile, makes
+  a new chart from any photo or drawing. When a chart can't be read, or many of its
+  squares are unclear, a button takes the same image to Photo to pattern.
 - The home screen says what the app is for: turn a photo of a chart into a pattern you
   can edit and follow row by row.
 - In the Work stage, a pattern much wider than it is tall now fits the screen whole, so

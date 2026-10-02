@@ -19,7 +19,10 @@ it missed a row, merge colours that should be one, and save.
 
 Works best on charts with visible gridlines and even rows, not rotated, with at least
 about 6 pixels per stitch. Row and column numbers, watermarks and page margins around the
-grid are ignored.
+grid are ignored. Pixel art is read exactly too, a stitch per block.
+
+No chart, just a photo or a drawing? **Photo to pattern** makes a new chart from it: you
+choose the width, the detail and the number of colours.
 
 ## Design it
 

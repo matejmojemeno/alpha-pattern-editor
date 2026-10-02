@@ -82,8 +82,17 @@ break without noticing.
   otherwise. Run `npm install` in `scripts/parity/` once first.
 - <a id="failure-not-picture"></a>**A detection failure is not a picture, and a detected grid is not a chart.** Most
   photos fail as LOW_RESOLUTION, as real charts with small squares do; pictures can fit a
-  nonsense grid. `kind.py` decides from what the grid looks like, and `test_kind.py`
+  nonsense grid. `kind.read_image` judges from what the grid looks like, and `test_kind.py`
   names every corpus image with its kind. Add an image there before moving a threshold.
+  The judgement no longer decides what the import does (below); it tells pixel art from
+  a chart.
+- <a id="chart-or-photo-asked"></a>**The person says chart or photo; the app never decides it.** "Import a chart"
+  (`intent` "chart", `kind.read_chart`) reads any grid detection finds, even one
+  `read_image` judges a picture's, and with none it fails with detection's advice; it
+  never returns a picture. "Photo to pattern" (`intent` "picture") detects nothing. A
+  readable chart called a picture was a dead end (the owner hit it pasting charts); a
+  photo read as a chart is plain to see beside the image, and its screen offers Photo to
+  pattern. Don't add an automatic switch from one to the other.
 - <a id="converter-deterministic"></a>**The converter must stay deterministic to the last bit.** No random seeds (the
   colours are seeded by splits and power iteration, not LAPACK), and Lab values and
   stitch costs are rounded to 6 decimals: without the rounding, 5 of 114 images put a
@@ -95,10 +104,9 @@ break without noticing.
 - <a id="picture-controls"></a>**A picture's controls live above the colour list, never under a stage.** The column
   chrome under the stages is a measured constant (`--col-chrome`); anything added there
   must change it too, or the stages overflow the window.
-- <a id="refused-chart"></a>**A chart the detector refuses is never converted unasked.** LOW_RESOLUTION and ROTATED
-  on an image with a grid's structure stay failures with their advice, and the picture
-  reading is a button ("Turn it into a pattern anyway"): a converted chart looks
-  plausible and is wrong.
+- <a id="refused-chart"></a>**A chart the detector refuses is never converted unasked.** Every refusal stays a
+  failure with its advice, and Photo to pattern is a button ("Use Photo to pattern"): a
+  converted chart looks plausible and is wrong.
 - <a id="picture-colour-weight"></a>**A picture's colours are weighted towards detail, capped at 4×.** Uncapped (squared,
   as first tried), a white background filling half a picture weighed 1/156 of the rest
   and lost its colour. Small distinct areas are protected by the "unexplained samples"

@@ -1,6 +1,6 @@
 /**
  * The image chosen on the landing screen or in the Library, handed to the import screen.
- * It lives in memory only: after a reload, #/import simply asks for an image.
+ * It lives in memory only: after a reload, #/import (or #/photo) simply asks for an image.
  */
 import type { Notice } from '../ui/useAlphaImport.ts'
 
@@ -8,6 +8,8 @@ export interface PendingImage {
   file: Blob
   /** Anything to tell the user on arrival, such as "only the first image was opened". */
   notices?: Notice[]
+  /** The pattern name typed so far, when moving from one import screen to the other. */
+  name?: string
 }
 
 let pending: PendingImage | null = null

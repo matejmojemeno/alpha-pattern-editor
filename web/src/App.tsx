@@ -59,10 +59,10 @@ function Screens() {
   const first = useRef(true)
 
   // Pyodide holds hundreds of megabytes once it has detected a photo, and WebAssembly
-  // memory never shrinks. Anywhere but the import screen, terminate it. The landing screen
-  // may start it again ahead of need, when the pointer reaches "Import pattern".
+  // memory never shrinks. Anywhere but the two import screens, terminate it. The landing
+  // screen may start it again ahead of need, when the pointer reaches an import.
   useEffect(() => {
-    if (route.name === 'import') return
+    if (route.name === 'import' || route.name === 'photo') return
     releaseDetection()
     clearPendingImage()
   }, [route.name])
@@ -92,7 +92,13 @@ function Screen({ route }: { route: Route }) {
     case 'import':
       return (
         <Suspense fallback={<LoadingScreen />}>
-          <ImportImage />
+          <ImportImage intent="chart" />
+        </Suspense>
+      )
+    case 'photo':
+      return (
+        <Suspense fallback={<LoadingScreen />}>
+          <ImportImage intent="picture" />
         </Suspense>
       )
     case 'work':

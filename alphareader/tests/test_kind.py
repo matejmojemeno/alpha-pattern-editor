@@ -11,7 +11,7 @@ import pytest
 from PIL import Image
 
 from ..core.bridge import shrink, shrink_factor
-from ..core.kind import read_image
+from ..core.kind import read_chart, read_image
 from . import synth
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -28,7 +28,7 @@ CHARTS = [
     ("failed/face.jpg", "chart", True, None),
     ("failed/lisa.jpg", "chart", True, None),
     ("failed/shizuku.jpg", "chart", True, None),
-    # A third of its cells unsure: read as a chart, with the picture reading offered.
+    # A third of its cells unsure: read as a chart, and the screen asks for it to be checked.
     ("failed/bunny.jpg", "chart", False, None),
 ]
 PICTURES = [
@@ -93,7 +93,41 @@ def test_charts_are_read_as_charts(name, kind, sure, failure):
 def test_pictures_are_read_as_pictures(name):
     r = read_image(_load(os.path.join(IMAGES, "pictures", name)))
     assert r.kind == "picture", r.reason
-    assert r.error is None
+    # Either a grid judged not a chart's, or detection's refusal: read_chart needs one.
+    assert (r.result is None) != (r.error is None), r.reason
+
+
+# --- read_chart: "Import a chart" never turns anything into a picture ------------------------
+
+@pytest.mark.parametrize("name,kind,sure,failure", CHARTS)
+def test_read_chart_reads_every_chart_as_read_image_does(name, kind, sure, failure):
+    r = read_chart(_load(os.path.join(IMAGES, name)))
+    assert (r.kind, r.sure, r.photo_like) == (kind, sure, False), r.reason
+    assert (None if r.error is None else r.error.code) == failure, r.reason
+
+
+@pytest.mark.parametrize("name", PICTURES)
+def test_read_chart_reads_a_picture_as_a_chart_or_refuses_it(name):
+    """A picture given as a chart: its grid, if detection fitted one, or detection's
+    reason for finding none. Never a picture."""
+    img = _load(os.path.join(IMAGES, "pictures", name))
+    seen = read_image(img)
+    r = read_chart(img)
+    assert r.kind == "chart", r.reason
+    assert (r.result is None) == (seen.result is None)
+    if seen.result is None:
+        assert r.error.code == seen.error.code
+    else:
+        assert r.error is None and np.array_equal(r.result.cells, seen.result.cells)
+        assert r.photo_like  # so the screen offers Photo to pattern
+
+
+@pytest.mark.parametrize("name,kind,size", PIXELS)
+def test_read_chart_reads_pixel_art_block_by_block(name, kind, size):
+    img, flat = _load_flat(os.path.join(IMAGES, "pixels", name))
+    r = read_chart(img, flat=flat)
+    assert r.kind == ("chart" if kind == "picture" else kind), r.reason
+    assert (None if r.pixels is None else (r.pixels.cols, r.pixels.rows)) == size
 
 
 def test_every_corpus_picture_is_listed():

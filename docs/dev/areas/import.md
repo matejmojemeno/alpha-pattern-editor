@@ -135,7 +135,8 @@ Newest last, as they were built.
     found). A chart read with doubts (over 15% unsure) says "Not sure this is a chart" in
     the warning colour. A chart detection refuses as too fine or tilted keeps its advice
     and adds "Turn it into a pattern anyway": such an image is never converted unasked.
-    For a chart, that one line is all that changes.
+    For a chart, that one line is all that changes. (Since replaced by two ways in, and
+    no switching: [Import a chart, or Photo to pattern](#chart-or-photo).)
   - **A picture's controls:** Width (a slider, stitches across; rows follow; "60 × 45
     stitches, about 38 × 28 cm" once the swatch is measured) and Detail (Smoothest …
     Every stitch) sit above the colour list, so the stages' chrome (`--col-chrome`) is
@@ -174,7 +175,8 @@ Newest last, as they were built.
 - <a id="pixel-images"></a>**Pixel images** (`core/pixels.py`, `kind.py`, the bridge's `pixels` mode; spec.md
   §5a). Pixel art without gridlines is read exactly, a stitch per block: "Read pixel by
   pixel: each block of your image is one stitch.", with "Turn it into a pattern instead"
-  and back ("Read it pixel by pixel instead"). No outline or box; colours merge as a
+  and back ("Read it pixel by pixel instead"; since gone, see
+  [Import a chart, or Photo to pattern](#chart-or-photo)). No outline or box; colours merge as a
   chart's. Before, an 8× sprite came out cropped (60×60 as 51×58), 4× and 1:1 were
   refused, and a real 8× city (137×126) was a "sure chart" spanning 69% of it.
   - Found by testing real CC0 pixel art (`test_images/pixels/`, fetched with provenance by
@@ -255,6 +257,48 @@ Newest last, as they were built.
     was nearest olive. "tree green" (`#2a7e19`, from the xkcd survey) is now an anchor.
   - Speed, natively: a drawing's preview 0.7–0.9 s at 122–156 wide (was 0.6–0.7 s);
     photos unchanged.
+- <a id="chart-or-photo"></a>**Import a chart, or Photo to pattern** (`core/kind.read_chart`,
+  `bridge.open_session(intent=)`, `ui/screens/Import.tsx`, `app/router.ts`, the home
+  screen; spec.md §5a). The person says what they have, in place of the app deciding
+  with a line and a switch ("Read from the squares of your chart. · Turn it into a
+  pattern instead").
+  - **Why:** the owner pasted charts that were called pictures and converted, though
+    "Read it as a chart instead" then read them perfectly. `kind.py` rejects a grid on any
+    of five measures; of 300 synthetic charts, 7 were judged pictures, 5 of them only
+    because the grid spanned under 60% of one side (`span` 0.48–0.61), as a screenshot
+    with page around the chart does. All 7 are now read: 5 at the size they were drawn; the
+    other 2 (60% and 95% of squares unsure, so shown with the warning) 13 and 1 columns
+    off. The wording confused too: everything the
+    import makes is "a pattern". Research (Stitch Fiddle asks for "Picture" up front;
+    nine or more free tools convert photos; none found reads an existing chart's
+    squares) put the chart first and the photo path beside it.
+  - **Import a chart** (`#/import`, the drop zone, paste, the Library's picker):
+    `read_chart` reads pixel art block by block as before, and any grid as a chart.
+    Nothing more is said of a clean chart. Over 15% of squares unsure: "⚠ Many squares
+    were hard to read. Check the pattern against your image before you save." with
+    "Use Photo to pattern instead". Pixel art: "Read as pixel art: each block of your
+    image is one stitch.", with nothing to switch to. A grid `read_image` judged a
+    picture's (`reading.photoLike`), read cleanly: "Is this a photo or drawing, not a
+    chart?" quietly, with the same button; of the 25 corpus pictures given to Import a
+    chart, 16 are refused, 8 warned, and 1 (`arctic-fox.jpg`, a 51 × 6 grid on snow) has
+    only this line. No grid, or refused: detection's
+    advice, then "Not a chart? Photo to pattern makes a new pattern from any photo or
+    drawing." and **Use Photo to pattern**.
+  - **Photo to pattern** (`#/photo`, a tile beside the drop zone): `open_session(intent=
+    "picture")` converts without detecting (no line above the stages: the title says
+    it). Its controls are as before. The button from a chart hands the same image and the
+    name typed over (`PendingImage.name`) and navigates, so Back reads it as a chart
+    again; the worker stays (App.tsx releases it off both routes).
+  - **Gone:** `bridge.set_mode`, the worker's `mode` request, `DetectSession.setMode`, and
+    `canChart`/`canPixels` in `reading`: nothing switches inside a session any more. Pixel
+    art can't be turned into a picture on its screen; Photo to pattern converts it.
+  - Tests that fail without it: on `main`'s `kind.py` and `bridge.py`, a chart that
+    `_chart_or_picture` judges a picture opens with `mode` "picture"
+    (`test_a_grid_judged_a_pictures_is_still_read_as_a_chart`,
+    `test_a_forced_chart_with_many_unsure_squares_is_not_sure`). `test_kind.py` reads every
+    corpus chart, picture and pixel image through `read_chart`: never a picture.
+  - Tier A (gzipped, `main` → this): main chunk 109.66 → 110.48 KB (the tile, its icon,
+    the route), Import 10.84 → 10.45 KB, Design 33.34 → 33.19 KB.
 
 ## During the port
 

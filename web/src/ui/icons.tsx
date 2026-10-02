@@ -8,7 +8,7 @@
  * The Design stage's own icons (its tools, the turns, deleting a colour) are in
  * design/icons.tsx, so they load with that stage rather than with the app.
  */
-import { CircleHelp, ImageUp, LibraryBig, MessageSquareText, Pencil, Settings, TriangleAlert, type LucideProps } from 'lucide-react'
+import { CircleHelp, ImageUp, LibraryBig, MessageSquareText, Pencil, Settings, TriangleAlert, WandSparkles, type LucideProps } from 'lucide-react'
 
 /** The props every icon gets: decorative (its button or link has the words), and sized
  *  by CSS (`.icon`) rather than by the set's 24 px default. */
@@ -17,6 +17,8 @@ const ICON = { 'aria-hidden': true, focusable: false, className: 'icon' } as con
 /** The home screen: import from a picture, the library, a new design, settings, help, feedback. */
 export const ImportIcon = (props: LucideProps) => <ImageUp {...ICON} {...props} />
 export const LibraryIcon = (props: LucideProps) => <LibraryBig {...ICON} {...props} />
+/** Photo to pattern: a picture made into a chart, not read from one. */
+export const PhotoIcon = (props: LucideProps) => <WandSparkles {...ICON} {...props} />
 export const DesignIcon = (props: LucideProps) => <Pencil {...ICON} {...props} />
 export const SettingsIcon = (props: LucideProps) => <Settings {...ICON} {...props} />
 /** A question mark in a circle: help, on the home screen and in each screen's header. */

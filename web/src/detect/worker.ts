@@ -35,7 +35,7 @@ interface PyResult {
   destroy(): void
 }
 type Bridge = Record<
-  'open_session' | 'redetect' | 'set_params' | 'set_mode' | 'preview' | 'commit' | 'close_session',
+  'open_session' | 'redetect' | 'set_params' | 'preview' | 'commit' | 'close_session',
   PyFn
 >
 
@@ -180,6 +180,7 @@ async function handle(req: Request): Promise<Outcome<Answers[Request['type']]>> 
             ...(req.maxPixels ? { max_pixels: req.maxPixels } : {}),
             ...(req.crop ? { crop: toPy(req.crop) } : {}),
             ...(req.cellAspect ? { cell_aspect: req.cellAspect } : {}),
+            ...(req.intent ? { intent: req.intent } : {}),
           }),
         ) as never
       case 'redetect':
@@ -205,8 +206,6 @@ async function handle(req: Request): Promise<Outcome<Answers[Request['type']]>> 
         if (set.ok !== true) return set as unknown as Failure
         return plain(b.preview(req.session)) as never
       }
-      case 'mode':
-        return plain(b.set_mode(req.session, req.mode)) as never
       case 'preview':
         return plain(b.preview(req.session)) as never
       case 'commit':

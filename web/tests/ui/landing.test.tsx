@@ -20,10 +20,10 @@ describe('Landing screen', () => {
     await renderApp('#/')
     expect(screen.getByRole('heading', { level: 1, name: 'Alpha Pattern Editor' })).toBeTruthy()
 
-    const importTile = screen.getByRole('button', { name: /Import pattern/ })
+    const importTile = screen.getByRole('button', { name: /Import a chart/ })
     expect(importTile.className).toContain('drop-zone')
     expect(importTile.textContent).toMatch(/\.alpha/)
-    expect(importTile.textContent).toMatch(/photo or screenshot of a chart/)
+    expect(importTile.textContent).toMatch(/screenshot or photo of an alpha chart, or pixel art/)
     expect(importTile.textContent).toMatch(/Drop it here, paste it, or click to choose a file/)
     const accept = (screen.getByLabelText(pickerLabel) as HTMLInputElement).accept
     for (const t of ['.alpha', '.png', '.jpg', '.webp', 'image/jpeg']) expect(accept).toContain(t)
@@ -52,11 +52,17 @@ describe('Landing screen', () => {
     expect(screen.getByText(/Turn a photo of a crochet alpha chart into a pattern/)).toBeTruthy()
     expect(screen.getByRole('link', { name: /Settings/ }).textContent).toMatch(/carry yarn/)
 
-    // Stacked beside the drop zone in the sketch's order.
+    // A photo is made into a pattern by asking for it, on its own tile.
+    const photo = screen.getByRole('link', { name: /Photo to pattern/ })
+    expect(photo.getAttribute('href')).toBe('#/photo')
+    expect(photo.textContent).toMatch(/any photo or drawing/)
+
+    // Stacked beside the drop zone, the two ways to make a new pattern together.
     const tiles = within(screen.getByRole('list')).getAllByRole('listitem').map((li) => li.textContent)
-    expect(tiles.map((t) => /^(Library|Design pattern|Settings|Help|Feedback)/.exec(t ?? '')?.[1])).toEqual([
-      'Library',
+    expect(tiles.map((t) => /^(Photo to pattern|Library|Design pattern|Settings|Help|Feedback)/.exec(t ?? '')?.[1])).toEqual([
+      'Photo to pattern',
       'Design pattern',
+      'Library',
       'Settings',
       'Help',
       'Feedback',
@@ -65,7 +71,7 @@ describe('Landing screen', () => {
 
   it('highlights the drop zone while a file is dragged over the page', async () => {
     await renderApp('#/')
-    const zone = screen.getByRole('button', { name: /Import pattern/ })
+    const zone = screen.getByRole('button', { name: /Import a chart/ })
     const dataTransfer = { types: ['Files'], files: [], dropEffect: 'none' }
     expect(zone.className).not.toContain('drop-zone--over')
     fireEvent.dragEnter(screen.getByRole('main'), { dataTransfer })
@@ -169,7 +175,7 @@ describe('Landing screen', () => {
     const { repo } = await renderApp('#/')
     await userEvent.upload(screen.getByLabelText(pickerLabel), image('My Dog.chart.jpg', 'image/jpeg'))
     await waitFor(() => expect(window.location.hash).toBe('#/import'))
-    expect(await screen.findByRole('heading', { level: 1, name: 'Import pattern' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Import a chart' })).toBeTruthy()
     expect((pendingImage()!.file as File).name).toBe('My Dog.chart.jpg')
     expect(await repo.list()).toEqual([])
   })
@@ -211,14 +217,18 @@ describe('Landing screen', () => {
     expect(await screen.findByText(/One image at a time/)).toBeTruthy()
   })
 
-  it('starts loading detection when the pointer or focus reaches Import pattern', async () => {
+  it('starts loading detection when the pointer or focus reaches either import', async () => {
     await renderApp('#/')
     expect(detection.preload).not.toHaveBeenCalled()
-    const tile = screen.getByRole('button', { name: /Import pattern/ })
+    const tile = screen.getByRole('button', { name: /Import a chart/ })
     fireEvent.pointerEnter(tile)
     expect(detection.preload).toHaveBeenCalledTimes(1)
     act(() => tile.focus())
     expect(detection.preload).toHaveBeenCalledTimes(2)
+    const photo = screen.getByRole('link', { name: /Photo to pattern/ })
+    fireEvent.pointerEnter(photo)
+    act(() => photo.focus())
+    expect(detection.preload).toHaveBeenCalledTimes(4)
   })
 
   it('opens a pasted image', async () => {

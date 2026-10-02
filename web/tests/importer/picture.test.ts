@@ -2,11 +2,11 @@
 import { describe, expect, it } from 'vitest'
 
 import type { PictureSettings, Reading } from '../../src/detect/protocol.ts'
-import { clampWidth, colourSteps, detailText, kindLine, MAX_COLOURS, sizeText, swatchAspect } from '../../src/importer/picture.ts'
+import { clampWidth, colourSteps, detailText, MAX_COLOURS, readingNote, sizeText, swatchAspect } from '../../src/importer/picture.ts'
 import { finishedSize, type Swatch } from '../../src/yarn/usage.ts'
 
 const swatch = (over: Partial<Swatch> = {}): Swatch => ({ stitches: 10, rows: 10, widthCm: null, heightCm: null, grams: null, ...over })
-const reading = (over: Partial<Reading> = {}): Reading => ({ kind: 'chart', sure: true, canChart: true, canPixels: false, failure: null, ...over })
+const reading = (over: Partial<Reading> = {}): Reading => ({ kind: 'chart', sure: true, photoLike: false, failure: null, ...over })
 const picture = (over: Partial<PictureSettings> = {}): PictureSettings => ({
   width: 60,
   maxWidth: 320,
@@ -38,46 +38,36 @@ describe('the stitch shape and size from the swatch', () => {
   })
 })
 
-describe('the line that says what the image was read as', () => {
-  it('is quiet for a chart, with the way to a picture', () => {
-    expect(kindLine('chart', reading())).toEqual({
-      text: 'Read from the squares of your chart.',
-      action: { label: 'Turn it into a pattern instead', mode: 'picture' },
-      prominent: false,
+describe('the note on what was read', () => {
+  it('says nothing of a chart read cleanly, or of a picture', () => {
+    expect(readingNote('chart', reading())).toBeNull()
+    expect(readingNote('picture', reading({ kind: 'picture' }))).toBeNull()
+  })
+
+  it('warns of a chart read with doubts, and offers Photo to pattern', () => {
+    expect(readingNote('chart', reading({ sure: false }))).toEqual({
+      text: 'Many squares were hard to read. Check the pattern against your image before you save.',
+      warning: true,
+      offerPhoto: true,
     })
   })
 
-  it('stands out for a chart read with doubts', () => {
-    const line = kindLine('chart', reading({ sure: false }))
-    expect(line.prominent).toBe(true)
-    expect(line.action?.mode).toBe('picture')
+  it('offers Photo to pattern quietly for a grid that looked more like a photo’s', () => {
+    expect(readingNote('chart', reading({ photoLike: true }))).toEqual({
+      text: 'Is this a photo or drawing, not a chart?',
+      warning: false,
+      offerPhoto: true,
+    })
+    // Many unsure squares say more, and win.
+    expect(readingNote('chart', reading({ photoLike: true, sure: false }))?.warning).toBe(true)
   })
 
-  it('offers the chart reading back only when a grid was found', () => {
-    expect(kindLine('picture', reading({ kind: 'picture', canChart: false })).action).toBeNull()
-    expect(kindLine('picture', reading({ kind: 'picture', canChart: true })).action).toEqual({
-      label: 'Read it as a chart instead',
-      mode: 'chart',
+  it('says pixel art is read block by block, with nothing to switch to', () => {
+    expect(readingNote('pixels', reading({ kind: 'pixels' }))).toEqual({
+      text: 'Read as pixel art: each block of your image is one stitch.',
+      warning: false,
+      offerPhoto: false,
     })
-  })
-
-  it('reads pixel art block by block, with the way to a picture and back', () => {
-    const pixels = reading({ kind: 'pixels', canChart: false, canPixels: true })
-    expect(kindLine('pixels', pixels)).toEqual({
-      text: 'Read pixel by pixel: each block of your image is one stitch.',
-      action: { label: 'Turn it into a pattern instead', mode: 'picture' },
-      prominent: false,
-    })
-    // Back to pixels, not to a chart, even where detection also fitted a grid to it.
-    expect(kindLine('picture', { ...pixels, canChart: true }).action).toEqual({
-      label: 'Read it pixel by pixel instead',
-      mode: 'pixels',
-    })
-  })
-
-  it('says why when the app chose the picture, and not when the user did', () => {
-    expect(kindLine('picture', reading({ kind: 'picture' })).text).toMatch(/looks like a picture/)
-    expect(kindLine('picture', reading({ kind: 'chart' })).text).toBe('Turned into a pattern from your picture.')
   })
 })
 
