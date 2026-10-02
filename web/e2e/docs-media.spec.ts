@@ -307,7 +307,7 @@ test('tour.gif and tour.mp4', async ({ browser }, testInfo) => {
 
   // 1. The landing screen; the chart is dropped on it.
   await pause(1200)
-  await page.mouse.move(420, 420, { steps: 12 }) // over "Import pattern": Pyodide starts loading
+  await page.mouse.move(420, 420, { steps: 12 }) // over "Import a chart": Pyodide starts loading
   await pause(600)
   await dropFile(page, DEMO_CHART, 'image/png')
 

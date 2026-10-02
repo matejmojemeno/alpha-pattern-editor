@@ -1,6 +1,6 @@
 /**
- * The import screen's side of reading an image as a chart or a picture (§5a):
- * what the screen says it read, and a picture's settings. The deciding and the converting
+ * The import screen's side of reading a chart or turning a picture into a pattern (§5a):
+ * what the screen says it read, and a picture's settings. The reading and the converting
  * are the Python's (core/kind.py, core/convert.py); this is only wording and arithmetic.
  */
 import type { Mode, PictureSettings, Reading } from '../detect/protocol.ts'
@@ -41,51 +41,34 @@ export function sizeText(cols: number, rows: number, s: Swatch): string | null {
   return `about ${Math.round(cols * one.widthCm)} × ${Math.round(rows * one.heightCm)} cm`
 }
 
-/** The line that says what the image was read as, and the way to the other reading. */
-export interface KindLine {
+/** The name of the other way in, on the home screen and the buttons that lead to it. */
+export const PHOTO_TO_PATTERN = 'Photo to pattern'
+
+/** A line above the stages, when there's something to say about what was read. */
+export interface ReadingNote {
   text: string
-  /** The button's label, and the mode it switches to; null when there's nowhere to go. */
-  action: { label: string; mode: Mode } | null
-  /** A chart read with doubts: shown so the other reading is noticed. */
-  prominent: boolean
+  /** A chart read with doubts: set apart, as a warning. */
+  warning: boolean
+  /** Offer "Photo to pattern" with the same image. */
+  offerPhoto: boolean
 }
 
-export function kindLine(mode: Mode, reading: Reading): KindLine {
+/** What to say about an image read as `mode`. Nothing for a chart read cleanly, or for a
+ *  picture, whose screen is named for it; a note for pixel art, read block by block; a
+ *  warning for a chart with many unsure squares, where the image may be a photo after
+ *  all. */
+export function readingNote(mode: Mode, reading: Reading): ReadingNote | null {
   if (mode === 'pixels') {
+    return { text: 'Read as pixel art: each block of your image is one stitch.', warning: false, offerPhoto: false }
+  }
+  if (mode === 'chart' && !reading.sure) {
     return {
-      text: 'Read pixel by pixel: each block of your image is one stitch.',
-      action: { label: 'Turn it into a pattern instead', mode: 'picture' },
-      prominent: false,
+      text: 'Many squares were hard to read. Check the pattern against your image before you save.',
+      warning: true,
+      offerPhoto: true,
     }
   }
-  if (mode === 'picture') {
-    return {
-      text:
-        reading.kind === 'picture'
-          ? 'This looks like a picture, not a chart, so it was turned into a pattern.'
-          : 'Turned into a pattern from your picture.',
-      // Back to how it was read; pixel art is read block by block, not as a chart.
-      action:
-        reading.kind === 'pixels' && reading.canPixels
-          ? { label: 'Read it pixel by pixel instead', mode: 'pixels' }
-          : reading.canChart
-            ? { label: 'Read it as a chart instead', mode: 'chart' }
-            : null,
-      prominent: false,
-    }
-  }
-  if (!reading.sure) {
-    return {
-      text: 'Not sure this is a chart: many of its squares are unclear.',
-      action: { label: 'Turn it into a pattern instead', mode: 'picture' },
-      prominent: true,
-    }
-  }
-  return {
-    text: 'Read from the squares of your chart.',
-    action: { label: 'Turn it into a pattern instead', mode: 'picture' },
-    prominent: false,
-  }
+  return null
 }
 
 /** The colour count's − and + for a picture: one colour fewer or more, within bounds. */

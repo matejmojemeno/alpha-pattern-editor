@@ -5,11 +5,25 @@ const PICKER = 'Choose a pattern file or chart image to import'
 /** Booting Pyodide the first time, then detecting: generous, for slow machines. */
 export const DETECT_TIMEOUT = 180_000
 
-/** Choose an image from the landing screen and wait for the import screen's verdict. */
+/** Choose an image from the landing screen's "Import a chart" and wait for its verdict. */
 export async function importImage(page: Page, file: string) {
   await page.goto('/')
   await page.getByLabel(PICKER).setInputFiles(file)
-  await expect(page.getByRole('heading', { level: 1, name: 'Import pattern' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Import a chart' })).toBeVisible()
+  return verdict(page)
+}
+
+/** Open "Photo to pattern" from the landing screen's tile, choose an image, and wait for
+ *  its pattern. */
+export async function importPhoto(page: Page, file: string) {
+  await page.goto('/')
+  await page.getByRole('link', { name: /Photo to pattern/ }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Photo to pattern' })).toBeVisible()
+  await page.getByLabel('Choose an image').setInputFiles(file)
+  return verdict(page)
+}
+
+async function verdict(page: Page) {
   const save = page.getByRole('button', { name: 'Save & edit pattern' })
   const alert = page.getByRole('alert')
   // The save bar is there from the start, disabled until a grid is found: wait for the

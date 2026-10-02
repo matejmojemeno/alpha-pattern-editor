@@ -15,7 +15,7 @@ import { expect, test, type TestInfo } from '@playwright/test'
 import { readAlpha } from '../src/storage/alpha.ts'
 import { encodePngRgba } from '../src/storage/thumbnail.ts'
 import { desktopDetect, desktopLoad, desktopPicture, desktopPixels, ROOT, type DesktopPattern } from './desktop.ts'
-import { DETECT_TIMEOUT, exportFromLibrary, importImage, saveAs } from './importing.ts'
+import { DETECT_TIMEOUT, exportFromLibrary, importImage, importPhoto, saveAs } from './importing.ts'
 
 const IMAGES = resolve(ROOT, 'test_images')
 
@@ -154,16 +154,21 @@ const desktopCells = (d: DesktopPattern) => ({
   palette: d.palette.map(([hex, , count]) => [hex, count]),
 })
 
-test('an image that is not a chart is turned into a pattern, exactly as the Python makes it', async ({ page }, testInfo) => {
+test('Import a chart never converts a photo; Photo to pattern does, exactly as the Python makes it', async ({ page }, testInfo) => {
   const file = pictureFile(testInfo)
   const want = desktopPicture(file)
   expect(want.kind).toBe('picture')
 
-  const { save } = await importImage(page, file)
-  await expect(save).toBeEnabled()
-  await expect(page.locator('.confirm__kind')).toContainText('This looks like a picture, not a chart, so it was turned into a pattern.')
+  const { save, alert } = await importImage(page, file)
+  await expect(alert).toBeVisible()
+  await expect(save).toBeDisabled()
+  await expect(page.getByRole('group', { name: 'Picture settings' })).toHaveCount(0)
+  await expect(alert).toContainText('Not a chart? Photo to pattern makes a new pattern from any photo or drawing.')
+  await alert.getByRole('button', { name: 'Use Photo to pattern' }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Photo to pattern' })).toBeVisible()
   const settings = page.getByRole('group', { name: 'Picture settings' })
-  await expect(settings).toContainText('60 stitches')
+  await expect(settings).toContainText('60 stitches', { timeout: DETECT_TIMEOUT })
+  await expect(page.locator('.confirm__kind')).toHaveCount(0)
   await expect(page.locator('.confirm__stats')).toHaveText(`${want.cols} columns × ${want.rows} rows`)
   await saveAs(page, 'Gradient')
 
@@ -175,7 +180,7 @@ test("a picture's width, colours and detail give what the Python gives", async (
   const file = pictureFile(testInfo)
   const want = desktopPicture(file, ['width=40', 'colours=5', 'detail=0.2'])
 
-  await importImage(page, file)
+  await importPhoto(page, file)
   const settings = page.getByRole('group', { name: 'Picture settings' })
   await settings.getByLabel('Width').fill('40')
   await expect(page.locator('.confirm__stats')).toHaveText('40 columns × 30 rows', { timeout: DETECT_TIMEOUT })
@@ -189,31 +194,40 @@ test("a picture's width, colours and detail give what the Python gives", async (
   expect(cellsOf(saved)).toEqual(desktopCells(want))
 })
 
-test('a chart can be turned into a pattern and back, and is saved as read', async ({ page }, testInfo) => {
+test('a chart is read with nothing more to say; given to Photo to pattern, it is converted as the Python converts it', async ({ page }, testInfo) => {
   const file = resolve(IMAGES, 'dachshund.png')
   const want = desktopDetect(file)
   const { save } = await importImage(page, file)
   await expect(save).toBeEnabled()
-  const kind = page.locator('.confirm__kind')
-  await expect(kind).toContainText('Read from the squares of your chart.')
-  await kind.getByRole('button', { name: 'Turn it into a pattern instead' }).click()
-  await expect(page.getByRole('group', { name: 'Picture settings' })).toBeVisible({ timeout: DETECT_TIMEOUT })
-  await expect(page.getByRole('button', { name: 'Use the whole picture' })).toBeVisible()
-  await kind.getByRole('button', { name: 'Read it as a chart instead' }).click()
-  await expect(page.getByRole('group', { name: 'Picture settings' })).toBeHidden({ timeout: DETECT_TIMEOUT })
+  await expect(page.locator('.confirm__kind')).toHaveCount(0)
   await expect(page.locator('.confirm__stats')).toHaveText(`${want.cols} columns × ${want.rows} rows`)
-  await saveAs(page, 'Back')
-  const saved = readAlpha(new Uint8Array(readFileSync(await exportFromLibrary(page, testInfo, 'Back')))).project.pattern
-  expect([...saved.cells]).toEqual(want.cells)
+  await saveAs(page, 'Read')
+  const read = readAlpha(new Uint8Array(readFileSync(await exportFromLibrary(page, testInfo, 'Read')))).project.pattern
+  expect([...read.cells]).toEqual(want.cells)
+
+  await importPhoto(page, file)
+  await expect(page.getByRole('group', { name: 'Picture settings' })).toBeVisible()
+  await saveAs(page, 'Converted')
+  const converted = readAlpha(new Uint8Array(readFileSync(await exportFromLibrary(page, testInfo, 'Converted')))).project.pattern
+  expect(cellsOf(converted)).toEqual(desktopCells(desktopPicture(file)))
 })
 
-test("a chart too fine to read keeps its hint, and can be turned into a pattern anyway", async ({ page }, testInfo) => {
+test("a chart too fine to read keeps its hint, goes to Photo to pattern when asked, and Back reads it again", async ({ page }, testInfo) => {
   const file = resolve(IMAGES, 'garment.png')
   const { alert } = await importImage(page, file)
   await expect(alert).toContainText('This image is too small to read reliably.')
   await expect(alert).toContainText('Detection failed (LOW_RESOLUTION)')
   await expect(page.getByRole('img', { name: 'The image being imported' })).toBeVisible()
-  await alert.getByRole('button', { name: 'Turn it into a pattern anyway' }).click()
+  await page.getByRole('textbox', { name: 'Pattern name' }).fill('Garment')
+  await alert.getByRole('button', { name: 'Use Photo to pattern' }).click()
+  await expect(page.getByRole('group', { name: 'Picture settings' })).toBeVisible({ timeout: DETECT_TIMEOUT })
+  await expect(page.getByRole('textbox', { name: 'Pattern name' })).toHaveValue('Garment')
+
+  // Back is the chart screen again, reading the same image as a chart.
+  await page.goBack()
+  await expect(page.getByRole('heading', { level: 1, name: 'Import a chart' })).toBeVisible()
+  await expect(page.getByRole('alert')).toContainText('Detection failed (LOW_RESOLUTION)', { timeout: DETECT_TIMEOUT })
+  await page.goForward()
   await expect(page.getByRole('group', { name: 'Picture settings' })).toBeVisible({ timeout: DETECT_TIMEOUT })
   await saveAs(page, 'Garment')
   const want = desktopPicture(file)
@@ -221,15 +235,14 @@ test("a chart too fine to read keeps its hint, and can be turned into a pattern 
   expect(cellsOf(saved)).toEqual(desktopCells(want))
 
   // Trying another image from there works.
-  await page.goto('/')
-  const next = await importImage(page, pictureFile(testInfo, 'next.png'))
+  const next = await importPhoto(page, pictureFile(testInfo, 'next.png'))
   await expect(next.save).toBeEnabled()
 })
 
 test('a transparent picture is on white, as the Python flattens it', async ({ page }, testInfo) => {
   const file = resolve(IMAGES, 'pictures', 'smiley.png')
   const want = desktopPicture(file)
-  const { save } = await importImage(page, file)
+  const { save } = await importPhoto(page, file)
   await expect(save).toBeEnabled()
   await saveAs(page, 'Smiley')
   const saved = readAlpha(new Uint8Array(readFileSync(await exportFromLibrary(page, testInfo, 'Smiley')))).project.pattern
@@ -264,7 +277,7 @@ test('pixel art without gridlines is read block by block, exactly', async ({ pag
 
   const { save } = await importImage(page, file)
   await expect(save).toBeEnabled()
-  await expect(page.locator('.confirm__kind')).toContainText('Read pixel by pixel: each block of your image is one stitch.')
+  await expect(page.locator('.confirm__kind')).toHaveText('Read as pixel art: each block of your image is one stitch.')
   await expect(page.locator('.confirm__stats')).toHaveText(`${cols} columns × ${rows} rows`)
   await expect(page.getByRole('slider', { name: /edge of the grid/ })).toHaveCount(0)
   await saveAs(page, 'Sprite')
@@ -282,11 +295,6 @@ test('real pixel art is saved exactly as the Python reads it', async ({ page }, 
   const { save } = await importImage(page, file)
   await expect(save).toBeEnabled()
   await expect(page.locator('.confirm__stats')).toHaveText(`${want.cols} columns × ${want.rows} rows`)
-  // A picture and back, then saved.
-  await page.locator('.confirm__kind').getByRole('button', { name: 'Turn it into a pattern instead' }).click()
-  await expect(page.getByRole('group', { name: 'Picture settings' })).toBeVisible({ timeout: DETECT_TIMEOUT })
-  await page.locator('.confirm__kind').getByRole('button', { name: 'Read it pixel by pixel instead' }).click()
-  await expect(page.getByRole('group', { name: 'Picture settings' })).toBeHidden({ timeout: DETECT_TIMEOUT })
   await saveAs(page, 'City')
   const saved = readAlpha(new Uint8Array(readFileSync(await exportFromLibrary(page, testInfo, 'City')))).project.pattern
   expect(cellsOf(saved)).toEqual(desktopCells(want))
@@ -310,7 +318,7 @@ test('"Keep outlines" draws a drawing\'s lines, exactly as the Python does', asy
   writeFileSync(file, encodePngRgba(w, h, rgba))
   const want = desktopPicture(file, ['width=36', 'outlines=1'])
 
-  const { save } = await importImage(page, file)
+  const { save } = await importPhoto(page, file)
   await expect(save).toBeEnabled()
   const settings = page.getByRole('group', { name: 'Picture settings' })
   await settings.getByLabel('Width').fill('36')
@@ -338,7 +346,7 @@ test('a pasted image saved without a name is named by the moment it was saved', 
     data.items.add(new File([blob], 'image.png', { type: 'image/png' }))
     document.body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true }))
   }, bytes)
-  await expect(page.getByRole('heading', { level: 1, name: 'Import pattern' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Import a chart' })).toBeVisible()
   const name = page.getByRole('textbox', { name: 'Pattern name' })
   await expect(name).toHaveValue('')
   await expect(name).toHaveAttribute('placeholder', 'Untitled pattern')
@@ -348,14 +356,14 @@ test('a pasted image saved without a name is named by the moment it was saved', 
   await expect(page.getByRole('heading', { level: 1, name: /^\d{4}-\d\d-\d\d-\d{6}$/ })).toBeVisible()
 })
 
-test('hovering Import pattern starts the download; the landing screen alone makes no Pyodide requests', async ({ page }) => {
+test('hovering Import a chart starts the download; the landing screen alone makes no Pyodide requests', async ({ page }) => {
   const requests: string[] = []
   page.on('request', (r) => /pyodide|alphareader-core/i.test(r.url()) && requests.push(new URL(r.url()).pathname))
   await page.goto('/')
   await page.getByRole('heading', { level: 1, name: 'Alpha Pattern Editor' }).focus()
   await page.waitForTimeout(500)
   expect(requests).toEqual([])
-  await page.getByRole('button', { name: /Import pattern/ }).hover()
+  await page.getByRole('button', { name: /Import a chart/ }).hover()
   await expect.poll(() => requests.some((u) => u.endsWith('pyodide.asm.wasm')), { timeout: 30_000 }).toBe(true)
 })
 
