@@ -72,16 +72,17 @@ Newest last, as they were built.
     ("knots", "beads").
   - **Show where to carry yarn** shows only for tapestry crochet. Other crafts don't carry
     inside stitches, and the app-wide setting is left as it is.
-  - **Start from the top row** (`bottom_up`) and **Work in rounds (every row the same
-    way)** (`alternate_direction` off; the label is the craft's `sameWay`, **Every row the
-    same way** for a bracelet or bead loom, which aren't worked in rounds)
-    join **Start rows from the right**.
+  - The reading order is set under **How you work it** (see
+    [Options menu](#options-menu)): **First stitch** (one of four corners, setting
+    `bottom_up` and `start_direction` together) and **Rows** (**Back and forth**, or
+    `alternate_direction` off: **In the round**, or **All the same way** for a bracelet or
+    bead loom, whose `inRounds` is false).
   - Every one of these changes goes through `reorder` (`logic/progress.ts`):
     - Rows marked done stay done, as row ids do.
     - When the row partway through would read differently, the Work stage asks
       (**Start row N again?**) before sending it back to the start of the row.
     - With nothing recorded yet, the place moves to the first row of the new order.
-  - Before this, **Start rows from the right** kept the cursor's segment index on a row
+  - Before this, starting rows from the other side kept the cursor's segment index on a row
     that now read the other way. It then pointed at a different stitch than the maker
     had reached.
   - Not in the Python: `craft` is stored there (`model.py`, `io.py`, sent by
@@ -94,7 +95,7 @@ Newest last, as they were built.
   extra width.
 
 - <a id="stitch-numbers"></a>**Stitch numbers** (`render/chart.ts`, `stitchNumbers`;
-  "Number the stitches" in Options and Settings, **on** by default, app-wide in
+  "Number the stitches" in Options (Chart) and Settings, **on** by default, app-wide in
   `settings.stitchNumbers`). Every stitch on the chart shows its place in its run of one
   colour, counted in the row's working direction (`encodeRow` and `rowDirection`, so it
   agrees with the chips), from 1 at the start of each run. Skipped cells get none.
@@ -112,6 +113,56 @@ Newest last, as they were built.
     beside it), at most 16 px; under `NUMBER_MIN_FONT` (8 px) the cell stays plain, so a
     big chart shows numbers only on its taller rows, or once zoomed in.
   - Not in the Python: the desktop never showed it, and it only reads the pattern.
+- <a id="options-menu"></a>**The Options menu in three groups** (`ui/work/OptionsMenu.tsx`,
+  `ui/chartOptions.ts`). It was one column of nine checkboxes and three buttons, in no
+  order. Now:
+  - **How you work it** (saved with the pattern): **Craft**; **First stitch**, a 2×2 set
+    of radio buttons laid out like the chart's corners (**Top left** … **Bottom right**),
+    in place of "Start rows from the right" and "Start from the top row"; and **Rows**,
+    **Back and forth** or **In the round** (**All the same way** for a bracelet or bead
+    loom), in place of "Work in rounds (every row the same way)". A checkbox for a choice
+    with two named sides hides the side that isn't ticked (what does an unticked "Start
+    rows from the right" start from?), so these are segmented radio groups that show
+    both. One corner sets `bottom_up` and `start_direction` in one `reread`, so it asks
+    **Start row N again?** once at most, where two checkboxes could ask twice. Under them,
+    `readingOrder` (`ui/work/segments.ts`) says the result in a sentence ("Row 1 is the
+    bottom row of the chart, worked right to left; row 2 comes back left to right.").
+  - **Chart** (app-wide, switches with a one-line hint, the same list as Settings):
+    **Number the stitches**, **Show where to carry yarn** (tapestry crochet only),
+    **Enlarge the current row** (was "Taller rows around the current one" here and
+    "Emphasise the rows around the current one" in Settings), **Focus mode** (renamed
+    "Hide the rest of the chart" for a while; the owner preferred the old name, and the
+    hint says what it does). The setting keys are unchanged, so stored preferences carry
+    over.
+  - **Pattern**: **Rename…**, **Edit in Design** (was "Edit pattern…", which didn't say
+    it leaves the Work stage), **Export PNG** (see [Export PNG](#work-png)), **Help**.
+    "Export readout" (a .txt of every row) is gone: the owner saw no use for it.
+    `exportAllRowsText` stays in `logic/readout.ts`, a port of the Python kept in step by
+    the golden fixtures.
+  - From 56rem wide the two settings groups sit side by side (the menu is 42rem); on a
+    phone it's one column that scrolls inside itself (`max-height: 100dvh − 5rem`).
+  - `Craft.sameWay` (a checkbox label) became `Craft.inRounds`.
+- <a id="work-png"></a>**Export PNG from Work** (`render/chartPng.ts`, web only). The
+  chart drawn by the Work stage's own `drawChart`, on a canvas the size of the whole
+  chart, with the stitch numbers and carried strands when they're switched on and the
+  axis numbers, but no progress: the layout has no current row and no emphasis
+  (`computeLayout` with `current: null`, every row 24 px), `completed` is empty and
+  `place` is null, so there is no outline, no done wash and no taller rows, and focus
+  mode is ignored. Always the light page colours (`CHART_PNG_COLORS`), so the same
+  settings give the same file whatever the theme. 24 px cells fit a two-digit stitch
+  number (`numberFont` needs about 11.3 px); a chart whose picture would pass 16 MP
+  (Safari's canvas limit) gets smaller cells, down to 8 px (`chartPngCell`). Design's
+  Export PNG (`render/png.ts`, the desktop's pixels) is unchanged.
+  - Tested in `e2e/work-png.spec.ts`: the PNG is decoded in Chromium and every cell
+    checked. With numbers and carrying off, every stitch's inside is its own colour and no
+    pixel is the outline's; it's byte-identical after rows are done, with focus mode on and
+    in dark mode; numbers mark every stitch, and carrying marks some. Planting a done row in
+    the export fails it (7 cells washed).
+- <a id="no-high-contrast"></a>**High contrast removed**, app-wide: the setting, the
+  `[data-contrast]` tokens and rules, and the canvases' `themeKey`. A stored
+  `highContrast` from an earlier version is ignored on load (as any unknown key is) and
+  dropped at the next change. The canvases still re-read their colours when the system
+  switches between light and dark.
 
 ## During the port
 
@@ -154,7 +205,7 @@ What each phase of the port built here, newest first. The plan each phase follow
     the gridlines, done-wash, strike line, outline and axis numbers over it. An 88×194
     chart scrolls within one frame per step at 4× CPU throttling.
   - Header, chips, segment dialog, next-row preview, Previous row / Row complete, the
-    keyboard, "Start rows from the right" (on the pattern), Export readout, and rename
+    keyboard, the reading order (on the pattern), Export PNG, and rename
     (also on each Library card).
   - Saving is automatic (`app/autosave.ts`): debounced ~300 ms, flushed on
     `visibilitychange`/`pagehide`/leaving, and stamps `stage: "work"`. There is no Save

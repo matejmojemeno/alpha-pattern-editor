@@ -26,11 +26,11 @@ Every project moves through up to three stages:
 | Stage | What it's for | You're here when |
 |---|---|---|
 | **Import** | Turning a chart image into a pattern, and checking the grid is right. | You've just dropped, pasted or chosen a chart image. |
-| **Design** | Changing the pattern: painting, colours, borders, size, and seeing it as yarn. | You've saved an import, started a blank grid, or chosen **Edit pattern…** while working. |
+| **Design** | Changing the pattern: painting, colours, borders, size, and seeing it as yarn. | You've saved an import, started a blank grid, or chosen **Edit in Design** while working. |
 | **Work** | Following the pattern row by row, with your place saved. | You've pressed **Start working →**, or opened a project you've already started. |
 
 You can go back and forth between Design and Work as often as you like: **Start working →**
-in Design, and **Options** then **Edit pattern…** in Work. Everything is saved as you go;
+in Design, and **Options** then **Edit in Design** in Work. Everything is saved as you go;
 there's no Save button.
 
 The home screen leads to all of it: the big **Import a chart** area, and

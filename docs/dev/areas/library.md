@@ -70,7 +70,7 @@ What each phase of the port built here, newest first. The plan each phase follow
     static host without an SPA fallback rule.
   - `theme/tokens.css` (the port of `theme.py`) and `contrastOn()`.
   - The settings decision is made: **app-wide display preferences in `localStorage`**
-    (`src/settings/store.ts`: row emphasis, high contrast, focus mode). Anything that
+    (`src/settings/store.ts`: row emphasis, high contrast (since removed, see [Work](work.md#no-high-contrast)), focus mode). Anything that
     changes how a pattern is read stays on the pattern.
   - Library card grid with Export, delete, keyboard opening, and `.alpha` import by picker
     or drop. Thumbnails are downscaled at save time (DB version 2), and

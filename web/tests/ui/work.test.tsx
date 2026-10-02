@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { carriesByRun, carryPlan, carryReach } from '../../src/logic/carry.ts'
 import * as work from '../../src/logic/work.ts'
 import { encodeRow, formatRowText, rowDirection, workingNumber } from '../../src/logic/readout.ts'
+import { exportChartPng } from '../../src/render/chartPng.ts'
 import { readAlpha } from '../../src/storage/alpha.ts'
 import { carryNote } from '../../src/ui/work/segments.ts'
 import { fixture, freshRepo, renderApp, screen } from './helpers.tsx'
@@ -22,6 +23,12 @@ vi.mock('../../src/logic/work.ts', async (importOriginal) => {
     goPreviousRow: vi.fn(actual.goPreviousRow),
   }
 })
+
+// Export PNG draws on a canvas, which jsdom hasn't got: e2e/work-png.spec.ts checks the
+// picture itself; here, what the screen asks for.
+vi.mock('../../src/render/chartPng.ts', () => ({
+  exportChartPng: vi.fn(async (p: { name: string }) => ({ blob: new Blob(['png']), filename: `${p.name}.png` })),
+}))
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -246,14 +253,17 @@ describe('buttons', () => {
 })
 
 describe('options', () => {
-  it('"Start rows from the right" flips how rows read, asking first when the row partway through starts again', async () => {
+  it('starting in the other corner of the same row flips how rows read, asking first when the row partway through starts again', async () => {
     const { project } = await openWork('partial-row.alpha')
     const p = project.pattern
     expect(p.start_direction).toBe('LTR')
     const before = rowLabel()
     const cursorChip = chips().findIndex((c) => c.className.includes('chip--current'))
     expect(cursorChip).toBeGreaterThan(0)
-    const box = screen.getByLabelText<HTMLInputElement>('Start rows from the right')
+    const side = p.bottom_up ? 'Bottom' : 'Top'
+    const left = screen.getByRole<HTMLInputElement>('radio', { name: `${side} left` })
+    const box = screen.getByRole<HTMLInputElement>('radio', { name: `${side} right` })
+    expect(left.checked).toBe(true)
     expect(box.checked).toBe(false)
     const r = work.rowIndex(p, project.progress.current_row_id)!
 
@@ -277,9 +287,42 @@ describe('options', () => {
     expect(screen.getByText(`Next: Row ${workingNumber(p, r) + 1}: ${formatRowText({ ...p, start_direction: 'RTL' }, r + 1)}`)).toBeTruthy()
 
     // ...and at the start of a row, nothing to ask: back it goes at once.
-    await userEvent.click(box)
+    await userEvent.click(left)
     expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(left.checked).toBe(true)
     expect(box.checked).toBe(false)
+  })
+
+  it('one corner sets both which row is row 1 and which way it runs, with one question at most', async () => {
+    const { project } = await openWork('partial-row.alpha')
+    const p = project.pattern
+    const r = work.rowIndex(p, project.progress.current_row_id)!
+    const across = `${p.bottom_up ? 'Top' : 'Bottom'} right`
+    await userEvent.click(screen.getByRole('radio', { name: across }))
+    expect(screen.getAllByRole('alertdialog')).toHaveLength(1)
+    await userEvent.click(screen.getByRole('button', { name: 'Change it' }))
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: across }).checked).toBe(true)
+    const next = { ...p, bottom_up: !p.bottom_up, start_direction: 'RTL' as const }
+    expect(rowLabel()).toMatch(new RegExp(`^Row ${workingNumber(next, r)} `))
+  })
+
+  it('says the reading order in words, and keeps up as it changes', async () => {
+    await openWork('basic.alpha')
+    const summary = () => document.querySelector('.options__summary')!.textContent
+    // Tapestry crochet: bottom right, turning.
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Bottom right' }).checked).toBe(true)
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Back and forth' }).checked).toBe(true)
+    expect(summary()).toBe('Row 1 is the bottom row of the chart, worked right to left; row 2 comes back left to right.')
+    await userEvent.click(screen.getByRole('radio', { name: 'In the round' }))
+    expect(summary()).toBe('Round 1 is the bottom row of the chart, worked right to left, and so is every round after it.')
+    await userEvent.click(screen.getByRole('radio', { name: 'Top left' }))
+    expect(summary()).toBe('Round 1 is the top row of the chart, worked left to right, and so is every round after it.')
+    // A bead loom's rows aren't rounds.
+    await userEvent.selectOptions(screen.getByLabelText('Craft'), 'bead-loom')
+    expect(screen.queryByRole('radio', { name: 'In the round' })).toBeNull()
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'All the same way' }).checked).toBe(true)
+    expect(summary()).toBe('Row 1 is the top row of the chart, worked left to right, and so is every row after it.')
   })
 
   it('a craft sets the reading order, the words and whether carrying is offered', async () => {
@@ -289,17 +332,18 @@ describe('options', () => {
     const craft = screen.getByLabelText<HTMLSelectElement>('Craft')
     expect(craft.value).toBe('tapestry')
     expect(screen.getByLabelText('Show where to carry yarn')).toBeTruthy()
-    // Crochet and knitting call rows that don't turn working in rounds; flat by default.
-    expect(screen.getByLabelText<HTMLInputElement>('Work in rounds (every row the same way)').checked).toBe(false)
+    // Crochet and knitting call rows that don't turn working in the round; flat by default.
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Back and forth' }).checked).toBe(true)
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'In the round' }).checked).toBe(false)
     expect(document.querySelector('.work__stitches')!.textContent).toBe(`0 / ${p.rows * p.cols} stitches`)
 
     // Bracelets are knotted from the top, the first row left to right.
     await userEvent.selectOptions(craft, 'bracelet')
     expect(document.querySelector('.work__stitches')!.textContent).toBe(`0 / ${p.rows * p.cols} knots`)
     expect(screen.queryByLabelText('Show where to carry yarn')).toBeNull()
-    expect(screen.getByLabelText<HTMLInputElement>('Start from the top row').checked).toBe(true)
-    expect(screen.getByLabelText<HTMLInputElement>('Start rows from the right').checked).toBe(false)
-    expect(screen.getByLabelText<HTMLInputElement>('Every row the same way').checked).toBe(false)
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Top left' }).checked).toBe(true)
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Back and forth' }).checked).toBe(true)
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'All the same way' }).checked).toBe(false)
     const top = { ...p, bottom_up: false, start_direction: 'LTR' as const }
     expect(rowLabel()).toBe('Row 1 of 5 →')
     const names = chips().map((c) => c.querySelector('.chip__text')!.textContent)
@@ -315,7 +359,7 @@ describe('options', () => {
 
     // A bead loom: every row the same way, beads.
     await userEvent.selectOptions(craft, 'bead-loom')
-    expect(screen.getByLabelText<HTMLInputElement>('Every row the same way').checked).toBe(true)
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'All the same way' }).checked).toBe(true)
     expect(document.querySelector('.work__stitches')!.textContent).toBe(`0 / ${p.rows * p.cols} beads`)
   })
 
@@ -352,7 +396,7 @@ describe('options', () => {
 
   it('says "round" in place of "row" when worked in rounds', async () => {
     const { project } = await openWork('basic.alpha')
-    await userEvent.click(screen.getByLabelText('Work in rounds (every row the same way)'))
+    await userEvent.click(screen.getByRole('radio', { name: 'In the round' }))
     await userEvent.click(screen.getByLabelText('Show where to carry yarn'))
     const p = { ...project.pattern, alternate_direction: false }
     const plan = carryPlan(p)
@@ -402,18 +446,24 @@ describe('options', () => {
     expect(screen.queryByText(/^Next:/)).toBeNull()
   })
 
-  it('exports the readout as text', async () => {
+  it('exports the chart as a PNG with the numbers and strands switched on, and no text export', async () => {
     const { project } = await openWork('basic.alpha')
+    const p = project.pattern
     const clicks: HTMLAnchorElement[] = []
     const spy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
       clicks.push(this)
     })
-    await userEvent.click(screen.getByRole('button', { name: 'Export readout' }))
-    expect(clicks).toHaveLength(1)
-    expect(clicks[0]!.download).toBe('basic.txt')
-    const blob = vi.mocked(URL.createObjectURL).mock.calls.at(-1)![0] as Blob
-    const { exportAllRowsText } = await import('../../src/logic/readout.ts')
-    await waitFor(async () => expect(await blob.text()).toBe(exportAllRowsText(project.pattern)))
+    expect(screen.queryByRole('button', { name: /text/i })).toBeNull()
+    // As it starts: numbers on, carrying off.
+    await userEvent.click(screen.getByRole('button', { name: 'Export PNG' }))
+    expect(vi.mocked(exportChartPng)).toHaveBeenLastCalledWith(expect.objectContaining({ id: p.id }), { numbers: true, carries: null })
+    await waitFor(() => expect(clicks.map((a) => a.download)).toEqual(['basic.png']))
+    // The other way round, partway through the pattern: the progress isn't asked for.
+    await userEvent.click(screen.getByRole('button', { name: /Row complete/ }))
+    await userEvent.click(screen.getByLabelText('Number the stitches'))
+    await userEvent.click(screen.getByLabelText('Show where to carry yarn'))
+    await userEvent.click(screen.getByRole('button', { name: 'Export PNG' }))
+    expect(vi.mocked(exportChartPng)).toHaveBeenLastCalledWith(expect.objectContaining({ id: p.id }), { numbers: false, carries: carryPlan(p) })
     spy.mockRestore()
   })
 })
@@ -481,9 +531,9 @@ describe('saving', () => {
     expect(after.sourcePng).toEqual(before)
   })
 
-  it('saves "Start rows from the right" with the pattern, the row partway through started again', async () => {
+  it('saves the corner it starts in with the pattern, the row partway through started again', async () => {
     const { repo, project } = await openWork('partial-row.alpha')
-    await userEvent.click(screen.getByLabelText('Start rows from the right'))
+    await userEvent.click(screen.getByRole('radio', { name: `${project.pattern.bottom_up ? 'Bottom' : 'Top'} right` }))
     await userEvent.click(screen.getByRole('button', { name: 'Change it' }))
     await settle()
     const saved = (await repo.open(project.pattern.id)).project

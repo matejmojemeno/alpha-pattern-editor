@@ -257,7 +257,7 @@ What each phase of the port built here, newest first. The plan each phase follow
     patterns (999×999: 1.9 MB each, 16 steps kept).
   - A bottom bar with the size, stitches, colours and strings needed. Saved automatically,
     as a Design-stage project, with progress carried through untouched.
-- **Moving between stages (§6.4):** "Start working →" in Design and "Edit pattern…" in the
+- **Moving between stages (§6.4):** "Start working →" in Design and "Edit in Design" in the
   Work stage's Options menu each save the new stage, then open it; the stage arriving waits
   for that save (`app/saving.ts`). Design warns "You're N rows into this project…" when
   there is progress. Library cards open Work if there's progress, otherwise the stage the

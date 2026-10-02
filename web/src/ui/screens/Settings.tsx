@@ -1,46 +1,16 @@
 /**
  * App-wide display preferences. Anything that changes how a pattern is *read* (like
- * "start rows from the right") is saved on the pattern instead, and is set in the Work
- * stage, not here.
+ * which corner the first stitch is in) is saved on the pattern instead, and is set in the
+ * Work stage, not here.
  */
 import { useId } from 'react'
 
 import { APP_COMMIT, APP_VERSION } from '../../app/build.ts'
 import { useSettings } from '../../app/context.ts'
 import { CHANGELOG_URL, REPO_URL } from '../../app/help.ts'
-import type { Settings as SettingsValues } from '../../settings/store.ts'
+import { CHART_OPTIONS } from '../chartOptions.ts'
 import { TopBar } from '../components.tsx'
 import { useDocumentTitle } from '../hooks.ts'
-
-type Switch = { [K in keyof SettingsValues]: SettingsValues[K] extends boolean ? K : never }[keyof SettingsValues]
-
-const OPTIONS: { key: Switch; label: string; help: string }[] = [
-  {
-    key: 'emphasiseRows',
-    label: 'Emphasise the rows around the current one',
-    help: 'Draws the row you are working, and the rows either side of it, taller than the rest of the chart, so your place is easier to find again.',
-  },
-  {
-    key: 'highContrast',
-    label: 'High contrast',
-    help: 'Light text on a near-black background, with stronger borders, across the whole app.',
-  },
-  {
-    key: 'focusMode',
-    label: 'Focus mode',
-    help: 'Draws only the rows around the current one and hides the rest of the chart.',
-  },
-  {
-    key: 'stitchNumbers',
-    label: 'Number the stitches',
-    help: 'Writes on each stitch of the Work chart which one it is in its block of one colour, counted the way you work the row, so you can keep count as you go. Stitches too small to hold a number stay plain; zoom in to see them.',
-  },
-  {
-    key: 'showCarries',
-    label: 'Show where to carry yarn',
-    help: 'For tapestry crochet worked over the yarn you are not using, keeping each colour only until the next row needs it. A line through the stitches shows which colour to carry inside them, and each colour in the row says how many stitches to carry another over.',
-  },
-]
 
 export function Settings() {
   useDocumentTitle('Settings')
@@ -49,8 +19,9 @@ export function Settings() {
   return (
     <main className="screen settings">
       <TopBar title="Settings" help="settings" />
+      <h2 className="settings__heading">Work chart</h2>
       <form className="settings__list" onSubmit={(e) => e.preventDefault()}>
-        {OPTIONS.map(({ key, label, help }) => (
+        {CHART_OPTIONS.map(({ key, label, help }) => (
           <div className="setting" key={key}>
             <input
               id={`${id}-${key}`}
@@ -68,9 +39,9 @@ export function Settings() {
         ))}
       </form>
       <p className="muted settings__note">
-        These are saved in this browser and apply to every project. Row emphasis, focus mode, stitch numbers and
-        carrying take effect in the Work stage, where they can also be changed from Options. Which side a row starts from is saved with each
-        pattern instead.
+        These are saved in this browser and apply to every project. You can also change them while you work, from
+        Options in the Work stage, under Chart. Which corner you start from, and whether rows go back and forth or in
+        the round, are saved with each pattern instead, under How you work it.
       </p>
       <About />
     </main>

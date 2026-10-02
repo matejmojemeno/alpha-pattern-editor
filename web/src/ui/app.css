@@ -577,6 +577,11 @@ code {
 
 /* --- settings ------------------------------------------------------------------------------ */
 
+.settings__heading {
+  margin: 0 0 0.5rem;
+  font-size: var(--text-name);
+}
+
 .settings__list {
   display: grid;
   gap: 0.5rem;
@@ -684,28 +689,178 @@ code {
   top: calc(100% + 0.35rem);
   z-index: 5;
   display: grid;
-  gap: 0.25rem;
-  width: max-content;
-  max-width: min(20rem, calc(100vw - 2rem));
-  padding: 0.6rem 0.75rem 0.75rem;
+  align-items: start;
+  gap: 0.75rem;
+  width: min(22rem, calc(100vw - 2rem));
+  /* Taller than a phone's screen: it scrolls on its own, not the page behind it. */
+  max-height: calc(100dvh - 5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.75rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--bg);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.2);
 }
 
-.work__menu .button:last-child {
-  margin-top: 0.35rem;
+.options__group {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
 }
 
-.work__craft {
+.options__group + .options__group {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.options__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 0.75rem;
+}
+
+.options__title {
+  margin: 0;
+  font-size: var(--text-name);
+  font-weight: 700;
+}
+
+.options__note,
+.options__summary,
+.options__switch p {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.options__field {
   display: grid;
   gap: 0.2rem;
-  margin: 0.25rem 0;
 }
 
-.work__craft select {
+.options__field select {
   min-height: var(--tap);
+}
+
+.options__choice {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.options__choice legend {
+  padding: 0;
+  margin-bottom: 0.2rem;
+}
+
+/* A segmented control: radio buttons drawn as joined buttons, the chosen one filled. The
+   1px gap over the border colour draws the lines between them. */
+.choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--border);
+}
+
+.choice__option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap);
+  padding: 0.25rem 0.5rem;
+  background: var(--button-bg);
+  color: var(--button-fg);
+  text-align: center;
+  cursor: pointer;
+}
+
+/* The input covers its option, so it's still what's clicked, focused and read out. */
+.choice__option input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.choice__option:has(input:checked) {
+  background: var(--primary-bg);
+  color: var(--primary-fg);
+  font-weight: 600;
+}
+
+.choice__option:has(input:focus-visible) {
+  box-shadow: inset 0 0 0 2px var(--text);
+}
+
+.options__switch {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0 0.6rem;
+}
+
+.options__switch input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.options__switch label {
+  display: flex;
+  align-items: center;
+  min-height: 2rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .options__switch label {
+    min-height: var(--tap);
+  }
+
+  /* The tall label's own space is enough between it and its hint. */
+  .options__switch p {
+    margin-top: -0.4rem;
+  }
+}
+
+.options__switch p {
+  grid-column: 2;
+}
+
+.options__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* Room for both groups of settings side by side, with Pattern underneath. */
+@media (min-width: 56rem) {
+  .work__menu {
+    width: 42rem;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 1.5rem;
+  }
+
+  .options__group:nth-child(2) {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .options__group:last-child {
+    grid-column: 1 / -1;
+  }
 }
 
 .check {
@@ -744,10 +899,6 @@ code {
 
 .work__arrow {
   color: var(--accent);
-}
-
-:root[data-contrast='high'] .work__arrow {
-  color: inherit;
 }
 
 .work__stitches {
@@ -1052,10 +1203,6 @@ code {
 .work__saved--error {
   color: var(--danger);
   white-space: normal;
-}
-
-:root[data-contrast='high'] .work__saved--error {
-  color: var(--text);
 }
 
 .linklike {

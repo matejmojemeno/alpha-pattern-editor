@@ -162,7 +162,7 @@ test('with rows done in Work: asks first, starts progress again, and Undo brings
   await expect(page.locator('.work__row')).toHaveText(/^Row 3 of 5/)
   const toDesign = async () => {
     await page.getByText('Options').click()
-    await page.getByRole('button', { name: 'Edit pattern…' }).click()
+    await page.getByRole('button', { name: 'Edit in Design' }).click()
     await expect(page).toHaveURL(new RegExp(`#/design/${id}$`))
   }
   await toDesign()

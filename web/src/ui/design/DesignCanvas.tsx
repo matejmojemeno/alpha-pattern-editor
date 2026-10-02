@@ -111,12 +111,11 @@ export interface DesignCanvasProps {
   onZoomTo?: (cell: number) => void
   /** The view's size, for fitting the pattern to it. */
   onViewport: (size: { width: number; height: number }) => void
-  themeKey: string
   label: string
 }
 
 export function DesignCanvas(props: DesignCanvasProps) {
-  const { pattern, cell, tool, preview, overlay = null, themeKey, mode = 'edit' } = props
+  const { pattern, cell, tool, preview, overlay = null, mode = 'edit' } = props
   const wrap = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
@@ -199,7 +198,7 @@ export function DesignCanvas(props: DesignCanvasProps) {
 
   useLayoutEffect(() => {
     colors.current = null
-  }, [themeKey, dark])
+  }, [dark])
 
   // Zooming about a point: where it was, and at what cell size, when the zoom was asked.
   const anchor = useRef<{ x: number; y: number; from: number } | null>(null)
@@ -216,7 +215,7 @@ export function DesignCanvas(props: DesignCanvasProps) {
     shownCell.current = cell
   }, [cell])
 
-  useLayoutEffect(() => draw.current(), [image, pattern, cell, size, dpr, preview, overlay, themeKey, dark])
+  useLayoutEffect(() => draw.current(), [image, pattern, cell, size, dpr, preview, overlay, dark])
 
   // --- input ------------------------------------------------------------------------------
   const view = () => {

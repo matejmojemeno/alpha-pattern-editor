@@ -19,8 +19,6 @@ export type Units = 'metric' | 'imperial'
 export interface Settings {
   /** Draw the current row, and the rows either side of it, taller in the chart. */
   readonly emphasiseRows: boolean
-  /** The high-contrast theme, app-wide. */
-  readonly highContrast: boolean
   /** Draw only the rows around the current one. */
   readonly focusMode: boolean
   /** Show where to carry each colour on to the next row, for tapestry crochet worked
@@ -60,7 +58,6 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   emphasiseRows: true,
-  highContrast: false,
   focusMode: false,
   showCarries: false,
   stitchNumbers: true,
@@ -90,7 +87,6 @@ const count = (v: unknown) => Number.isInteger(v) && (v as number) > 0
 /** Which stored values each field accepts; anything else falls back to the default. */
 const VALID: { [K in keyof Settings]: (v: unknown) => boolean } = {
   emphasiseRows: (v) => typeof v === 'boolean',
-  highContrast: (v) => typeof v === 'boolean',
   focusMode: (v) => typeof v === 'boolean',
   showCarries: (v) => typeof v === 'boolean',
   stitchNumbers: (v) => typeof v === 'boolean',

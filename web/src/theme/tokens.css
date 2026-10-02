@@ -12,9 +12,6 @@
  *    pixels against the OS font (13 pt on macOS); here the design px are divided by 13
  *    and emitted as rem, so the same ratios hold against the browser's default size.
  *    Layout sizes (cards, radii, gaps) are px / 16, the browser default, in rem.
- *
- * High contrast is the same properties overridden under [data-contrast="high"] on
- * <html>, set from the app's settings (src/settings/).
  */
 
 :root {
@@ -46,7 +43,7 @@
   --border: color-mix(in srgb, var(--text), var(--bg) 68%); /* border_hex */
   --raised: color-mix(in srgb, var(--bg), var(--text) 10%); /* raised_hex */
 
-  /* Buttons. The desktop left these to the OS; high contrast set them explicitly. */
+  /* Buttons. The desktop left these to the OS. */
   --button-bg: var(--raised);
   --button-fg: var(--text);
   --primary-bg: var(--accent);
@@ -80,17 +77,3 @@
   }
 }
 
-/* theme.py HC_*: the Work stage's View → High contrast, now app-wide. */
-:root[data-contrast='high'] {
-  color-scheme: dark;
-  --bg: #111111;
-  --text: #eeeeee;
-  --border: #555555;
-  --muted: #cccccc;
-  --axis: #cccccc;
-  --raised: #2a2a2a;
-  --button-bg: #2a2a2a;
-  --button-fg: #eeeeee;
-  --primary-bg: #0a7d33;
-  --primary-fg: #ffffff; /* contrastOn('#0a7d33') */
-}

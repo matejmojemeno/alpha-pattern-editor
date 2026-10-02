@@ -48,8 +48,6 @@ export interface ChartViewProps {
   current: number | null
   emphasise: boolean
   focus: boolean
-  /** Changes when the theme does, so the colours are read again. */
-  themeKey: string
   label: string
   /** Your place in the current row, followed across, with the stitches before it washed
    *  as done. A new object on every progress change, so a scroll by hand is undone by
@@ -69,7 +67,6 @@ export function ChartView({
   current,
   emphasise,
   focus,
-  themeKey,
   label,
   place = null,
   carries = null,
@@ -174,7 +171,7 @@ export function ChartView({
 
   useLayoutEffect(() => {
     colors.current = null
-  }, [themeKey, dark])
+  }, [dark])
 
   // Follow the current row whenever the layout changes (and only then, so a scroll to look
   // ahead is left alone until the next row), and your place in it across whenever that
@@ -289,7 +286,7 @@ export function ChartView({
   }, [])
 
   // Anything drawn changed.
-  useLayoutEffect(() => draw.current(), [layout, image, pattern, completed, place, carries, numbers, dpr, themeKey, dark])
+  useLayoutEffect(() => draw.current(), [layout, image, pattern, completed, place, carries, numbers, dpr, dark])
 
   // A tall chart scrolls down (layout.ts, shouldScroll); zoomed in, any chart may scroll
   // both ways.

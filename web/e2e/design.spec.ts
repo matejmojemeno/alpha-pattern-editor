@@ -282,7 +282,7 @@ test('design a pattern with every tool, undo, colours, reload, and Work and back
   await expect(page.locator('.work__saved')).toHaveText('Saved')
 
   await page.getByText('Options').click()
-  await page.getByRole('button', { name: 'Edit pattern…' }).click()
+  await page.getByRole('button', { name: 'Edit in Design' }).click()
   await expect(page).toHaveURL(new RegExp(`#/design/${id}$`))
   await expect(page.getByRole('status').filter({ hasText: "You're 2 rows into this project. Structural edits may shift your place." })).toBeVisible()
   // Paint over the rows already done (the bottom two), then go back.

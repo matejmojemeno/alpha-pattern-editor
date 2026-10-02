@@ -67,7 +67,7 @@ test('structural edits with rows done in Work, and the desktop opens the result'
   for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight')
   await expect(page.locator('.work__row')).toHaveText(/^Row 4 of 10/)
   await page.getByText('Options').click()
-  await page.getByRole('button', { name: 'Edit pattern…' }).click()
+  await page.getByRole('button', { name: 'Edit in Design' }).click()
   await expect(page).toHaveURL(new RegExp(`#/design/${id}$`))
   await expect(page.getByText(/You're 3 rows into this project/)).toBeVisible()
 

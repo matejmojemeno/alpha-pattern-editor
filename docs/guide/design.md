@@ -3,7 +3,7 @@
 The Design stage is where you change a pattern: paint stitches, add and remove rows and
 columns, rename and recolour colours, add a border, resize, turn and mirror it. It's also
 where you see how it will look in yarn and how much yarn it needs. It opens after an
-import, for a blank grid, and whenever you choose **Edit pattern…** while working.
+import, for a blank grid, and whenever you choose **Edit in Design** while working.
 
 <img src="media/design.png" alt="The Design screen: tools on the left, the editable chart with row and column numbers in the middle, colours and structure tools on the right" width="800">
 
@@ -193,7 +193,7 @@ Mac, use `Cmd`. Each click, stroke or structure change is one step. Undo goes ba
 ## Go to Work, and what happens to your progress
 
 Press **Start working →** to follow the pattern [row by row](work.md). To come back,
-choose **Options** then **Edit pattern…** in Work.
+choose **Options** then **Edit in Design** in Work.
 
 If you've already worked some rows, Design says how many at the top, and keeps your
 progress as you edit:

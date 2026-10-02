@@ -99,7 +99,7 @@ export function Landing() {
             <a className="tile" href={href(paths.settings)}>
               <SettingsIcon />
               <span className="tile__title">Settings</span>
-              <span className="tile__text">Row emphasis, focus mode, high contrast, and showing where to carry yarn.</span>
+              <span className="tile__text">How the Work chart looks: stitch numbers, where to carry yarn, and your row.</span>
             </a>
           </li>
           <li>

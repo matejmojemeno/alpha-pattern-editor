@@ -214,7 +214,7 @@ test('work-carry-yarn.png', async ({ page }) => {
   await openDemo(page)
   await completeRows(page, 6)
   await page.locator('.work__options summary').click()
-  await page.getByRole('checkbox', { name: 'Show where to carry yarn' }).check()
+  await page.getByRole('switch', { name: 'Show where to carry yarn' }).check()
   await page.locator('.work__options summary').click()
   await expect(page.locator('.work__options')).not.toHaveAttribute('open')
   await blur(page)

@@ -1,24 +1,11 @@
 # Settings
 
-Settings are display preferences for the whole app. Open them from **Settings** on the
-home screen. They're saved in this browser and apply to every project. All five also appear in the
-Work stage's **Options**, so you can change them without leaving your pattern.
+Settings are how the Work stage's chart looks, for the whole app. Open them from
+**Settings** on the home screen. They're saved in this browser and apply to every
+project. All four are also in the Work stage's **Options**, under **Chart**, so you can
+change them without leaving your pattern.
 
-<img src="media/settings.png" alt="The Settings screen: five switches, each with a line saying what it does, and About underneath" width="700">
-
-## Make the current row easier to find
-
-- **Emphasise the rows around the current one** draws the row you're working, and the
-  rows either side of it, taller than the rest of the chart, so your place is easier to
-  find again. It's on to start with. In the Work stage's **Options**, it's
-  **Taller rows around the current one**.
-- **Focus mode** draws only the rows around the current one, and hides the rest of the
-  chart and the **Next:** line.
-
-## Use high contrast
-
-**High contrast** uses light text on a near-black background, with stronger borders,
-across the whole app.
+<img src="media/settings.png" alt="The Settings screen: four switches under Work chart, each with a line saying what it does, and About underneath" width="700">
 
 ## Number the stitches
 
@@ -33,10 +20,18 @@ using. It shows, on the chart and in each colour of the row, which colour to car
 the stitches, and over how many. It's off to start with. See
 [Show where to carry yarn](work.md#show-where-to-carry-yarn).
 
-## Which side rows start from
+## Make the current row easier to find
 
-This isn't in Settings: it belongs to each pattern. Set it with **Start rows from the
-right** in the Work stage's **Options**
+- **Enlarge the current row** draws the row you're working, and the rows either side of
+  it, taller than the rest of the chart, so your place is easier to find again. It's on
+  to start with.
+- **Focus mode** draws only the rows around the current one, and hides
+  the rest of the chart and the **Next:** line.
+
+## Which corner you start from
+
+This isn't in Settings: it belongs to each pattern. Set it under **How you work it** in
+the Work stage's **Options**, with **First stitch** and **Rows**
 ([which row is row 1](work.md#which-row-is-row-1-and-which-way-it-runs)).
 
 ## Find which version you're using
