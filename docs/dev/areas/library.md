@@ -12,7 +12,9 @@ Newest last, as they were built.
 
 - <a id="home-screen"></a>**Home screen** (`ui/screens/Landing.tsx`): "Import pattern" is a large dashed drop
   zone on the left (click it, drop on it or anywhere on the page, or paste), and
-  **Library**, **Design pattern**, **Settings** and **Feedback** are stacked beside it;
+  **Photo to pattern**, **Design pattern**, **Library**, **Settings**, **Help** and
+  **Feedback** are stacked beside it, in that order: the two ways to make a new pattern
+  sit together, under the drop zone's way of reading one;
   one column under 44rem, drop zone first. The zone highlights while a file is dragged
   over the page, and on touch screens (`hover: none` and `pointer: coarse`) says "Tap to
   choose a file" instead of drop or paste. There is no backend, so **Feedback** opens

@@ -39,7 +39,7 @@ The home screen leads to all of it: the big **Import a chart** area, and
 **Help** and **Feedback** beside it. **Help** opens this
 guide, and the **?** at the top of every other screen opens the page about that screen.
 
-<img src="media/landing.png" alt="The home screen: a large dashed Import a chart area on the left, and the Photo to pattern, Library, Design pattern, Settings, Help and Feedback tiles stacked on the right" width="700">
+<img src="media/landing.png" alt="The home screen: a large dashed Import a chart area on the left, and the Photo to pattern, Design pattern, Library, Settings, Help and Feedback tiles stacked on the right" width="700">
 
 ## Import your first chart
 

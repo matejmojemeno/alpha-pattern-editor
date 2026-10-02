@@ -57,12 +57,12 @@ describe('Landing screen', () => {
     expect(photo.getAttribute('href')).toBe('#/photo')
     expect(photo.textContent).toMatch(/any photo or drawing/)
 
-    // Stacked beside the drop zone in the sketch's order.
+    // Stacked beside the drop zone, the two ways to make a new pattern together.
     const tiles = within(screen.getByRole('list')).getAllByRole('listitem').map((li) => li.textContent)
     expect(tiles.map((t) => /^(Photo to pattern|Library|Design pattern|Settings|Help|Feedback)/.exec(t ?? '')?.[1])).toEqual([
       'Photo to pattern',
-      'Library',
       'Design pattern',
+      'Library',
       'Settings',
       'Help',
       'Feedback',
