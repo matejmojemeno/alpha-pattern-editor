@@ -224,7 +224,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
   }
   const setCraft = (id: CraftId) => reread((q) => withCraft(q, id))
   const setStartRight = (right: boolean) => reread((q) => ({ ...q, start_direction: right ? 'RTL' : 'LTR' }))
-  const setTurning = (turn: boolean) => reread((q) => ({ ...q, alternate_direction: turn }))
+  const setSameWay = (same: boolean) => reread((q) => ({ ...q, alternate_direction: !same }))
   const setFromTop = (top: boolean) => reread((q) => ({ ...q, bottom_up: !top }))
 
   // Back to Design (§6.4), a deliberate action in the Options menu. The project is saved
@@ -304,8 +304,8 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
               Start from the top row
             </label>
             <label className="check">
-              <input type="checkbox" checked={p.alternate_direction} onChange={(e) => setTurning(e.target.checked)} />
-              Rows turn (off in the round)
+              <input type="checkbox" checked={!p.alternate_direction} onChange={(e) => setSameWay(e.target.checked)} />
+              {craft.sameWay}
             </label>
             <label className="check">
               <input type="checkbox" checked={settings.focusMode} onChange={(e) => setSettings({ focusMode: e.target.checked })} />

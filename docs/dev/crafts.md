@@ -17,9 +17,9 @@ is built** (the Work stage's **Craft** option, §15). The rest is the plan.
 | Craft | What it changes | Status |
 |---|---|---|
 | Tapestry crochet, flat | nothing: the default | built |
-| Tapestry crochet in the round, or right side only | rows don't turn (**Rows turn** off) | built, as an option on any craft |
+| Tapestry crochet in the round | rows don't turn (**Work in rounds** on); carry hints go round the join | built, as an option on any craft |
 | Stranded knitting (Fair Isle), flat | bottom right, rows turn; floats, so no carry hints | built |
-| Stranded knitting in the round | every round right to left (**Rows turn** off) | built |
+| Stranded knitting in the round | every round right to left (**Work in rounds** on) | built |
 | Intarsia crochet and intarsia knitting | same readout; no carry hints (a bobbin per area) | built |
 | Alpha friendship bracelets | from the top, row 1 left to right, rows turn; "knots" | built |
 | Bead loom | rows don't turn; "beads" | built; the first row isn't set, as sources disagree |

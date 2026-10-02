@@ -21,15 +21,22 @@ Newest last, as they were built.
   otherwise the next row passes the dropped strand first, and it's picked up there and
   carried up to its first stitch. Either way |q − p| stitches between consecutive rows,
   never more. Carrying between two runs of one colour in a row isn't shown (it's done
-  anyway), a colour missing from the next row is dropped, and when rows don't alternate
-  a strand the next row needs behind it gets no suggestion (it can't be reached without a
-  float). The chart draws each strand as a band of its colour through the middle of the
-  stitches it's carried in (rows under 6 px tall get none), or along their foot when
-  they're numbered (see [Stitch numbers](#stitch-numbers)), and each chip of the current
-  row says "carry Black over the first 2" or "pick up Black, carry over the last 3". Not
-  in the Python: the desktop never showed it, and it only reads the pattern. Tested
-  against the strands themselves: over 800 random patterns, every strand enters a row
-  where it left the one before when rows alternate, carried exactly |q − p|.
+  anyway), and a colour missing from the next row is dropped. When rows don't alternate
+  the work is in rounds, the last stitch of a round followed by the first of the next: a
+  strand the next round needs behind where it was left is carried on round that join
+  (over the rest of the round, then the next round's stitches up to its first, cols − 1 −
+  (p − q) in working positions), and one needed right above where it was left waits
+  there. That can mean carrying a colour nearly all the time; the owner accepted that
+  over cutting and rejoining. (Until this, rounds got no suggestion there at all.) The
+  chart draws each strand as a band of its colour through the middle of the stitches
+  it's carried in (rows under 6 px tall get none), or along their foot when they're
+  numbered (see [Stitch numbers](#stitch-numbers)), and each chip of the current row says
+  "carry Black over the first 2" or "pick up Black, carry over the last 3". Not in the
+  Python: the desktop never showed it, and it only reads the pattern. Tested against the
+  strands themselves: over 800 random patterns, every strand enters a row where it left
+  the one before (or, in rounds, leaves at the end of a round and enters at the start of
+  the next), carried exactly |q − p| when rows alternate and exactly as far along the
+  rounds as needed when they don't.
   - <a id="counted-carries"></a>**A carry to an end of the row is an arrow, not a line**
     (`carryReach`, `drawCarryArrow`). The owner's two-colour cats had a line along every
     row where a cat met the side of the chart, which buried the few that need counting.
@@ -42,6 +49,9 @@ Newest last, as they were built.
     through a row keeps its full line and its count. The yarn estimate and Visualize use
     the whole plan as before. A first version hid these carries altogether; the owner
     asked for them to be marked without the line.
+    In rounds the same carries say "round": "carry Black on to the end of the round",
+    "carry Black from the start of the round". Every carry round the join is one of these
+    two, so rounds are drawn with arrows only.
   - The strands are lines, 2 or 3 px with 1 px edges (`carryThickness`, a tenth of the
     row), not the band of up to 8 px (a third of the row) they began as, which hid the
     stitches it crossed.
@@ -62,7 +72,9 @@ Newest last, as they were built.
     ("knots", "beads").
   - **Show where to carry yarn** shows only for tapestry crochet. Other crafts don't carry
     inside stitches, and the app-wide setting is left as it is.
-  - **Start from the top row** (`bottom_up`) and **Rows turn** (`alternate_direction`)
+  - **Start from the top row** (`bottom_up`) and **Work in rounds (every row the same
+    way)** (`alternate_direction` off; the label is the craft's `sameWay`, **Every row the
+    same way** for a bracelet or bead loom, which aren't worked in rounds)
     join **Start rows from the right**.
   - Every one of these changes goes through `reorder` (`logic/progress.ts`):
     - Rows marked done stay done, as row ids do.

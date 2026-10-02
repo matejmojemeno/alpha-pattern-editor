@@ -70,13 +70,36 @@ describe('carryPlan', () => {
     expect(plan[0]).toEqual([{ palette_index: 0, from: 4, to: 7, kind: 'pickup' }])
   })
 
-  it('suggests nothing it can’t reach without a float when rows don’t alternate', () => {
-    // Every row left to right. Next row's black is behind where it was left: no carry.
+  it('carries a strand round the join in rounds when the next round needs it behind', () => {
+    // Every round left to right, bottom up. Black ends at column 5 below and is needed at
+    // column 1 above: carried over column 6 to the end of the round, then over column 0
+    // of the next, 7 − 1 − (5 − 1) = 2 stitches.
     const behind = pattern(['0110000', '0000110'], { alternate_direction: false })
-    expect(carryPlan(behind)).toEqual([[], []])
-    // Ahead of it: carried on in the row below.
+    expect(carryPlan(behind)).toEqual([
+      [{ palette_index: 1, from: 0, to: 1, kind: 'on' }],
+      [{ palette_index: 1, from: 6, to: 7, kind: 'on' }],
+    ])
+    // Right to left: black ends at column 2 below, needed at column 5 above.
+    const rtl = pattern(['0000010', '0011000'], { alternate_direction: false, start_direction: 'RTL' })
+    expect(carryPlan(rtl)).toEqual([
+      [{ palette_index: 1, from: 6, to: 7, kind: 'on' }],
+      [{ palette_index: 1, from: 0, to: 2, kind: 'on' }],
+    ])
+    // Ending the round, or needed at the start of the next: only the other half. (The
+    // background goes round the join too, over the black stitches.)
+    expect(carryPlan(pattern(['0100000', '0000001'], { alternate_direction: false }))).toEqual([
+      [{ palette_index: 1, from: 0, to: 1, kind: 'on' }],
+      [{ palette_index: 0, from: 6, to: 7, kind: 'on' }],
+    ])
+    expect(carryPlan(pattern(['1000000', '0000100'], { alternate_direction: false }))).toEqual([
+      [{ palette_index: 0, from: 0, to: 1, kind: 'on' }],
+      [{ palette_index: 1, from: 5, to: 7, kind: 'on' }],
+    ])
+    // Ahead of it: carried on in the round below, as when rows turn.
     const ahead = pattern(['0000110', '0110000'], { alternate_direction: false })
     expect(carryPlan(ahead)[1]).toEqual([{ palette_index: 1, from: 3, to: 5, kind: 'on' }])
+    // Needed right above where it was left: it waits there.
+    expect(carryPlan(pattern(['0001000', '0011000'], { alternate_direction: false }))).toEqual([[], []])
   })
 })
 
@@ -200,48 +223,67 @@ function randomPattern(rand: () => number, opts: Partial<Pattern>): Pattern {
 /**
  * Checked from the strands, not the algorithm: each colour's stretch of a row is where
  * it's used plus where it's carried. Worked in order, a strand must enter each row where
- * it left the row before (no float), be carried over exactly |q − p| stitches between
- * consecutive rows (never further than needed), and never over its own colour.
+ * it left the row before (no float), and never be carried over its own colour. When rows
+ * turn, it's carried over exactly |q − p| stitches between consecutive rows (never further
+ * than needed). In rounds, the end of one round is followed by the start of the next, so
+ * a strand may leave a round at its end and enter the next at its start, and it's carried
+ * over the stitches between p and q along the rounds: q − p working positions on, or
+ * round the join when q is behind p.
  */
 function checkStrands(p: Pattern, plan: Carry[][]) {
   const seq = workSequence(p)
   const at = (r: number, c: number) => p.cells[r * p.cols + c]!
+  /** A column's position in a row's working order. */
+  const pos = (r: number, c: number) => (rowDirection(p, r) === 'LTR' ? c : p.cols - 1 - c)
   const stretch = (r: number, v: number) => {
-    const ltr = rowDirection(p, r) === 'LTR'
     const cols = new Set<number>()
     for (let c = 0; c < p.cols; c++) if (at(r, c) === v) cols.add(c)
-    const used = [...cols]
+    const used = [...cols].map((c) => pos(r, c))
     for (const k of plan[r]!.filter((x) => x.palette_index === v)) {
       for (let c = k.from; c < k.to; c++) {
         expect(at(r, c)).not.toBe(v)
         cols.add(c)
       }
     }
-    const sorted = [...cols].sort((a, b) => (ltr ? a - b : b - a))
-    const usedSorted = used.sort((a, b) => (ltr ? a - b : b - a))
-    return { entry: sorted[0], exit: sorted[sorted.length - 1], first: usedSorted[0], last: usedSorted[usedSorted.length - 1] }
+    const all = [...cols].map((c) => pos(r, c))
+    return { entry: Math.min(...all), exit: Math.max(...all), first: Math.min(...used), last: Math.max(...used) }
   }
-  let floats = 0
+  /** Stitches of row r carried for v: before its first stitch, or after its last. */
+  const carriedIn = (r: number, v: number, after: boolean) => {
+    const { first, last } = stretch(r, v)
+    let n = 0
+    for (const k of plan[r]!.filter((x) => x.palette_index === v)) {
+      for (let c = k.from; c < k.to; c++) if (after ? pos(r, c) > last : pos(r, c) < first) n++
+    }
+    return n
+  }
+  let joins = 0
   for (let k = 0; k + 1 < seq.length; k++) {
     const [r, n] = [seq[k]!, seq[k + 1]!]
     for (let v = 0; v < 4; v++) {
+      if (![...p.cells.subarray(r * p.cols, (r + 1) * p.cols)].includes(v)) continue
+      if (![...p.cells.subarray(n * p.cols, (n + 1) * p.cols)].includes(v)) continue
       const a = stretch(r, v)
       const b = stretch(n, v)
-      if (a.last === undefined || b.first === undefined) continue
-      const carried =
-        plan[r]!.filter((x) => x.palette_index === v && x.kind === 'on').reduce((t, x) => t + x.to - x.from, 0) +
-        plan[n]!.filter((x) => x.palette_index === v && x.kind === 'pickup').reduce((t, x) => t + x.to - x.from, 0)
-      if (a.exit !== b.entry) {
-        // Only possible where rows run the same way and the next use is behind.
-        expect(p.alternate_direction).toBe(false)
-        expect(carried).toBe(0)
-        floats++
-        continue
+      const carried = carriedIn(r, v, true) + carriedIn(n, v, false)
+      // Image columns: the strand leaves row r and enters row n at the same one.
+      const exitCol = rowDirection(p, r) === 'LTR' ? a.exit : p.cols - 1 - a.exit
+      const entryCol = rowDirection(p, n) === 'LTR' ? b.entry : p.cols - 1 - b.entry
+      if (p.alternate_direction) {
+        expect(exitCol).toBe(entryCol)
+        expect(carried).toBe(Math.abs((rowDirection(p, r) === 'LTR' ? a.last : p.cols - 1 - a.last) - (rowDirection(p, n) === 'LTR' ? b.first : p.cols - 1 - b.first)))
+      } else if (b.first < a.last) {
+        // Round the join: out at the end of round r, in at the start of round n.
+        expect([a.exit, b.entry]).toEqual([p.cols - 1, 0])
+        expect(carried).toBe(p.cols - 1 - (a.last - b.first))
+        joins++
+      } else {
+        expect(exitCol).toBe(entryCol)
+        expect(carried).toBe(b.first - a.last)
       }
-      expect(carried).toBe(Math.abs(b.first - a.last))
     }
   }
-  return floats
+  return joins
 }
 
 describe('carryPlan, checked against the strands on random patterns', () => {
@@ -256,14 +298,14 @@ describe('carryPlan, checked against the strands on random patterns', () => {
     }
   })
 
-  it('leaves only unreachable strands when every row runs the same way', () => {
+  it('never leaves a float in rounds either, carrying round the join when it must', () => {
     const rand = rng(777)
-    let floats = 0
+    let joins = 0
     for (let i = 0; i < 400; i++) {
       const p = randomPattern(rand, { alternate_direction: false, start_direction: rand() < 0.5 ? 'LTR' : 'RTL', bottom_up: rand() < 0.5 })
-      floats += checkStrands(p, carryPlan(p))
+      joins += checkStrands(p, carryPlan(p))
     }
-    expect(floats).toBeGreaterThan(0)
+    expect(joins).toBeGreaterThan(0)
   })
 })
 

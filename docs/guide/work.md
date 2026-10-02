@@ -50,9 +50,10 @@ Your craft sets these, and you can change them in **Options**:
 - **Start rows from the right:** row 1 runs right to left. Untick it to start from the
   left, for example if you crochet or knit left-handed.
 - **Start from the top row:** row 1 is the top row of the chart, not the bottom one.
-- **Rows turn (off in the round):** each row runs the opposite way to the one before. Untick
-  it when you work in the round, or only on the right side, so that every row runs the
-  same way.
+- **Work in rounds (every row the same way):** tick it when you work in the round, so
+  that every round runs the same way. Untick it for flat work, where each row runs the
+  opposite way to the one before. For a bracelet or a bead loom it's called **Every row
+  the same way**.
 
 Each of these is saved with the pattern, and every row's colours and arrow change to
 match. If you're partway through a row and it would now read the other way, the app asks
@@ -103,6 +104,11 @@ colour points on from just after its last stitch, and the chip says "carry Black
 the end of the row". Where a colour is carried from the start of the row up to its first
 stitch, the arrow is in the row's first stitch, and the chip says "carry Black from the
 start of the row".
+
+When you work in rounds, the end of one round runs straight into the start of the next.
+A colour the next round needs before the place where you left it is carried on round
+that join: over the rest of this round, then over the first stitches of the next, up to
+where it's needed. On some patterns that means carrying a colour almost all the time.
 
 ## Count stitches on the chart
 

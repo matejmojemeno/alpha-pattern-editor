@@ -289,6 +289,8 @@ describe('options', () => {
     const craft = screen.getByLabelText<HTMLSelectElement>('Craft')
     expect(craft.value).toBe('tapestry')
     expect(screen.getByLabelText('Show where to carry yarn')).toBeTruthy()
+    // Crochet and knitting call rows that don't turn working in rounds; flat by default.
+    expect(screen.getByLabelText<HTMLInputElement>('Work in rounds (every row the same way)').checked).toBe(false)
     expect(document.querySelector('.work__stitches')!.textContent).toBe(`0 / ${p.rows * p.cols} stitches`)
 
     // Bracelets are knotted from the top, the first row left to right.
@@ -297,7 +299,7 @@ describe('options', () => {
     expect(screen.queryByLabelText('Show where to carry yarn')).toBeNull()
     expect(screen.getByLabelText<HTMLInputElement>('Start from the top row').checked).toBe(true)
     expect(screen.getByLabelText<HTMLInputElement>('Start rows from the right').checked).toBe(false)
-    expect(screen.getByLabelText<HTMLInputElement>('Rows turn (off in the round)').checked).toBe(true)
+    expect(screen.getByLabelText<HTMLInputElement>('Every row the same way').checked).toBe(false)
     const top = { ...p, bottom_up: false, start_direction: 'LTR' as const }
     expect(rowLabel()).toBe('Row 1 of 5 →')
     const names = chips().map((c) => c.querySelector('.chip__text')!.textContent)
@@ -313,7 +315,7 @@ describe('options', () => {
 
     // A bead loom: every row the same way, beads.
     await userEvent.selectOptions(craft, 'bead-loom')
-    expect(screen.getByLabelText<HTMLInputElement>('Rows turn (off in the round)').checked).toBe(false)
+    expect(screen.getByLabelText<HTMLInputElement>('Every row the same way').checked).toBe(true)
     expect(document.querySelector('.work__stitches')!.textContent).toBe(`0 / ${p.rows * p.cols} beads`)
   })
 
