@@ -1,6 +1,7 @@
 /**
  * The first screen: a large drop zone to import a chart, with the other ways in beside
- * it (Photo to pattern, Library, Design pattern, Settings, Help, Feedback). Reading a
+ * it (Photo to pattern, Design pattern, Library, Settings, Help, Feedback): the two ways
+ * to make a new pattern sit together. Reading a
  * chart is what the app is for, so it has the drop zone, and a dropped or pasted image is
  * read as one; turning a photo into a pattern is asked for by its own tile (§5a). The desktop opened straight onto the Library; the web
  * app starts here instead (docs/dev/history/web-port.md#landing-screen).
@@ -75,6 +76,13 @@ export function Landing() {
             </a>
           </li>
           <li>
+            <button type="button" className="tile" onClick={() => setCreating(true)} disabled={!repo}>
+              <DesignIcon />
+              <span className="tile__title">Design pattern</span>
+              <span className="tile__text">Start from a blank grid, and paint your own chart.</span>
+            </button>
+          </li>
+          <li>
             <a className="tile" href={href(paths.library)}>
               <LibraryIcon />
               <span className="tile__title">Library</span>
@@ -86,13 +94,6 @@ export function Landing() {
                     : `${count} project${count === 1 ? '' : 's'} saved in this browser.`}
               </span>
             </a>
-          </li>
-          <li>
-            <button type="button" className="tile" onClick={() => setCreating(true)} disabled={!repo}>
-              <DesignIcon />
-              <span className="tile__title">Design pattern</span>
-              <span className="tile__text">Start from a blank grid, and paint your own chart.</span>
-            </button>
           </li>
           <li>
             <a className="tile" href={href(paths.settings)}>
