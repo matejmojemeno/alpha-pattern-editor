@@ -229,6 +229,8 @@ test.describe('on a tablet', () => {
     const drawer = page.getByRole('complementary', { name: 'Structure' })
     await expect(drawer).toBeVisible()
     await drawer.getByRole('button', { name: 'Border & size', expanded: false }).click()
+    await expect(page.getByRole('img', { name: 'Pattern, 12 by 10' })).toBeVisible() // no border to start
+    await field(page, 'Top').fill('1')
     await expect(page.getByRole('img', { name: 'Preview, 14 by 12' })).toBeVisible()
     // The preview goes with the panel.
     await page.getByRole('button', { name: 'Colours' }).click()

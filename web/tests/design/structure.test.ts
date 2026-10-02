@@ -161,22 +161,24 @@ describe('shiftSides (dragging the pattern)', () => {
 describe('the border form’s size fields', () => {
   const p = { cols: 58, rows: 98 }
 
-  it('show the size the sides give', () => {
-    expect(sizeText(initialForm().border, p)).toEqual({ width: '60', height: '100' })
+  it('show the size the sides give, starting with no border', () => {
+    expect(formSides(initialForm().border)).toEqual({ top: 0, right: 0, bottom: 0, left: 0 })
+    expect(sizeText(initialForm().border, p)).toEqual({ width: '58', height: '98' })
+    expect(sizeText(withSides(initialForm(), { top: 1, right: 1, bottom: 1, left: 1 }).border, p)).toEqual({ width: '60', height: '100' })
   })
 
   it('set the sides from where typing began, whatever was typed on the way', () => {
     let f = initialForm()
     for (const v of ['7', '70']) f = typeSize(f, p, 'width', v) // typing "70"
-    expect(formSides(f.border)).toEqual({ top: 1, right: 6, bottom: 1, left: 6 })
-    expect(sizeText(f.border, p)).toEqual({ width: '70', height: '100' })
+    expect(formSides(f.border)).toEqual({ top: 0, right: 6, bottom: 0, left: 6 })
+    expect(sizeText(f.border, p)).toEqual({ width: '70', height: '98' })
     expect(f.border.linked).toBe(false) // no longer the same on every side
     f = typeSize(f, p, 'width', '') // cleared: the sides stay as they began
-    expect(formSides(f.border)).toEqual({ top: 1, right: 1, bottom: 1, left: 1 })
+    expect(formSides(f.border)).toEqual({ top: 0, right: 0, bottom: 0, left: 0 })
     expect(sizeText(f.border, p).width).toBe('')
-    f = endSize(typeSize(f, p, 'height', '101'))
+    f = endSize(typeSize(f, p, 'height', '99'))
     expect(f.border.size).toBeNull()
-    expect(sizeText(f.border, p)).toEqual({ width: '60', height: '101' })
+    expect(sizeText(f.border, p)).toEqual({ width: '58', height: '99' })
   })
 
   it('centre the pattern, and know when it is', () => {

@@ -98,7 +98,10 @@ interface Op {
 const OPS: Op[] = [
   {
     name: 'a border added on every side',
-    setup: (u) => section(u, 'Border & size'),
+    setup: async (u) => {
+      await section(u, 'Border & size')
+      await fill(u, 'Top', '1')
+    },
     run: (u) => u.click(screen.getByRole('button', { name: 'Apply' })),
     size: [9, 7],
     done: 2,
@@ -317,9 +320,11 @@ describe('rotating a quarter turn', () => {
     const user = userEvent.setup()
     const sides = () => [field('Top'), field('Right'), field('Bottom'), field('Left')]
     await section(user, 'Border & size')
-    expect([field('Width'), field('Height')]).toEqual(['14', '7']) // 12 × 5, one on every side
+    expect([field('Width'), field('Height')]).toEqual(['12', '5']) // 12 × 5, no border yet
+    expect(sides()).toEqual(['0', '0', '0', '0'])
+    expect((screen.getByRole('button', { name: 'Apply' }) as HTMLButtonElement).disabled).toBe(true)
     await user.click(screen.getByRole('button', { name: 'Rotate 90° clockwise' }))
-    expect([field('Width'), field('Height')]).toEqual(['7', '14'])
+    expect([field('Width'), field('Height')]).toEqual(['5', '12'])
 
     // A size typed, and the pattern placed by hand in it, turns too.
     await fill(user, 'Width', '9')
@@ -479,6 +484,7 @@ describe('the structural panel', () => {
     await user.click(screen.getByRole('button', { name: 'Trim edges' }))
     expect(message()).toBe('No single-colour edges to trim.')
     await section(user, 'Border & size')
+    await fill(user, 'Top', '1')
     await user.click(screen.getByRole('button', { name: 'Apply' }))
     expect(stats()).toMatch(/^9 cols × 7 rows/)
     await user.click(screen.getByRole('button', { name: 'Trim edges' }))
