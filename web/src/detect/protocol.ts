@@ -18,7 +18,7 @@ export type FailureCode =
   | 'NO_DETECTION'
   /** bridge.py: the pixels don't match the stated size. */
   | 'BAD_IMAGE'
-  /** bridge.py: set_mode was given neither "chart" nor "picture". */
+  /** bridge.py: open_session's intent was neither "chart" nor "picture". */
   | 'BAD_MODE'
   /** Pyodide failed to load. */
   | 'BOOT_FAILED'
@@ -43,26 +43,28 @@ export interface Failure {
   /** Pyodide suffered a fatal error and can't run anything again: the client terminates
    *  the worker. */
   fatal?: true
-  /** A chart detection refused (LOW_RESOLUTION, ROTATED): what the image was read as,
-   *  so the screen can offer to turn it into a pattern anyway. */
+  /** Set when a chart's detection failed: what the image was read as. */
   reading?: Reading
 }
 
+/** What the person asked for (§5a): a chart's squares read ("Import a chart"), or a
+ *  picture turned into a pattern ("Photo to pattern"). */
+export type Intent = 'chart' | 'picture'
+
 /** How an image is read: as a chart (its squares read), a picture (turned into a
- *  pattern), or pixel art read block by block (core/pixels.py). core/kind.py decides; the
- *  user can switch (bridge.set_mode). */
+ *  pattern), or pixel art read block by block (core/pixels.py). A chart intent gives a
+ *  chart or pixels (core/kind.read_chart), a picture intent a picture. */
 export type Mode = 'chart' | 'picture' | 'pixels'
 
-/** What the image was read as, and what else it can be (bridge._reading_payload). */
+/** What the image was read as (bridge._reading_payload). */
 export interface Reading {
   kind: Mode
-  /** False for a chart read with doubts: the picture reading is offered prominently. */
+  /** False for a chart read with doubts: many squares unsure, so it should be checked. */
   sure: boolean
-  /** A grid was found, so the chart reading is available. */
-  canChart: boolean
-  /** Pixel art without gridlines (core/pixels.py), so it can be read block by block. */
-  canPixels: boolean
-  /** A chart's refusal, when the image looks like a chart that can't be read. */
+  /** A grid read although it looked more like a photo's (core/kind.read_chart): Photo to
+   *  pattern is offered, quietly. */
+  photoLike: boolean
+  /** Why a chart couldn't be read, or null. */
   failure: DetectionErrorCode | null
 }
 
@@ -173,13 +175,13 @@ export type Request =
       crop?: Crop
       /** A stitch's height over its width, for a picture (the swatch). */
       cellAspect?: number
+      /** A chart unless a picture is asked for. */
+      intent?: Intent
     } & Delay)
   /** Detect again, on the whole image or a crop. */
   | ({ id: number; type: 'redetect'; session: number; crop?: Crop } & Delay)
   /** bridge.set_params then bridge.preview, in one round trip. */
   | { id: number; type: 'update'; session: number; params: Params }
-  /** bridge.set_mode: read as a chart, or turn into a pattern as a picture. */
-  | { id: number; type: 'mode'; session: number; mode: Mode }
   | { id: number; type: 'preview'; session: number }
   | { id: number; type: 'commit'; session: number; name: string }
   | { id: number; type: 'close'; session: number }
@@ -200,7 +202,6 @@ export interface Answers {
   open: Preview
   redetect: Preview
   update: Preview
-  mode: Preview
   preview: Preview
   commit: { ok: true; pattern: Pattern }
   close: { ok: true }

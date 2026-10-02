@@ -11,6 +11,10 @@ version from **About** at the bottom of [Settings](settings.md#find-which-versio
 When the app can't read an image, it says why where the pattern would be. The small print
 underneath, such as "Detection failed (NO_GRIDLINES)", is for bug reports.
 
+If the image is a photo or a drawing rather than a chart, none of these fixes apply:
+press **Use Photo to pattern** under the message to make a new chart from it
+([Photo to pattern](import.md#photo-to-pattern)).
+
 ### "I couldn't find the grid in this image."
 
 The app didn't find the chart's gridlines. Drag a box around just the squares on your

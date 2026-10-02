@@ -14,15 +14,17 @@
  * and its count merges colours detection split, but removing a colour, "Yarn & size" and
  * "Visualize" are the Design stage's, where the pattern is saved and edited.
  *
- * Any image can be imported (§5a). The worker reads it as a chart, or, when it
- * isn't one, turns it into a pattern as a picture; one quiet line above the stages says
- * which, with a button to the other reading. For a chart nothing else changes. For a
- * picture the outline and a box drawn on the image crop what's used (the width in
- * stitches stays), the colour count asks for one colour fewer or more, and Width and
- * Detail (and "Keep outlines", for drawings) sit above the colour list, so the stages'
- * own chrome is unchanged. Pixel art
- * without gridlines is read block by block, exactly: nothing to adjust but its colours
- * (merged as a chart's), and no outline or box.
+ * Two screens in one (§5a), for what the person said they have:
+ * - **"Import a chart"** (`intent` "chart", #/import) reads a chart's squares, trying its
+ *   hardest: any grid detection finds is read, and nothing is turned into a picture
+ *   unasked. Pixel art without gridlines is read block by block, exactly: nothing to
+ *   adjust but its colours (merged as a chart's), and no outline or box. A chart read
+ *   with doubts, or not at all, offers "Photo to pattern" with the same image.
+ * - **"Photo to pattern"** (`intent` "picture", #/photo) turns any image into a pattern,
+ *   detecting nothing. The outline and a box drawn on the image crop what's used (the
+ *   width in stitches stays), the colour count asks for one colour fewer or more, and
+ *   Width and Detail (and "Keep outlines", for drawings) sit above the colour list, so
+ *   the stages' own chrome is unchanged.
  *
  * Layout (import.css): the name and "Save & edit pattern" head the screen. Below, the
  * image and the pattern each sit on a stage of the same size, shaped like the image, so
@@ -41,7 +43,7 @@ import { downloadBytes } from 'virtual:detect-assets'
 
 import { useRepo, useSettings } from '../../app/context.ts'
 import { loadDetection } from '../../app/detection.ts'
-import { pendingImage, timestampName, type PendingImage } from '../../app/pendingImage.ts'
+import { handOffImage, pendingImage, timestampName, type PendingImage } from '../../app/pendingImage.ts'
 import { navigate, paths } from '../../app/router.ts'
 import type { DetectSession } from '../../detect/client.ts'
 import {
@@ -51,7 +53,7 @@ import {
   type Crop,
   type DetectionErrorCode,
   type Extent,
-  type Mode,
+  type Intent,
   type Outcome,
   type Params,
   type PictureSettings,
@@ -62,7 +64,7 @@ import { shrinkNotice } from '../../importer/controls.ts'
 import { decodeImage, ImageDecodeError, sourcePng } from '../../importer/decode.ts'
 import { hintFor, OUT_OF_MEMORY_HINT, TIMEOUT_HINT } from '../../importer/hints.ts'
 import type { Grid } from '../../importer/outline.ts'
-import { clampWidth, colourSteps, detailText, kindLine, MIN_WIDTH, sizeText, swatchAspect } from '../../importer/picture.ts'
+import { clampWidth, colourSteps, detailText, MIN_WIDTH, PHOTO_TO_PATTERN, readingNote, sizeText, swatchAspect } from '../../importer/picture.ts'
 import type { Swatch } from '../../yarn/usage.ts'
 import { applyRemovals, mergeCandidate, type Removal } from '../../importer/removals.ts'
 import { emptyProgress } from '../../model/types.ts'
@@ -81,8 +83,8 @@ export type ImportState =
   | { phase: 'booting'; progress: BootProgress | null }
   | { phase: 'detecting' }
   | { phase: 'result'; preview: Preview }
-  /** A chart detection can't read (too fine, tilted); the session is open, so a box drawn
-   *  on the image can retry, or the image can be turned into a pattern anyway. */
+  /** A chart detection can't read (no grid, too fine, tilted); the session is open, so a
+   *  box drawn on the image can retry, or the image can go to "Photo to pattern". */
   | { phase: 'failed'; code: DetectionErrorCode; reading?: Reading }
   /** The worker was terminated: the watchdog stopped it, or its memory ran out. */
   | { phase: 'stopped'; code: 'TIMEOUT' | 'OUT_OF_MEMORY' }
@@ -109,8 +111,23 @@ const STAGE_TEXT: Record<BootStage, string> = {
 
 const megabytes = (n: number) => Math.max(1, Math.round(n / 1_000_000))
 
-export default function ImportScreen() {
-  useDocumentTitle('Import pattern')
+/** Each screen's title, and what its empty state asks for. */
+const SCREEN: Record<Intent, { title: string; choose: string; drop: string }> = {
+  chart: {
+    title: 'Import a chart',
+    choose: 'Choose a screenshot or photo of an alpha chart, or a piece of pixel art.',
+    drop: 'Drop a chart to import it',
+  },
+  picture: {
+    title: PHOTO_TO_PATTERN,
+    choose: 'Choose a photo or drawing to make a new pattern from.',
+    drop: 'Drop an image to make a pattern from it',
+  },
+}
+
+export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) {
+  const screen = SCREEN[intent]
+  useDocumentTitle(screen.title)
   const repoState = useRepo()
   const repo = repoState.status === 'ready' ? repoState.repo : null
   const [settings] = useSettings()
@@ -135,7 +152,7 @@ export default function ImportScreen() {
   const [state, setState] = useState<ImportState>(image ? { phase: 'decoding' } : { phase: 'choose' })
   /** The name typed; left empty, the pattern is named when saved (`timestampName`). Kept
    *  when the image is replaced: it was typed for the pattern, not the file. */
-  const [name, setName] = useState('')
+  const [name, setName] = useState(image?.name ?? '')
   const [notices, setNotices] = useState<Notice[]>(image?.notices ?? [])
   const [saving, setSaving] = useState(false)
   const [run, setRun] = useState<Run>({ attempt: 0 })
@@ -149,13 +166,11 @@ export default function ImportScreen() {
   const [shown, setShown] = useState<Preview | null>(null)
   const [updating, setUpdating] = useState(0)
   const [redetecting, setRedetecting] = useState(false)
-  /** Switching between reading as a chart and turning into a pattern. */
-  const [switching, setSwitching] = useState(false)
   /** Whether the grid differs from what detecting the whole image found (a box drawn, or
    *  the outline moved): what "Reset to detected grid" undoes. For a picture: whether
    *  only part of it is used, what "Use the whole picture" undoes. */
   const [adjusted, setAdjusted] = useState(false)
-  const dim = useDelayedFlag(updating > 0 || redetecting || switching, DIM_AFTER_MS)
+  const dim = useDelayedFlag(updating > 0 || redetecting, DIM_AFTER_MS)
 
   /** The colour count's merges, in order (importer/removals.ts): replayed on every preview,
    *  so they survive moving the outline. */
@@ -243,6 +258,7 @@ export default function ImportScreen() {
       const { session: s, result } = await client.open(pixels, {
         ...(run.crop ? { crop: run.crop } : {}),
         ...(aspect.current ? { cellAspect: aspect.current } : {}),
+        intent,
       })
       opened = s
       if (!live) {
@@ -265,7 +281,7 @@ export default function ImportScreen() {
       void opened?.close()
       session.current = null
     }
-  }, [image, run, detected])
+  }, [image, run, detected, intent])
 
   // --- the fast path: resample ----------------------------------------------------------
 
@@ -314,22 +330,12 @@ export default function ImportScreen() {
     update({ extent: grid.extent, rows: grid.rows, cols: grid.cols })
   }
 
-  /** Read the image as a chart, or turn it into a pattern as a picture. */
-  const switchMode = (mode: Mode) => {
-    const s = session.current
-    if (!s) return
-    setSwitching(true)
-    setOutline(null)
-    // The other reading has other colours: nothing stays pointed at or shown.
-    setPointed(null)
-    setPinned(null)
-    void s.setMode(mode).then((r) => {
-      if (!mounted.current) return
-      setSwitching(false)
-      if (session.current !== s) return
-      if (r.ok) setAdjusted(false)
-      detected(r)
-    })
+  /** Take the image, and the name typed, to "Photo to pattern". Back returns here, and
+   *  reads the image as a chart again. */
+  const toPhoto = () => {
+    if (!image) return
+    handOffImage({ file: image.file, ...(name ? { name } : {}) })
+    navigate(paths.photo)
   }
 
   // --- the slow path: detect again ------------------------------------------------------
@@ -364,7 +370,7 @@ export default function ImportScreen() {
   const save = async (e: FormEvent) => {
     e.preventDefault()
     const s = session.current
-    if (!repo || !s || !image || saving || state.phase !== 'result' || redetecting || switching) return
+    if (!repo || !s || !image || saving || state.phase !== 'result' || redetecting) return
     setSaving(true)
     try {
       await s.idle() // a change still on its way is part of what's saved
@@ -430,21 +436,21 @@ export default function ImportScreen() {
   if (state.phase === 'choose' || !image) {
     return (
       <main className="screen import" {...drop.handlers}>
-        <TopBar title="Import pattern" help="import" />
+        <TopBar title={screen.title} help={intent === 'picture' ? 'photo' : 'import'} />
         <Notices notices={notices} />
         <div className="empty import__choose">
-          <p>Choose a photo or screenshot of an alpha chart, or any picture to turn into a pattern.</p>
+          <p>{screen.choose}</p>
           {another('Choose image…', 'button button--primary')}
           <p className="muted">PNG, JPEG or WebP. You can also drop an image here, or paste one.</p>
         </div>
-        <DropOverlay show={drop.over} text="Drop an image to import it" />
+        <DropOverlay show={drop.over} text={screen.drop} />
       </main>
     )
   }
 
   const hasGrid = state.phase === 'result'
   const loading = state.phase === 'decoding' || state.phase === 'booting' || state.phase === 'detecting'
-  const busy = redetecting || switching
+  const busy = redetecting
   /** Pixel art read block by block: exact, so there's no outline to move or box to draw. */
   const pixels = state.phase === 'result' && (shown ?? state.preview).mode === 'pixels'
   const canDetect = !loading && !busy && state.phase !== 'error' && size !== null
@@ -462,7 +468,7 @@ export default function ImportScreen() {
 
   return (
     <main className="screen import" {...drop.handlers}>
-      <TopBar title="Import pattern" help="import" />
+      <TopBar title={screen.title} help={intent === 'picture' ? 'photo' : 'import'} />
       <SaveBar
         name={name}
         onName={setName}
@@ -471,7 +477,7 @@ export default function ImportScreen() {
       />
       <Notices notices={notices} />
       <div className="confirm" data-dim={dim || undefined} style={stageShape}>
-        {preview && <Kind preview={preview} disabled={busy || loading} onSwitch={switchMode} />}
+        {preview && <Note preview={preview} disabled={busy || loading} onPhoto={toPhoto} />}
         {preview && <Summary preview={preview} />}
         <div className="confirm__grid">
           <section className="confirm__col confirm__col--image" aria-labelledby={`${ids}-image`}>
@@ -512,12 +518,11 @@ export default function ImportScreen() {
                 spotlight={spotlight}
                 {...(pinned !== null && spotlight !== null && !sidebar ? { onShowAll: () => setPinned(null) } : {})}
                 redetecting={busy}
-                busyText={switching ? 'Making the pattern…' : 'Finding the grid…'}
                 onRetry={() => {
                   setAdjusted(false)
                   setRun((r) => ({ attempt: r.attempt + 1 }))
                 }}
-                onPicture={() => switchMode('picture')}
+                onPhoto={toPhoto}
                 another={another}
               />
             </div>
@@ -559,7 +564,7 @@ export default function ImportScreen() {
           </section>
         </div>
       </div>
-      <DropOverlay show={drop.over} text="Drop an image to import it" />
+      <DropOverlay show={drop.over} text={screen.drop} />
     </main>
   )
 }
@@ -638,22 +643,19 @@ function Size({ cols, rows }: { cols: number; rows: number }) {
   )
 }
 
-/** What the image was read as, in one line above the stages, and the way to the other
- *  reading. Quiet for a chart; set apart when the chart reading is in doubt. */
-function Kind({ preview, disabled, onSwitch }: { preview: Preview; disabled: boolean; onSwitch: (mode: Mode) => void }) {
-  const line = kindLine(preview.mode, preview.reading)
+/** A line above the stages, only when there's something to say (importer/picture.ts's
+ *  readingNote): pixel art read block by block, quietly; a chart read with doubts, set
+ *  apart, with the way to "Photo to pattern" should the image be a photo after all. */
+function Note({ preview, disabled, onPhoto }: { preview: Preview; disabled: boolean; onPhoto: () => void }) {
+  const note = readingNote(preview.mode, preview.reading)
+  if (!note) return null
   return (
-    <p className="confirm__kind" data-mode={preview.mode} data-prominent={line.prominent || undefined}>
-      {line.prominent && <span aria-hidden="true">⚠ </span>}
-      <span className="confirm__kind-text">{line.text}</span>
-      {line.action && (
-        <button
-          type="button"
-          className={line.prominent ? 'button button--small' : 'button button--ghost button--small'}
-          disabled={disabled}
-          onClick={() => onSwitch(line.action!.mode)}
-        >
-          {line.action.label}
+    <p className="confirm__kind" data-mode={preview.mode} data-prominent={note.warning || undefined}>
+      {note.warning && <span aria-hidden="true">⚠ </span>}
+      <span className="confirm__kind-text">{note.text}</span>
+      {note.offerPhoto && (
+        <button type="button" className="button button--ghost button--small" disabled={disabled} onClick={onPhoto}>
+          Use {PHOTO_TO_PATTERN} instead
         </button>
       )}
     </p>
@@ -802,23 +804,20 @@ function Outcome({
   shown,
   redetecting,
   spotlight = null,
-  busyText = 'Finding the grid…',
   onRetry,
-  onPicture,
+  onPhoto,
   onShowAll,
   another,
 }: {
   state: ImportState
   shown: Preview | null
-  /** Detecting again, or switching reading: the pattern stays up, dimmed. */
+  /** Detecting again: the pattern stays up, dimmed. */
   redetecting: boolean
-  /** What's being done while `redetecting`. */
-  busyText?: string
   /** The palette index whose cells to show, the rest faded. */
   spotlight?: number | null
   onRetry: () => void
-  /** Turn an image read as a chart that can't be read into a pattern anyway. */
-  onPicture: () => void
+  /** Take an image that can't be read as a chart to "Photo to pattern". */
+  onPhoto: () => void
   /** Where the colours are below the pattern: stop showing the one picked there. */
   onShowAll?: () => void
   another: (label: string, className?: string) => ReactNode
@@ -843,7 +842,7 @@ function Outcome({
         <>
           <div className="stage">
             <PatternView preview={preview} spotlight={spotlight} />
-            {redetecting && <p className="stage__busy">{busyText}</p>}
+            {redetecting && <p className="stage__busy">Finding the grid…</p>}
           </div>
           <div className="confirm__below">
             <Size cols={preview.cols} rows={preview.rows} />
@@ -869,13 +868,14 @@ function Outcome({
             {/* With no grid, a box drawn on the image beside it is the way on. */}
             <p className="import__actions">
               {another('Try another image', state.code === 'NO_GRIDLINES' ? 'button' : 'button button--primary')}
-              {/* It looks like a chart, so it isn't converted unasked: a blurred chart
-                  would make a plausible, wrong pattern. */}
-              {state.reading && (
-                <button type="button" className="button" disabled={redetecting} onClick={onPicture}>
-                  Turn it into a pattern anyway
-                </button>
-              )}
+            </p>
+            {/* Never converted unasked: a blurred chart would make a plausible, wrong
+                pattern. The person who has a photo says so. */}
+            <p className="import__photo">
+              Not a chart? {PHOTO_TO_PATTERN} makes a new pattern from any photo or drawing.{' '}
+              <button type="button" className="button button--small" disabled={redetecting} onClick={onPhoto}>
+                Use {PHOTO_TO_PATTERN}
+              </button>
             </p>
             {/* The code is for a bug report, not for the person holding the yarn. */}
             <p className="confirm__note">Detection failed ({state.code})</p>

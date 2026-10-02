@@ -16,6 +16,8 @@ export type Route =
   | { name: 'library' }
   | { name: 'settings' }
   | { name: 'import' }
+  /** The import screen for a picture to turn into a pattern ("Photo to pattern"). */
+  | { name: 'photo' }
   | { name: 'work'; id: string }
   | { name: 'design'; id: string }
   /** A project, in whichever stage it should open in (ui/screens/OpenProject.tsx). */
@@ -27,6 +29,7 @@ export const paths = {
   library: '/library',
   settings: '/settings',
   importImage: '/import',
+  photo: '/photo',
   work: (id: string) => `/work/${encodeURIComponent(id)}`,
   design: (id: string) => `/design/${encodeURIComponent(id)}`,
   open: (id: string) => `/open/${encodeURIComponent(id)}`,
@@ -38,6 +41,7 @@ export function parseHash(hash: string): Route {
   if (path === paths.library) return { name: 'library' }
   if (path === paths.settings) return { name: 'settings' }
   if (path === paths.importImage) return { name: 'import' }
+  if (path === paths.photo) return { name: 'photo' }
   const project = /^\/(work|design|open)\/([^/]+)$/.exec(path)
   if (project) {
     try {

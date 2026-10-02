@@ -1,6 +1,8 @@
 /**
  * The first screen: a large drop zone to import a chart, with the other ways in beside
- * it (Library, Design pattern, Settings, Help, Feedback). The desktop opened straight onto the Library; the web
+ * it (Photo to pattern, Library, Design pattern, Settings, Help, Feedback). Reading a
+ * chart is what the app is for, so it has the drop zone, and a dropped or pasted image is
+ * read as one; turning a photo into a pattern is asked for by its own tile (§5a). The desktop opened straight onto the Library; the web
  * app starts here instead (docs/dev/history/web-port.md#landing-screen).
  */
 import { useCallback, useState } from 'react'
@@ -11,7 +13,8 @@ import { preloadDetection } from '../../app/detection.ts'
 import { href, navigate, paths } from '../../app/router.ts'
 import { DropOverlay, ImportButton, Notices, ReplaceDialog } from '../components.tsx'
 import { useDocumentTitle, useFileDrop, usePastedImage, useProjects } from '../hooks.ts'
-import { DesignIcon, FeedbackIcon, HelpIcon, ImportIcon, LibraryIcon, Logo, SettingsIcon } from '../icons.tsx'
+import { PHOTO_TO_PATTERN } from '../../importer/picture.ts'
+import { DesignIcon, FeedbackIcon, HelpIcon, ImportIcon, LibraryIcon, Logo, PhotoIcon, SettingsIcon } from '../icons.tsx'
 import { NewPatternDialog } from '../NewPattern.tsx'
 import { openImageImport, useAlphaImport } from '../useAlphaImport.ts'
 
@@ -52,9 +55,10 @@ export function Landing() {
           disabled={!repo || busy}
         >
           <ImportIcon />
-          <span className="drop-zone__title">Import pattern</span>
+          <span className="drop-zone__title">Import a chart</span>
           <span className="drop-zone__text">
-            From a photo or screenshot of a chart, or any picture to turn into a pattern (PNG, JPEG or WebP), or a <code>.alpha</code> file.
+            A screenshot or photo of an alpha chart, or pixel art: every square becomes one stitch, exactly as charted
+            (PNG, JPEG or WebP). Or a <code>.alpha</code> file.
           </span>
           <span className="drop-zone__how drop-zone__how--pointer">
             Drop it here, paste it, or click to choose a file.
@@ -63,6 +67,13 @@ export function Landing() {
         </ImportButton>
 
         <ul className="tiles">
+          <li>
+            <a className="tile" href={href(paths.photo)} onPointerEnter={preloadDetection} onFocus={preloadDetection}>
+              <PhotoIcon />
+              <span className="tile__title">{PHOTO_TO_PATTERN}</span>
+              <span className="tile__text">Make a new pattern from any photo or drawing. You choose its size and colours.</span>
+            </a>
+          </li>
           <li>
             <a className="tile" href={href(paths.library)}>
               <LibraryIcon />
