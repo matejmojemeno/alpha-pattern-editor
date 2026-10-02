@@ -1,9 +1,12 @@
 # Importing a chart
 
-The import screen turns a picture of a chart into a pattern. The app finds the grid,
+**Import a chart** turns a picture of a chart into a pattern. The app finds the grid,
 reads each stitch's colour and names the colours; your job here is only to check that the
 grid is right, and fix it if it isn't. Changing the pattern itself (painting, removing or
 renaming colours) comes next, in [Design](design.md).
+
+Don't have a chart, just a photo or a drawing? Use
+[Photo to pattern](#photo-to-pattern) instead: it makes a new chart from any image.
 
 <img src="media/import-detected-grid.png" alt="The import screen: the chart image with the detected grid on the left, the pattern it became in the middle, and its five colours with stitch counts on the right" width="800">
 
@@ -23,6 +26,11 @@ a chart best when:
 Row and column numbers, watermarks, captions and page margins around the grid are fine:
 they're left out.
 
+**Pixel art** works too, with or without gridlines: a game sprite or an icon, enlarged or
+not. Each block of colour becomes one stitch, exactly, and the screen says "Read as pixel
+art". There's no outline to move, since nothing is guessed. (Pixel art saved as JPEG
+isn't exact, so it's read as a chart instead.)
+
 Very large photos are shrunk before reading (to about 4 megapixels). The app says so
 under the pattern when it does: check the size, and fix it in Design if needed.
 
@@ -33,8 +41,11 @@ From the home screen or the [Library](library.md):
 - **drop** the image anywhere on the page;
 - **paste** it (`Ctrl+V`, or `Cmd+V` on a Mac), for example straight after taking a
   screenshot;
-- or click **Import pattern** (on the home screen) or **Import pattern…** (in the Library)
+- or click **Import a chart** (on the home screen) or **Import pattern…** (in the Library)
   and choose the file. On a phone or tablet, tap it.
+
+An image opened this way is always read as a chart: the app never turns it into a
+different pattern by itself.
 
 One image is imported at a time. If you drop several, the first opens and the app says
 so.
@@ -58,7 +69,10 @@ Compare the pattern with your image. The most common problems are a row or colum
 at an edge, or two shades that should be one colour. Both are fixed below.
 
 A warning (⚠) above the image means the app is less sure than usual; see
-[Troubleshooting](troubleshooting.md#a-warning-shows-above-the-image).
+[Troubleshooting](troubleshooting.md#a-warning-shows-above-the-image). "Many squares
+were hard to read" means many squares didn't come out as one clear colour: compare the
+pattern with your image before you save. If your image is really a photo and not a chart,
+**Use Photo to pattern instead** beside it takes the same image there.
 
 ## Fix a grid that's a row or column short
 
@@ -118,3 +132,30 @@ If the app can't read the image, it says why in place of the pattern, with what 
 Each message and its fix is in [Troubleshooting](troubleshooting.md#import-messages).
 Most often, a box dragged around just the squares, or a larger, straighter copy of the
 chart, gets it read.
+
+If the image isn't a chart at all, **Use Photo to pattern**, under the message, takes it
+(and the name you typed) to [Photo to pattern](#photo-to-pattern). Your browser's Back
+button returns to reading it as a chart.
+
+## Photo to pattern
+
+**Photo to pattern**, a tile on the home screen, makes a new chart from any photo or
+drawing: a pet, a flower, a logo. Unlike importing a chart, nothing is read from the
+image square by square. It's redrawn in stitches, and you choose how:
+
+- **Width:** how many stitches across. The rows follow from the image's shape (and from
+  your swatch, once it's measured in [Settings](settings.md), which also gives the
+  finished size in cm).
+- **Detail:** from "Fewer colour changes", which smooths away lone stitches you'd have to
+  change yarn for, to "More detail".
+- **Keep outlines:** for drawings with dark lines, such as a cartoon. It keeps them, one
+  stitch thick. Off to start with; turn it on and see whether it helps.
+- **Colours:** the − and + beside the heading make the pattern again with one colour
+  fewer or more.
+
+The blue outline crops the image: drag an edge to use only part of it, or drag a box on
+the image. **Use the whole picture** undoes it. Then name the pattern and press
+**Save & edit pattern**, as for a chart.
+
+Crop close to what you want to see: the background is stitches you'll crochet and never
+look at.

@@ -33,18 +33,20 @@ You can go back and forth between Design and Work as often as you like: **Start 
 in Design, and **Options** then **Edit pattern…** in Work. Everything is saved as you go;
 there's no Save button.
 
-The home screen leads to all of it: the big **Import pattern** area, and **Library**,
-**Design pattern**, **Settings**, **Help** and **Feedback** beside it. **Help** opens this
+The home screen leads to all of it: the big **Import a chart** area, and
+**Photo to pattern** (a new chart made from any photo or drawing,
+[how](import.md#photo-to-pattern)), **Library**, **Design pattern**, **Settings**,
+**Help** and **Feedback** beside it. **Help** opens this
 guide, and the **?** at the top of every other screen opens the page about that screen.
 
-<img src="media/landing.png" alt="The home screen: a large dashed Import pattern area on the left, and the Library, Design pattern, Settings, Help and Feedback tiles stacked on the right" width="700">
+<img src="media/landing.png" alt="The home screen: a large dashed Import a chart area on the left, and the Photo to pattern, Library, Design pattern, Settings, Help and Feedback tiles stacked on the right" width="700">
 
 ## Import your first chart
 
 1. Find a picture of an alpha chart: a screenshot, a saved image, or a photo. Charts with
    visible gridlines, taken straight on, work best (see
    [which images work](import.md#choose-an-image-that-works)).
-2. Open the app, and drop the image on the **Import pattern** area, paste it (`Ctrl+V`,
+2. Open the app, and drop the image on the **Import a chart** area, paste it (`Ctrl+V`,
    or `Cmd+V` on a Mac), or click the area to choose the file. On a phone or tablet, tap
    it.
 3. The first time, the app downloads its chart reader, about 9 MB. Wait for

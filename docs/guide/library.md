@@ -47,7 +47,7 @@ a cloud drive. See [Your data](your-data.md).
 2. Get the `.alpha` file to the other device: email it to yourself, or put it on a cloud
    drive.
 3. On the other device, open the app and import the file: drop it on the home screen or
-   the Library, or choose it with **Import pattern** (home screen) or
+   the Library, or choose it with **Import a chart** (home screen) or
    **Import pattern…** (Library).
 
 Your progress comes with it. You can import several `.alpha` files at once.

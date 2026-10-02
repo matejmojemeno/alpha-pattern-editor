@@ -273,11 +273,27 @@ Build a debug window early — not last — rendering: dark mask, `run_h`/`run_v
 
 ## 5a. Pictures (web only)
 
-The web import takes any image. A **chart** is read (§5); anything else is a **picture**,
-turned into a pattern. There is no choice to make up front: the app decides, says which,
-and the other reading is one click away. The desktop app stays chart-only.
+The web app has two ways in, and the person chooses: **Import a chart** reads a chart
+(§5), or pixel art block by block; **Photo to pattern** turns any image into a pattern as
+a **picture**. Reading a chart is what the app is for, so it has the home screen's drop
+zone, and a dropped or pasted image is read as a chart; Photo to pattern has its own tile
+and screen (`#/photo`). The desktop app stays chart-only.
 
-### Chart or picture (`core/kind.py`)
+Asked for a chart, the app tries its hardest to read one and never converts unasked:
+any grid detection finds is read, whatever `kind.py` makes of it below
+(`kind.read_chart`), and with no grid the screen gives detection's advice, with a button
+to Photo to pattern. A chart read with more than 15% of its squares unsure is shown with
+a warning to check it, and the same button. Asked for a picture, nothing is detected.
+
+Before, one import decided by itself, and a chart judged a picture (most often a
+screenshot whose grid spans under 60% of one side) was converted, a dead end until the
+person found the switch. 7 of 300 synthetic charts in `synth.random_spec` were judged so;
+all 7 are now read as charts.
+
+### Chart, picture or pixel art (`core/kind.py`)
+
+`kind.read_image` still classifies, because pixel art is told from a chart by it (below,
+and `rules.md#pixel-art-last`), and its verdicts are tested image by image.
 
 Detection's success or failure doesn't decide it: most photos fail as LOW_RESOLUTION
 (texture fits 3–5 px squares), and so does a real chart with 5 px squares; a picture can
@@ -286,11 +302,11 @@ it spans at least 60% of each side, its edge strength on the lattice is at least
 that half a square off it, its gridlines have an edge along at least half their length
 (a drawing's lattice crosses its lines at a point or two), and no more than 60% of its
 cells are unsure. With more than
-15% unsure it is a chart **with doubts**, and the picture reading is offered prominently.
+15% unsure it is a chart **with doubts**.
 A LOW_RESOLUTION or ROTATED refusal stays a chart's refusal only if a fit below the
 minimum square size still looks like a grid (square to 1.2:1, contrast 1.25, 70% of the
-lattice on detected lines); then the screen gives the advice to fix it, and "turn it into
-a pattern anyway". Everything else is a picture.
+lattice on detected lines). Everything else is a picture; `read_chart` reads such a
+picture's grid as a chart all the same, or reports detection's refusal.
 
 Calibrated on every chart in `test_images/` and 25 CC0 pictures in
 `test_images/pictures/` (animals, landscapes, drawings, and grid-like photos: tiles, brick,
@@ -409,8 +425,8 @@ Minimal, high-contrast, glanceable. The design goal is that a person mid-row can
 
 File dialog, drag-and-drop, and **paste from clipboard** (`Ctrl+V` of a screenshot is the most common real-world path — support it via `QGuiApplication.clipboard().image()`).
 
-(Web: any image, not only a chart. It is read as a chart or turned into a pattern as a
-picture, §5a, and the screen says which.)
+(Web: "Import a chart" reads a chart or pixel art; "Photo to pattern" turns any image
+into a pattern as a picture, §5a.)
 
 ### 7.2 Confirmation — the reliability gate
 
