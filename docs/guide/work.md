@@ -25,18 +25,29 @@ you [choose another craft](#choose-your-craft).
   and scrolls down with you, keeping your row in the middle. A wide pattern fits the
   screen whole, so you see each row at once without scrolling sideways.
 
+## The Options menu
+
+**Options**, at the top right, has three groups:
+
+- **How you work it:** your craft, the corner you start in, and whether rows go back and
+  forth or in the round. These are saved with the pattern.
+- **Chart:** how the chart looks, for every pattern: stitch numbers, where to carry yarn,
+  an enlarged current row, and hiding the rest of the chart. The same switches are in
+  [Settings](settings.md).
+- **Pattern:** **Rename…**, **Edit in Design**, **Download as text** and **Help**.
+
 ## Choose your craft
 
 Open **Options** and pick what you're making under **Craft**:
 
 | Craft | Row 1 | Rows |
 |---|---|---|
-| **Tapestry crochet** | the bottom row, from the right | turn at each end |
-| **Intarsia crochet** | the bottom row, from the right | turn at each end |
-| **Stranded knitting (Fair Isle)** | the bottom row, from the right | turn at each end |
-| **Intarsia knitting** | the bottom row, from the right | turn at each end |
-| **Alpha friendship bracelet** | the top row, from the left | turn at each end |
-| **Bead loom** | as the pattern already has it | all run the same way |
+| **Tapestry crochet** | the bottom row, from the right | back and forth |
+| **Intarsia crochet** | the bottom row, from the right | back and forth |
+| **Stranded knitting (Fair Isle)** | the bottom row, from the right | back and forth |
+| **Intarsia knitting** | the bottom row, from the right | back and forth |
+| **Alpha friendship bracelet** | the top row, from the left | back and forth |
+| **Bead loom** | as the pattern already has it | all the same way |
 
 Picking a craft sets which row is row 1 and which way the rows run, as charts for that
 craft are read. The stitch count and **Record progress** say "knots" for a bracelet and
@@ -45,15 +56,18 @@ craft is saved with the pattern.
 
 ## Which row is row 1, and which way it runs
 
-Your craft sets these, and you can change them in **Options**:
+Your craft sets these, and you can change them in **Options**, under **How you work it**:
 
-- **Start rows from the right:** row 1 runs right to left. Untick it to start from the
-  left, for example if you crochet or knit left-handed.
-- **Start from the top row:** row 1 is the top row of the chart, not the bottom one.
-- **Work in rounds (every row the same way):** tick it when you work in the round, so
-  that every round runs the same way. Untick it for flat work, where each row runs the
-  opposite way to the one before. For a bracelet or a bead loom it's called **Every row
-  the same way**.
+- **First stitch:** the corner of the chart where the pattern begins: **Top left**,
+  **Top right**, **Bottom left** or **Bottom right**. Row 1 is the top or bottom row, and
+  it runs away from that corner. Crochet and knitting usually start at the bottom right;
+  if you work left-handed, pick **Bottom left**.
+- **Rows:** **Back and forth** for flat work, where each row runs the opposite way to
+  the one before. **In the round** when every round runs the same way. For a bracelet or a
+  bead loom it's called **All the same way**.
+
+Underneath, one line says what you've picked in words, for example "Row 1 is the bottom
+row of the chart, worked right to left; row 2 comes back left to right."
 
 Each of these is saved with the pattern, and every row's colours and arrow change to
 match. If you're partway through a row and it would now read the other way, the app asks
@@ -123,7 +137,7 @@ tells you how far into a block you are.
 
 Stitches too small to hold a number stay plain: a big pattern on a phone may show
 numbers only on the taller rows around your place, or none until you zoom in. To hide
-the numbers, untick **Number the stitches** in **Options** (or in
+the numbers, switch off **Number the stitches** in **Options** (or in
 [Settings](settings.md)).
 
 ## Zoom and scroll on a phone
@@ -134,7 +148,7 @@ progress, the chart moves back to your place. The zoom goes back to normal each 
 open the Work stage.
 
 To see more of the rows near your place, or only those, see
-[Taller rows and focus mode](settings.md#make-the-current-row-easier-to-find).
+[Enlarge the current row, or hide the rest](settings.md#make-the-current-row-easier-to-find).
 
 ## Keep the screen awake
 
@@ -152,10 +166,10 @@ so it's **Options** then **Help**.
 Open **Options** and choose **Rename…**. Type the new name, then press `Enter` to keep it
 or `Escape` to leave it as it was.
 
-## Export the row-by-row instructions
+## Download the rows as text
 
-**Options** then **Export readout** saves a text file named after the pattern, with every
-row in working order, such as:
+**Options** then **Download as text** saves a text file named after the pattern, with
+every row in working order, such as:
 
 ```text
 Row 1 ←  30 Red
@@ -166,6 +180,6 @@ Print it, or keep it with your yarn.
 
 ## Change the pattern
 
-**Options** then **Edit pattern…** opens the pattern in [Design](design.md). Your progress
+**Options** then **Edit in Design** opens the pattern in [Design](design.md). Your progress
 comes with it; the Design page says
 [what happens to it when you edit](design.md#go-to-work-and-what-happens-to-your-progress).

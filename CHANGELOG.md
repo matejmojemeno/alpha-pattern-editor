@@ -33,6 +33,15 @@ line per change, under the release it's in.
 - In the Work stage, a pattern much wider than it is tall now fits the screen whole, so
   each row is on screen at once. Before, it was enlarged and scrolled sideways along every
   row. A pattern much taller than wide still fills the width and scrolls down with you.
+- The Work stage's **Options** are in three groups: **How you work it**, **Chart** and
+  **Pattern**. Pick the corner you start in under **First stitch**, and **Back and forth**
+  or **In the round** under **Rows**, with a line that says what that means for row 1
+  and row 2. Several options have clearer names: **Enlarge the current row**, **Hide
+  the rest of the chart** (was Focus mode), **Edit in Design** and **Download as text**.
+
+### Removed
+
+- **High contrast**. Your light or dark system setting still applies.
 
 ### Fixed
 
