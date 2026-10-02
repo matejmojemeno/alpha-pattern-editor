@@ -23,10 +23,12 @@ The desktop's fast/slow split is kept (confirm_window.py): full detection runs o
 session's `ConfirmState`, which caches the result until a setting changes.
 
 An image is read as a **chart**, turned into a pattern as a **picture**, or read block by
-block as **pixels** (pixel art without gridlines, pixels.py; nothing to adjust) (kind.py
-decides; `reading` in every payload says what it decided and what else is possible). A
-session is in one mode at a time, `set_mode` switches, and `set_params`, `preview` and
-`commit` act on the mode it is in. A picture's steps are cached by its `PictureState`
+block as **pixels** (pixel art without gridlines, pixels.py; nothing to adjust). The
+person says which they want (`open_session`'s `intent`, §5a): a chart is read by
+kind.read_chart, which may find pixel art but never turns anything into a picture; a
+picture is converted without detecting anything. `reading` in every payload says what was
+found. A session stays in its mode (a chart's "Convert as a photo" opens a new session
+on the photo screen), and `set_params`, `preview` and `commit` act on that mode. A picture's steps are cached by its `PictureState`
 (convert.py), so moving the Detail slider only reassigns the stitches.
 
 Keys are camelCase, the convention on the JavaScript side, except in `commit`'s pattern,
@@ -45,7 +47,7 @@ import numpy as np
 from .confirm import ConfirmState, Extent, Preview, pattern_from_preview
 from .convert import MAX_WIDTH, PictureState, clamp_width
 from .detect.palette import DEFAULT_DELTA_E
-from .kind import Reading, read_image
+from .kind import Reading, read_chart
 from .pixels import PixelArt, pixel_preview
 
 # The detection warnings that come from sampling the cells rather than from fitting the
@@ -70,7 +72,8 @@ class _Session:
     # Detection keeps `img`, alpha dropped, as the desktop does.
     picture_img: np.ndarray | None = None
     cell_aspect: float = 1.0        # a stitch's height over its width, from the swatch
-    mode: str = "chart"             # "chart" or "picture"
+    mode: str = "chart"             # "chart", "picture" or "pixels"
+    intent: str = "chart"           # what the person asked for: "chart" or "picture"
     reading: Reading | None = None
     picture: PictureState | None = None
     # Pixel art without gridlines, read block by block (pixels.py), with the top left of
@@ -194,21 +197,16 @@ def _warnings(session: _Session, preview: Preview) -> list[str]:
 
 
 def _reading_payload(session: _Session) -> dict:
-    """What the session's image was read as, and what else it can be read as.
+    """What the session's image was read as.
 
-    kind:     "chart", "picture" or "pixels", as kind.py decided.
-    sure:     False for a chart read with doubts (the screen then offers the picture
-              reading prominently).
-    canChart: a grid was found, so the chart reading is available.
-    canPixels: the image is made of uniform blocks, so it can be read pixel by pixel.
-    failure:  the code of a chart's refusal (LOW_RESOLUTION, ROTATED), or None."""
+    kind:     "chart" or "pixels" (kind.read_chart), or "picture" when that was asked for.
+    sure:     False for a chart read with doubts: many of its squares are unsure, so the
+              screen asks for it to be checked against the image.
+    failure:  the code of a chart's refusal (NO_GRIDLINES, LOW_RESOLUTION, ...), or None."""
     r = session.reading
-    can_pixels = session.pixels is not None
     if r is None:
-        return {"kind": "chart", "sure": True, "canChart": session.state is not None,
-                "canPixels": can_pixels, "failure": None}
-    return {"kind": r.kind, "sure": bool(r.sure), "canChart": session.state is not None,
-            "canPixels": can_pixels,
+        return {"kind": "chart", "sure": True, "failure": None}
+    return {"kind": r.kind, "sure": bool(r.sure),
             "failure": None if r.error is None else r.error.code}
 
 
@@ -282,14 +280,23 @@ def _work_crop(session: _Session, crop) -> tuple[int, int, int, int]:
 
 
 def _detect(session_id: int, session: _Session, crop=None) -> dict:
-    """Run full detection on the session's image (or a crop of it), decide what it is
-    (kind.py), and reset the session to that reading."""
+    """Read the session's image (or a crop of it) as what the person asked for, and reset
+    the session to that reading: a chart (or pixel art) by full detection
+    (kind.read_chart); a picture by converting it, with no detection at all."""
     session.state = None
     session.lattice_warnings = []
     session.picture = None
     if crop is not None:
         crop = _work_crop(session, crop)
-    reading = read_image(session.img, delta_e_threshold=session.delta_e, crop=crop,
+    if session.intent == "picture":
+        session.reading = Reading("picture", True, None, None, "asked for")
+        session.pixels = None
+        session.mode = "picture"
+        ps = _picture(session)
+        if crop is not None:
+            ps.set_extent(Extent(*(float(v) for v in crop)))
+        return _preview_payload(session_id, session)
+    reading = read_chart(session.img, delta_e_threshold=session.delta_e, crop=crop,
                          flat=session.picture_img)
     result = reading.result
     # Keep the verdict, not the result: the ConfirmState below is all that's resampled.
@@ -310,12 +317,6 @@ def _detect(session_id: int, session: _Session, crop=None) -> dict:
     if reading.kind == "pixels":
         session.mode = "pixels"
         return _preview_payload(session_id, session)
-    if reading.kind == "picture":
-        session.mode = "picture"
-        ps = _picture(session)
-        if crop is not None:
-            ps.set_extent(Extent(*(float(v) for v in crop)))
-        return _preview_payload(session_id, session)
     session.mode = "chart"
     if reading.error is not None:
         return _error(reading.error.code, str(reading.error), session=session_id,
@@ -332,15 +333,19 @@ def _session(session_id) -> _Session | dict:
 
 @_out_of_memory_as_data
 def open_session(rgba, width: int, height: int, delta_e: float = DEFAULT_DELTA_E,
-                 max_pixels: int | None = None, crop=None, cell_aspect: float = 1.0) -> dict:
+                 max_pixels: int | None = None, crop=None, cell_aspect: float = 1.0,
+                 intent: str = "chart") -> dict:
     """Start a session on an image and read it, or only `crop` = (x0, y0, x1, y1) of it
-    (image pixels): as a chart if it is one, otherwise as a picture turned into a pattern
-    (kind.py). The session stays open when a chart can't be read, so the user can crop and
-    `redetect`, or `set_mode` to a picture; the failure carries its id.
+    (image pixels), as `intent` asks: "chart" reads its squares (or its blocks, for pixel
+    art; kind.read_chart), "picture" turns it into a pattern (convert.py). The session
+    stays open when a chart can't be read, so the user can crop and `redetect`; the failure
+    carries its id.
 
     With `max_pixels`, a bigger image is shrunk by a whole-number factor first
     (`shrink_factor`, `shrink`); coordinates in and out stay in the image's own pixels.
     `cell_aspect` is a stitch's height over its width (the swatch), for pictures."""
+    if intent not in ("chart", "picture"):
+        return _error("BAD_MODE", f"No such intent {intent!r}.")
     k = shrink_factor(int(width), int(height), max_pixels)
     try:
         img = _rgb_from_rgba(rgba, width, height, k)
@@ -350,7 +355,8 @@ def open_session(rgba, width: int, height: int, delta_e: float = DEFAULT_DELTA_E
     session_id = next(_ids)
     session = _Session(img=img, width=int(width), height=int(height), scale=k,
                        delta_e=float(delta_e), state=None, lattice_warnings=[],
-                       picture_img=on_white, cell_aspect=_aspect(cell_aspect, 1.0))
+                       picture_img=on_white, cell_aspect=_aspect(cell_aspect, 1.0),
+                       intent=intent)
     _sessions[session_id] = session
     return _detect(session_id, session, crop=None if crop is None else tuple(crop))
 
@@ -362,24 +368,6 @@ def _aspect(value, fallback: float) -> float:
     except (TypeError, ValueError):
         return fallback
     return v if 0.2 <= v <= 5.0 else fallback
-
-
-@_out_of_memory_as_data
-def set_mode(session: int, mode: str) -> dict:
-    """Read the image as a "chart", turn it into a pattern as a "picture", or read it
-    block by block as "pixels", and return that preview. A picture starts over the whole
-    image; a chart needs a detected grid, and pixels an image made of uniform blocks."""
-    s = _session(session)
-    if isinstance(s, dict):
-        return s
-    if mode not in ("chart", "picture", "pixels"):
-        return _error("BAD_MODE", f"No such mode {mode!r}.")
-    if mode == "chart" and s.state is None:
-        return _error("NO_DETECTION", "There is no detected grid to read as a chart.")
-    if mode == "pixels" and s.pixels is None:
-        return _error("NO_DETECTION", "This image isn't made of uniform blocks to read as pixels.")
-    s.mode = mode
-    return _preview_payload(int(session), s)
 
 
 @_out_of_memory_as_data

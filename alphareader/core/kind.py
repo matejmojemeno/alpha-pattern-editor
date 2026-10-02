@@ -1,7 +1,13 @@
-"""Chart or picture? The import decides by itself (§5a).
+"""Chart, picture or pixel art? (§5a)
 
-A chart's squares are read; a picture is turned into a pattern (convert.py). Detection
-alone can't tell them apart, measured on test_images/ and test_images/pictures/:
+The person says what they have: "Import a chart" reads it (`read_chart`), "Photo to
+pattern" turns it into a pattern (convert.py) and reads nothing. `read_chart` still asks
+`read_image` what the image looks like, but only to tell pixel art from a chart: a grid
+detection found is always read as a chart there, however unlike one it looks, because a
+chart called a picture is a dead end and a picture read as a chart is plain to see on
+the import screen. The verdict between chart and picture rests on what follows.
+
+Detection alone can't tell them apart, measured on test_images/ and test_images/pictures/:
 
 - **Failing doesn't mean "picture".** Most photos fail with LOW_RESOLUTION, because fine
   texture fits a grid of 3–5 px squares, but so does garment.png, a real chart with 5 px
@@ -60,7 +66,8 @@ class Reading:
     result:  the detected grid, when there is one: also kept for a picture, so it can
              still be read as a chart.
     error:   detection's refusal, when the image looks like a chart it can't read
-             (LOW_RESOLUTION, ROTATED); None otherwise.
+             (LOW_RESOLUTION, ROTATED), or for a picture, when detection found no grid
+             (`read_chart` reports it); None otherwise.
     reason:  a short note on why, for tests and bug reports (never shown as advice).
     pixels:  the image as uniform blocks (pixels.py), when it is read as pixels: kept
              after turning it into a pattern, to go back.
@@ -175,6 +182,24 @@ def read_image(img: np.ndarray, *, delta_e_threshold: float = DEFAULT_DELTA_E,
     return reading
 
 
+def read_chart(img: np.ndarray, *, delta_e_threshold: float = DEFAULT_DELTA_E,
+               crop: tuple[int, int, int, int] | None = None,
+               flat: np.ndarray | None = None) -> Reading:
+    """Read `img` (or `crop` of it) as the chart the person says it is: pixel art block by
+    block, as `read_image` decides; anything else as a chart. A grid `read_image` judged
+    a picture's is read all the same, `sure` only when few of its squares are unsure; with
+    no grid, it is a chart detection refused, for detection's reason. Never a picture."""
+    reading = read_image(img, delta_e_threshold=delta_e_threshold, crop=crop, flat=flat)
+    if reading.kind != "picture":
+        return reading
+    if reading.result is not None:
+        unsure = float(np.mean(reading.result.confidence < 0.6))
+        return Reading("chart", unsure <= _SURE_UNSURE, reading.result, None,
+                       f"read as a chart on request ({reading.reason})")
+    error = reading.error or DetectionError("NO_GRIDLINES", "Couldn't find gridlines.")
+    return Reading("chart", True, None, error, f"no grid ({reading.reason})")
+
+
 def _chart_or_picture(img: np.ndarray, region: np.ndarray, delta_e_threshold: float,
                       crop: tuple[int, int, int, int] | None) -> Reading:
     try:
@@ -182,7 +207,8 @@ def _chart_or_picture(img: np.ndarray, region: np.ndarray, delta_e_threshold: fl
     except DetectionError as err:
         if err.code in _CHART_FAILURES and looks_like_fine_grid(region):
             return Reading("chart", True, None, err, f"{err.code}, and a grid's structure")
-        return Reading("picture", True, None, None, f"{err.code}")
+        # The refusal is kept: read as a chart on request (`read_chart`), it is the reason.
+        return Reading("picture", True, None, err, f"{err.code}")
 
     ratio, span, unsure, contrast, coverage = _grid_signals(region, result)
     signals = (f"ratio {ratio:.2f}, span {span:.2f}, unsure {unsure:.2f}, contrast {contrast:.2f}, "

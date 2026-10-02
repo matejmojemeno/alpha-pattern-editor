@@ -53,10 +53,12 @@ def test_bundle_imports_without_io_or_pillow(tmp_path):
         "assert 'alphareader.core.io' not in sys.modules\n"
         "assert bridge.__file__.startswith(sys.path[0])\n"
         "img = np.full((40, 40, 4), 255, np.uint8)\n"
-        # No grid in a blank image: it is read as a picture (kind.py, convert.py).
-        "print(bridge.open_session(img.tobytes(), 40, 40)['mode'])\n"
+        # No grid in a blank image: a chart's failure (kind.py), and asked for as a
+        # picture, a pattern (convert.py).
+        "print(bridge.open_session(img.tobytes(), 40, 40)['ok'])\n"
+        "print(bridge.open_session(img.tobytes(), 40, 40, intent='picture')['mode'])\n"
     )
     res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
                          cwd=tmp_path)
     assert res.returncode == 0, res.stderr
-    assert res.stdout.strip() == "picture"
+    assert res.stdout.split() == ["False", "picture"]
