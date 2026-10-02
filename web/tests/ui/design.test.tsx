@@ -201,7 +201,7 @@ describe('Design stage', () => {
     await renderApp(`#/work/${project.pattern.id}`, { repo })
     await screen.findByText('Options')
     await userEvent.click(screen.getByText('Options'))
-    await userEvent.click(screen.getByRole('button', { name: 'Edit pattern…' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Edit in Design' }))
     await waitFor(() => expect(window.location.hash).toBe(`#/design/${project.pattern.id}`))
     await screen.findByRole('heading', { level: 1, name: project.pattern.name }, { timeout: 3000 })
     expect(screen.getByText("You're 2 rows into this project. Structural edits may shift your place.")).toBeTruthy()

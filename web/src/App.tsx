@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { RepoContext, SettingsContext, appSettings, openAppRepo, useSettings, type RepoState } from './app/context.ts'
+import { RepoContext, SettingsContext, appSettings, openAppRepo, type RepoState } from './app/context.ts'
 import { releaseDetection } from './app/detection.ts'
 import { clearPendingImage } from './app/pendingImage.ts'
 import { useRoute, type Route } from './app/router.ts'
@@ -32,7 +32,6 @@ export default function App({
   return (
     <SettingsContext value={settings}>
       <RepoProvider repo={repo}>
-        <Theme />
         <Screens />
       </RepoProvider>
     </SettingsContext>
@@ -52,17 +51,6 @@ function RepoProvider({ repo, children }: { repo?: Promise<ProjectRepo>; childre
     }
   }, [repo])
   return <RepoContext value={state}>{children}</RepoContext>
-}
-
-/** High contrast is a [data-contrast] attribute on <html>; tokens.css does the rest. */
-function Theme() {
-  const [{ highContrast }] = useSettings()
-  useLayoutEffect(() => {
-    const root = document.documentElement
-    if (highContrast) root.dataset.contrast = 'high'
-    else delete root.dataset.contrast
-  }, [highContrast])
-  return null
 }
 
 function Screens() {

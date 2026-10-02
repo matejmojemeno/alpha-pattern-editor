@@ -25,7 +25,6 @@ describe('parseSettings', () => {
   it('has the documented defaults', () => {
     expect(DEFAULT_SETTINGS).toEqual({
       emphasiseRows: true,
-      highContrast: false,
       focusMode: false,
       showCarries: false,
       stitchNumbers: true,
@@ -103,10 +102,10 @@ describe('parseSettings', () => {
     expect(parseSettings('{"yarnPerStitchCm":"2","ballMetres":null,"marginPercent":null}')).toEqual(DEFAULT_SETTINGS)
   })
 
-  it('keeps well-typed known fields and ignores the rest', () => {
-    expect(parseSettings('{"highContrast":true,"focusMode":"yes","other":1}')).toEqual({
+  it('keeps well-typed known fields and ignores the rest, such as the removed highContrast', () => {
+    expect(parseSettings('{"showCarries":true,"focusMode":"yes","other":1,"highContrast":true}')).toEqual({
       ...DEFAULT_SETTINGS,
-      highContrast: true,
+      showCarries: true,
     })
   })
 
@@ -123,20 +122,20 @@ describe('createSettingsStore', () => {
 
     const listener = vi.fn()
     const unsubscribe = store.subscribe(listener)
-    store.set({ highContrast: true })
+    store.set({ showCarries: true })
     expect(listener).toHaveBeenCalledTimes(1)
     expect(JSON.parse(storage.getItem(SETTINGS_KEY)!)).toEqual({
       ...DEFAULT_SETTINGS,
       emphasiseRows: true,
-      highContrast: true,
+      showCarries: true,
       focusMode: true,
     })
     unsubscribe()
-    store.set({ highContrast: false })
+    store.set({ showCarries: false })
     expect(listener).toHaveBeenCalledTimes(1)
 
     // A fresh store (a reload) sees what was written.
-    expect(createSettingsStore(() => storage).get().highContrast).toBe(false)
+    expect(createSettingsStore(() => storage).get().showCarries).toBe(false)
     expect(createSettingsStore(() => storage).get().focusMode).toBe(true)
   })
 
@@ -149,8 +148,8 @@ describe('createSettingsStore', () => {
     for (const get of [() => null, () => undefined, throwing]) {
       const store = createSettingsStore(get)
       expect(store.get()).toEqual(DEFAULT_SETTINGS)
-      store.set({ highContrast: true })
-      expect(store.get().highContrast).toBe(true) // kept for the session
+      store.set({ showCarries: true })
+      expect(store.get().showCarries).toBe(true) // kept for the session
     }
   })
 

@@ -7,7 +7,7 @@ describe('contrastOn', () => {
     expect(contrastOn('#ffffff')).toBe('#000000')
     expect(contrastOn('#000000')).toBe('#ffffff')
     expect(contrastOn('#f0a800')).toBe('#000000') // the accent
-    expect(contrastOn('#0a7d33')).toBe('#ffffff') // high-contrast primary
+    expect(contrastOn('#0a7d33')).toBe('#ffffff') // a dark green
     expect(contrastOn('#ff0000')).toBe('#ffffff') // luma 54: pure red is dark
     expect(contrastOn('#00ff00')).toBe('#000000') // luma 182
   })

@@ -18,7 +18,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import '../design.css'
 
 import { AutoSaver, type SaveStatus } from '../../app/autosave.ts'
-import { useSettings } from '../../app/context.ts'
 import { downloadBlob } from '../../app/download.ts'
 import { href, navigate, paths } from '../../app/router.ts'
 import { trackSave } from '../../app/saving.ts'
@@ -181,7 +180,6 @@ interface AxisMenu {
 }
 
 function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
-  const [settings] = useSettings()
   const [editor, setEditor] = useState<EditorState>(() => initialEditor(initial.pattern))
   const latest = useRef(editor)
   const [message, setMessage] = useState('')
@@ -1009,7 +1007,6 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
             onZoom={zoom}
             onZoomTo={setZoomed}
             onViewport={setViewport}
-            themeKey={settings.highContrast ? 'high' : 'normal'}
             label={
               preview
                 ? `Preview, ${shownPattern.cols} by ${shownPattern.rows}`

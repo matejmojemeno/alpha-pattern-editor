@@ -10,7 +10,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AutoSaver, type SaveStatus } from '../../app/autosave.ts'
 import { useSettings } from '../../app/context.ts'
 import { downloadBlob } from '../../app/download.ts'
-import { helpUrl } from '../../app/help.ts'
 import { href, navigate, paths } from '../../app/router.ts'
 import { trackSave } from '../../app/saving.ts'
 import { keepScreenAwake } from '../../app/wakeLock.ts'
@@ -28,8 +27,8 @@ import {
   workSequence,
 } from '../../logic/work.ts'
 import { reorder, repairProgress } from '../../logic/progress.ts'
-import { countOf, craftOf, CRAFTS, isCraftId, withCraft, type CraftId } from '../../craft/crafts.ts'
-import type { Pattern, Project } from '../../model/types.ts'
+import { countOf, craftOf, withCraft, type CraftId } from '../../craft/crafts.ts'
+import type { Direction, Pattern, Project } from '../../model/types.ts'
 import type { RowPlace } from '../../render/layout.ts'
 import { progressPct } from '../../storage/alpha.ts'
 import type { ProjectRepo } from '../../storage/repo.ts'
@@ -38,6 +37,7 @@ import { useDocumentTitle } from '../hooks.ts'
 import { ProjectGate } from '../ProjectGate.tsx'
 import { ChartView } from '../work/ChartView.tsx'
 import { Chips } from '../work/Chips.tsx'
+import { OptionsMenu } from '../work/OptionsMenu.tsx'
 import { entryFor } from '../work/segments.ts'
 import { SegmentDialog } from '../work/SegmentDialog.tsx'
 
@@ -223,9 +223,10 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
     change((y) => ({ ...y, pattern: next, progress: reorder(y.pattern, y.progress, next).progress }))
   }
   const setCraft = (id: CraftId) => reread((q) => withCraft(q, id))
-  const setStartRight = (right: boolean) => reread((q) => ({ ...q, start_direction: right ? 'RTL' : 'LTR' }))
+  // One corner sets both which row is row 1 and which way it runs, so one question at most.
+  const setCorner = (bottomUp: boolean, start: Direction) =>
+    reread((q) => ({ ...q, bottom_up: bottomUp, start_direction: start }))
   const setSameWay = (same: boolean) => reread((q) => ({ ...q, alternate_direction: !same }))
-  const setFromTop = (top: boolean) => reread((q) => ({ ...q, bottom_up: !top }))
 
   // Back to Design (§6.4), a deliberate action in the Options menu. The project is saved
   // as a Design-stage one first, as the desktop did, so it reopens there.
@@ -269,93 +270,21 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
           <summary ref={optionsButton} className="button button--small">
             Options
           </summary>
-          <div className="work__menu">
-            <button
-              type="button"
-              className="button button--small"
-              aria-label={`Rename “${p.name}”`}
-              onClick={(e) => {
-                e.currentTarget.closest('details')?.removeAttribute('open')
-                setRenaming(true)
-              }}
-            >
-              Rename…
-            </button>
-            <label className="work__craft">
-              Craft
-              <select value={isCraftId(p.craft) ? p.craft : craft.id} onChange={(e) => setCraft(e.target.value as CraftId)}>
-                {CRAFTS.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={p.start_direction === 'RTL'}
-                onChange={(e) => setStartRight(e.target.checked)}
-              />
-              Start rows from the right
-            </label>
-            <label className="check">
-              <input type="checkbox" checked={!p.bottom_up} onChange={(e) => setFromTop(e.target.checked)} />
-              Start from the top row
-            </label>
-            <label className="check">
-              <input type="checkbox" checked={!p.alternate_direction} onChange={(e) => setSameWay(e.target.checked)} />
-              {craft.sameWay}
-            </label>
-            <label className="check">
-              <input type="checkbox" checked={settings.focusMode} onChange={(e) => setSettings({ focusMode: e.target.checked })} />
-              Focus mode
-            </label>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={settings.stitchNumbers}
-                onChange={(e) => setSettings({ stitchNumbers: e.target.checked })}
-              />
-              Number the stitches
-            </label>
-            {craft.carries && (
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={settings.showCarries}
-                  onChange={(e) => setSettings({ showCarries: e.target.checked })}
-                />
-                Show where to carry yarn
-              </label>
-            )}
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={settings.emphasiseRows}
-                onChange={(e) => setSettings({ emphasiseRows: e.target.checked })}
-              />
-              Taller rows around the current one
-            </label>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={settings.highContrast}
-                onChange={(e) => setSettings({ highContrast: e.target.checked })}
-              />
-              High contrast
-            </label>
-            <button type="button" className="button button--small" onClick={exportReadout}>
-              Export readout
-            </button>
-            <button type="button" className="button button--small" onClick={editPattern}>
-              Edit pattern…
-            </button>
-            {/* Also here, for phones, where the header has no room for its "?". */}
-            <a className="button button--small" href={helpUrl('work')} target="_blank" rel="noopener noreferrer">
-              Help
-            </a>
-          </div>
+          <OptionsMenu
+            pattern={p}
+            craft={craft}
+            settings={settings}
+            setSettings={setSettings}
+            onCraft={setCraft}
+            onCorner={setCorner}
+            onSameWay={setSameWay}
+            onRename={() => {
+              options.current?.removeAttribute('open')
+              setRenaming(true)
+            }}
+            onEdit={editPattern}
+            onDownload={exportReadout}
+          />
         </details>
         <HelpLink topic="work" />
       </header>
@@ -410,7 +339,6 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
           current={cur}
           emphasise={settings.emphasiseRows}
           focus={settings.focusMode}
-          themeKey={settings.highContrast ? 'high' : 'normal'}
           place={place}
           carries={carries}
           numbers={settings.stitchNumbers}

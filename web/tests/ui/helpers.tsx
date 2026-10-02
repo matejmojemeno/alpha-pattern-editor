@@ -98,7 +98,6 @@ afterEach(() => {
   cleanup()
   opened.forEach((r) => r.close())
   opened = []
-  delete document.documentElement.dataset.contrast
   window.location.hash = ''
   clearPendingImage()
 })
