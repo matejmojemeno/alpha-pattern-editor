@@ -114,9 +114,32 @@ export interface RunCarry {
   readonly kind: CarryKind
   /** The strand is picked up in this run (it lies at the start of the carry). */
   readonly pickUp: boolean
+  /** The carry runs on to the end of the row, or from its start (`carryReach`): said
+   *  once, on the run it begins in, with nothing to count. */
+  readonly reach: CarryReach | null
 }
 
-/** The carries of a row, split over its runs (encodeRow), in the same order. */
+/** A carry that runs on to the `end` of its row, or from its `start`, in working order. */
+export type CarryReach = 'start' | 'end'
+
+/**
+ * Whether a carry runs to an end of its row. Those need no counting: carrying on to the
+ * end of the row is the usual thing, and a strand carried from the start is in hand as
+ * the row begins. Only a carry that starts and stops partway through a row has to be
+ * counted, to know where to drop the strand or pick it up. A carry can't reach both
+ * ends: carrying on starts after the colour's last stitch in the row, and a pick-up ends
+ * before its first.
+ */
+export function carryReach(cols: number, c: Pick<Carry, 'from' | 'to'>, direction: 'LTR' | 'RTL'): CarryReach | null {
+  const left = c.from <= 0
+  const right = c.to >= cols
+  if (left) return direction === 'LTR' ? 'start' : 'end'
+  if (right) return direction === 'LTR' ? 'end' : 'start'
+  return null
+}
+
+/** The carries of a row, split over its runs (encodeRow), in the same order. One that
+ *  reaches an end of the row (`carryReach`) is given only to the run it begins in. */
 export function carriesByRun(
   cols: number,
   runs: readonly Pick<Run, 'start_col' | 'count'>[],
@@ -136,8 +159,10 @@ export function carriesByRun(
     for (const { c, a, b } of spans) {
       const n = Math.min(b, e) - Math.max(a, s)
       if (n <= 0) continue
+      const reach = carryReach(cols, c, direction)
+      if (reach && !(a >= s && a < e)) continue
       const part: CarryPart = n >= run.count ? 'all' : a <= s ? 'first' : 'last'
-      out.push({ palette_index: c.palette_index, count: n, part, kind: c.kind, pickUp: c.kind === 'pickup' && a >= s })
+      out.push({ palette_index: c.palette_index, count: n, part, kind: c.kind, pickUp: c.kind === 'pickup' && a >= s, reach })
     }
     return out
   })

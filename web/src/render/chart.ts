@@ -14,7 +14,7 @@
  * The visible canvas is the size of the chart area, not of the chart: a scrolled chart
  * is drawn from an offset, so a long pattern never needs a canvas taller than the screen.
  */
-import type { Carry } from '../logic/carry.ts'
+import { carryReach, type Carry } from '../logic/carry.ts'
 import { encodeRow, rowDirection, workingNumber } from '../logic/readout.ts'
 import { SKIP_INDEX, type Pattern } from '../model/types.ts'
 import { contrastOn, hexToRgb } from '../theme/contrast.ts'
@@ -155,11 +155,17 @@ export function carryEdge(hex: string): string {
   }
 }
 
+/** How thick a carried strand is in a row `h` tall, edges aside: a tenth of the row, 2 or
+ *  3 px. A line to follow, not a band that hides the stitches it runs through. */
+export function carryThickness(h: number): number {
+  return Math.max(2, Math.min(3, Math.round(h * 0.1)))
+}
+
 /** How thick each strand is, and how much of the bottom of the row the strands take,
- *  when they're drawn along the foot of the stitches under the stitch numbers: about an
- *  eighth of the row each, 2 to 4 px, one lane per colour, each with its 1 px edges. */
+ *  when they're drawn along the foot of the stitches under the stitch numbers: one lane
+ *  per colour, each with its 1 px edges. */
 export function carryStrip(h: number, lanes: number): { thickness: number; height: number } {
-  const thickness = Math.max(2, Math.min(4, Math.round(h * 0.12)))
+  const thickness = carryThickness(h)
   return { thickness, height: lanes * (thickness + 2) + 1 }
 }
 
@@ -177,7 +183,9 @@ function footStrip(d: DrawInput, i: number): number {
 
 /** Each carried strand as a band of its colour through the stitches it's carried in,
  *  open at the ends, so it runs on out of the colour's own stitches. Several strands in
- *  one row are stacked, one lane per colour. Through the middle of the stitches; or, in a
+ *  one row are stacked, one lane per colour. A carry that runs to an end of the row is
+ *  only an arrow where it begins (`drawCarryArrow`). Through the middle of the stitches;
+ *  or, in a
  *  numbered row, along their foot, under the numbers, where the strand lies as you work
  *  over it. */
 function drawCarries(
@@ -196,27 +204,60 @@ function drawCarries(
     if (!row?.length || h < CARRY_MIN_ROW) continue
     const lanes = [...new Set(row.map((c) => c.palette_index))]
     const foot = footStrip(d, i) > 0
-    // About a third of the row, and never so thick that the lanes, each with its 1 px
-    // edges, overflow it.
-    const t = foot
-      ? carryStrip(h, lanes.length).thickness
-      : Math.min(Math.max(2, Math.min(8, Math.round(h * 0.3))), Math.floor((h - 2) / lanes.length) - 2)
+    // Never so thick that the lanes, each with its 1 px edges, overflow the row.
+    const t = foot ? carryStrip(h, lanes.length).thickness : Math.min(carryThickness(h), Math.floor((h - 2) / lanes.length) - 2)
     if (t < 1) continue
     const pitch = t + 2
     const top = foot
       ? oy + l.offsets[i]! + h - carryStrip(h, lanes.length).height + 1
       : oy + l.offsets[i]! + h / 2 - (lanes.length * pitch - 2) / 2
+    const dir = rowDirection(pattern, l.range.start + i)
     for (const c of row) {
       const hex = pattern.palette[c.palette_index]?.hex ?? '#c8c8c8'
+      const y = px(top + lanes.indexOf(c.palette_index) * pitch, dpr)
+      if (carryReach(pattern.cols, c, dir)) {
+        // Only where it begins: one stitch, the way the row is worked.
+        const s = dir === 'LTR' ? 1 : -1
+        drawCarryArrow(ctx, hex, ox + (s > 0 ? c.from : c.to) * l.cell, s, l.cell, y, t)
+        continue
+      }
       const x = ox + c.from * l.cell
       const w = (c.to - c.from) * l.cell
-      const y = px(top + lanes.indexOf(c.palette_index) * pitch, dpr)
       ctx.fillStyle = carryEdge(hex)
       ctx.fillRect(x, y - 1, w, t + 2)
       ctx.fillStyle = hex
       ctx.fillRect(x, y, w, t)
     }
   }
+}
+
+/** The arrow for a carry that runs on to the end of the row, or from its start
+ *  (`carryReach`): a strand of the colour into the stitch where the carry begins, from
+ *  its side at `x`, with a head pointing on (`s`, +1 rightwards or −1 leftwards). Where
+ *  a carry begins is where the maker decides: keep this strand, don't drop it. Past that
+ *  there's nothing to count, so the rest of the line isn't drawn. */
+function drawCarryArrow(ctx: CanvasRenderingContext2D, hex: string, x: number, s: number, cell: number, y: number, t: number): void {
+  const mid = y + t / 2
+  const base = x + s * cell * 0.45
+  const tip = x + s * cell * 0.9
+  // Wider than the strand, so the head reads as one at a glance.
+  const half = Math.max(t / 2 + 2, Math.min(cell * 0.22, 1.5 * t + 1))
+  ctx.fillStyle = carryEdge(hex)
+  ctx.fillRect(Math.min(x, base), y - 1, Math.abs(base - x), t + 2)
+  ctx.beginPath()
+  ctx.moveTo(base, mid - half - 1)
+  ctx.lineTo(tip + s, mid)
+  ctx.lineTo(base, mid + half + 1)
+  ctx.closePath()
+  ctx.fill()
+  ctx.fillStyle = hex
+  ctx.fillRect(Math.min(x, base), y, Math.abs(base - x), t)
+  ctx.beginPath()
+  ctx.moveTo(base, mid - half)
+  ctx.lineTo(tip, mid)
+  ctx.lineTo(base, mid + half)
+  ctx.closePath()
+  ctx.fill()
 }
 
 /** Each stitch's place in its run of one colour, counted the way row `r` is worked, by

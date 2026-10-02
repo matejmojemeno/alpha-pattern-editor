@@ -94,13 +94,24 @@ rather than left hanging at the back, turn on **Show where to carry yarn** in **
 Each colour is kept only until the next row needs it, so you never carry more than you
 must. On the chart, a line of a colour through a run of stitches means: carry that colour
 inside those stitches. With [stitch numbers](#count-stitches-on-the-chart) on, the line
-runs along the bottom of each stitch, under its number. In **This row**, a colour's chip says what to do while you work it,
-such as "carry Beige over the first 1", or "pick up Black, carry over the last 3".
+runs along the bottom of each stitch, under its number. In **This row**, a colour's chip
+says what to do while you work it, such as "carry Beige over the first 1", or "pick up
+Black, carry over the last 3".
+
+A line is drawn only where carrying starts and stops partway through a row, where you
+need to count. Where a colour is carried on to the end of the row, a short arrow of that
+colour points on from just after its last stitch, and the chip says "carry Black on to
+the end of the row". Where a colour is carried from the start of the row up to its first
+stitch, the arrow is in the row's first stitch, and the chip says "carry Black from the
+start of the row".
 
 When you work in rounds, the end of one round runs straight into the start of the next.
 A colour the next round needs before the place where you left it is carried on round
 that join: over the rest of this round, then over the first stitches of the next, up to
 where it's needed. On some patterns that means carrying a colour almost all the time.
+On the chart that's an arrow at the end of one round and another at the start of the
+next, and the chips say "carry Black on to the end of the round" and "carry Black from
+the start of the round".
 
 ## Count stitches on the chart
 

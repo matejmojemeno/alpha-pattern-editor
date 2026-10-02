@@ -37,6 +37,24 @@ Newest last, as they were built.
   the one before (or, in rounds, leaves at the end of a round and enters at the start of
   the next), carried exactly |q − p| when rows alternate and exactly as far along the
   rounds as needed when they don't.
+  - <a id="counted-carries"></a>**A carry to an end of the row is an arrow, not a line**
+    (`carryReach`, `drawCarryArrow`). The owner's two-colour cats had a line along every
+    row where a cat met the side of the chart, which buried the few that need counting.
+    A carry that runs on to the end of its row, or from its start, needs no counting:
+    what matters is not dropping the strand. So it's drawn as a one-stitch arrow in its
+    colour where it begins (right after the colour's last stitch, or in the row's first
+    stitch), pointing the way the row is worked. Its chip note says it once, on the run
+    it begins in: "carry Black on to the end of the row" or "carry Black from the start
+    of the row" (`carriesByRun`, `carryNote`). A carry that starts and stops partway
+    through a row keeps its full line and its count. The yarn estimate and Visualize use
+    the whole plan as before. A first version hid these carries altogether; the owner
+    asked for them to be marked without the line.
+    In rounds the same carries say "round": "carry Black on to the end of the round",
+    "carry Black from the start of the round". Every carry round the join is one of these
+    two, so rounds are drawn with arrows only.
+  - The strands are lines, 2 or 3 px with 1 px edges (`carryThickness`, a tenth of the
+    row), not the band of up to 8 px (a third of the row) they began as, which hid the
+    stitches it crossed.
 - <a id="tall-only-scroll"></a>**Only tall charts scroll** (`render/layout.ts`,
   `shouldScroll`). A chart more than 2:1 taller than wide is sized to its width and
   scrolls down, following the current row, as before. A chart more than 2:1 wider than

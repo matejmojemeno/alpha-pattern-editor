@@ -13,7 +13,7 @@ import type { ReactNode } from 'react'
 
 import type { RunCarry } from '../../logic/carry.ts'
 import type { Pattern, Run } from '../../model/types.ts'
-import { carryNote, chipState, entryFor, swatchBorder } from './segments.ts'
+import { carryNote, chipState, entryFor, passName, swatchBorder } from './segments.ts'
 
 export function Swatch({ hex, className = 'swatch', children }: { hex: string; className?: string; children?: ReactNode }) {
   return (
@@ -55,7 +55,7 @@ export function Chips({
               type="button"
               className={`chip chip--${state}`}
               aria-current={state === 'current' ? 'step' : undefined}
-              aria-label={`${run.count} ${entry.name}${notes.map(({ c, entry: e }) => `, ${carryNote(e.name, c)}`).join('')}${status ? `, ${status}` : ''}. Record progress`}
+              aria-label={`${run.count} ${entry.name}${notes.map(({ c, entry: e }) => `, ${carryNote(e.name, c, passName(pattern))}`).join('')}${status ? `, ${status}` : ''}. Record progress`}
               onClick={() => onChip(i)}
             >
               <Swatch hex={entry.hex} />
@@ -64,7 +64,7 @@ export function Chips({
                 {notes.map(({ c, entry: e }) => (
                   <span key={c.palette_index} className="chip__carry">
                     <Swatch hex={e.hex} className="swatch swatch--carry" />
-                    {carryNote(e.name, c)}
+                    {carryNote(e.name, c, passName(pattern))}
                   </span>
                 ))}
               </span>

@@ -3,10 +3,11 @@ import { fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { carriesByRun, carryPlan } from '../../src/logic/carry.ts'
+import { carriesByRun, carryPlan, carryReach } from '../../src/logic/carry.ts'
 import * as work from '../../src/logic/work.ts'
 import { encodeRow, formatRowText, rowDirection, workingNumber } from '../../src/logic/readout.ts'
 import { readAlpha } from '../../src/storage/alpha.ts'
+import { carryNote } from '../../src/ui/work/segments.ts'
 import { fixture, freshRepo, renderApp, screen } from './helpers.tsx'
 
 // Spy on the progress operations while keeping their real behaviour, so tests can check
@@ -328,6 +329,42 @@ describe('options', () => {
     expect(settings.get().stitchNumbers).toBe(true)
   })
 
+  it('says once, on the chip it begins in, to carry a colour on to the end of the row or from its start', async () => {
+    const { project } = await openWork('basic.alpha')
+    const p = project.pattern
+    const plan = carryPlan(p)
+    await userEvent.click(screen.getByLabelText('Show where to carry yarn'))
+    const seq = work.workSequence(p)
+    // The first row with a carry that reaches an end of the row.
+    const k = seq.findIndex((r) => plan[r]!.some((c) => carryReach(p.cols, c, rowDirection(p, r))))
+    expect(k).toBeGreaterThanOrEqual(0)
+    for (let i = 0; i < k; i++) await userEvent.click(screen.getByRole('button', { name: /Row complete/ }))
+    const r = seq[k]!
+    const notes = [...document.querySelectorAll('.chip__carry')].map((n) => n.textContent)
+    for (const c of plan[r]!) {
+      const reach = carryReach(p.cols, c, rowDirection(p, r))
+      if (!reach) continue
+      const name = p.palette[c.palette_index]!.name
+      const said = reach === 'end' ? `carry ${name} on to the end of the row` : `carry ${name} from the start of the row`
+      expect(notes.filter((n) => n === said)).toHaveLength(1)
+    }
+  })
+
+  it('says "round" in place of "row" when worked in rounds', async () => {
+    const { project } = await openWork('basic.alpha')
+    await userEvent.click(screen.getByLabelText('Work in rounds (every row the same way)'))
+    await userEvent.click(screen.getByLabelText('Show where to carry yarn'))
+    const p = { ...project.pattern, alternate_direction: false }
+    const plan = carryPlan(p)
+    const seq = work.workSequence(p)
+    const k = seq.findIndex((r) => plan[r]!.some((c) => carryReach(p.cols, c, rowDirection(p, r))))
+    expect(k).toBeGreaterThanOrEqual(0)
+    for (let i = 0; i < k; i++) await userEvent.click(screen.getByRole('button', { name: /Row complete/ }))
+    const notes = [...document.querySelectorAll('.chip__carry')].map((n) => n.textContent!)
+    expect(notes.some((n) => / (on to the end|from the start) of the round$/.test(n))).toBe(true)
+    expect(notes.filter((n) => / of the row$/.test(n))).toEqual([])
+  })
+
   it('shows where to carry yarn only when asked, on the chips of the row being worked', async () => {
     const { project, settings } = await openWork('basic.alpha')
     const p = project.pattern
@@ -346,11 +383,7 @@ describe('options', () => {
     const notes = chips().map((c) => [...c.querySelectorAll('.chip__carry')].map((n) => n.textContent))
     expect(notes).toEqual(
       byRun.map((cs) =>
-        cs.map((c) => {
-          const name = p.palette[c.palette_index]!.name
-          const over = c.part === 'all' ? `all ${c.count}` : `the ${c.part} ${c.count}`
-          return c.pickUp ? `pick up ${name}, carry over ${over}` : `carry ${name} over ${over}`
-        }),
+        cs.map((c) => carryNote(p.palette[c.palette_index]!.name, c)),
       ),
     )
     // Read out too.
