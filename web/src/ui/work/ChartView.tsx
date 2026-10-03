@@ -20,6 +20,12 @@
  * where the zoom put it until the next progress change follows your place again, as
  * after a scroll by hand. One finger still scrolls natively. The zoom lives here, so it
  * is back to 1× whenever the Work stage is opened.
+ *
+ * A tap on a stitch is passed up (`onStitch`) as its row and column, for the Work stage to
+ * decide what it means. Only a tap counts: one finger or the mouse's main button, put
+ * down and lifted within TAP_SLOP px and TAP_MS ms, with no second finger in between. A
+ * touch that lands while the chart is still moving, or within SETTLE_MS of it stopping,
+ * is one that stops a fling or a glide, not a choice, so it's ignored too.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
@@ -32,6 +38,7 @@ import {
   AXIS_TOP,
   PAD,
   MAX_ZOOM,
+  cellAt,
   computeLayout,
   followCurrent,
   followCurrentX,
@@ -57,9 +64,18 @@ export interface ChartViewProps {
   carries?: readonly (readonly Carry[])[] | null
   /** Number each stitch within its run of one colour. */
   numbers?: boolean
+  /** A tap on a stitch: its image row and column. */
+  onStitch?: (row: number, col: number) => void
+  /** Rows a tap does something on, shown by the mouse pointer. */
+  tappable?: (row: number) => boolean
 }
 
 const MAX_DPR = 2
+/** How far a finger may drift, and for how long it may rest, and still be a tap. */
+const TAP_SLOP = 10
+const TAP_MS = 600
+/** How long after the chart last moved a touch still counts as stopping it. */
+const SETTLE_MS = 250
 
 export function ChartView({
   pattern,
@@ -71,6 +87,8 @@ export function ChartView({
   place = null,
   carries = null,
   numbers = false,
+  onStitch,
+  tappable,
 }: ChartViewProps) {
   const wrap = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -152,7 +170,10 @@ export function ChartView({
     }
   })
 
+  /** When the chart last scrolled, by hand or by following. */
+  const movedAt = useRef(-Infinity)
   const schedule = () => {
+    movedAt.current = performance.now()
     if (frame.current) return
     frame.current = (globalThis.requestAnimationFrame ?? setTimeout)(() => {
       frame.current = 0
@@ -282,6 +303,66 @@ export function ChartView({
       sc.removeEventListener('touchend', onEnd)
       sc.removeEventListener('touchcancel', onEnd)
       sc.removeEventListener('wheel', onWheel)
+    }
+  }, [])
+
+  // --- taps on a stitch ----------------------------------------------------------------------
+  const latestLayout = useRef(layout)
+  const onStitchNow = useRef(onStitch)
+  const tappableNow = useRef(tappable)
+  useLayoutEffect(() => {
+    latestLayout.current = layout
+    onStitchNow.current = onStitch
+    tappableNow.current = tappable
+  })
+  useEffect(() => {
+    const sc = scroller.current
+    if (!sc) return
+    const cell = (e: PointerEvent) => {
+      const r = sc.getBoundingClientRect()
+      const x = e.clientX - r.left - sc.clientLeft
+      const y = e.clientY - r.top - sc.clientTop
+      if (x >= sc.clientWidth || y >= sc.clientHeight) return null
+      return cellAt(latestLayout.current, x, y, sc.scrollLeft, sc.scrollTop)
+    }
+    let tap: { id: number; x: number; y: number; t: number } | null = null
+    const onDown = (e: PointerEvent) => {
+      const now = performance.now()
+      const settled = now - movedAt.current >= SETTLE_MS
+      tap = e.isPrimary && e.button === 0 && settled ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: now } : null
+    }
+    const onMove = (e: PointerEvent) => {
+      if (tap && e.pointerId === tap.id && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > TAP_SLOP) tap = null
+      if (e.pointerType === 'mouse' && !tap) {
+        const at = cell(e)
+        sc.style.cursor = at && tappableNow.current?.(at.row) ? 'pointer' : ''
+      }
+    }
+    const onUp = (e: PointerEvent) => {
+      const t = tap
+      tap = null
+      if (!t || e.pointerId !== t.id || performance.now() - t.t > TAP_MS) return
+      // Moved, or the chart scrolled under it: a drag, not a tap.
+      if (Math.hypot(e.clientX - t.x, e.clientY - t.y) > TAP_SLOP || movedAt.current >= t.t) return
+      const at = cell(e)
+      if (at) onStitchNow.current?.(at.row, at.col)
+    }
+    const cancel = () => {
+      tap = null
+    }
+    // A second finger makes it a pinch.
+    const onTouch = (e: TouchEvent) => e.touches.length > 1 && cancel()
+    sc.addEventListener('pointerdown', onDown)
+    sc.addEventListener('pointermove', onMove)
+    sc.addEventListener('pointerup', onUp)
+    sc.addEventListener('pointercancel', cancel)
+    sc.addEventListener('touchstart', onTouch, { passive: true })
+    return () => {
+      sc.removeEventListener('pointerdown', onDown)
+      sc.removeEventListener('pointermove', onMove)
+      sc.removeEventListener('pointerup', onUp)
+      sc.removeEventListener('pointercancel', cancel)
+      sc.removeEventListener('touchstart', onTouch)
     }
   }, [])
 
