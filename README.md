@@ -47,7 +47,8 @@ Then see how it will look and what it needs:
 
 Made for a phone or tablet next to your hook. Each row is shown as a list of colours and
 stitch counts, in the order you work them, with an arrow for the direction. Tap
-**Row complete** when you finish one; tap a colour to record part of a row. Your place is
+**Row complete** when you finish one; tick off a colour, or tap a stitch on the chart, to
+record part of a row. Your place is
 saved as you go. For tapestry crochet, turn on **Show where to carry yarn** in Settings
 to see which colours to carry inside the stitches, and for how long.
 

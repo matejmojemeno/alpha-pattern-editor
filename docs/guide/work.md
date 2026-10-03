@@ -85,17 +85,29 @@ Holding a key down doesn't race through rows.
 
 ## Stop partway through a row
 
-Tap a colour in **This row** to record how far you got. The **Record progress** dialog
-opens for that colour:
+Each colour in **This row** has a round tick at its right-hand end. Tap it to mark that
+colour done in one go. Tap a ticked one again if you ticked it by mistake: your place goes
+back to the start of that colour.
 
-<img src="media/work-partial-row.png" alt="The Record progress dialog on a phone, for 8 Blue: Stitches done 1 of 8, with − and + buttons, Mark segment complete, Cancel and Save progress" width="260">
+Tap the colour itself to record part of it. The **Record progress** dialog opens for that
+colour:
 
-- Set **Stitches done** with **−** and **+**, or type it, then press **Save progress**.
+<img src="media/work-partial-row.png" alt="The Record progress dialog on a phone, for 8 Blue: Mark segment complete at the top, then, under 'or', Stitches done 1 of 8 with − and + buttons, Cancel and Save progress" width="260">
+
 - **Mark segment complete** marks that whole colour done.
+- Or set **Stitches done** with **−** and **+**, or type it, then press **Save progress**.
 
-The colours before the one you tapped count as done too. Finishing the last colour
+You can also tap a stitch of the current row on the chart (the outlined row): that stitch
+and every one before it count as done. Taps on other rows do nothing, and neither does a
+tap that stops the chart scrolling, so you can't lose your place by brushing the screen.
+
+The colours before the one you mark count as done too. Finishing the last colour
 finishes the row. The chart shows how far along the row you are, and your place is kept
 until you come back.
+
+When a row has more colours than fit on the screen, the list scrolls by itself: the colour
+you're on moves to the top, so the next ones are in view, and a new row starts at the top
+of the list again.
 
 ## Show where to carry yarn
 
