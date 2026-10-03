@@ -145,6 +145,37 @@ test('the chips follow your place, and a new row starts at the top of the list',
   await expect(tick(page, 1)).toHaveAttribute('aria-pressed', 'false')
 })
 
+test('Record progress: one joined count without arrows of its own, and two buttons across the width', async ({ page }, testInfo) => {
+  // The Import screen's stylesheet loaded first, as after a real import: its colour
+  // stepper must not restyle this one.
+  await page.goto('/#/import')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await open(page, testInfo.outputPath('busy.alpha'))
+  await chips(page).nth(0).locator('.chip__open').click()
+  const dialog = page.getByRole('dialog', { name: 'Record progress' })
+  const look = await dialog.evaluate((d) => {
+    const css = (el: Element) => getComputedStyle(el)
+    const count = d.querySelector('input')!.parentElement!
+    const buttons = [...count.querySelectorAll('button')]
+    const [cancel, save] = [...d.querySelectorAll('.dialog__buttons button')].map((b) => b.getBoundingClientRect())
+    const body = d.querySelector('.segment__complete')!.getBoundingClientRect()
+    return {
+      countRadius: css(count).borderTopLeftRadius,
+      buttonRadii: buttons.map((b) => css(b).borderTopLeftRadius),
+      buttonBorders: buttons.map((b) => css(b).borderTopWidth),
+      appearance: css(d.querySelector('input')!).appearance,
+      widths: [cancel!.width, save!.width],
+      span: [cancel!.left - body.left, body.right - save!.right],
+    }
+  })
+  expect(look.countRadius).not.toBe('999px')
+  expect(look.buttonRadii).toEqual(['0px', '0px'])
+  expect(look.buttonBorders).toEqual(['0px', '0px'])
+  expect(look.appearance).toBe('textfield')
+  expect(Math.abs(look.widths[0]! - look.widths[1]!)).toBeLessThan(1)
+  expect(look.span.map((x) => Math.abs(x) < 1)).toEqual([true, true])
+})
+
 test('a tap on a stitch of the current row marks it and the stitches before it done', async ({ page }, testInfo) => {
   await open(page, testInfo.outputPath('busy.alpha'))
   // Every row the same height, so a stitch is found from the cell size alone.

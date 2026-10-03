@@ -68,7 +68,7 @@ export function SegmentDialog({
           <label htmlFor={`${id}-n`}>
             {units.charAt(0).toUpperCase() + units.slice(1)} done
           </label>
-          <div className="stepper">
+          <div className="segment__count">
             <button type="button" className="button" aria-label="One fewer" onClick={() => step(-1)} disabled={stitches <= 0}>
               −
             </button>

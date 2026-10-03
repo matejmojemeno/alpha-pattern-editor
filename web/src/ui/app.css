@@ -1213,29 +1213,61 @@ code {
   font-weight: 600;
 }
 
-.stepper {
-  display: flex;
-  gap: 0.35rem;
+/* The count: − and + joined to the number as one control, one outline with a line between
+   each part. Its own class names: Import's colour stepper is `.stepper`, and its sheet,
+   once loaded, would round this one into a pill. The number has no arrows of its own,
+   since − and + are those. */
+.segment__count {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
 
-.stepper .button {
+.segment__count .button {
   width: var(--tap);
   padding: 0;
+  border: 0;
+  border-radius: 0;
   font-size: var(--text-lg);
 }
 
-.stepper input {
-  width: 4.5rem;
+.segment__count .button:hover:not(:disabled) {
+  background: var(--raised);
+}
+
+.segment__count input {
+  width: 4rem;
   min-height: var(--tap);
   padding: 0 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border: 0;
+  border-inline: 1px solid var(--border);
+  border-radius: 0;
   background: var(--bg);
   color: var(--text);
   font: inherit;
   font-size: var(--text-lg);
   text-align: center;
   font-variant-numeric: tabular-nums;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.segment__count input::-webkit-inner-spin-button,
+.segment__count input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Inside the outline, which clips anything outside it. */
+.segment__count :focus-visible {
+  outline-offset: -3px;
+}
+
+/* Cancel and Save progress share the dialog's width, as Mark segment complete has it. */
+.segment .dialog__buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
 }
 
 .segment__complete {

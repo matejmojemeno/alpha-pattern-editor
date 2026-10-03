@@ -179,8 +179,14 @@ Newest last, as they were built.
   - **The dialog leads with Mark segment complete**, the one primary button, with the
     focus (Return presses it, and a phone's keyboard no longer opens with the dialog).
     The stitch count is under an "or" rule, its label on a line of its own so "of N"
-    no longer wraps away on a phone; **Save progress** is an ordinary button beside
-    **Cancel**.
+    no longer wraps away on a phone; **Cancel** and **Save progress** are ordinary
+    buttons sharing the dialog's width half and half (the owner found two buttons
+    pushed to the right under one full-width one lopsided). The count is one control:
+    −, the number and + in one outline with a line between each, and the number has no
+    arrows of its own (− and + are those; two pairs of arrows read as two controls
+    mashed together). Its classes are `segment__count`: as `.stepper`, Import's colour
+    stepper restyled it into a pill once Import had been opened (see
+    [rules.md](../rules.md#css-names)).
   - **The chips follow your place.** On every progress change the list scrolls so the
     current segment is at its top, with up to 24 px of the one before it showing; at
     the first segment of a row it goes to the very top. It moves only when the list is
