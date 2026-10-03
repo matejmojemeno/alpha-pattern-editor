@@ -225,6 +225,42 @@ export function placeColumn(cols: number, place: RowPlace): number | null {
   return place.direction === 'RTL' ? cols - 1 - position : position
 }
 
+/** The place with every stitch up to and including image column `col` done: the run that
+ *  column is in and how many of its stitches that makes, in working order. The inverse of
+ *  placeColumn. Null for a column outside the row, or one no run covers. */
+export function placeThrough(
+  cols: number,
+  runs: readonly Pick<Run, 'start_col' | 'count'>[],
+  direction: Direction,
+  col: number,
+): { runIndex: number; stitches: number } | null {
+  if (!Number.isInteger(col) || col < 0 || col >= cols) return null
+  const position = direction === 'RTL' ? cols - 1 - col : col
+  const runIndex = runs.findIndex((run) => position >= run.start_col && position < run.start_col + run.count)
+  if (runIndex < 0) return null
+  return { runIndex, stitches: position - runs[runIndex]!.start_col + 1 }
+}
+
+/** The image row and column drawn under the point (x, y) of the chart area, scrolled to
+ *  (scrollX, scrollY), or null when it's on the axes, the margins or past the grid. */
+export function cellAt(
+  layout: ChartLayout,
+  x: number,
+  y: number,
+  scrollX: number,
+  scrollY: number,
+): { row: number; col: number } | null {
+  if (x < AXIS_LEFT || y < AXIS_TOP || layout.cell <= 0) return null
+  const gx = x - AXIS_LEFT + scrollX
+  const gy = y - AXIS_TOP + scrollY
+  if (gx >= layout.gridWidth || gy >= layout.gridHeight) return null
+  const col = Math.floor(gx / layout.cell)
+  const { offsets } = layout
+  let i = 0
+  while (i + 1 < offsets.length - 1 && offsets[i + 1]! <= gy) i++
+  return { row: layout.range.start + i, col }
+}
+
 /** The image columns already worked in the current row, as a half-open span [from, to),
  *  or null when none are: the segments before your place and the stitches done in it.
  *  On a right-to-left row the span sits at the right-hand end. */

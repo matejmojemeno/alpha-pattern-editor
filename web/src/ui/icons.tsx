@@ -8,7 +8,7 @@
  * The Design stage's own icons (its tools, the turns, deleting a colour) are in
  * design/icons.tsx, so they load with that stage rather than with the app.
  */
-import { CircleHelp, ImageUp, LibraryBig, MessageSquareText, Pencil, Settings, TriangleAlert, WandSparkles, type LucideProps } from 'lucide-react'
+import { Circle, CircleCheck, CircleHelp, ImageUp, LibraryBig, MessageSquareText, Pencil, Settings, TriangleAlert, WandSparkles, type LucideProps } from 'lucide-react'
 
 /** The props every icon gets: decorative (its button or link has the words), and sized
  *  by CSS (`.icon`) rather than by the set's 24 px default. */
@@ -24,6 +24,10 @@ export const SettingsIcon = (props: LucideProps) => <Settings {...ICON} {...prop
 /** A question mark in a circle: help, on the home screen and in each screen's header. */
 export const HelpIcon = (props: LucideProps) => <CircleHelp {...ICON} {...props} />
 export const FeedbackIcon = (props: LucideProps) => <MessageSquareText {...ICON} {...props} />
+
+/** A chip's tick in the Work stage: an empty ring, and the ring ticked once it's done. */
+export const NotDoneIcon = (props: LucideProps) => <Circle {...ICON} {...props} />
+export const DoneIcon = (props: LucideProps) => <CircleCheck {...ICON} {...props} />
 
 export const WarningIcon = (props: LucideProps) => <TriangleAlert {...ICON} {...props} />
 

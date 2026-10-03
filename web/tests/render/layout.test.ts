@@ -6,6 +6,7 @@ import {
   EMPHASIS_SCALE,
   MIN_CELL,
   PAD,
+  cellAt,
   computeLayout,
   followCurrent,
   followCurrentX,
@@ -13,6 +14,7 @@ import {
   nearRows,
   placeColumn,
   placeDone,
+  placeThrough,
   rowHeight,
   rowInView,
   rowSpan,
@@ -511,5 +513,72 @@ describe('zoom', () => {
     expect(layout({ rows: 40, cols: 40, zoom: 0.2 }).cell).toBe(10)
     expect(layout({ rows: 40, cols: 40, zoom: 50 }).cell).toBe(80)
     expect(layout({ rows: 40, cols: 40, zoom: Number.NaN }).cell).toBe(10)
+  })
+})
+
+describe('a tap on the chart', () => {
+  it('is done through the stitch tapped: placeColumn of the place before it is that stitch', () => {
+    // Random rows, both ways: tapping column c means c and everything before it in working
+    // order is done, so the next stitch to work is the one after c.
+    let seed = 7
+    const rand = (n: number) => ((seed = (seed * 1103515245 + 12345) % 2 ** 31), seed % n)
+    for (let k = 0; k < 200; k++) {
+      const cols = 1 + rand(30)
+      const cells = Uint16Array.from({ length: cols }, () => rand(3))
+      for (const start_direction of ['LTR', 'RTL'] as const) {
+        const p = { rows: 1, cols, cells, start_direction, alternate_direction: true, bottom_up: true } as Pattern
+        const runs = encodeRow(p, 0)
+        for (let col = 0; col < cols; col++) {
+          const at = placeThrough(cols, runs, start_direction, col)!
+          const run = runs[at.runIndex]!
+          expect(cells[col]).toBe(run.palette_index)
+          expect(at.stitches).toBeGreaterThanOrEqual(1)
+          expect(at.stitches).toBeLessThanOrEqual(run.count)
+          // The stitch tapped is the last one done: one stitch back from this place.
+          expect(placeColumn(cols, { runs, runIndex: at.runIndex, stitches: at.stitches - 1, direction: start_direction })).toBe(col)
+          // Everything up to it, and nothing past it, is done.
+          const done = placeDone(cols, { runs, runIndex: at.runIndex, stitches: at.stitches, direction: start_direction })!
+          expect(done.to - done.from).toBe(start_direction === 'LTR' ? col + 1 : cols - col)
+        }
+      }
+    }
+  })
+
+  it('outside the row is nothing', () => {
+    const runs = [{ start_col: 0, count: 4 }]
+    expect(placeThrough(4, runs, 'LTR', -1)).toBeNull()
+    expect(placeThrough(4, runs, 'LTR', 4)).toBeNull()
+    expect(placeThrough(4, runs, 'LTR', 1.5)).toBeNull()
+    expect(placeThrough(4, [], 'LTR', 0)).toBeNull()
+    expect(placeThrough(4, runs, 'RTL', 0)).toEqual({ runIndex: 0, stitches: 4 })
+  })
+
+  it('finds the cell under the point, scrolled or not, with rows of their own heights', () => {
+    // 10 rows, current 5, emphasised: rows 3..7 are taller.
+    const l = layout({ rows: 10, cols: 10, current: 5, emphasise: true })
+    for (const [sx, sy] of [
+      [0, 0],
+      [13, 21],
+    ] as const) {
+      for (let r = 0; r < 10; r++) {
+        const span = rowSpan(l, r)!
+        for (let c = 0; c < 10; c++) {
+          const x = AXIS_LEFT + c * l.cell + l.cell / 2 - sx
+          const y = AXIS_TOP + (span.top + span.bottom) / 2 - sy
+          // Scrolled under the axes, a cell isn't drawn, so isn't there to tap.
+          expect(cellAt(l, x, y, sx, sy)).toEqual(x < AXIS_LEFT || y < AXIS_TOP ? null : { row: r, col: c })
+        }
+        // The top edge of a row is that row's.
+        if (span.top >= sy) expect(cellAt(l, AXIS_LEFT + l.cell - 1, AXIS_TOP + span.top - sy, sx, sy)?.row).toBe(r)
+      }
+    }
+    // The axes, and past the grid, are no cell.
+    expect(cellAt(l, AXIS_LEFT - 1, AXIS_TOP + 5, 0, 0)).toBeNull()
+    expect(cellAt(l, AXIS_LEFT + 5, AXIS_TOP - 1, 0, 0)).toBeNull()
+    expect(cellAt(l, AXIS_LEFT + l.gridWidth, AXIS_TOP + 5, 0, 0)).toBeNull()
+    expect(cellAt(l, AXIS_LEFT + 5, AXIS_TOP + l.gridHeight, 0, 0)).toBeNull()
+    // Focus mode draws only rows 3..7: the first drawn row is row 3.
+    const f = layout({ rows: 10, cols: 10, current: 5, focus: true })
+    expect(cellAt(f, AXIS_LEFT + 1, AXIS_TOP + 1, 0, 0)).toEqual({ row: 3, col: 0 })
   })
 })

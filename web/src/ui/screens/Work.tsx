@@ -5,7 +5,7 @@
  * next to the yarn. Every progress change goes through logic/work.ts; nothing here edits
  * the pattern's cells (§13.7).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { AutoSaver, type SaveStatus } from '../../app/autosave.ts'
 import { useSettings } from '../../app/context.ts'
@@ -30,7 +30,7 @@ import { reorder, repairProgress } from '../../logic/progress.ts'
 import { countOf, craftOf, withCraft, type CraftId } from '../../craft/crafts.ts'
 import type { Direction, Pattern, Project } from '../../model/types.ts'
 import { exportChartPng } from '../../render/chartPng.ts'
-import type { RowPlace } from '../../render/layout.ts'
+import { placeThrough, type RowPlace } from '../../render/layout.ts'
 import { progressPct } from '../../storage/alpha.ts'
 import type { ProjectRepo } from '../../storage/repo.ts'
 import { ConfirmDialog, HelpLink, ProgressBar, RenameForm } from '../components.tsx'
@@ -247,6 +247,49 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
     )
   }
 
+  // A chip's tick: done marks it and every segment before it done; undone takes your place
+  // back to its start, so it and every one after it are to do.
+  const tick = (i: number, isDone: boolean) =>
+    change((x) => ({
+      ...x,
+      progress: isDone ? markSegmentComplete(x.pattern, x.progress, i) : setRunStitches(x.pattern, x.progress, i, 0),
+    }))
+
+  // A tap on a stitch of the current row: done up to and including it. Anywhere else on
+  // the chart does nothing, so a stray tap can at most move your place along this row.
+  const tapStitch = (row: number, col: number) => {
+    const x = latest.current
+    const r = isComplete(x.pattern, x.progress) ? null : rowIndex(x.pattern, x.progress.current_row_id)
+    if (r === null || row !== r) return
+    const at = placeThrough(x.pattern.cols, encodeRow(x.pattern, r), rowDirection(x.pattern, r), col)
+    if (at) change((y) => ({ ...y, progress: setRunStitches(y.pattern, y.progress, at.runIndex, at.stitches) }))
+  }
+
+  // The chips follow your place: whenever it moves, the list scrolls to put the segment
+  // you're on at the top, with a little of the one before it showing, so the ones still
+  // to do are in view; a new row starts at the top of the list. Only the list moves, and
+  // only when it's longer than its space. A scroll by hand stays until the next change.
+  const chipsBox = useRef<HTMLElement>(null)
+  const chipsPlaced = useRef(false)
+  useLayoutEffect(() => {
+    const box = chipsBox.current
+    if (!box) return
+    const current = box.querySelector<HTMLElement>('.chip--current')
+    let top = 0
+    if (current && pr.current_run_index > 0) {
+      const before = current.previousElementSibling as HTMLElement | null
+      const peek = before ? Math.min(before.offsetHeight * 0.45, 24) : 0
+      top = box.scrollTop + current.getBoundingClientRect().top - box.getBoundingClientRect().top - peek
+    }
+    top = Math.max(0, Math.min(top, box.scrollHeight - box.clientHeight))
+    if (Math.abs(top - box.scrollTop) > 0.5) {
+      const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+      if (chipsPlaced.current && !reduce && typeof box.scrollTo === 'function') box.scrollTo({ top, behavior: 'smooth' })
+      else box.scrollTop = top
+    }
+    chipsPlaced.current = true
+  }, [pr])
+
   const openRun = segment === null ? undefined : runs[segment]
   const arrow = cur !== null && rowDirection(p, cur) === 'LTR' ? '→' : '←'
 
@@ -319,7 +362,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
       </section>
 
       <div className={settings.focusMode ? 'work__body work__body--focus' : 'work__body'}>
-        <section className="work__chips" aria-label="This row">
+        <section ref={chipsBox} className="work__chips" aria-label="This row">
           <h2 className="work__label">This row</h2>
           {done ? (
             <p className="muted">Every row is done.</p>
@@ -331,6 +374,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
               stitches={pr.current_run_stitches}
               carries={runCarries}
               onChip={setSegment}
+              onTick={tick}
             />
           )}
           {!settings.focusMode && !done && cur !== null && (
@@ -350,6 +394,8 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
           place={place}
           carries={carries}
           numbers={settings.stitchNumbers}
+          onStitch={tapStitch}
+          tappable={(row) => row === cur}
           label={`Chart, ${p.cols} by ${p.rows}${cur === null ? '' : `, row ${workingNumber(p, cur)} outlined`}`}
         />
       </div>
@@ -362,7 +408,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
           Row complete →
         </button>
       </div>
-      <p className="work__hint muted">Space or → completes a row · ← goes back · tap a colour to record part of a row</p>
+      <p className="work__hint muted">Space or → completes a row · ← goes back · click a stitch in this row to mark up to it</p>
 
       {openRun && segment !== null && (
         <SegmentDialog
