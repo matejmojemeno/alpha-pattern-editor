@@ -190,6 +190,13 @@ break without noticing.
 - <a id="help-links"></a>**Link to the guide only through `src/app/help.ts`.** Renaming or moving a guide page,
   or a heading the app links to, breaks a link nobody sees until a user taps it;
   `tests/docs.test.ts` checks every entry in `HELP`, and only entries there.
+- <a id="css-names"></a>**Class names are global, even in a lazy stage's stylesheet.** Import, Design and
+  the rest load their CSS only when first opened, and it then stays for the whole visit,
+  so a class there also styles any other screen that uses the same name. Work's count in
+  Record progress once shared `.stepper` with Import's colour stepper, and became a pill
+  only after an import, which a fresh test never sees. Prefix a class with its screen or
+  component (`segment__count`, not `stepper`), and test a screen after visiting the
+  others when its look matters (`e2e/work-chips.spec.ts`).
 - <a id="known-failure"></a>**The Python suite has one known failure,** `test_edge_numbers_all_sides`: a 44×5 chart
   whose dimensions come out one column short. It's documented in `test_images/README.md`.
   Any other failure is new.

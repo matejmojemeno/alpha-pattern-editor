@@ -235,7 +235,7 @@ test.describe('on a phone', () => {
   test('work-partial-row.png', async ({ page }) => {
     await openDemo(page)
     await completeRows(page, 6)
-    const chips = page.getByRole('list', { name: 'Colours in this row' }).getByRole('button')
+    const chips = page.getByRole('list', { name: 'Colours in this row' }).locator('.chip__open')
     await chips.nth(1).click()
     const dialog = page.getByRole('dialog', { name: 'Record progress' })
     await expect(dialog).toBeVisible()

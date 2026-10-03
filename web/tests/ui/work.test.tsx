@@ -42,7 +42,12 @@ async function openWork(name: string) {
 }
 
 const rowLabel = () => document.querySelector('.work__row')!.textContent
-const chips = () => within(screen.getByRole('list', { name: 'Colours in this row' })).getAllByRole('button')
+/** The chips, one list item each, holding the chip's two buttons. */
+const chips = () => within(screen.getByRole('list', { name: 'Colours in this row' })).getAllByRole('listitem')
+/** Chip i's own button, which opens Record progress. */
+const openChip = (i: number) => chips()[i]!.querySelector<HTMLButtonElement>('.chip__open')!
+/** Chip i's tick. */
+const tickOf = (i: number) => within(chips()[i]!).getByRole('button', { name: / done$/ })
 
 describe('Work stage', () => {
   it('shows the row, direction, stitches and progress', async () => {
@@ -86,14 +91,18 @@ describe('chips', () => {
 
     const name = (i: number) => p.palette[runs[i]!.palette_index]!.name
     expect(c[0]!.className).toContain('chip--done')
-    expect(c[0]!.textContent).toBe(`${runs[0]!.count} ${name(0)}✓`)
+    expect(c[0]!.textContent).toBe(`${runs[0]!.count} ${name(0)}`)
+    expect(tickOf(0).getAttribute('aria-pressed')).toBe('true')
+    expect(tickOf(0).getAttribute('aria-label')).toBe(`${runs[0]!.count} ${name(0)} done`)
     expect(c[1]!.className).toContain('chip--done')
     expect(c[2]!.className).toContain('chip--current')
     expect(c[2]!.getAttribute('aria-current')).toBe('step')
-    expect(c[2]!.textContent).toBe(`${runs[2]!.count} ${name(2)}· 2/${runs[2]!.count}`)
-    for (const chip of c.slice(3)) {
+    expect(c[2]!.textContent).toBe(`${runs[2]!.count} ${name(2)}2/${runs[2]!.count}`)
+    expect(tickOf(2).getAttribute('aria-pressed')).toBe('false')
+    for (const [i, chip] of c.slice(3).entries()) {
       expect(chip.className).toContain('chip--pending')
-      expect(chip.textContent).not.toMatch(/✓|·/)
+      expect(chip.textContent).toBe(`${runs[i + 3]!.count} ${name(i + 3)}`)
+      expect(tickOf(i + 3).getAttribute('aria-pressed')).toBe('false')
     }
     expect(c[2]!.querySelector('.swatch')!.getAttribute('style')).toContain('background')
   })
@@ -102,7 +111,7 @@ describe('chips', () => {
     await openWork('basic.alpha')
     const c = chips()
     expect(c[0]!.className).toContain('chip--current')
-    expect(c[0]!.textContent).not.toContain('·')
+    expect(c[0]!.querySelector('.chip__mark')).toBeNull()
     expect(c.slice(1).every((b) => b.className.includes('chip--pending'))).toBe(true)
   })
 })
@@ -115,11 +124,10 @@ describe('segment dialog', () => {
     const runs = encodeRow(project.pattern, r)
     const target = runs.findIndex((run) => run.count >= 2)
 
-    await user.click(chips()[target]!)
+    await user.click(openChip(target))
     const dialog = screen.getByRole('dialog', { name: 'Record progress' })
     expect(dialog.textContent).toContain(`${runs[target]!.count} ${project.pattern.palette[runs[target]!.palette_index]!.name}`)
     const input = within(dialog).getByLabelText('Stitches done')
-    expect(document.activeElement).toBe(input)
     await user.clear(input)
     await user.type(input, '1')
     await user.click(within(dialog).getByRole('button', { name: 'Save progress' }))
@@ -128,13 +136,13 @@ describe('segment dialog', () => {
     expect(work.setRunStitches).toHaveBeenCalledTimes(1)
     expect(vi.mocked(work.setRunStitches).mock.calls[0]!.slice(2)).toEqual([target, 1])
     expect(work.markSegmentComplete).not.toHaveBeenCalled()
-    expect(chips()[target]!.textContent).toContain(`· 1/${runs[target]!.count}`)
+    expect(chips()[target]!.textContent).toContain(`1/${runs[target]!.count}`)
   })
 
   it('steps the count with − and +, within 0..count', async () => {
     await openWork('basic.alpha')
     const user = userEvent.setup()
-    await user.click(chips()[0]!)
+    await user.click(openChip(0))
     const dialog = screen.getByRole('dialog')
     const input = within(dialog).getByLabelText<HTMLInputElement>('Stitches done')
     const count = Number(input.max)
@@ -147,7 +155,7 @@ describe('segment dialog', () => {
   it('marks a segment complete with markSegmentComplete', async () => {
     await openWork('basic.alpha')
     const user = userEvent.setup()
-    await user.click(chips()[0]!)
+    await user.click(openChip(0))
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Mark segment complete' }))
     expect(work.markSegmentComplete).toHaveBeenCalledTimes(1)
     expect(vi.mocked(work.markSegmentComplete).mock.calls[0]![2]).toBe(0)
@@ -159,13 +167,55 @@ describe('segment dialog', () => {
   it('changes nothing when cancelled, and gives focus back to the chip', async () => {
     await openWork('basic.alpha')
     const user = userEvent.setup()
-    const chip = chips()[1]!
-    await user.click(chip)
+    await user.click(openChip(1))
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(document.activeElement).toBe(chips()[1])
+    expect(document.activeElement).toBe(openChip(1))
     expect(work.setRunStitches).not.toHaveBeenCalled()
     expect(work.markSegmentComplete).not.toHaveBeenCalled()
+  })
+
+  it('opens on Mark segment complete, so Return marks it', async () => {
+    await openWork('basic.alpha')
+    const user = userEvent.setup()
+    await user.click(openChip(1))
+    const dialog = screen.getByRole('dialog', { name: 'Record progress' })
+    expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Mark segment complete' }))
+    // The one primary button; Save progress is an ordinary one.
+    expect([...dialog.querySelectorAll('.button--primary')].map((b) => b.textContent!.trim())).toEqual(['Mark segment complete'])
+    await user.keyboard('{Enter}')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(vi.mocked(work.markSegmentComplete).mock.calls.map((c) => c[2])).toEqual([1])
+    expect(chips()[2]!.className).toContain('chip--current')
+  })
+})
+
+describe('chip ticks', () => {
+  it('tick a segment done in one tap, with every one before it, and untick back to its start', async () => {
+    const { project } = await openWork('large.alpha')
+    const user = userEvent.setup()
+    const p = project.pattern
+    const runs = encodeRow(p, work.rowIndex(p, work.ensureStarted(p, project.progress).current_row_id)!)
+    expect(runs.length).toBeGreaterThan(4)
+    const states = () => chips().map((c) => c.className.replace('chip chip--', ''))
+
+    await user.click(tickOf(2))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(vi.mocked(work.markSegmentComplete).mock.calls.map((c) => c[2])).toEqual([2])
+    expect(states().slice(0, 4)).toEqual(['done', 'done', 'done', 'current'])
+    expect([0, 1, 2, 3].map((i) => tickOf(i).getAttribute('aria-pressed'))).toEqual(['true', 'true', 'true', 'false'])
+
+    // Unticking a done one: it and every one after it are to do again.
+    await user.click(tickOf(1))
+    expect(vi.mocked(work.setRunStitches).mock.calls.map((c) => c.slice(2))).toEqual([[1, 0]])
+    expect(states().slice(0, 3)).toEqual(['done', 'current', 'pending'])
+
+    // The current one ticks like any other, and the last one finishes the row.
+    await user.click(tickOf(1))
+    expect(states().slice(0, 3)).toEqual(['done', 'done', 'current'])
+    await user.click(tickOf(runs.length - 1))
+    expect(rowLabel()).toMatch(/^Row 2 /)
+    expect(states()[0]).toBe('current')
   })
 })
 
@@ -193,7 +243,7 @@ describe('keyboard', () => {
   it('ignores keys while the segment dialog is open, or in a text field', async () => {
     await openWork('large.alpha')
     const user = userEvent.setup()
-    await user.click(chips()[0]!)
+    await user.click(openChip(0))
     const dialog = screen.getByRole('dialog')
     await user.keyboard('{ArrowRight}{ArrowLeft}')
     // Keys pressed with focus outside the dialog's controls, too.
@@ -348,7 +398,7 @@ describe('options', () => {
     expect(rowLabel()).toBe('Row 1 of 5 →')
     const names = chips().map((c) => c.querySelector('.chip__text')!.textContent)
     expect(names).toEqual(encodeRow(top, 0).map((run) => `${run.count} ${p.palette[run.palette_index]!.name}`))
-    await userEvent.click(chips()[0]!)
+    await userEvent.click(openChip(0))
     expect(screen.getByLabelText('Knots done')).toBeTruthy()
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
@@ -432,7 +482,7 @@ describe('options', () => {
     )
     // Read out too.
     const i = byRun.findIndex((cs) => cs.length > 0)
-    expect(chips()[i]!.getAttribute('aria-label')).toContain(`, ${notes[i]![0]}`)
+    expect(openChip(i).getAttribute('aria-label')).toContain(`, ${notes[i]![0]}`)
     // And gone again when switched off.
     await userEvent.click(screen.getByLabelText('Show where to carry yarn'))
     expect(document.querySelector('.chip__carry')).toBeNull()

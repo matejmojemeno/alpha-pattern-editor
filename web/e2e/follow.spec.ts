@@ -59,7 +59,8 @@ const p = project.pattern
 const imageRow = (n: number) => ROWS - n
 
 const rowLabel = (page: Page) => page.locator('.work__row')
-const chips = (page: Page) => page.getByRole('list', { name: 'Colours in this row' }).getByRole('button')
+/** Each chip's own button, which opens Record progress. */
+const chips = (page: Page) => page.getByRole('list', { name: 'Colours in this row' }).locator('.chip__open')
 const scroller = (page: Page) => page.getByTestId('chart-scroller')
 
 /** The chart's horizontal scroll once it has stopped moving (ten still frames). */

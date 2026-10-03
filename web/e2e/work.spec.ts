@@ -15,7 +15,10 @@ const LARGE = resolve(FIXTURES, 'large.alpha')
 const basic = readAlpha(new Uint8Array(readFileSync(BASIC))).project.pattern
 
 const rowLabel = (page: Page) => page.locator('.work__row')
-const chips = (page: Page) => page.getByRole('list', { name: 'Colours in this row' }).getByRole('button')
+/** The chips (list items, holding the chip's button and its tick). */
+const chips = (page: Page) => page.getByRole('list', { name: 'Colours in this row' }).getByRole('listitem')
+/** Chip i's own button, which opens Record progress. */
+const openChip = (page: Page, i: number) => chips(page).nth(i).locator('.chip__open')
 
 /** Import `file` from the Library and open it in the Work stage. The desktop saved these
  *  in the Design stage with no progress, so the card opens Design (§6.4), and "Start
@@ -56,7 +59,7 @@ test('work through rows, reload, export and re-import', async ({ page }, testInf
   // ...and one by tapping each chip and marking its segment complete.
   await expect(chips(page)).toHaveCount(4)
   for (let i = 0; i < 4; i++) {
-    await chips(page).nth(i).click()
+    await openChip(page, i).click()
     const dialog = page.getByRole('dialog', { name: 'Record progress' })
     await dialog.getByRole('button', { name: 'Mark segment complete' }).click()
     await expect(dialog).toBeHidden()
@@ -65,19 +68,19 @@ test('work through rows, reload, export and re-import', async ({ page }, testInf
   await expect(rowLabel(page)).toHaveText('Row 4 of 5 →')
 
   // 3. Partial stitches: 1 of the "2 White" segment (the third) in row 4.
-  await chips(page).nth(2).click()
+  await openChip(page, 2).click()
   const dialog = page.getByRole('dialog', { name: 'Record progress' })
   await expect(dialog).toContainText('2 White')
   await dialog.getByLabel('Stitches done').fill('1')
   await dialog.getByRole('button', { name: 'Save progress' }).click()
-  await expect(chips(page).nth(2)).toHaveText('2 White· 1/2')
+  await expect(chips(page).nth(2)).toHaveText('2 White1/2')
   await expect(page.getByText('Saved', { exact: true })).toBeVisible()
 
   const before = await progressOnScreen(page)
   expect(before.chips).toEqual([
-    'chip--done: 1 Brown✓',
-    'chip--done: 1 Red✓',
-    'chip--current: 2 White· 1/2',
+    'chip--done: 1 Brown',
+    'chip--done: 1 Red',
+    'chip--current: 2 White1/2',
     'chip--pending: 1 Brown',
     'chip--pending: 1 White',
     'chip--pending: 1 Brown',

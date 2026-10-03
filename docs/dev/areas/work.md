@@ -163,6 +163,55 @@ Newest last, as they were built.
   `highContrast` from an earlier version is ignored on load (as any unknown key is) and
   dropped at the next change. The canvases still re-read their colours when the system
   switches between light and dark.
+- <a id="segment-flow"></a>**Marking segments done quickly** (`ui/work/Chips.tsx`,
+  `ui/work/SegmentDialog.tsx`, `ui/screens/Work.tsx`, `ui/work/ChartView.tsx`; layout
+  helpers `placeThrough` and `cellAt` in `render/layout.ts`). The owner's rows had 20 or
+  more segments, so the chips ran off the screen and each segment took two taps and a
+  scroll.
+  - **A tick on every chip.** A chip is now a list item holding two sibling buttons
+    inside one outline: the chip, which opens **Record progress** as before, and a round
+    tick at its end (`aria-pressed`). A button can't sit inside a button, so the tick is
+    beside it, not in it. An empty ring marks that segment done (`markSegmentComplete`,
+    so every segment before it too, as the dialog does). A ticked one unticks to the
+    start of that segment (`setRunStitches(i, 0)`), so a stray tap is undone with
+    another. The "✓" and "·" text marks are gone: the tick says done, and a started
+    segment shows "2/5" in muted text.
+  - **The dialog leads with Mark segment complete**, the one primary button, with the
+    focus (Return presses it, and a phone's keyboard no longer opens with the dialog).
+    The stitch count is under an "or" rule, its label on a line of its own so "of N"
+    no longer wraps away on a phone; **Cancel** and **Save progress** are ordinary
+    buttons sharing the dialog's width half and half (the owner found two buttons
+    pushed to the right under one full-width one lopsided). The count is one control:
+    −, the number and + in one outline with a line between each, and the number has no
+    arrows of its own (− and + are those; two pairs of arrows read as two controls
+    mashed together). Its classes are `segment__count`: as `.stepper`, Import's colour
+    stepper restyled it into a pill once Import had been opened (see
+    [rules.md](../rules.md#css-names)).
+  - **The chips follow your place.** On every progress change the list scrolls so the
+    current segment is at its top, with up to 24 px of the one before it showing; at
+    the first segment of a row it goes to the very top. It moves only when the list is
+    longer than its space, and glides unless reduced motion is asked for. A scroll by
+    hand stays until the next change, like the chart.
+  - **A tap on a stitch of the current row** marks it and every stitch before it done
+    (`placeThrough`, then `setRunStitches`, which finishes the row on its last stitch).
+    The worry was accidental taps, so: only the current row responds, and nothing
+    elsewhere on the chart does; only a tap counts (one finger or the main mouse button,
+    under 10 px of drift, under 600 ms, no second finger); and a touch that lands while
+    the chart is moving, or within 250 ms of it stopping, is taken as stopping a fling
+    and ignored. A wrong tap can only move your place along the row you're on, and
+    tapping the right stitch puts it back. With a mouse, the pointer is a hand over the
+    current row only.
+  - Not in the Python: chips.py had one button per chip, its dialog put the count first,
+    and the desktop chart took no clicks. The progress operations are the ported ones,
+    unchanged.
+  - Tested in `e2e/work-chips.spec.ts` on a phone-sized screen: the current chip stays at
+    the top of the list as a 12-segment row is ticked through, and the list is back at
+    the top for the next row, after finishing it by its last tick and after a scroll by
+    hand and **Row complete**. Taps on the chart give exact stitch counts both ways
+    along a row; taps on other rows, on the axis, a drag, and a tap right after a scroll
+    change nothing. Switching off the list's scrolling, the tap handler, or the
+    still-moving check each fails the spec. `placeThrough` is checked as the inverse
+    of `placeColumn` over 200 random rows both ways.
 
 ## During the port
 
