@@ -187,6 +187,14 @@ Newest last, as they were built.
     mashed together). Its classes are `segment__count`: as `.stepper`, Import's colour
     stepper restyled it into a pill once Import had been opened (see
     [rules.md](../rules.md#css-names)).
+  - **The dialog says each thing once.** Its heading was a swatch with the count in it
+    and then "9 White" beside it, so the count showed twice. Now the swatch is plain
+    colour, beside the colour's name, with "9 stitches" (the craft's unit, singular for
+    one) in muted text under it. "of 9" moved inside the count's outline, at the
+    number's size and right after it (− | 0 of 9 | +); it had sat outside in small muted
+    text and didn't read as part of the count. The number is as wide as the count's
+    digits, a click on "of 9" goes to it, its focus ring goes round both, and "of 9" is
+    its `aria-describedby`.
   - **The chips follow your place.** On every progress change the list scrolls so the
     current segment is at its top, with up to 24 px of the one before it showing; at
     the first segment of a row it goes to the very top. It moves only when the list is

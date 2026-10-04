@@ -414,6 +414,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
         <SegmentDialog
           entry={entryFor(p, openRun.palette_index)}
           count={openRun.count}
+          unit={craft.unit}
           units={craft.units}
           done={segment === pr.current_run_index ? pr.current_run_stitches : 0}
           onCancel={() => setSegment(null)}

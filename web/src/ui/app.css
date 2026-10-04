@@ -1113,8 +1113,6 @@ code {
 .swatch--lg {
   width: 3rem;
   height: 3rem;
-  font-size: var(--text-lg);
-  font-weight: 700;
 }
 
 .chart {
@@ -1196,7 +1194,18 @@ code {
   display: flex;
   align-items: center;
   gap: 0.85rem;
+}
+
+/* The colour's name, and under it how many stitches the segment has. */
+.segment__name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.segment__name strong {
   font-size: var(--text-lg);
+  overflow-wrap: anywhere;
 }
 
 .segment__stitches {
@@ -1236,18 +1245,36 @@ code {
   background: var(--raised);
 }
 
-.segment__count input {
-  width: 4rem;
-  min-height: var(--tap);
-  padding: 0 0.5rem;
-  border: 0;
+/* The number and "of N" as one field between − and +: the number set right, against
+   "of N" in the same size, muted. A click anywhere in it goes to the number. */
+.segment__value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em;
+  min-width: 6.5rem;
+  padding: 0 0.75rem;
   border-inline: 1px solid var(--border);
-  border-radius: 0;
   background: var(--bg);
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+  cursor: text;
+}
+
+.segment__value span {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.segment__count input {
+  min-height: var(--tap);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: var(--text-lg);
-  text-align: center;
+  text-align: right;
   font-variant-numeric: tabular-nums;
   appearance: textfield;
   -moz-appearance: textfield;
@@ -1261,6 +1288,16 @@ code {
 
 /* Inside the outline, which clips anything outside it. */
 .segment__count :focus-visible {
+  outline-offset: -3px;
+}
+
+/* The number's ring goes round the whole field, "of N" with it. */
+.segment__count input:focus-visible {
+  outline: 0;
+}
+
+.segment__value:has(input:focus-visible) {
+  outline: 3px solid var(--accent);
   outline-offset: -3px;
 }
 
