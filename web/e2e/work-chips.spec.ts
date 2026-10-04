@@ -155,8 +155,11 @@ test('Record progress: one joined count without arrows of its own, and two butto
   const dialog = page.getByRole('dialog', { name: 'Record progress' })
   const look = await dialog.evaluate((d) => {
     const css = (el: Element) => getComputedStyle(el)
-    const count = d.querySelector('input')!.parentElement!
+    const count = d.querySelector('.segment__count')!
     const buttons = [...count.querySelectorAll('button')]
+    const input = d.querySelector('input')!
+    const of = count.querySelector('.segment__value span')!
+    const [n, o] = [input, of].map((e) => e.getBoundingClientRect())
     const [cancel, save] = [...d.querySelectorAll('.dialog__buttons button')].map((b) => b.getBoundingClientRect())
     const body = d.querySelector('.segment__complete')!.getBoundingClientRect()
     return {
@@ -166,8 +169,19 @@ test('Record progress: one joined count without arrows of its own, and two butto
       appearance: css(d.querySelector('input')!).appearance,
       widths: [cancel!.width, save!.width],
       span: [cancel!.left - body.left, body.right - save!.right],
+      // "of N": the number's size, on its line, just after it.
+      sizes: [css(input).fontSize, css(of).fontSize],
+      gap: o!.left - n!.right,
+      middles: [n!.top + n!.height / 2, o!.top + o!.height / 2],
     }
   })
+  expect(look.sizes[0]).toBe(look.sizes[1])
+  expect(look.gap).toBeGreaterThanOrEqual(0)
+  expect(look.gap).toBeLessThan(12)
+  expect(Math.abs(look.middles[0]! - look.middles[1]!)).toBeLessThan(2)
+  // A click on "of N" goes to the number.
+  await dialog.getByText(/^of \d+$/).click()
+  await expect(dialog.getByLabel('Stitches done')).toBeFocused()
   expect(look.countRadius).not.toBe('999px')
   expect(look.buttonRadii).toEqual(['0px', '0px'])
   expect(look.buttonBorders).toEqual(['0px', '0px'])

@@ -92,7 +92,7 @@ back to the start of that colour.
 Tap the colour itself to record part of it. The **Record progress** dialog opens for that
 colour:
 
-<img src="media/work-partial-row.png" alt="The Record progress dialog on a phone, for 8 Blue: Mark segment complete at the top, then, under 'or', Stitches done 1 of 8 with − and + buttons, Cancel and Save progress" width="260">
+<img src="media/work-partial-row.png" alt="The Record progress dialog on a phone, for Blue, 8 stitches: Mark segment complete at the top, then, under 'or', Stitches done with − 1 of 8 + in one box, Cancel and Save progress" width="260">
 
 - **Mark segment complete** marks that whole colour done.
 - Or set **Stitches done** with **−** and **+**, or type it, then press **Save progress**.

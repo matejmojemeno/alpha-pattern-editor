@@ -7,10 +7,13 @@
  * one primary button, and has the focus (Return presses it, and a phone's keyboard stays
  * down). Part of a segment comes after, under "or": the count, then Save progress beside
  * Cancel. The desktop's dialog had the count first and both buttons equal.
+ *
+ * The heading names the segment once: its colour as a plain swatch, its name, and how many
+ * stitches it has under that (the swatch used to repeat the count beside "9 White"). "of N"
+ * sits inside the count's outline at the number's size, so the two read as one value.
  */
 import { useId, useRef, useState } from 'react'
 
-import { contrastOn } from '../../theme/contrast.ts'
 import type { PaletteEntry } from '../../model/types.ts'
 import { Modal } from '../components.tsx'
 import { DoneIcon } from '../icons.tsx'
@@ -19,6 +22,7 @@ import { Swatch } from './Chips.tsx'
 export function SegmentDialog({
   entry,
   count,
+  unit = 'stitch',
   units = 'stitches',
   done,
   onSave,
@@ -27,7 +31,8 @@ export function SegmentDialog({
 }: {
   entry: PaletteEntry
   count: number
-  /** What the craft calls its cells: "stitches", "knots", "beads" (craft/crafts.ts). */
+  /** What the craft calls a cell, and its cells: "stitch", "stitches" (craft/crafts.ts). */
+  unit?: string
   units?: string
   /** Stitches already recorded on this segment. */
   done: number
@@ -37,6 +42,7 @@ export function SegmentDialog({
 }) {
   const id = useId()
   const complete = useRef<HTMLButtonElement>(null)
+  const input = useRef<HTMLInputElement>(null)
   const [value, setValue] = useState(String(Math.min(done, count)))
   const n = Number.parseInt(value, 10)
   const stitches = Number.isFinite(n) ? Math.max(0, Math.min(count, n)) : 0
@@ -51,12 +57,13 @@ export function SegmentDialog({
         }}
       >
         <p className="segment__head">
-          <Swatch hex={entry.hex} className="swatch swatch--lg">
-            <span style={{ color: contrastOn(entry.hex) }}>{count}</span>
-          </Swatch>
-          <strong>
-            {count} {entry.name}
-          </strong>
+          <Swatch hex={entry.hex} className="swatch swatch--lg" />
+          <span className="segment__name">
+            <strong>{entry.name}</strong>
+            <span className="muted">
+              {count} {count === 1 ? unit : units}
+            </span>
+          </span>
         </p>
         <button ref={complete} type="button" className="button button--primary segment__complete" onClick={onComplete}>
           <DoneIcon /> Mark segment complete
@@ -72,21 +79,28 @@ export function SegmentDialog({
             <button type="button" className="button" aria-label="One fewer" onClick={() => step(-1)} disabled={stitches <= 0}>
               −
             </button>
-            <input
-              id={`${id}-n`}
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={count}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onFocus={(e) => e.target.select()}
-            />
+            {/* A click on "of N" goes to the number too: the two are one field. */}
+            <div className="segment__value" onClick={() => input.current?.focus()}>
+              <input
+                ref={input}
+                id={`${id}-n`}
+                aria-describedby={`${id}-of`}
+                // As wide as the count's digits, so "0 of 9" sits centred with no gap.
+                style={{ width: `${String(count).length + 0.5}ch` }}
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={count}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                onFocus={(e) => e.target.select()}
+              />
+              <span id={`${id}-of`}>of {count}</span>
+            </div>
             <button type="button" className="button" aria-label="One more" onClick={() => step(+1)} disabled={stitches >= count}>
               +
             </button>
           </div>
-          <span className="muted">of {count}</span>
         </div>
         <div className="dialog__buttons">
           <button type="button" className="button" onClick={onCancel}>

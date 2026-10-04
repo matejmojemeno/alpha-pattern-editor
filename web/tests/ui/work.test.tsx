@@ -126,7 +126,10 @@ describe('segment dialog', () => {
 
     await user.click(openChip(target))
     const dialog = screen.getByRole('dialog', { name: 'Record progress' })
-    expect(dialog.textContent).toContain(`${runs[target]!.count} ${project.pattern.palette[runs[target]!.palette_index]!.name}`)
+    // The heading names the colour and the count once each: no number in the swatch.
+    const head = dialog.querySelector('.segment__head')!
+    expect(head.textContent).toBe(`${project.pattern.palette[runs[target]!.palette_index]!.name}${runs[target]!.count} stitches`)
+    expect(head.querySelector('.swatch')!.textContent).toBe('')
     const input = within(dialog).getByLabelText('Stitches done')
     await user.clear(input)
     await user.type(input, '1')
@@ -147,6 +150,10 @@ describe('segment dialog', () => {
     const input = within(dialog).getByLabelText<HTMLInputElement>('Stitches done')
     const count = Number(input.max)
     expect(input.value).toBe('0')
+    // "of N" is inside the joined control, and describes the number.
+    const of = dialog.querySelector('.segment__count .segment__value span')!
+    expect(of.textContent).toBe(`of ${count}`)
+    expect(input.getAttribute('aria-describedby')).toBe(of.id)
     expect(within(dialog).getByRole('button', { name: 'One fewer' })).toHaveProperty('disabled', true)
     await user.click(within(dialog).getByRole('button', { name: 'One more' }))
     expect(input.value).toBe(String(Math.min(1, count)))

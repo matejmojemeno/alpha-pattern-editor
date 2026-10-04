@@ -70,7 +70,7 @@ test('work through rows, reload, export and re-import', async ({ page }, testInf
   // 3. Partial stitches: 1 of the "2 White" segment (the third) in row 4.
   await openChip(page, 2).click()
   const dialog = page.getByRole('dialog', { name: 'Record progress' })
-  await expect(dialog).toContainText('2 White')
+  await expect(dialog.locator('.segment__head')).toHaveText('White2 stitches')
   await dialog.getByLabel('Stitches done').fill('1')
   await dialog.getByRole('button', { name: 'Save progress' }).click()
   await expect(chips(page).nth(2)).toHaveText('2 White1/2')
