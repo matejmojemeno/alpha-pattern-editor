@@ -353,6 +353,8 @@ export function drawChart(ctx: CanvasRenderingContext2D, d: DrawInput): void {
   ctx.fillStyle = colors.background
   ctx.fillRect(0, 0, d.width, d.height)
   if (l.heights.length === 0 || l.cols <= 0) return
+  // A chart narrower than its view is drawn in the middle of it, row numbers and all.
+  if (l.inset > 0) ctx.setTransform(dpr, 0, 0, dpr, Math.round(l.inset * dpr), 0)
 
   const { from, to } = rowsInViewport(l, sy)
   const gw = l.gridWidth

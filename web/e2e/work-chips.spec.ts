@@ -203,11 +203,13 @@ test('a tap on a stitch of the current row marks it and the stitches before it d
   const stitch = async (row: number, col: number) => {
     const sc = scroller(page)
     const cell = Number(await sc.getAttribute('data-cell'))
+    // A chart narrower than its view is centred in it (layout.ts, inset).
+    const inset = Number(await sc.getAttribute('data-inset'))
     const { left, top, sx, sy } = await sc.evaluate((e) => {
       const r = e.getBoundingClientRect()
       return { left: r.left + e.clientLeft, top: r.top + e.clientTop, sx: e.scrollLeft, sy: e.scrollTop }
     })
-    return { x: left + AXIS_LEFT + (col + 0.5) * cell - sx, y: top + AXIS_TOP + (row + 0.5) * cell - sy }
+    return { x: left + AXIS_LEFT + inset + (col + 0.5) * cell - sx, y: top + AXIS_TOP + (row + 0.5) * cell - sy }
   }
   const tapAt = async (row: number, col: number) => {
     const { x, y } = await stitch(row, col)

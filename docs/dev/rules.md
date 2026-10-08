@@ -165,6 +165,11 @@ break without noticing.
 - <a id="per-row-heights"></a>**The Work chart lays out rows with per-row heights, never a single cell size.**
   Scrolling long charts and the taller current row both depend on it (see [Phase 1](history/web-port.md#chart-layout)), and
   retrofitting it later means redoing the layout.
+- <a id="chart-inset"></a>**The Work chart's grid starts at `AXIS_LEFT + layout.inset`, not `AXIS_LEFT`.** A
+  chart sized by its height is centred across its view (`inset`, `render/layout.ts`):
+  `drawChart` shifts the whole canvas by it, and `cellAt` and the zoom anchor in
+  `ChartView` take it off. Anything new that turns a point into a stitch, or draws
+  outside `drawChart`, must too, or it lands up to half the spare width off.
 - <a id="floating-selection"></a>**A floating selection must be put down before any other edit.** While the Select
   tool's block floats (`editor.ts` `Selection.floating`), the pattern is its `under` with
   the block written over it, and both hold palette *indices*. An edit that renumbers the
