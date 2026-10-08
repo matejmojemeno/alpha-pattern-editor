@@ -15,9 +15,11 @@ you [choose another craft](#choose-your-craft).
 
 - **Row 7 of 30 ←** is the row you're on, and the arrow is the way you work it: ← right
   to left, → left to right. Beside it, how many stitches you've done out of the whole
-  pattern, and a bar with the percentage.
+  pattern, and a bar with the percentage (on a phone, the bar alone).
 - **This row** lists the row's colours in the order you work them: "1 Red", then "8 Blue",
-  and so on. The colour you're on is outlined.
+  and so on. The colour you're on is outlined. On a phone it's right under the chart,
+  without the heading, and the chart takes all the room it can use: the list gets the
+  rest, and scrolls when the row has more colours than fit.
 - **Next:** shows the row after this one, so you can see what's coming.
 - The chart shows the whole pattern with the current row outlined and the rows you've
   finished greyed out. Each stitch carries a number: see
