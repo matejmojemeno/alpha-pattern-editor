@@ -220,6 +220,35 @@ Newest last, as they were built.
     change nothing. Switching off the list's scrolling, the tap handler, or the
     still-moving check each fails the spec. `placeThrough` is checked as the inverse
     of `placeColumn` over 200 random rows both ways.
+- <a id="phone-chart-room"></a>**The chart gets the room on a phone** (`fitHeight` and `inset` in
+  `render/layout.ts`, `ui/work/ChartView.tsx`, `.work__body` in `ui/app.css`). The
+  owner's 38 × 45 Snoopy on an iPhone drew 4 px stitches in a third of the screen: under
+  700 px wide the chart and the chips each had half the space under the header, so a row
+  of one colour left most of the chips' half empty, and the chart, sized by its height,
+  sat flush left with empty space beside it.
+  - The chart asks for the height it can use at the full width (`fitHeight`, passed to
+    CSS as `--chart-fit`): more would sit empty under it. The chips take the rest, and
+    the chart gives way when they'd have less than 5.75rem, a chip and the **Next:**
+    line; past that they scroll, following your place as before. A tall chart, which
+    scrolls, asks for more than any screen has, so it takes all but the chips' 5.75rem.
+    `fitHeight` sizes by the rows the cells are sized by (the whole band of taller rows,
+    even where the first or last rows clip it), so it's the same on every row and the
+    chart doesn't change height as you work.
+  - On a phone the "This row" heading is for screen readers only (the region keeps the
+    name) and the progress bar loses its "0% done": the stitch count is right above it.
+  - A chart narrower than its view (sized by its height, at any width) is drawn in the
+    middle of it, row numbers and all, as one translate of the canvas (`inset`); taps
+    and the zoom anchor take it off (see [rules.md](../rules.md#chart-inset)). On a wide
+    screen this moves the chart from the left of its area to the middle.
+  - Measured at 393 × 660 (an iPhone 15 with Safari's toolbars) on that 38 × 45 chart:
+    4 px stitches before, 7 px after (3× the area). A phone turned sideways is over
+    700 px wide, so it keeps the side-by-side layout, unchanged but for the centring.
+  - Tested in `e2e/work-phone.spec.ts` and `tests/render/layout.test.ts`: over 600
+    random charts, `fitHeight` gives the cells the width allows with every row in view,
+    and away from the ends a pixel less makes them smaller; it's the same on every row;
+    the inset centres the grid only when it's narrower than the view; and taps find the
+    right stitch with and without one. On the old code the phone spec gets 4 px stitches
+    where it asks for 7.
 
 ## During the port
 

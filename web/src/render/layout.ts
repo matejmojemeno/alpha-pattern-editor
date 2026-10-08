@@ -126,6 +126,25 @@ export interface ChartLayout {
   readonly viewHeight: number
   readonly maxScrollX: number
   readonly maxScrollY: number
+  /** How far the grid (with its row numbers) is moved right to sit in the middle of the
+   *  view, when it's narrower than the view: a chart sized by its height. 0 otherwise. */
+  readonly inset: number
+}
+
+/**
+ * How many base heights the rows add up to, for sizing the cells. Near the first and last
+ * rows the band around the current one is clipped, so fewer rows are drawn, or drawn
+ * tall; sizing by those would grow the cells and zoom the chart as you reach either end.
+ * So the cells are sized as if the whole band were there (as many rows as the chart has,
+ * at most), in focus mode and for emphasis alike, and stay the same size from row to row.
+ * `drawn` is how many rows are drawn. `weight` is the total; `plain` and `emphasised`
+ * are how many rows of each height it counts.
+ */
+function sizingRows(rows: number, cur: number | null, drawn: number, emphasise: boolean, focus: boolean) {
+  const band = cur === null ? 0 : Math.min(2 * NEAR_RADIUS + 1, rows)
+  const sized = focus && cur !== null ? band : drawn
+  const emphasised = emphasise ? Math.min(band, sized) : 0
+  return { plain: sized - emphasised, emphasised, weight: sized - emphasised + emphasised * EMPHASIS_SCALE }
 }
 
 export function computeLayout(input: LayoutInput): ChartLayout {
@@ -138,15 +157,7 @@ export function computeLayout(input: LayoutInput): ChartLayout {
   const near = emphasise ? nearRows(rows, cur) : { start: 0, end: 0 }
   const n = range.end - range.start
 
-  // How many base heights the rows add up to, for sizing. Near the first and last rows the
-  // band around the current one is clipped, so fewer rows are drawn, or drawn tall; sizing
-  // by those would grow the cells and zoom the chart as you reach either end. So the cells
-  // are sized as if the whole band were there (as many rows as the chart has, at most), in
-  // focus mode and for emphasis alike, and stay the same size from row to row.
-  const band = cur === null ? 0 : Math.min(2 * NEAR_RADIUS + 1, rows)
-  const sized = focus && cur !== null ? band : n
-  const emphasised = emphasise ? Math.min(band, sized) : 0
-  const weight = sized - emphasised + emphasised * EMPHASIS_SCALE
+  const { weight } = sizingRows(rows, cur, n, emphasise, focus)
 
   // Focus mode shows a handful of rows, so it always fits, as on the desktop. Otherwise
   // a tall chart is sized to its width and scrolls down.
@@ -180,7 +191,29 @@ export function computeLayout(input: LayoutInput): ChartLayout {
     viewHeight,
     maxScrollX: Math.max(0, gridWidth - viewWidth),
     maxScrollY: Math.max(0, gridHeight - viewHeight),
+    inset: gridWidth < viewWidth ? snap((viewWidth - gridWidth) / 2, dpr) : 0,
   }
+}
+
+/**
+ * The height of chart area the chart can use at this width: the margins and the rows at
+ * the cell size the width alone allows (zoom aside). Any more is left empty under
+ * the chart, so on a phone, where the chart sits above the chips, that's all it asks
+ * for and the chips get the rest. A tall chart (one that scrolls) asks for its whole
+ * height, more than any screen has, so it takes all the room it's given.
+ */
+export function fitHeight(input: Omit<LayoutInput, 'height' | 'zoom'>): number {
+  const l = computeLayout({ ...input, height: Number.MAX_SAFE_INTEGER, zoom: 1 })
+  if (l.mode === 'scroll') return Math.ceil(AXIS_TOP + l.gridHeight + PAD)
+  // The rows the cells are sized by (sizingRows), which near the first and last rows are
+  // a few more than those drawn: less, and the cells would come out a size smaller. Taller
+  // rows are rounded to device pixels, which can make them a pixel taller than the sizing
+  // counts, so whichever is more. Either way the same on every row, so the chart doesn't
+  // change height as you work.
+  const s = sizingRows(l.rows, l.current, l.range.end - l.range.start, input.emphasise, input.focus)
+  const tall = rowHeight(0, l.cell, { start: 0, end: 1 }, true, input.dpr && input.dpr > 0 ? input.dpr : 1)
+  const rows = Math.max(l.cell * s.weight, l.cell * s.plain + tall * s.emphasised)
+  return Math.ceil(AXIS_TOP + rows + PAD)
 }
 
 /** Top and bottom of image row `r` in grid coordinates, or null if it isn't drawn. */
@@ -242,7 +275,8 @@ export function placeThrough(
 }
 
 /** The image row and column drawn under the point (x, y) of the chart area, scrolled to
- *  (scrollX, scrollY), or null when it's on the axes, the margins or past the grid. */
+ *  (scrollX, scrollY), or null when it's on the axes, the margins or past the grid. The
+ *  grid starts `inset` further right when it's centred. */
 export function cellAt(
   layout: ChartLayout,
   x: number,
@@ -250,8 +284,8 @@ export function cellAt(
   scrollX: number,
   scrollY: number,
 ): { row: number; col: number } | null {
-  if (x < AXIS_LEFT || y < AXIS_TOP || layout.cell <= 0) return null
-  const gx = x - AXIS_LEFT + scrollX
+  if (x < AXIS_LEFT + layout.inset || y < AXIS_TOP || layout.cell <= 0) return null
+  const gx = x - AXIS_LEFT - layout.inset + scrollX
   const gy = y - AXIS_TOP + scrollY
   if (gx >= layout.gridWidth || gy >= layout.gridHeight) return null
   const col = Math.floor(gx / layout.cell)

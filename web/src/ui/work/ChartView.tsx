@@ -27,7 +27,7 @@
  * touch that lands while the chart is still moving, or within SETTLE_MS of it stopping,
  * is one that stops a fling or a glide, not a choice, so it's ignored too.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 
 import { TwoFingers, scrollAbout, type PinchStep } from '../gestures.ts'
 
@@ -40,6 +40,7 @@ import {
   MAX_ZOOM,
   cellAt,
   computeLayout,
+  fitHeight,
   followCurrent,
   followCurrentX,
   type RowPlace,
@@ -141,6 +142,15 @@ export function ChartView({
       }),
     [pattern.rows, pattern.cols, current, size.width, size.height, emphasise, focus, dpr, zoom],
   )
+  // The height the chart can use at its width (layout.ts, fitHeight), for the page's
+  // layout to give it no more than that (app.css, .work__body on a phone).
+  const fit = useMemo(
+    () =>
+      size.width === 0
+        ? null
+        : fitHeight({ rows: pattern.rows, cols: pattern.cols, current, width: size.width, emphasise, focus, dpr }),
+    [pattern.rows, pattern.cols, current, size.width, emphasise, focus, dpr],
+  )
 
   // The latest draw, for the scroll handler and animation frames. Set in an effect, before
   // the effects below that call it.
@@ -203,7 +213,7 @@ export function ChartView({
   const followed = useRef<typeof layout | null>(null)
   /** A zoom asked for about this point (in the scroller's view): where it was, and the
    *  cell size then. The layout it makes keeps the point still instead of following. */
-  const anchor = useRef<{ x: number; y: number; cell: number } | null>(null)
+  const anchor = useRef<{ x: number; y: number; cell: number; inset: number } | null>(null)
   useLayoutEffect(() => {
     const sc = scroller.current
     if (!sc || size.width === 0) return
@@ -212,7 +222,9 @@ export function ChartView({
       anchor.current = null
       followed.current = layout
       const ratio = layout.cell / a.cell
-      sc.scrollLeft = scrollAbout(sc.scrollLeft, a.x - AXIS_LEFT, ratio)
+      // The grid moves as well when it was centred (an inset), so the point is kept over
+      // the same stitch rather than at the same distance from the grid's edge.
+      sc.scrollLeft = Math.max(0, (sc.scrollLeft + a.x - AXIS_LEFT - a.inset) * ratio - (a.x - AXIS_LEFT - layout.inset))
       sc.scrollTop = scrollAbout(sc.scrollTop, a.y - AXIS_TOP, ratio)
       return
     }
@@ -237,9 +249,9 @@ export function ChartView({
   }, [layout, place, size.width])
 
   // --- zoom: pinch, or Ctrl/⌘ + wheel (a trackpad's pinch arrives as that too) --------------
-  const latestCell = useRef(layout.cell)
+  const latestCell = useRef({ cell: layout.cell, inset: layout.inset })
   useLayoutEffect(() => {
-    latestCell.current = layout.cell
+    latestCell.current = { cell: layout.cell, inset: layout.inset }
   })
   const zoomNow = useRef(zoom)
   useLayoutEffect(() => {
@@ -250,7 +262,7 @@ export function ChartView({
     // Nothing to do at either end; and an anchor left set would stop the next progress
     // change from following.
     if (Math.abs(z - zoomNow.current) < 1e-3) return
-    anchor.current = { x, y, cell: latestCell.current }
+    anchor.current = { x, y, ...latestCell.current }
     zoomNow.current = z
     setZoom(z)
   })
@@ -373,7 +385,13 @@ export function ChartView({
   // both ways.
   const scrolls = zoom > 1 ? 'both' : layout.mode === 'scroll' ? 'y' : null
   return (
-    <div ref={wrap} className="chart" role="img" aria-label={label}>
+    <div
+      ref={wrap}
+      className="chart"
+      role="img"
+      aria-label={label}
+      style={fit === null ? undefined : ({ '--chart-fit': `${fit}px` } as CSSProperties)}
+    >
       <canvas
         ref={canvas}
         className="chart__canvas"
@@ -396,6 +414,7 @@ export function ChartView({
         data-testid="chart-scroller"
         data-zoom={zoom}
         data-cell={layout.cell}
+        data-inset={layout.inset}
       >
         <div
           style={{

@@ -8,6 +8,7 @@ import {
   PAD,
   cellAt,
   computeLayout,
+  fitHeight,
   followCurrent,
   followCurrentX,
   followMargin,
@@ -554,31 +555,108 @@ describe('a tap on the chart', () => {
   })
 
   it('finds the cell under the point, scrolled or not, with rows of their own heights', () => {
-    // 10 rows, current 5, emphasised: rows 3..7 are taller.
-    const l = layout({ rows: 10, cols: 10, current: 5, emphasise: true })
-    for (const [sx, sy] of [
-      [0, 0],
-      [13, 21],
-    ] as const) {
-      for (let r = 0; r < 10; r++) {
-        const span = rowSpan(l, r)!
-        for (let c = 0; c < 10; c++) {
-          const x = AXIS_LEFT + c * l.cell + l.cell / 2 - sx
-          const y = AXIS_TOP + (span.top + span.bottom) / 2 - sy
-          // Scrolled under the axes, a cell isn't drawn, so isn't there to tap.
-          expect(cellAt(l, x, y, sx, sy)).toEqual(x < AXIS_LEFT || y < AXIS_TOP ? null : { row: r, col: c })
+    // 10 rows, current 5, emphasised: rows 3..7 are taller. Sized by its height, the grid
+    // is centred across (an inset); in a view exactly its width, it isn't.
+    const centred = layout({ rows: 10, cols: 10, current: 5, emphasise: true })
+    expect(centred.inset).toBeGreaterThan(0)
+    const flush = computeLayout({ rows: 10, cols: 10, current: 5, emphasise: true, focus: false, ...area(centred.gridWidth, 400) })
+    expect(flush.inset).toBe(0)
+    for (const l of [centred, flush]) {
+      const left = AXIS_LEFT + l.inset
+      for (const [sx, sy] of [
+        [0, 0],
+        [13, 21],
+      ] as const) {
+        for (let r = 0; r < 10; r++) {
+          const span = rowSpan(l, r)!
+          for (let c = 0; c < 10; c++) {
+            const x = left + c * l.cell + l.cell / 2 - sx
+            const y = AXIS_TOP + (span.top + span.bottom) / 2 - sy
+            // Scrolled under the axes, a cell isn't drawn, so isn't there to tap.
+            expect(cellAt(l, x, y, sx, sy)).toEqual(x < left || y < AXIS_TOP ? null : { row: r, col: c })
+          }
+          // The top edge of a row is that row's.
+          if (span.top >= sy) expect(cellAt(l, left + l.cell - 1, AXIS_TOP + span.top - sy, sx, sy)?.row).toBe(r)
         }
-        // The top edge of a row is that row's.
-        if (span.top >= sy) expect(cellAt(l, AXIS_LEFT + l.cell - 1, AXIS_TOP + span.top - sy, sx, sy)?.row).toBe(r)
       }
+      // The axes, the inset, and past the grid are no cell.
+      expect(cellAt(l, left - 1, AXIS_TOP + 5, 0, 0)).toBeNull()
+      expect(cellAt(l, left + 5, AXIS_TOP - 1, 0, 0)).toBeNull()
+      expect(cellAt(l, left + l.gridWidth, AXIS_TOP + 5, 0, 0)).toBeNull()
+      expect(cellAt(l, left + 5, AXIS_TOP + l.gridHeight, 0, 0)).toBeNull()
     }
-    // The axes, and past the grid, are no cell.
-    expect(cellAt(l, AXIS_LEFT - 1, AXIS_TOP + 5, 0, 0)).toBeNull()
-    expect(cellAt(l, AXIS_LEFT + 5, AXIS_TOP - 1, 0, 0)).toBeNull()
-    expect(cellAt(l, AXIS_LEFT + l.gridWidth, AXIS_TOP + 5, 0, 0)).toBeNull()
-    expect(cellAt(l, AXIS_LEFT + 5, AXIS_TOP + l.gridHeight, 0, 0)).toBeNull()
     // Focus mode draws only rows 3..7: the first drawn row is row 3.
     const f = layout({ rows: 10, cols: 10, current: 5, focus: true })
     expect(cellAt(f, AXIS_LEFT + 1, AXIS_TOP + 1, 0, 0)).toEqual({ row: 3, col: 0 })
+  })
+})
+
+describe('the height a chart can use (a phone, where the chips take the rest)', () => {
+  // A small deterministic generator, so a failure names its case.
+  let seed = 7
+  const rand = (n: number) => {
+    seed = (seed * 1103515245 + 12345) % 2147483648
+    return seed % n
+  }
+
+  it('is the least height that gives the cells the width allows, over random charts', () => {
+    for (let k = 0; k < 600; k++) {
+      const rows = 1 + rand(120)
+      const cols = 1 + rand(120)
+      const input = {
+        rows,
+        cols,
+        current: rand(5) === 0 ? null : rand(rows),
+        width: 120 + rand(900),
+        emphasise: rand(2) === 0,
+        focus: rand(3) === 0,
+        dpr: [1, 1.5, 2][rand(3)]!,
+      }
+      const name = JSON.stringify(input)
+      const h = fitHeight(input)
+      const atWidth = computeLayout({ ...input, height: 1e7 })
+      const there = computeLayout({ ...input, height: h })
+      expect(there.cell, name).toBe(atWidth.cell)
+      if (there.mode === 'fit') {
+        // Every row it draws is in view. Left over: rounding, and near the first or last
+        // rows the part of the band around the current one that's clipped (two rows at
+        // most), which the cells are sized as if it were there, and up to a pixel a row.
+        expect(there.maxScrollY, name).toBeLessThan(1e-6)
+        expect(there.viewHeight - there.gridHeight, name).toBeLessThan(2 * EMPHASIS_SCALE * there.cell + 5)
+        // Away from the ends, a pixel less and the cells come out smaller (unless they're
+        // as small as they go), or the rows no longer all fit (taller rows rounded up).
+        const middle = input.current !== null && input.current >= 2 && input.current < rows - 2
+        const less = computeLayout({ ...input, height: h - 1 })
+        if (middle && there.cell > MIN_CELL) expect(less.cell < there.cell || less.maxScrollY > 0, name).toBe(true)
+      } else {
+        // A tall chart asks for all of itself.
+        expect(h, name).toBe(Math.ceil(AXIS_TOP + there.gridHeight + PAD))
+      }
+    }
+  })
+
+  it('stays the same from row to row, as the cells do', () => {
+    for (const dpr of [1, 1.5, 2]) {
+      for (const focus of [false, true]) {
+        const at = (current: number) => fitHeight({ rows: 45, cols: 38, current, width: 361, emphasise: true, focus, dpr })
+        for (let r = 1; r < 45; r++) expect(at(r)).toBe(at(0))
+      }
+    }
+  })
+})
+
+describe('a chart narrower than its view', () => {
+  it('sits in the middle of it, and only then', () => {
+    // 38 × 45 in a phone's 321 × 345: sized by the height.
+    const tall = layout({ rows: 45, cols: 38, current: 0, emphasise: true, ...area(321, 345) })
+    expect(tall.gridWidth).toBeLessThan(tall.viewWidth)
+    expect(tall.inset).toBe(Math.floor((tall.viewWidth - tall.gridWidth) / 2))
+    // Half device pixels on a 2× screen.
+    const sharp = layout({ rows: 45, cols: 38, current: 0, dpr: 2, ...area(321, 345) })
+    expect((sharp.inset * 2) % 1).toBe(0)
+    // As wide as the view, scrolling down, or zoomed past it: no inset.
+    expect(layout({ rows: 10, cols: 40, ...area(400, 400) }).inset).toBe(0)
+    expect(layout({ rows: 300, cols: 40, ...area(400, 400) }).inset).toBe(0)
+    expect(layout({ rows: 45, cols: 38, zoom: 3, ...area(321, 345) }).inset).toBe(0)
   })
 })
