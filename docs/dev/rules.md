@@ -175,6 +175,11 @@ break without noticing.
   re-fit (first paint, rotating, zoom), so the chart is briefly the wrong size and
   `e2e/work-phone.spec.ts` reads small stitches. The "This row" slide animates the
   chart's `flex-grow` only ([work.md](areas/work.md#row-colours-switch)).
+- <a id="numbers-whole-row"></a>**A row's stitch numbers are all drawn or none.** Ask
+  `rowNumberFont` (its longest number over the whole row, strands' foot included), never
+  size a number by its own digits: a row showing 1 to 9 and a gap where 10 and on don't fit
+  looks broken ([work.md](areas/work.md#numbers-whole-row)). Anything that needs to know
+  whether a row is numbered (the zoom note, the foot strip) goes through it too.
 - <a id="floating-selection"></a>**A floating selection must be put down before any other edit.** While the Select
   tool's block floats (`editor.ts` `Selection.floating`), the pattern is its `under` with
   the block written over it, and both hold palette *indices*. An edit that renumbers the

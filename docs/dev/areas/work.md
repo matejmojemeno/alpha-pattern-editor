@@ -112,6 +112,25 @@ Newest last, as they were built.
   - One font size per row, set by its longest number (so a 10 isn't smaller than the 9
     beside it), at most 16 px; under `NUMBER_MIN_FONT` (8 px) the cell stays plain, so a
     big chart shows numbers only on its taller rows, or once zoomed in.
+  - <a id="numbers-whole-row"></a>**A row is numbered whole or not at all**
+    (`rowNumberFont`). Where the longest number didn't fit, each number used to be sized
+    on its own, so a long run on a zoomed-out chart showed 1 to 9 at each end and a gap
+    where 10 and on were too wide; the owner found that looked broken. Now the row's
+    longest number, over the whole row and not just the part on screen (so scrolling
+    never switches a row's numbers on or off), decides for every stitch in it. The
+    strands' foot strip (`footStrip`) follows the same rule, so a row without numbers
+    keeps its strands in the middle. Stitches a middle strand crosses still go without,
+    as before.
+  - <a id="numbers-zoom-note"></a>**"Zoom in for stitch numbers"** (`ui/work/ChartView.tsx`,
+    `.chart__tools` in `ui/app.css`). When numbers are on and the current row has none,
+    a note sits over the chart's top right corner, beside the zoom's **Fit**: a small
+    button with Lucide's ZoomIn and a joined **×**. Pressing it sets the least zoom (in
+    5% steps, up to `MAX_ZOOM`) at which `rowNumberFont` gives the current row a size,
+    and the chart follows your place as after any progress change. The × hides it until
+    the Work stage is opened again, as the zoom itself resets then. On a phone it reads
+    "Zoom for numbers" (its accessible name stays the long one), as the chart there is
+    short. Only the current row counts: the other rows are shorter by design, and a
+    note about them would never go away. Tested in `e2e/work-numbers.spec.ts`.
   - Not in the Python: the desktop never showed it, and it only reads the pattern.
 - <a id="options-menu"></a>**The Options menu in three groups** (`ui/work/OptionsMenu.tsx`,
   `ui/chartOptions.ts`). It was one column of nine checkboxes and three buttons, in no
