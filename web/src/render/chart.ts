@@ -172,13 +172,14 @@ export function carryStrip(h: number, lanes: number): { thickness: number; heigh
 /** Where row `i`'s strands go: along the foot of its stitches (returning the strip's
  *  height) when it's numbered and a number still fits above them, or 0 for through the
  *  middle, as without numbers. */
-function footStrip(d: DrawInput, i: number): number {
+function footStrip(d: NumberedRows, i: number): number {
   const l = d.layout
-  const row = d.carries?.[l.range.start + i]
+  const r = l.range.start + i
+  const row = d.carries?.[r]
   const h = l.heights[i]!
   if (!d.numbers || !row?.length || h < CARRY_MIN_ROW) return 0
   const strip = carryStrip(h, new Set(row.map((c) => c.palette_index)).size).height
-  return numberFont(l.cell, h, 1, strip) > 0 ? strip : 0
+  return numberFont(l.cell, h, longestDigits(d.pattern, r), strip) > 0 ? strip : 0
 }
 
 /** Each carried strand as a band of its colour through the stitches it's carried in,
@@ -291,6 +292,27 @@ export function numberFont(w: number, h: number, digits: number, foot = 0): numb
   return fs >= NUMBER_MIN_FONT ? fs : 0
 }
 
+/** How many digits row `r`'s longest stitch number has: its longest run of one colour. */
+function longestDigits(p: Pattern, r: number): number {
+  let longest = 0
+  for (const run of encodeRow(p, r)) if (run.palette_index !== SKIP_INDEX) longest = Math.max(longest, run.count)
+  return String(longest).length
+}
+
+/** What deciding a row's numbers needs: the drawing's layout, pattern and strands. */
+export type NumberedRows = Pick<DrawInput, 'layout' | 'pattern' | 'carries' | 'numbers'>
+
+/** The font size of drawn row `i`'s stitch numbers, or 0 when it gets none. A row is
+ *  numbered whole or not at all: one size for every number in it, set by its longest
+ *  number in the whole row (not just the part on screen, so a scroll never changes it),
+ *  and where that one can't fit, none. A row with 1 to 9 at either end of a long run and
+ *  a gap where 10 and on wouldn't fit read as broken. */
+export function rowNumberFont(d: NumberedRows, i: number): number {
+  if (!d.numbers) return 0
+  const l = d.layout
+  return numberFont(l.cell, l.heights[i]!, longestDigits(d.pattern, l.range.start + i), footStrip(d, i))
+}
+
 /** The stitch numbers, in black or white, whichever reads on the stitch's colour. In a
  *  row with strands along its foot, they're centred in the space above them; where the
  *  strands run through the middle, the stitches they cross get none. */
@@ -306,10 +328,10 @@ function drawNumbers(ctx: CanvasRenderingContext2D, d: DrawInput, from: number, 
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   for (let i = from; i < to; i++) {
+    const font = rowNumberFont(d, i)
+    if (font === 0) continue
     const h = l.heights[i]!
     const foot = footStrip(d, i)
-    // Not even one digit fits: nothing in this row will.
-    if (numberFont(l.cell, h, 1, foot) === 0) continue
     const r = l.range.start + i
     const nums = stitchNumbers(pattern, r)
     const mid = oy + l.offsets[i]! + (h - foot) / 2
@@ -317,21 +339,10 @@ function drawNumbers(ctx: CanvasRenderingContext2D, d: DrawInput, from: number, 
     // the strand is the instruction, so those stitches go without.
     const covered = new Uint8Array(pattern.cols)
     if (foot === 0 && h >= CARRY_MIN_ROW) for (const k of d.carries?.[r] ?? []) covered.fill(1, k.from, k.to)
-    // One size for the whole row, set by its longest number, so a 10 isn't smaller than
-    // the 9 beside it; only where that one can't fit at all does each number fit itself.
-    let longest = 0
-    for (let c = c0; c < c1; c++) longest = Math.max(longest, nums[c]!)
-    const rowFont = numberFont(l.cell, h, String(longest).length, foot)
-    let font = 0
+    ctx.font = `${font}px ${d.colors.fontFamily}`
     for (let c = c0; c < c1; c++) {
       const n = nums[c]!
       if (n === 0 || covered[c]) continue
-      const fs = rowFont || numberFont(l.cell, h, String(n).length, foot)
-      if (fs === 0) continue
-      if (fs !== font) {
-        ctx.font = `${fs}px ${d.colors.fontFamily}`
-        font = fs
-      }
       ctx.fillStyle = ink[pattern.cells[r * pattern.cols + c]!] ?? '#000000'
       ctx.fillText(String(n), ox + c * l.cell + l.cell / 2, mid)
     }

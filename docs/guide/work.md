@@ -149,9 +149,13 @@ Blue…", the red stitch at the right is 1, and the blue ones next to it are 1 t
 right to left. The count starts again at 1 with each new block, so a glance at the chart
 tells you how far into a block you are.
 
-Stitches too small to hold a number stay plain: a big pattern on a phone may show
-numbers only on the taller rows around your place, or none until you zoom in. To hide
-the numbers, switch off **Number the stitches** in **Options** (or in
+A row has all its numbers or none: where the stitches are too small for its longest
+block's number (a 10, or a 100), the whole row stays plain, rather than showing 1 to 9 and
+a gap. A big pattern on a phone may show numbers only on the taller rows around your
+place, or none until you zoom in. When your own row has none, a note at the top right of
+the chart says **Zoom in for stitch numbers**: press it to zoom in just far enough for
+them, or press its **×** to hide it until you next open the pattern. **Fit** zooms back
+out. To hide the numbers, switch off **Number the stitches** in **Options** (or in
 [Settings](settings.md)).
 
 ## Give the chart the whole width

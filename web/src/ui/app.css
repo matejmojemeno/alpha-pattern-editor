@@ -1268,13 +1268,62 @@ code {
   touch-action: pan-x pan-y;
 }
 
-.chart__unzoom {
+/* Over the chart's top right corner: the stitch-numbers note, then the zoom's Fit. */
+.chart__tools {
   position: absolute;
   top: 0.35rem;
   right: 0.35rem;
+  left: 0.35rem;
   z-index: 1;
-  font-variant-numeric: tabular-nums;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  pointer-events: none;
+}
+
+.chart__tools > * {
+  pointer-events: auto;
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.2);
+}
+
+.chart__unzoom {
+  font-variant-numeric: tabular-nums;
+}
+
+/* One pill: the note, and its × joined on. */
+.chart__hint {
+  display: inline-flex;
+  border-radius: var(--radius-md);
+}
+
+.chart__hint > .button:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* A phone's chart is short: the note's words are too. */
+.chart__hint-short {
+  display: none;
+}
+
+@media (max-width: 699px) {
+  .chart__hint-long {
+    display: none;
+  }
+
+  .chart__hint-short {
+    display: inline;
+  }
+}
+
+.chart__hint-close {
+  margin-left: -1px;
+  padding: 0;
+  min-width: 2.25rem;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  color: var(--muted);
 }
 
 .work__bar {

@@ -21,6 +21,8 @@ import {
   Settings,
   TriangleAlert,
   WandSparkles,
+  X,
+  ZoomIn,
   type LucideProps,
 } from 'lucide-react'
 
@@ -77,3 +79,7 @@ export function Logo() {
     </svg>
   )
 }
+
+/** The Work chart's note that the stitch numbers need a closer look: zoom in, or hide it. */
+export const ZoomInIcon = (props: LucideProps) => <ZoomIn {...ICON} {...props} />
+export const CloseIcon = (props: LucideProps) => <X {...ICON} {...props} />
