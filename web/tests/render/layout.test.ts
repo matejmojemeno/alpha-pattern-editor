@@ -316,7 +316,8 @@ describe('your place in the row stays in view across', () => {
   })
 
   /** Every stitch of a row in turn: the scroll offsets it passes through, checking your
-   *  place is in view at each one. */
+   *  place is in view at each one, with no more than a margin of worked stitches behind
+   *  it (the rest of the view is the stitches still to work). */
   function workRow(l: ChartLayout, direction: Direction, runs = tens): number[] {
     let x = followCurrentX(l, at(0, 0, direction, runs), direction === 'LTR' ? l.maxScrollX : 0)
     const stops = [x]
@@ -327,6 +328,9 @@ describe('your place in the row stays in view across', () => {
         const left = placeColumn(l.cols, place)! * l.cell
         expect(left).toBeGreaterThanOrEqual(x)
         expect(left + l.cell).toBeLessThanOrEqual(x + l.viewWidth)
+        // Unless the view has reached the far end of the chart and can go no further.
+        const behind = direction === 'LTR' ? left - x : x + l.viewWidth - (left + l.cell)
+        if (x !== (direction === 'LTR' ? l.maxScrollX : 0)) expect(behind).toBeLessThanOrEqual(followMargin(l) + 1e-6)
         if (x !== stops[stops.length - 1]) stops.push(x)
       }
     })
@@ -402,36 +406,46 @@ describe('your place in the row stays in view across', () => {
     expect(followCurrentX(wide(), at(0, 0, 'RTL'), 590)).toBe(600)
   })
 
-  it('stays put while your place is comfortably in view', () => {
+  it('moves on as soon as your place does, a margin in from where the row came from', () => {
     const l = wide()
-    expect(followCurrentX(l, at(3, 0, 'LTR'), 0)).toBe(0) // x 300..310
-    expect(followCurrentX(l, at(3, 5, 'LTR'), 0)).toBe(0)
-    expect(followCurrentX(l, at(5, 0, 'LTR'), 340)).toBe(340)
-    expect(followCurrentX(l, at(3, 0, 'RTL'), 600)).toBe(600) // col 69, x 690..700
-    expect(followCurrentX(l, at(5, 0, 'RTL'), 250)).toBe(250) // col 49, x 490..500
+    // Wherever the view was, your place goes a margin (30 px) in from the side already
+    // worked, and the stitches still to work fill the rest.
+    expect(followCurrentX(l, at(3, 0, 'LTR'), 0)).toBe(300 - 30) // col 30, x 300..310
+    expect(followCurrentX(l, at(3, 5, 'LTR'), 0)).toBe(350 - 30)
+    expect(followCurrentX(l, at(5, 0, 'LTR'), 340)).toBe(500 - 30)
+    expect(followCurrentX(l, at(3, 0, 'RTL'), 600)).toBe(700 + 30 - 400) // col 69, x 690..700
+    expect(followCurrentX(l, at(5, 0, 'RTL'), 250)).toBe(500 + 30 - 400) // col 49, x 490..500
+    // Near the end of the row it stops at the edge of the chart.
+    expect(followCurrentX(l, at(9, 5, 'LTR'), 0)).toBe(600)
+    expect(followCurrentX(l, at(9, 5, 'RTL'), 600)).toBe(0)
   })
 
-  it('works a left-to-right row a view at a time, ending at the right edge', () => {
-    // Your place nears the right (col 37 at x 370), so it goes a margin in from the left;
-    // then the last move stops at the right edge. Two moves in 100 stitches.
-    expect(workRow(wide(), 'LTR')).toEqual([0, 340, 600])
+  /** The offsets a row worked a stitch at a time passes through: every 10 px (a cell)
+   *  from the row's starting edge to the other one. */
+  const everyStitch = (direction: Direction) => {
+    const ltr = Array.from({ length: 61 }, (_, i) => i * 10)
+    return direction === 'LTR' ? ltr : ltr.reverse()
+  }
+
+  it('works a left-to-right row stitch by stitch, ending at the right edge', () => {
+    // The first stitches are within a margin of the left edge, so it starts to move at
+    // col 4 (x 40 - 30 = 10), and stops at 600.
+    expect(workRow(wide(), 'LTR')).toEqual(everyStitch('LTR'))
   })
 
-  it('works a right-to-left row a view at a time, ending at the left edge', () => {
-    // Mirrored: col 62 at x 620..630 nears the left of 600, so it goes a margin in from
-    // the right (630 + 30 - 400 = 260); then the left edge.
-    expect(workRow(wide(), 'RTL')).toEqual([600, 260, 0])
+  it('works a right-to-left row stitch by stitch, ending at the left edge', () => {
+    expect(workRow(wide(), 'RTL')).toEqual(everyStitch('RTL'))
   })
 
   it('moves by partial stitches, not only by segments', () => {
     const l = wide()
-    // Segment 3 starts at x 300, in view; 9 stitches in, x 390..400 is past the margin.
-    expect(followCurrentX(l, at(3, 6, 'LTR'), 0)).toBe(0)
-    expect(followCurrentX(l, at(3, 9, 'LTR'), 0)).toBe(390 - 30)
+    // Saved part way through segment 3 (x 300 on): every stitch saved moves it on.
+    expect(followCurrentX(l, at(3, 6, 'LTR'), 0)).toBe(360 - 30)
+    expect(followCurrentX(l, at(3, 9, 'LTR'), 330)).toBe(390 - 30)
     // Right to left, segment 3 starts at col 69 and its stitches go left: 6 in is col 63,
-    // x 630, just clear of the margin; 7 in is col 62, x 620..630, not.
-    expect(followCurrentX(l, at(3, 6, 'RTL'), 600)).toBe(600)
-    expect(followCurrentX(l, at(3, 7, 'RTL'), 600)).toBe(630 + 30 - 400)
+    // x 630..640; 7 in is col 62, x 620..630.
+    expect(followCurrentX(l, at(3, 6, 'RTL'), 600)).toBe(640 + 30 - 400)
+    expect(followCurrentX(l, at(3, 7, 'RTL'), 270)).toBe(630 + 30 - 400)
   })
 
   it('shows where the rest of a segment wider than the view starts', () => {
@@ -445,12 +459,12 @@ describe('your place in the row stays in view across', () => {
     expect(followCurrentX(l, at(1, 50, 'LTR', runs), 0)).toBe(550 - 30)
     // Right to left: col 99 - 55 = 44, x 440..450, a margin in from the right.
     expect(followCurrentX(l, at(1, 50, 'RTL', runs), 600)).toBe(450 + 30 - 400)
-    // Its first stitch, just past the short first segment, is still in view.
-    expect(followCurrentX(l, at(1, 0, 'LTR', runs), 0)).toBe(0)
-    expect(followCurrentX(l, at(1, 0, 'RTL', runs), 600)).toBe(600)
+    // Its first stitch, just past the short first segment: col 5, or col 94 mirrored.
+    expect(followCurrentX(l, at(1, 0, 'LTR', runs), 0)).toBe(50 - 30)
+    expect(followCurrentX(l, at(1, 0, 'RTL', runs), 600)).toBe(950 + 30 - 400)
     // And every stitch of the row stays in view.
-    expect(workRow(l, 'LTR', runs)).toEqual([0, 340, 600])
-    expect(workRow(l, 'RTL', runs)).toEqual([600, 260, 0])
+    expect(workRow(l, 'LTR', runs)).toEqual(everyStitch('LTR'))
+    expect(workRow(l, 'RTL', runs)).toEqual(everyStitch('RTL'))
   })
 
   it('brings your place back after a scroll by hand', () => {
@@ -458,8 +472,8 @@ describe('your place in the row stays in view across', () => {
     // Scrolled to the far side of where you are.
     expect(followCurrentX(l, at(2, 0, 'LTR'), 600)).toBe(200 - 30)
     expect(followCurrentX(l, at(2, 0, 'RTL'), 0)).toBe(800 + 30 - 400) // col 79
-    // Scrolled out of range: clamped first.
-    expect(followCurrentX(l, at(3, 0, 'LTR'), -50)).toBe(0)
+    // Scrolled out of range: the same.
+    expect(followCurrentX(l, at(3, 0, 'LTR'), -50)).toBe(300 - 30)
   })
 
   it('never moves a chart that fits across', () => {

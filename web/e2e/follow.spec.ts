@@ -1,6 +1,7 @@
 /**
- * On a phone, a chart wider than the screen scrolls across to keep your place in the row
- * in view: through every segment, with partial stitches, on rows worked either way.
+ * On a phone, a chart wider than the screen (or zoomed in past it) scrolls across with your
+ * place in the row, keeping the stitches still to work in view: on every segment, with
+ * partial stitches, on rows worked either way.
  *
  * A wide chart fits the screen whole when it can (layout.ts, shouldScroll: only tall
  * charts are sized to scroll), so it scrolls across only once its cells reach the
@@ -82,20 +83,29 @@ async function settledScroll(page: Page) {
   )
 }
 
-/** Checks the next stitch to work, in row `n`, is on screen, and returns the scroll. */
-async function expectPlaceInView(page: Page, n: number, runIndex: number, stitches: number) {
+/** Checks the next stitch to work, in row `n`, is on screen with the stitches still to
+ *  work after it: no more than a margin (three cells, 24 to a quarter of the view, as
+ *  layout.ts's followMargin) of worked ones behind it, unless the view has reached the
+ *  far end of the chart. Returns the scroll. */
+async function expectPlaceInView(page: Page, n: number, runIndex: number, stitches: number, pattern = p) {
   // Worked out here rather than with layout.ts's placeColumn, which is what's under test:
   // runs count in working order, which runs right to left on even rows.
   const r = imageRow(n)
-  const position = encodeRow(p, r)[runIndex]!.start_col + stitches
-  const col = n % 2 === 1 ? position : COLS - 1 - position
+  const position = encodeRow(pattern, r)[runIndex]!.start_col + stitches
+  const col = n % 2 === 1 ? position : pattern.cols - 1 - position
   const s = await settledScroll(page)
   // The scroller holds the grid plus its margins; what's left of its width shows the grid.
-  const cell = (s.scrollWidth - AXIS_LEFT - PAD) / COLS
+  const cell = (s.scrollWidth - AXIS_LEFT - PAD) / pattern.cols
   const view = s.width - AXIS_LEFT - PAD
   const x = col * cell
   expect(x, `row ${n}, segment ${runIndex} + ${stitches}: col ${col}`).toBeGreaterThanOrEqual(s.left - 0.5)
   expect(x + cell,`row ${n}, segment ${runIndex} + ${stitches}: col ${col}`).toBeLessThanOrEqual(s.left + view + 0.5)
+  const ltr = n % 2 === 1
+  if (s.left !== (ltr ? s.max : 0)) {
+    const behind = ltr ? x - s.left : s.left + view - (x + cell)
+    const margin = Math.min(view / 4, Math.max(3 * cell, 24))
+    expect(behind, `row ${n}, segment ${runIndex} + ${stitches}: worked stitches in view`).toBeLessThanOrEqual(margin + 1)
+  }
   return s
 }
 
@@ -129,8 +139,9 @@ test('the chart follows your place across a wide chart', async ({ page }, testIn
     lefts.push(s.left)
   }
   expect(Math.max(...lefts)).toBe(s.max) // it got to the far side
-  // It moved a view at a time, not on every segment.
-  expect(new Set(lefts).size).toBeLessThan(runs1.length / 2)
+  // It moved on with every segment, not only when your place neared the edge.
+  expect(new Set(lefts).size).toBeGreaterThan(runs1.length / 2)
+  for (let i = 1; i < lefts.length; i++) expect(lefts[i]).toBeGreaterThanOrEqual(lefts[i - 1]!)
 
   // 2. Completing the last segment starts row 2, right to left: at the right edge.
   await completeSegment(page, runs1.length - 1)
@@ -171,6 +182,44 @@ test('the chart follows your place across a wide chart', async ({ page }, testIn
   await expect(rowLabel(page)).toHaveText(`Row 3 of ${ROWS} →`)
   s = await expectPlaceInView(page, 3, 0, 0)
   expect(s.left).toBe(0)
+})
+
+test('zoomed in, saving part way through a segment moves the chart on to the stitches still to work', async ({
+  page,
+}, testInfo) => {
+  // 40 × 20 fits a phone across; zoomed in it doesn't.
+  const scarf = wideProject(40, 'Zoomed scarf')
+  const file = testInfo.outputPath('zoomed-scarf.alpha')
+  writeFileSync(file, writeAlpha(scarf).bytes)
+  await page.goto('/#/library')
+  await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(file)
+  await page.getByRole('listitem').filter({ hasText: 'Zoomed scarf' }).getByRole('link').click()
+  await expect(rowLabel(page)).toHaveText(`Row 1 of ${ROWS} →`)
+  expect((await settledScroll(page)).max).toBe(0)
+
+  // Ctrl + wheel, as a trackpad's pinch arrives: about 4.5×, about the middle of the chart.
+  await scroller(page).evaluate((el) => {
+    const r = el.getBoundingClientRect()
+    const at = { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }
+    el.dispatchEvent(new WheelEvent('wheel', { ...at, deltaY: -300, ctrlKey: true, bubbles: true, cancelable: true }))
+  })
+  await expect.poll(async () => Number(await scroller(page).getAttribute('data-zoom'))).toBeGreaterThan(4)
+  const zoomed = await settledScroll(page)
+  expect(zoomed.max).toBeGreaterThan(zoomed.width)
+
+  // Two saves part way through the third segment: each moves the chart on with you.
+  const dialog = page.getByRole('dialog', { name: 'Record progress' })
+  const save = async (stitches: number) => {
+    await chips(page).nth(2).click()
+    await dialog.getByLabel('Stitches done').fill(String(stitches))
+    await dialog.getByRole('button', { name: 'Save progress' }).click()
+    await expect(dialog).toBeHidden()
+    return expectPlaceInView(page, 1, 2, stitches, scarf.pattern)
+  }
+  const a = await save(2)
+  const b = await save(4)
+  const cell = (b.scrollWidth - AXIS_LEFT - PAD) / scarf.pattern.cols
+  expect(b.left - a.left).toBeCloseTo(2 * cell, 0)
 })
 
 test('a wide chart that fits on screen is shown whole, never scrolled', async ({ page }, testInfo) => {

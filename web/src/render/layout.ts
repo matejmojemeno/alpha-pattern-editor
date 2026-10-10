@@ -13,7 +13,8 @@
  * (chart_view.py:46-52).
  *
  * Across, a chart wider than its view (a very wide one at the smallest cells, or one
- * zoomed in) follows your place in the row, the next stitch to work (`followCurrentX`).
+ * zoomed in) follows your place in the row, the next stitch to work, with the stitches
+ * after it in view (`followCurrentX`).
  *
  * Coordinates are CSS pixels. The grid sits inside the axis margins; `scrollX`/`scrollY`
  * are offsets of the grid within its viewport, and the axis numbers stay put.
@@ -316,15 +317,16 @@ export function placeDone(cols: number, place: RowPlace): { from: number; to: nu
 export const followMargin = (layout: ChartLayout) => Math.min(layout.viewWidth / 4, Math.max(3 * layout.cell, 24))
 
 /**
- * The horizontal scroll offset that keeps your place in the current row in view.
+ * The horizontal scroll offset that shows your place in the current row and as much of
+ * the rest of the row as fits.
  *
  * - At the start of a row (first segment, no stitches): the side the row starts from,
  *   the left edge for a left-to-right row and the right edge for a right-to-left one.
- * - Otherwise `scrollX` is kept while your place is at least `followMargin` inside the
- *   view, so the chart doesn't move on every stitch. Once it isn't, the view jumps to put
- *   your place a margin in from the side it's working away from, showing as much of the
- *   rest of the row as fits. On a segment wider than the view, that's where its
- *   remaining part starts.
+ * - Anywhere else: your place a margin (`followMargin`) in from the side it's working
+ *   away from, so a few stitches already worked show behind it and the ones still to
+ *   work fill the rest of the view, as the chips list puts your segment at its top. So
+ *   every progress change moves the chart on, a whole segment or stitches part way
+ *   through one, and brings your place back after a scroll by hand. Clamped at the ends.
  *
  * A chart that fits across (`maxScrollX` 0) always gets 0. Without a current row or a
  * place, `scrollX` is only clamped.
@@ -340,11 +342,6 @@ export function followCurrentX(layout: ChartLayout, place: RowPlace | null, scro
   const left = col * layout.cell
   const right = left + layout.cell
   const margin = followMargin(layout)
-  const from = clampScroll(scrollX, max)
-  // At the ends of the chart the scroll stops, so the margin there can't be kept.
-  const clearLeft = from <= 0 || left >= from + margin - 1e-6
-  const clearRight = from >= max || right <= from + layout.viewWidth - margin + 1e-6
-  if (clearLeft && clearRight) return from
   return clampScroll(ltr ? left - margin : right + margin - layout.viewWidth, max)
 }
 
