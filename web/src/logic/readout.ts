@@ -55,14 +55,13 @@ function initial(name: string): string {
   return first === undefined ? '?' : String.fromCodePoint(first).toUpperCase()
 }
 
-/** The one-line size summary shown on the import and design screens.
- *
- *  'strings' is the number of vertical strands an alpha pattern needs — one more than
- *  the stitch count across. */
+/** The one-line size summary under the design screen's chart (readout.py). The
+ *  bracelet craft's "strings" count is added by the Design stage, for that craft only. */
 export function formatStats(cols: number, rows: number, paletteLen: number): string {
+  const stitches = rows * cols
   return (
-    `${cols} cols × ${rows} rows   ·   ${rows * cols} stitches   ·   ` +
-    `${paletteLen} colours   ·   ${cols + 1} strings needed`
+    `${cols} × ${rows}   ·   ${stitches} stitch${stitches === 1 ? '' : 'es'}   ·   ` +
+    `${paletteLen} colour${paletteLen === 1 ? '' : 's'}`
   )
 }
 

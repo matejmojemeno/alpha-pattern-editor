@@ -215,3 +215,10 @@ break without noticing.
 - <a id="known-failure"></a>**The Python suite has one known failure,** `test_edge_numbers_all_sides`: a 44×5 chart
   whose dimensions come out one column short. It's documented in `test_images/README.md`.
   Any other failure is new.
+- <a id="ui-text"></a>**Name a control so it needs no note, rather than explaining it.** The owner asked
+  for screens without explanatory text: a home tile is its name alone, a switch has at
+  most one short line (`hint` in `ui/chartOptions.ts`, only where the name can't say
+  enough), and a group title says where its settings are saved. How-to and background
+  belong in the guide (`docs/guide/`), which every screen links to with its **?**. Before
+  adding a sentence, try a clearer name; keep text that warns (data loss, a lost row of
+  progress), reports what just happened, or explains an error.

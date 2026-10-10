@@ -5,8 +5,9 @@
  *
  * Marking it complete is what the dialog is opened for most, so it comes first, as the
  * one primary button, and has the focus (Return presses it, and a phone's keyboard stays
- * down). Part of a segment comes after, under "or": the count, then Save progress beside
- * Cancel. The desktop's dialog had the count first and both buttons equal.
+ * down). Part of a segment comes after, under "or": the count, then Save beside Cancel.
+ * The buttons say what they do in plain words ("Mark as done", not "Mark segment
+ * complete": nobody calls a block of one colour a segment). The desktop's dialog had the count first and both buttons equal.
  *
  * The heading names the segment once: its colour as a plain swatch, its name, and how many
  * stitches it has under that (the swatch used to repeat the count beside "9 White"). "of N"
@@ -66,7 +67,7 @@ export function SegmentDialog({
           </span>
         </p>
         <button ref={complete} type="button" className="button button--primary segment__complete" onClick={onComplete}>
-          <DoneIcon /> Mark segment complete
+          <DoneIcon /> Mark as done
         </button>
         <p className="segment__or" aria-hidden="true">
           <span>or</span>
@@ -107,7 +108,7 @@ export function SegmentDialog({
             Cancel
           </button>
           <button type="submit" className="button">
-            Save progress
+            Save
           </button>
         </div>
       </form>

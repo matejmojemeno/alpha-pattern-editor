@@ -116,7 +116,7 @@ Your last change couldn't be saved. Press **Try again** next to it. If it keeps 
 the device may be out of storage space: free some up, and export your projects to be
 safe.
 
-## "The Design stage needs a larger screen"
+## "Editing needs a bigger screen"
 
 Designing needs a tablet or a computer. On a phone, press **Start working →** to follow
 the pattern. To edit it on a tablet or computer,

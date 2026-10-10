@@ -100,7 +100,7 @@ test('design a pattern with every tool, undo, colours, reload, and Work and back
 
   // --- a blank pattern ---------------------------------------------------------------------
   await page.goto('/')
-  await page.getByRole('button', { name: /Design pattern/ }).click()
+  await page.getByRole('button', { name: 'Design from scratch' }).click()
   const dialog = page.getByRole('dialog', { name: 'New pattern' })
   await dialog.getByLabel('Name').fill('Sampler')
   await dialog.getByLabel('Columns').fill(String(COLS))
@@ -110,9 +110,9 @@ test('design a pattern with every tool, undo, colours, reload, and Work and back
   await expect(page).toHaveURL(/#\/design\/[0-9a-f]{32}$/)
   const id = page.url().split('/').at(-1)!
   await expect(page.getByRole('heading', { level: 1, name: 'Sampler' })).toBeVisible()
-  await expect(page.locator('.design__stats')).toHaveText(/12 cols × 10 rows\s+·\s+120 stitches\s+·\s+1 colours\s+·\s+13 strings needed/)
+  await expect(page.locator('.design__stats')).toHaveText(/^12 × 10\s+·\s+120 stitches\s+·\s+1 colour$/)
   expect(await grid(page)).toEqual(blank)
-  await expect(page.locator('.zoom__label')).toHaveText(/^\d+ px per cell$/)
+  await expect(scroller(page)).toHaveAttribute('data-cell', /^\d+$/)
 
   // --- colours: add black and red -------------------------------------------------------------
   // Each named after what it looks like, until a name is typed.
@@ -324,37 +324,37 @@ test('design a pattern with every tool, undo, colours, reload, and Work and back
 
 test('a new pattern that is large still fits, zooms and scrolls', async ({ page }) => {
   await page.goto('/#/library')
-  await page.getByRole('button', { name: 'Design pattern…' }).click()
+  await page.getByRole('button', { name: 'Design from scratch…' }).click()
   const dialog = page.getByRole('dialog', { name: 'New pattern' })
   await dialog.getByLabel('Columns').fill('200')
   await dialog.getByLabel('Rows').fill('200')
   await dialog.getByRole('button', { name: 'Create' }).click()
   await expect(page).toHaveURL(/#\/design\//)
   // Fitted: the whole 200×200 grid in view, at a few px per cell.
-  const label = page.locator('.zoom__label')
-  await expect(label).toHaveText(/^[2-4] px per cell$/)
-  const fitted = await label.textContent()
+  const cell = scroller(page)
+  const px = () => cell.getAttribute('data-cell')
+  await expect(cell).toHaveAttribute('data-cell', /^[2-4]$/)
+  const fitted = (await px())!
   const box0 = (await scroller(page).boundingBox())!
-  const px = Number(fitted!.split(' ')[0])
-  expect(AXIS_LEFT + 200 * px).toBeLessThanOrEqual(box0.width)
-  expect(AXIS_TOP + 200 * px).toBeLessThanOrEqual(box0.height)
+  expect(AXIS_LEFT + 200 * Number(fitted)).toBeLessThanOrEqual(box0.width)
+  expect(AXIS_TOP + 200 * Number(fitted)).toBeLessThanOrEqual(box0.height)
   // Zoom to 4, then step: 4 → 5 (+ key) → 6 (Ctrl+wheel) → 5 (− key).
-  while ((await label.textContent()) !== '4 px per cell') await page.getByRole('button', { name: 'Zoom in' }).click()
+  while ((await px()) !== '4') await page.getByRole('button', { name: 'Zoom in' }).click()
   await page.keyboard.press('+')
-  await expect(label).toHaveText('5 px per cell')
+  await expect(cell).toHaveAttribute('data-cell', '5')
   // Ctrl/⌘ + wheel over the chart zooms; a bare wheel scrolls.
   const box = (await scroller(page).boundingBox())!
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
   await page.keyboard.down('Control')
   await page.mouse.wheel(0, -100)
   await page.keyboard.up('Control')
-  await expect(label).toHaveText('6 px per cell')
+  await expect(cell).toHaveAttribute('data-cell', '6')
   await page.mouse.wheel(0, 300)
   await expect.poll(() => scroller(page).evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
   await page.keyboard.press('-')
-  await expect(label).toHaveText('5 px per cell')
+  await expect(cell).toHaveAttribute('data-cell', '5')
   await page.getByRole('button', { name: 'Fit' }).click()
-  await expect(label).toHaveText(fitted!)
+  await expect(cell).toHaveAttribute('data-cell', fitted)
 })
 
 test('editing a desktop-written file keeps its photo, and the desktop still opens it', async ({ page }, testInfo) => {

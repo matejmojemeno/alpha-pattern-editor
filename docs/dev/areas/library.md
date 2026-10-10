@@ -58,6 +58,28 @@ Newest last, as they were built.
   has no cap and the card grid adds columns. The home screen and Settings keep 72rem:
   their tiles and form would only spread out.
 
+- <a id="less-text"></a>**Less text: names that say it, rather than notes that explain it** (the owner:
+  "this home page should not need any of that text apart from the big import button").
+  - Home: each tile is its icon and name alone, and the header the app's name alone (the
+    tagline went; the README and the page's description still have it). **Design
+    pattern** is **Design from scratch** (`DESIGN_FROM_SCRATCH`, also the Library's
+    button), so "Start from a blank grid" isn't needed. The Library tile shows its count
+    as a muted number (none when empty), and Help and Feedback an ↗ with "(opens in a new
+    tab)" for a screen reader. The drop zone keeps one line: "Drop, paste or click to
+    choose an image or .alpha file" ("Tap to choose…" on touch). That Feedback needs a
+    GitHub account is in the guide's [Your data](../../guide/your-data.md) now.
+  - Library: **Import…** and **Design from scratch…**; the empty state is "No projects
+    yet." (the buttons are right above it); the storage note is one sentence; the Delete
+    dialog is shorter.
+  - Settings: one short line per switch where its name can't say enough, shared with the
+    Work stage's Options (`ui/chartOptions.ts` has `hint` only; `help` is gone). **Focus
+    mode** is **Show only the rows near yours** (the key is still `focusMode`), and
+    **Enlarge the current row** needs no line. The heading says "Work chart, for every
+    pattern", so the closing paragraph went; About is "Version 1.0.0 (build …) · What's
+    new".
+  - New pattern dialog: no "N stitches, N strings needed" note; it speaks only when a
+    size is out of range.
+
 ## During the port
 
 What each phase of the port built here, newest first. The plan each phase followed is in

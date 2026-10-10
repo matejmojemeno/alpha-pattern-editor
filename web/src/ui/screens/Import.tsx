@@ -111,16 +111,15 @@ const STAGE_TEXT: Record<BootStage, string> = {
 
 const megabytes = (n: number) => Math.max(1, Math.round(n / 1_000_000))
 
-/** Each screen's title, and what its empty state asks for. */
-const SCREEN: Record<Intent, { title: string; choose: string; drop: string }> = {
+/** Each screen's title, and what its drop overlay says. The empty state is the title and
+ *  the button alone. */
+const SCREEN: Record<Intent, { title: string; drop: string }> = {
   chart: {
     title: 'Import a chart',
-    choose: 'Choose a screenshot or photo of an alpha chart, or a piece of pixel art.',
     drop: 'Drop a chart to import it',
   },
   picture: {
     title: PHOTO_TO_PATTERN,
-    choose: 'Choose a photo or drawing to make a new pattern from.',
     drop: 'Drop an image to make a pattern from it',
   },
 }
@@ -439,9 +438,8 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
         <TopBar title={screen.title} help={intent === 'picture' ? 'photo' : 'import'} />
         <Notices notices={notices} />
         <div className="empty import__choose">
-          <p>{screen.choose}</p>
           {another('Choose image…', 'button button--primary')}
-          <p className="muted">PNG, JPEG or WebP. You can also drop an image here, or paste one.</p>
+          <p className="muted">Or drop or paste one here.</p>
         </div>
         <DropOverlay show={drop.over} text={screen.drop} />
       </main>
@@ -769,7 +767,7 @@ function PictureControls({
         <span className="picture-controls__label">Keep outlines</span>
       </label>
       <p id={`${id}-outlines`} className="picture-controls__note">
-        For drawings with dark lines: keeps them, one stitch thick.
+        For drawings with dark lines.
       </p>
     </div>
   )
@@ -944,10 +942,7 @@ function BootStatus({ progress }: { progress: BootProgress | null }) {
         <p className="import__stage">
           {STAGE_TEXT[stage]} ({step} of 3) · {pct}%
         </p>
-        <p className="confirm__note">
-          The first import downloads about {megabytes(downloadBytes)} MB, so it can take a moment on a slow connection.
-          Opening your saved patterns never needs it.
-        </p>
+        <p className="confirm__note">First time only: about {megabytes(downloadBytes)} MB.</p>
       </div>
     </Stage>
   )

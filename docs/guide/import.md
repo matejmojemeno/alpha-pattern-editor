@@ -41,7 +41,7 @@ From the home screen or the [Library](library.md):
 - **drop** the image anywhere on the page;
 - **paste** it (`Ctrl+V`, or `Cmd+V` on a Mac), for example straight after taking a
   screenshot;
-- or click **Import a chart** (on the home screen) or **Import pattern…** (in the Library)
+- or click **Import a chart** (on the home screen) or **Import…** (in the Library)
   and choose the file. On a phone or tablet, tap it.
 
 An image opened this way is always read as a chart: the app never turns it into a
