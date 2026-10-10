@@ -89,7 +89,7 @@ test('the app screens and their dialogs', async ({ page }) => {
   await card.getByRole('button', { name: /^Delete/ }).click()
   found.push(...(await leaks(page, 'Delete project?')))
   await page.getByRole('button', { name: 'Cancel' }).click()
-  await page.getByRole('button', { name: 'Design pattern…' }).click()
+  await page.getByRole('button', { name: 'Design from scratch…' }).click()
   found.push(...(await leaks(page, 'New pattern')))
   await page.getByRole('button', { name: 'Cancel' }).click()
 

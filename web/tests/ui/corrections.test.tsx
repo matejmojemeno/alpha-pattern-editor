@@ -113,13 +113,14 @@ describe('what the screen shows', () => {
     expect((brown!.querySelector('.palette__swatch') as HTMLElement).style.background).toBe('rgb(139, 69, 19)')
   })
 
-  it('says when a photo was shrunk for detection', async () => {
+  it('says nothing of a photo shrunk to be read, as most phone photos are', async () => {
     const worker = detectingWorker()
     const auto = worker.auto!
     worker.auto = (msg) =>
       msg.type === 'open' ? makePreview(1, 3, 4, { imageWidth: 4000, imageHeight: 3000, detectedWidth: 2000, detectedHeight: 1500 }) : auto(msg)
     await openImport(worker)
-    expect(screen.getByText(/^Reduced from 4000×3000 to 2000×1500 for detection\./)).toBeTruthy()
+    expect(document.querySelector('.import-note')).toBeNull()
+    expect(screen.queryByText(/Reduced from|shrunk/)).toBeNull()
   })
 
   it('says nothing when it was not', async () => {
@@ -315,14 +316,31 @@ describe('moving the outline', () => {
   })
 
   it('recomputes the warnings with every preview', async () => {
-    const missing = "2 cell(s) don't closely match any detected colour — a colour may be missing; check them before committing."
+    const missing = '2 squares match none of the colours'
     await openFound((p) => ({ ...echo(p), warnings: p.rows === 3 ? [missing] : [] }))
-    expect(screen.queryByRole('list', { name: 'Warnings' })).toBeNull()
+    expect(document.querySelector('.import-note')).toBeNull()
     screen.getByRole('slider', { name: 'Top edge of the grid' }).focus()
     await userEvent.keyboard('{ArrowUp}')
-    expect(await screen.findByText(/don't closely match/)).toBeTruthy()
+    expect(await screen.findByText(missing)).toBeTruthy()
     await userEvent.keyboard('{ArrowDown}')
-    await waitFor(() => expect(screen.queryByText(/don't closely match/)).toBeNull())
+    await waitFor(() => expect(document.querySelector('.import-note')).toBeNull())
+  })
+
+  it('puts the note away with its ×, until it has something else to say', async () => {
+    const faint = 'The grid lines are faint'
+    const missing = '2 squares match none of the colours'
+    await openFound((p) => ({ ...echo(p), warnings: p.rows === 3 ? [faint, missing] : [faint] }))
+    const note = () => document.querySelector('.import-note')?.textContent ?? null
+    const top = screen.getByRole('slider', { name: 'Top edge of the grid' })
+    top.focus()
+    await userEvent.keyboard('{ArrowDown}')
+    await waitFor(() => expect(note()).toBe(`Check it against your image${faint}`))
+    await userEvent.click(screen.getByRole('button', { name: 'Hide this note' }))
+    expect(note()).toBeNull()
+    // Another preview saying the same keeps it away; one saying more brings it back.
+    top.focus()
+    await userEvent.keyboard('{ArrowUp}{ArrowUp}')
+    await waitFor(() => expect(note()).toBe(`Check it against your image${faint}${missing}`))
   })
 
   it('keeps a merge through a resample, which gives the palette new ids', async () => {

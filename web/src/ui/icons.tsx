@@ -13,6 +13,7 @@ import {
   CircleCheck,
   CircleHelp,
   ImageUp,
+  Info,
   LibraryBig,
   MessageSquareText,
   PanelBottom,
@@ -55,7 +56,10 @@ export const PanelIcon = () => (
   </>
 )
 
+/** The import screen's note above the stages: a warning when the pattern may be wrong,
+ *  an i when it only says how the image was read (and CloseIcon, below, to put it away). */
 export const WarningIcon = (props: LucideProps) => <TriangleAlert {...ICON} {...props} />
+export const InfoIcon = (props: LucideProps) => <Info {...ICON} {...props} />
 
 /** The app's mark: a 3×3 chart fragment with five cells inked, as in favicon.svg. */
 export function Logo() {
@@ -80,6 +84,7 @@ export function Logo() {
   )
 }
 
-/** The Work chart's note that the stitch numbers need a closer look: zoom in, or hide it. */
+/** The Work chart's note that the stitch numbers need a closer look: zoom in, or hide it.
+ *  The × also puts away the import screen's note. */
 export const ZoomInIcon = (props: LucideProps) => <ZoomIn {...ICON} {...props} />
 export const CloseIcon = (props: LucideProps) => <X {...ICON} {...props} />

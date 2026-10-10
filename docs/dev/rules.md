@@ -209,7 +209,9 @@ break without noticing.
   the rest load their CSS only when first opened, and it then stays for the whole visit,
   so a class there also styles any other screen that uses the same name. Work's count in
   Record progress once shared `.stepper` with Import's colour stepper, and became a pill
-  only after an import, which a fresh test never sees. Prefix a class with its screen or
+  only after an import, which a fresh test never sees. The import screen's note was first
+  named `.check`, the app's checkbox label: it took the label's pointer cursor, so the
+  whole box looked clickable. Prefix a class with its screen or
   component (`segment__count`, not `stepper`), and test a screen after visiting the
   others when its look matters (`e2e/work-chips.spec.ts`).
 - <a id="nothing-sticks-out"></a>**Nothing may stick out of its box, at any width or text size.**

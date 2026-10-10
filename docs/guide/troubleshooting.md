@@ -59,16 +59,15 @@ and save or screenshot it as PNG or JPEG.
 
 ## A warning shows above the image
 
-A warning (⚠) means the app read the chart but is less sure than usual. Check the pattern
-against your image before saving:
+"⚠ Check it against your image" means the app read the chart but is less sure than usual.
+The reasons follow it:
 
-- **"Grid found via a fallback for faint / low-contrast gridlines"**: count the rows and
-  columns against your chart, and
+- **"Many squares are hard to read"**: many squares didn't come out as one clear colour.
+  If it's a photo, not a chart, use **Open in Photo to pattern**.
+- **"The grid lines are faint"**: count the rows and columns against your chart, and
   [drag the outline](import.md#fix-a-grid-thats-a-row-or-column-short) if they're off.
-- **"… cell(s) don't closely match any detected colour"**: a colour may be missing.
-  Look for stitches in the wrong colour, and fix them in Design.
-- **"Reduced from … for detection"** (a note, not a warning): a very large photo was shrunk before reading. Check
-  the size, and fix it in Design if needed.
+- **"… squares match none of the colours"**: a colour may be missing. Look for stitches
+  in the wrong colour, and fix them in Design.
 
 ## The grid is a row or column short
 

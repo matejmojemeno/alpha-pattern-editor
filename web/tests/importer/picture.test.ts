@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { PictureSettings, Reading } from '../../src/detect/protocol.ts'
-import { clampWidth, colourSteps, detailText, MAX_COLOURS, readingNote, sizeText, swatchAspect } from '../../src/importer/picture.ts'
+import { check, clampWidth, colourSteps, detailText, MAX_COLOURS, sizeText, swatchAspect } from '../../src/importer/picture.ts'
 import { finishedSize, type Swatch } from '../../src/yarn/usage.ts'
 
 const swatch = (over: Partial<Swatch> = {}): Swatch => ({ stitches: 10, rows: 10, widthCm: null, heightCm: null, grams: null, ...over })
@@ -40,32 +40,50 @@ describe('the stitch shape and size from the swatch', () => {
 
 describe('the note on what was read', () => {
   it('says nothing of a chart read cleanly, or of a picture', () => {
-    expect(readingNote('chart', reading())).toBeNull()
-    expect(readingNote('picture', reading({ kind: 'picture' }))).toBeNull()
+    expect(check('chart', reading(), [])).toBeNull()
+    expect(check('picture', reading({ kind: 'picture' }), [])).toBeNull()
   })
 
   it('warns of a chart read with doubts, and offers Photo to pattern', () => {
-    expect(readingNote('chart', reading({ sure: false }))).toEqual({
-      text: 'Many squares were hard to read. Check the pattern against your image before you save.',
+    expect(check('chart', reading({ sure: false }), [])).toEqual({
+      warning: true,
+      title: 'Check it against your image',
+      reasons: ['Many squares are hard to read'],
+      offerPhoto: true,
+    })
+  })
+
+  it('gathers every reason to doubt the pattern into the one note', () => {
+    const warnings = ['The grid lines are faint', '12 squares match none of the colours']
+    expect(check('chart', reading({ sure: false }), warnings)?.reasons).toEqual(['Many squares are hard to read', ...warnings])
+    // The warnings alone: still a check, but a chart read surely is no photo.
+    expect(check('chart', reading(), warnings)).toEqual({
+      warning: true,
+      title: 'Check it against your image',
+      reasons: warnings,
+      offerPhoto: false,
+    })
+  })
+
+  it('offers Photo to pattern quietly for a grid that looked more like a photo’s', () => {
+    expect(check('chart', reading({ photoLike: true }), [])).toEqual({
+      warning: false,
+      title: 'Looks like a photo, not a chart',
+      reasons: [],
+      offerPhoto: true,
+    })
+    // A reason to doubt the pattern says more, and wins; the offer stays.
+    expect(check('chart', reading({ photoLike: true }), ['The grid lines are faint'])).toMatchObject({
       warning: true,
       offerPhoto: true,
     })
   })
 
-  it('offers Photo to pattern quietly for a grid that looked more like a photo’s', () => {
-    expect(readingNote('chart', reading({ photoLike: true }))).toEqual({
-      text: 'Is this a photo or drawing, not a chart?',
-      warning: false,
-      offerPhoto: true,
-    })
-    // Many unsure squares say more, and win.
-    expect(readingNote('chart', reading({ photoLike: true, sure: false }))?.warning).toBe(true)
-  })
-
   it('says pixel art is read block by block, with nothing to switch to', () => {
-    expect(readingNote('pixels', reading({ kind: 'pixels' }))).toEqual({
-      text: 'Read as pixel art: each block of your image is one stitch.',
+    expect(check('pixels', reading({ kind: 'pixels' }), [])).toEqual({
       warning: false,
+      title: 'Read as pixel art: each block is one stitch',
+      reasons: [],
       offerPhoto: false,
     })
   })
