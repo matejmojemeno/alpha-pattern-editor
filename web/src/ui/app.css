@@ -496,20 +496,76 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
-/* Narrow padding so all three fit a card at its narrowest (--card-w); if bigger text
-   still doesn't fit, the row wraps rather than sticking out of the card. */
+/* The same row on every card: the next step, as wide as it can be, and ⋯. */
 .card__actions {
   position: relative;
   z-index: 1;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
   gap: 0.5rem;
   padding: 0 var(--card-pad) var(--card-pad);
 }
 
-.card__actions .button {
-  padding: 0 0.5rem;
+/* Over the cards after it while its menu is open. */
+.card__actions:has(.card-menu__list) {
+  z-index: 2;
+}
+
+.card__primary {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.card-menu {
+  position: relative;
+  flex: none;
+}
+
+.card-menu__button {
+  padding: 0 0.6rem;
+}
+
+.card-menu__list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  display: grid;
+  min-width: 11rem;
+  padding: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.2);
+}
+
+.card-menu__item {
+  display: flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0 0.7rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.card-menu__item:hover,
+.card-menu__item:focus-visible {
+  background: var(--raised);
+}
+
+.card-menu__item--danger {
+  color: var(--danger);
+}
+
+@media (pointer: coarse) {
+  .card-menu__item {
+    min-height: var(--tap);
+  }
 }
 
 .thumb {

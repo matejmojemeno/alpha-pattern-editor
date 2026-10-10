@@ -1,7 +1,6 @@
 /**
- * A Library card's name and its Design, Export and Delete buttons stay inside the card at every
- * window width, down to a phone's, and on one row at the default text size. (With bigger
- * text the row wraps rather than spilling past the edges.)
+ * A Library card's name, its main button and ⋯ stay inside the card at every window
+ * width, down to a phone's, on one row; and the ⋯ menu stays inside the window.
  */
 import { resolve } from 'node:path'
 
@@ -30,7 +29,18 @@ test('the card buttons never stick out of the card', async ({ page }) => {
       }
     })
     expect(out, `window ${width}px wide`).toEqual([])
-    // At the default text size all three still fit on one row.
     expect(rows, `window ${width}px wide`).toBe(1)
+  }
+
+  for (const width of [320, 1400]) {
+    await page.setViewportSize({ width, height: 900 })
+    await card.getByRole('button', { name: /^More for/ }).click()
+    const menu = page.getByRole('menu')
+    await expect(menu).toBeVisible()
+    const box = (await menu.boundingBox())!
+    expect(box.x, `window ${width}px wide`).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width, `window ${width}px wide`).toBeLessThanOrEqual(width)
+    await page.keyboard.press('Escape')
+    await expect(menu).toBeHidden()
   }
 })

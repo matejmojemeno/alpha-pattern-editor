@@ -11,6 +11,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { readAlpha } from '../src/storage/alpha.ts'
 import { addColour, palette } from './colours.ts'
 import { desktopLoad } from './desktop.ts'
+import { fromCardMenu } from './importing.ts'
 
 const AXIS_LEFT = 34
 const AXIS_TOP = 22
@@ -305,7 +306,7 @@ test('design a pattern with every tool, undo, colours, reload, and Work and back
   await page.getByRole('link', { name: 'Library' }).click()
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Export “Sampler”' }).click(),
+    fromCardMenu(page, 'Sampler', 'Export'),
   ])
   const file = testInfo.outputPath('sampler.alpha')
   await download.saveAs(file)
@@ -380,7 +381,7 @@ test('editing a desktop-written file keeps its photo, and the desktop still open
   await page.getByRole('link', { name: 'Library' }).click()
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: `Export “${p.name}”` }).click(),
+    fromCardMenu(page, p.name, 'Export'),
   ])
   const file = testInfo.outputPath('edited.alpha')
   await download.saveAs(file)
