@@ -300,6 +300,21 @@ Newest last, as they were built.
     worked stitches stayed on screen where 83 is the margin.
   - Not in the Python: the desktop always fit the chart and never zoomed.
 
+- <a id="less-text"></a>**Less text** (with the home screen's,
+  [library.md#less-text](library.md#less-text)):
+  - Options: the groups are **How you work this pattern** and **Chart, for every
+    pattern**, so the notes "Saved with this pattern." and "For every pattern; also in
+    Settings." went; the actions are a last, untitled group under a rule. The
+    reading-order sentence under the corner and rows ("Row 1 is the bottom row…",
+    `readingOrder`) is gone: **First stitch** and **Rows** say it between them. Switches
+    show a `hint` only where the name can't say enough.
+  - The line under the buttons ("Space or → completes a row · ← goes back · click a
+    stitch…") is gone; the shortcuts are in **Row complete →** and **← Previous row**'s
+    tooltips, and in the guide.
+  - "Next: Row 8: …" reads "Next, row 8: …", and on the last row "This is the last row."
+  - Record progress: **Mark as done** (was "Mark segment complete": nobody calls a block
+    of one colour a segment) and **Save** (was "Save progress").
+
 ## During the port
 
 What each phase of the port built here, newest first. The plan each phase followed is in

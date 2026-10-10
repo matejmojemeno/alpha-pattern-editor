@@ -4,9 +4,9 @@ Settings are how the Work stage's chart looks, for the whole app. Open them from
 **Settings** on the home screen. They're saved in this browser and apply to every
 project. You can also change them without leaving your pattern: **Show the colours in
 this row** with the panel button at the top of the Work stage, and the rest in its
-**Options**, under **Chart**.
+**Options**, under **Chart, for every pattern**.
 
-<img src="media/settings.png" alt="The Settings screen: five switches under Work chart, each with a line saying what it does, and About underneath" width="700">
+<img src="media/settings.png" alt="The Settings screen: five switches under Work chart, for every pattern, three of them with a line saying what they do, and About underneath" width="700">
 
 ## Number the stitches
 
@@ -34,12 +34,12 @@ the stitches, and over how many. It's off to start with. See
 - **Enlarge the current row** draws the row you're working, and the rows either side of
   it, taller than the rest of the chart, so your place is easier to find again. It's on
   to start with.
-- **Focus mode** draws only the rows around the current one, and hides
-  the rest of the chart and the **Next:** line.
+- **Show only the rows near yours** draws only the rows around the current one, and hides
+  the rest of the chart and the **Next, row …** line.
 
 ## Which corner you start from
 
-This isn't in Settings: it belongs to each pattern. Set it under **How you work it** in
+This isn't in Settings: it belongs to each pattern. Set it under **How you work this pattern** in
 the Work stage's **Options**, with **First stitch** and **Rows**
 ([which row is row 1](work.md#which-row-is-row-1-and-which-way-it-runs)).
 

@@ -20,7 +20,7 @@ you [choose another craft](#choose-your-craft).
   and so on. The colour you're on is outlined. On a phone it's right under the chart,
   without the heading, and the chart takes all the room it can use: the list gets the
   rest, and scrolls when the row has more colours than fit.
-- **Next:** shows the row after this one, so you can see what's coming.
+- **Next, row …** shows the row after this one, so you can see what's coming.
 - The chart shows the whole pattern with the current row outlined and the rows you've
   finished greyed out. Each stitch carries a number: see
   [Count stitches on the chart](#count-stitches-on-the-chart). A pattern more than twice as tall as it is wide fills the width
@@ -31,12 +31,12 @@ you [choose another craft](#choose-your-craft).
 
 **Options**, at the top right, has three groups:
 
-- **How you work it:** your craft, the corner you start in, and whether rows go back and
-  forth or in the round. These are saved with the pattern.
-- **Chart:** how the chart looks, for every pattern: stitch numbers, where to carry yarn,
-  an enlarged current row, and **Focus mode**. The same switches are in
+- **How you work this pattern:** your craft, the corner you start in, and whether rows go
+  back and forth or in the round. These are saved with the pattern.
+- **Chart, for every pattern:** stitch numbers, where to carry yarn, an enlarged current
+  row, and **Show only the rows near yours**. The same switches are in
   [Settings](settings.md).
-- **Pattern:** **Rename…**, **Edit in Design**, **Export PNG** and **Help**.
+- Last, under a line: **Rename…**, **Edit in Design**, **Export PNG** and **Help**.
 
 ## Choose your craft
 
@@ -58,7 +58,7 @@ craft is saved with the pattern.
 
 ## Which row is row 1, and which way it runs
 
-Your craft sets these, and you can change them in **Options**, under **How you work it**:
+Your craft sets these, and you can change them in **Options**, under **How you work this pattern**:
 
 - **First stitch:** the corner of the chart where the pattern begins: **Top left**,
   **Top right**, **Bottom left** or **Bottom right**. Row 1 is the top or bottom row, and
@@ -67,9 +67,6 @@ Your craft sets these, and you can change them in **Options**, under **How you w
 - **Rows:** **Back and forth** for flat work, where each row runs the opposite way to
   the one before. **In the round** when every round runs the same way. For a bracelet or a
   bead loom it's called **All the same way**.
-
-Underneath, one line says what you've picked in words, for example "Row 1 is the bottom
-row of the chart, worked right to left; row 2 comes back left to right."
 
 Each of these is saved with the pattern, and every row's colours and arrow change to
 match. If you're partway through a row and it would now read the other way, the app asks
@@ -83,7 +80,8 @@ marked done stay done.
 - **← Previous row** goes back to the row before, and marks it not done again.
 
 With a keyboard: `Space`, `Enter`, `→` or `↓` complete a row; `←` or `↑` go back one.
-Holding a key down doesn't race through rows.
+Holding a key down doesn't race through rows. Hover over **Row complete →** or
+**← Previous row** for a reminder.
 
 ## Stop partway through a row
 
@@ -94,10 +92,10 @@ back to the start of that colour.
 Tap the colour itself to record part of it. The **Record progress** dialog opens for that
 colour:
 
-<img src="media/work-partial-row.png" alt="The Record progress dialog on a phone, for Blue, 8 stitches: Mark segment complete at the top, then, under 'or', Stitches done with − 1 of 8 + in one box, Cancel and Save progress" width="260">
+<img src="media/work-partial-row.png" alt="The Record progress dialog on a phone, for Blue, 8 stitches: Mark as done at the top, then, under 'or', Stitches done with − 1 of 8 + in one box, Cancel and Save" width="260">
 
-- **Mark segment complete** marks that whole colour done.
-- Or set **Stitches done** with **−** and **+**, or type it, then press **Save progress**.
+- **Mark as done** marks that whole colour done.
+- Or set **Stitches done** with **−** and **+**, or type it, then press **Save**.
 
 You can also tap a stitch of the current row on the chart (the outlined row): that stitch
 and every one before it count as done. Taps on other rows do nothing, and neither does a
@@ -159,7 +157,7 @@ the numbers, switch off **Number the stitches** in **Options** (or in
 On a wide pattern, the **This row** list beside the chart takes room the chart could use.
 If you count from the stitch numbers or the chart itself, press the panel button at the
 top, next to **← Library** (it looks like a browser's sidebar button). The list and its
-**Next:** line slide away, and the chart grows into the space. Press it again to bring the
+**Next, row …** line slide away, and the chart grows into the space. Press it again to bring the
 list back. It stays the way you left it, for every pattern; [Settings](settings.md) has
 the same choice as **Show the colours in this row**.
 
@@ -203,7 +201,7 @@ the stitch numbers, and where to carry yarn. It has the row numbers in working o
 down the side and the column numbers along the top.
 
 It doesn't show your progress: no outline on the current row, no greyed-out finished
-rows, and no enlarged rows, and **Focus mode** doesn't hide any of the chart. It's drawn
+rows, and no enlarged rows, and **Show only the rows near yours** doesn't hide any of the chart. It's drawn
 on a white background even when your device is in dark mode. A very large pattern is
 drawn with smaller squares, so the file isn't too big for the browser to save.
 

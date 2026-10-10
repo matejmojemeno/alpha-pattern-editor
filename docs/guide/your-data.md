@@ -25,7 +25,7 @@ The only download is the chart reader itself, about 9 MB, fetched from the app's
 the first time you import a picture, and kept by your browser after that. Opening,
 designing and following patterns never needs it.
 
-**Feedback**, on the home screen, opens a page on GitHub. Anything you write or attach
+**Feedback**, on the home screen, opens a page on GitHub (you need a free account to post). Anything you write or attach
 there is public.
 
 ## Clearing browser data deletes your projects

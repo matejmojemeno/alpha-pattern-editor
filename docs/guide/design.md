@@ -14,19 +14,19 @@ make it; the top bar says **Saving…**, then **Saved**.
 
 Design is made for a computer or a tablet. On a tablet, the tools are a toolbar over the
 chart, and **Colours** and **Structure** open as panels. On a phone, the screen says
-**The Design stage needs a larger screen** and offers **Start working →** instead.
+**Editing needs a bigger screen** and offers **Start working →** instead.
 
 ## Start from a blank grid
 
-On the home screen, choose **Design pattern** (or **Design pattern…** in the Library).
+On the home screen, choose **Design from scratch** (or **Design from scratch…** in the Library).
 Give the pattern a name, a number of **Columns** and **Rows** (each 1 to 999), and a
 background **Colour**, then press **Create**. The blank grid opens here, ready to paint.
 You add the other colours as you go ([Add a colour](#add-a-colour)).
 
 ## Paint with the tools
 
-Choose a tool with its button or its key. The colour you paint with is shown under the
-tools ("Painting with **Blue**"); choose another in the **Colours** list.
+Choose a tool with its button or its key. The colour you paint with is the one ticked in
+the **Colours** list; choose another there.
 
 | Tool | Key | What it does |
 |---|---|---|
