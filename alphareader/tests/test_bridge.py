@@ -4,6 +4,8 @@ that isn't plain data or a 1-D typed-array-shaped numpy array would throw in the
 from __future__ import annotations
 
 import dataclasses
+import types
+
 import numpy as np
 import pytest
 
@@ -166,9 +168,9 @@ def test_alpha_is_dropped_not_composited():
     assert np.array_equal(a["cells"], b["cells"])
 
 
-def test_warnings_at_the_detected_settings_match_detection():
-    """The bridge rewords nothing: before any change, its warnings are detection's own
-    (less the low-confidence one)."""
+def test_warnings_at_the_detected_settings_are_detections_in_few_words():
+    """Before any change, the bridge's warnings are detection's own (less the
+    low-confidence one), each in the import screen's few words."""
     # Near colours and JPEG noise, so the sampled warnings actually fire.
     rng = np.random.default_rng(4)
     spec = synth.SynthSpec(rows=16, cols=22,
@@ -179,9 +181,28 @@ def test_warnings_at_the_detected_settings_match_detection():
     result = detect_pattern(img)
     assert result.warnings, "the fixture should produce warnings"
     p = _open(img)
-    # All but the low-confidence one, which the web doesn't show.
-    want = [w for w in result.warnings if "low confidence" not in w]
+    want = bridge._lattice_words(result.warnings)
+    unmatched = [w for w in result.warnings if "don't closely match" in w]
+    if unmatched:
+        n = int(unmatched[0].split()[0])
+        want.append(f"{n} {'square matches' if n == 1 else 'squares match'} none of the colours")
     assert sorted(p["warnings"]) == sorted(want)
+
+
+def test_unmatched_squares_in_few_words():
+    session = types.SimpleNamespace(lattice_warnings=["The grid lines are faint"])
+    assert bridge._warnings(session, types.SimpleNamespace(unmatched=0)) == ["The grid lines are faint"]
+    assert bridge._warnings(session, types.SimpleNamespace(unmatched=1))[1:] == ["1 square matches none of the colours"]
+    assert bridge._warnings(session, types.SimpleNamespace(unmatched=12))[1:] == ["12 squares match none of the colours"]
+
+
+def test_lattice_warnings_in_few_words():
+    from ..core.detect import pipeline
+    assert bridge._lattice_words([pipeline._VERIFY_MSG]) == ["The grid lines are faint"]
+    # How the grid was found isn't a reason to check it; the sampled ones come per preview.
+    assert bridge._lattice_words(["Used tighter dark threshold (60) for a dark image.",
+                                  "3/40 cells (7.5%) have low confidence — review them.",
+                                  "Something new."]) == ["Something new."]
 
 
 def test_no_low_confidence_warning_even_when_cells_are_unsure():

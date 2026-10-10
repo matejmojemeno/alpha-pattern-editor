@@ -56,6 +56,25 @@ from .pixels import PixelArt, pixel_preview
 # texts match pipeline._finish, and test_bridge.py checks the two agree.
 _SAMPLED_WARNING = re.compile(r"have low confidence|don't closely match any detected colour")
 
+# The import screen gives each warning in a few words, as a reason to check the pattern
+# against the image (Import.tsx's Check): detection's own sentences are for a log. The
+# tighter dark threshold says how the grid was found, not that it may be wrong: not shown.
+_LATTICE_WORDS = ((re.compile(r"^Grid found via a fallback"), "The grid lines are faint"),
+                  (re.compile(r"^Used tighter dark threshold"), None))
+
+
+def _lattice_words(warnings: list[str]) -> list[str]:
+    """Detection's lattice warnings, as the import screen words them; any not known here
+    is kept as detection worded it."""
+    out = []
+    for w in warnings:
+        if _SAMPLED_WARNING.search(w):
+            continue
+        words = next((words for pat, words in _LATTICE_WORDS if pat.search(w)), w)
+        if words is not None:
+            out.append(words)
+    return out
+
 
 @dataclass
 class _Session:
@@ -186,13 +205,13 @@ def _out_of_memory_as_data(fn):
 
 
 def _warnings(session: _Session, preview: Preview) -> list[str]:
-    """The lattice warnings from the last detection, then the ones this preview earns.
-    Worded as in pipeline._finish. The web shows no low-confidence warning: it doesn't
-    flag unsure cells, so there'd be nothing to review."""
+    """The lattice warnings from the last detection, then the ones this preview earns,
+    in the screen's few words (_lattice_words). The web shows no low-confidence warning:
+    it doesn't flag unsure cells, so there'd be nothing to review."""
     out = list(session.lattice_warnings)
     if preview.unmatched:
-        out.append(f"{preview.unmatched} cell(s) don't closely match any detected colour — a "
-                   f"colour may be missing; check them before committing.")
+        n = preview.unmatched
+        out.append(f"{n} {'square matches' if n == 1 else 'squares match'} none of the colours")
     return out
 
 
@@ -316,7 +335,7 @@ def _detect(session_id: int, session: _Session, crop=None) -> dict:
             e = state.extent
             state.set_extent(Extent(e.x0 + ox, e.y0 + oy, e.x1 + ox, e.y1 + oy))
         session.state = state
-        session.lattice_warnings = [w for w in result.warnings if not _SAMPLED_WARNING.search(w)]
+        session.lattice_warnings = _lattice_words(result.warnings)
     if reading.kind == "pixels":
         session.mode = "pixels"
         return _preview_payload(session_id, session)
