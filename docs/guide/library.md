@@ -5,23 +5,31 @@ browser. Open it from **Library** on the home screen, or **← Library** at the 
 Design and Work stages. Each project shows a small picture of it, its name, its size
 in stitches, and a bar for how much of it you've worked.
 
-<img src="media/library.png" alt="The Library: Toadstool under In progress, 20% done, with Export and Delete; Scarf under Not started, with Design, Export and Delete" width="700">
+<img src="media/library.png" alt="The Library: Toadstool under In progress, 20% done, with Continue and ⋯; Scarf under Not started, with Design and ⋯" width="700">
 
 ## In progress, Not started and Finished
 
-Projects are listed in three groups, newest first in each:
+Projects are listed in three groups, newest first in each. A group with nothing in it
+isn't shown. Each card has one button for what you'd most often do next, and **⋯** for
+the rest:
 
-- **In progress**: you've worked some of it, even part of one row.
-- **Not started**: nothing worked yet. These have a **Design** button, which opens the
-  project in the Design stage, and no progress bar.
-- **Finished**: every row is done.
-
-A group with nothing in it isn't shown.
+| Group | What's in it | Button | On ⋯ |
+|---|---|---|---|
+| **In progress** | You've worked some of it, even part of one row. | **Continue**: back to your place in the Work stage. | **Edit in Design**, **Export**, **Delete** |
+| **Not started** | Nothing worked yet. | **Design**: opens it in the Design stage. | **Start working**, **Export**, **Delete** |
+| **Finished** | Every row is done. | **Make again**: see below. | **Edit in Design**, **Export**, **Delete** |
 
 ## Open a project
 
 Click or tap a project's card. It opens in the Work stage if you've worked any of it, and
 otherwise where you last had it, Design or Work.
+
+## Make a pattern again
+
+**Make again** on a finished project makes a copy of it, named with a number ("Toadstool
+(2)"), with no rows done, and opens it in the Work stage. The finished one stays in
+**Finished** as it was. The copy keeps the chart, its colours and how you work it. If
+you'd rather not keep it, delete it.
 
 ## Rename a project
 
@@ -31,12 +39,12 @@ the Work stage's **Options**.
 
 ## Export a project
 
-**Export** under a card saves the project as a `.alpha` file in your downloads. Export a
+**Export**, on **⋯** on a card, saves the project as a `.alpha` file in your downloads. Export a
 project to keep a copy, or to move it to another device or browser.
 
 ## Delete a project
 
-**Delete** under a card asks first, then removes the project from this browser. It can't
+**Delete**, on **⋯** on a card, asks first, then removes the project from this browser. It can't
 be undone, so export anything you might want again before you delete it.
 
 ## What a .alpha file is
@@ -54,7 +62,7 @@ a cloud drive. See [Your data](your-data.md).
 
 ## Move a project to another device or browser
 
-1. In the Library, press **Export** under the project.
+1. In the Library, press **⋯** on the project's card, then **Export**.
 2. Get the `.alpha` file to the other device: email it to yourself, or put it on a cloud
    drive.
 3. On the other device, open the app and import the file: drop it on the home screen or
