@@ -171,7 +171,9 @@ to see where to carry yarn row by row.
 
 Scroll the chart with one finger. Pinch with two fingers to zoom in or out; on a
 computer, hold `Ctrl` (`Cmd` on a Mac) and scroll. Once you finish a row or record
-progress, the chart moves back to your place. The zoom goes back to normal each time you
+progress, even part way through a colour, the chart moves back to your place and on along
+the row, so the stitches still to work fill the screen with only a few of the ones you've
+done behind them. The zoom goes back to normal each time you
 open the Work stage.
 
 To see more of the rows near your place, or only those, see
