@@ -57,6 +57,23 @@ Newest last, as they were built.
   like every screen, while Import and Design filled the window. Now `.screen.library`
   has no cap and the card grid adds columns. The home screen and Settings keep 72rem:
   their tiles and form would only spread out.
+- <a id="sections"></a>**In progress, Not started and Finished** (`ui/screens/Library.tsx`):
+  the Library lists its cards in those three sections, in that order (what you're making
+  first, finished last), each newest first, and leaves out an empty one. A project is
+  in progress when `hasProgress` says so, the same test that opens it in Work, so part of
+  a row counts even at "0% done"; finished is `isComplete` (every live row done). The
+  status is a summary field, `work_status`, so the Library still opens no archives. It
+  was added without a DB version bump: `rebuildMissingSummaries` also rebuilds any
+  summary that lacks it, keeping its thumbnail rather than decoding the photo again.
+  - **Not started cards have a Design button** (a link to `#/design/<id>`), and no
+    progress bar, which could only say 0%.
+  - **No Rename button: the name is the button.** Pressing it turns it into the rename
+    field; a pencil shows beside it on hover or focus, and always on a touch screen.
+    For that the name can't be inside the card's link, so the link holds only the
+    thumbnail, is named "Open “<name>”", and is stretched over the whole card (its
+    `::after`); the name and the buttons sit above it (`z-index: 1`). A click on the size
+    or the bar still opens the project. e2e specs open a card with
+    `getByRole('link', { name: /^Open / })`, since a not-started card has two links.
 - <a id="card-buttons"></a>**A card's buttons stay inside it**: at a card's narrowest
   (`--card-w`, 15rem, about a 530 px window) Rename, Export and Delete needed ~237 px of
   the 220 px inside, and the right-aligned row stuck out past the card's left edge. On a

@@ -5,7 +5,18 @@ browser. Open it from **Library** on the home screen, or **← Library** at the 
 Design and Work stages. Each project shows a small picture of it, its name, its size
 in stitches, and a bar for how much of it you've worked.
 
-<img src="media/library.png" alt="The Library: one project card, Toadstool, 30×30, with its progress bar, and Rename, Export and Delete under it" width="700">
+<img src="media/library.png" alt="The Library: Toadstool under In progress, 20% done, with Export and Delete; Scarf under Not started, with Design, Export and Delete" width="700">
+
+## In progress, Not started and Finished
+
+Projects are listed in three groups, newest first in each:
+
+- **In progress**: you've worked some of it, even part of one row.
+- **Not started**: nothing worked yet. These have a **Design** button, which opens the
+  project in the Design stage, and no progress bar.
+- **Finished**: every row is done.
+
+A group with nothing in it isn't shown.
 
 ## Open a project
 
@@ -14,9 +25,9 @@ otherwise where you last had it, Design or Work.
 
 ## Rename a project
 
-Press **Rename** under its card, type the new name, then press **Save** (or `Enter`).
-**Cancel** (or `Escape`) keeps the old name. You can also rename a pattern from the Work
-stage's **Options**.
+Click or tap the project's name on its card, type the new name, then press **Save** (or
+`Enter`). **Cancel** (or `Escape`) keeps the old name. You can also rename a pattern from
+the Work stage's **Options**.
 
 ## Export a project
 
