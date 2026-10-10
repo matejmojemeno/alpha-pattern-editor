@@ -57,6 +57,12 @@ Newest last, as they were built.
   like every screen, while Import and Design filled the window. Now `.screen.library`
   has no cap and the card grid adds columns. The home screen and Settings keep 72rem:
   their tiles and form would only spread out.
+- <a id="card-buttons"></a>**A card's buttons stay inside it**: at a card's narrowest
+  (`--card-w`, 15rem, about a 530 px window) Rename, Export and Delete needed ~237 px of
+  the 220 px inside, and the right-aligned row stuck out past the card's left edge. On a
+  card the buttons have 0.5rem padding, so all three fit one row; the row wraps if bigger
+  text still doesn't fit. `e2e/library-card.spec.ts` checks every window width from 320
+  to 1400 px.
 
 ## During the port
 
