@@ -299,6 +299,10 @@ Newest last, as they were built.
     corpus chart, picture and pixel image through `read_chart`: never a picture.
   - Tier A (gzipped, `main` → this): main chunk 109.66 → 110.48 KB (the tile, its icon,
     the route), Import 10.84 → 10.45 KB, Design 33.34 → 33.19 KB.
+- <a id="slider-margin"></a>**Photo to pattern's sliders have no margin** (`.picture-controls__slider`):
+  Chromium gives a range input 2 px each side, so at `width: 100%` they stuck out of
+  their column by 2 px. Invisible, but `e2e/overflow.spec.ts` allows no exceptions
+  ([rules](../rules.md#nothing-sticks-out)).
 - <a id="check-note"></a>**One boxed note above the stages** (`importer/picture.ts`'s
   `check`, `Import.tsx`'s `Check`). The owner found the two lines there ugly and
   intrusive: the "hard to read" sentence in warning orange with a ghost button nobody
@@ -322,8 +326,9 @@ Newest last, as they were built.
     the reading suffered.
   - `brick-wall.jpg` (in `test_images/pictures/`) gives the box with both reasons and
     the button; `arctic-fox.jpg` the plain "Looks like a photo" note.
-  - Tier A (gzipped, `main` → this): main chunk 113.14 → 113.30 KB (the Info and X
-    icons), Import 10.45 → 10.38 KB, Design 33.13 → 33.14 KB.
+  - Tier A (gzipped, `main` → this): main chunk 112.41 → 112.49 KB (the Info icon; X
+    was already there, for the Work zoom note), Import 10.31 → 10.24 KB, Design
+    32.84 → 32.83 KB.
 
 ## During the port
 

@@ -175,6 +175,11 @@ break without noticing.
   re-fit (first paint, rotating, zoom), so the chart is briefly the wrong size and
   `e2e/work-phone.spec.ts` reads small stitches. The "This row" slide animates the
   chart's `flex-grow` only ([work.md](areas/work.md#row-colours-switch)).
+- <a id="numbers-whole-row"></a>**A row's stitch numbers are all drawn or none.** Ask
+  `rowNumberFont` (its longest number over the whole row, strands' foot included), never
+  size a number by its own digits: a row showing 1 to 9 and a gap where 10 and on don't fit
+  looks broken ([work.md](areas/work.md#numbers-whole-row)). Anything that needs to know
+  whether a row is numbered (the zoom note, the foot strip) goes through it too.
 - <a id="floating-selection"></a>**A floating selection must be put down before any other edit.** While the Select
   tool's block floats (`editor.ts` `Selection.floating`), the pattern is its `under` with
   the block written over it, and both hold palette *indices*. An edit that renumbers the
@@ -209,6 +214,25 @@ break without noticing.
   whole box looked clickable. Prefix a class with its screen or
   component (`segment__count`, not `stepper`), and test a screen after visiting the
   others when its look matters (`e2e/work-chips.spec.ts`).
+- <a id="nothing-sticks-out"></a>**Nothing may stick out of its box, at any width or text size.**
+  `e2e/overflow.spec.ts` sweeps every screen and main dialog from 320 to 1600 px, at the
+  default text size and at 125%, and fails on anything wider than a parent that neither
+  clips nor scrolls. Three traps it has caught:
+  - A row of buttons that can't wrap (`flex-wrap: wrap` as a fallback).
+  - A `1fr` grid column, whose minimum is its content's width: an input's own width of
+    about 20 letters, or the wider of two "equal" buttons. Use `minmax(0, 1fr)`.
+  - `width: 100%` on a range input, which Chromium gives a 2 px margin
+    (`margin-inline: 0`).
+
+  Reaching out by an element's own negative margin is allowed (`← Home` lines its arrow up
+  with the text below). A new screen or dialog belongs in the sweep.
 - <a id="known-failure"></a>**The Python suite has one known failure,** `test_edge_numbers_all_sides`: a 44×5 chart
   whose dimensions come out one column short. It's documented in `test_images/README.md`.
   Any other failure is new.
+- <a id="ui-text"></a>**Name a control so it needs no note, rather than explaining it.** The owner asked
+  for screens without explanatory text: a home tile is its name alone, a switch has at
+  most one short line (`hint` in `ui/chartOptions.ts`, only where the name can't say
+  enough), and a group title says where its settings are saved. How-to and background
+  belong in the guide (`docs/guide/`), which every screen links to with its **?**. Before
+  adding a sentence, try a clearer name; keep text that warns (data loss, a lost row of
+  progress), reports what just happened, or explains an error.

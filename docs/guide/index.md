@@ -35,11 +35,11 @@ there's no Save button.
 
 The home screen leads to all of it: the big **Import a chart** area, and
 **Photo to pattern** (a new chart made from any photo or drawing,
-[how](import.md#photo-to-pattern)), **Library**, **Design pattern**, **Settings**,
+[how](import.md#photo-to-pattern)), **Design from scratch**, **Library**, **Settings**,
 **Help** and **Feedback** beside it. **Help** opens this
 guide, and the **?** at the top of every other screen opens the page about that screen.
 
-<img src="media/landing.png" alt="The home screen: a large dashed Import a chart area on the left, and the Photo to pattern, Design pattern, Library, Settings, Help and Feedback tiles stacked on the right" width="700">
+<img src="media/landing.png" alt="The home screen: a large dashed Import a chart area on the left, and the Photo to pattern, Design from scratch, Library, Settings, Help and Feedback tiles stacked on the right, each just its name" width="700">
 
 ## Import your first chart
 
@@ -60,7 +60,7 @@ guide, and the **?** at the top of every other screen opens the page about that 
 7. When it looks right, press **Start working →** and follow it
    [row by row](work.md).
 
-You can also start without an image: **Design pattern** on the home screen gives you a
+You can also start without an image: **Design from scratch** on the home screen gives you a
 blank grid to paint ([Design from a blank grid](design.md#start-from-a-blank-grid)).
 
 ## The rest of this guide

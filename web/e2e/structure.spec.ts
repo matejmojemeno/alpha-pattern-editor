@@ -29,7 +29,7 @@ async function cellCentre(page: Page, r: number, c: number) {
 /** A 12 × 10 white pattern with black rows at image rows 1, 4 and 8. */
 async function banner(page: Page) {
   await page.goto('/')
-  await page.getByRole('button', { name: /Design pattern/ }).click()
+  await page.getByRole('button', { name: 'Design from scratch' }).click()
   const dialog = page.getByRole('dialog', { name: 'New pattern' })
   await dialog.getByLabel('Name').fill('Banner')
   await dialog.getByLabel('Columns').fill('12')
@@ -81,10 +81,10 @@ test('structural edits with rows done in Work, and the desktop opens the result'
   // Painting is off while previewing: a press on the chart changes nothing.
   const off = await cellCentre(page, 5, 5)
   await page.mouse.click(off.x, off.y)
-  await expect(stats(page)).toHaveText(/^12 cols × 10 rows/)
+  await expect(stats(page)).toHaveText(/^12 × 10 /)
   await expect(field(page, 'Left')).toHaveValue('2') // nor does it move the pattern
   await page.getByRole('button', { name: 'Apply' }).click()
-  await expect(stats(page)).toHaveText(/^16 cols × 14 rows/)
+  await expect(stats(page)).toHaveText(/^16 × 14 /)
   await expect(page.getByRole('img', { name: 'Pattern, 16 by 14' })).toBeVisible()
 
   // A removal that cuts into the art asks first; Cancel leaves it be.
@@ -98,7 +98,7 @@ test('structural edits with rows done in Work, and the desktop opens the result'
   await expect(ask).toContainText('aren’t all one colour')
   await expect(ask).toContainText('you’ve marked done')
   await ask.getByRole('button', { name: 'Cancel' }).click()
-  await expect(stats(page)).toHaveText(/^16 cols × 14 rows/)
+  await expect(stats(page)).toHaveText(/^16 × 14 /)
   await page.getByRole('button', { name: 'Border & size', expanded: true }).click()
 
   // --- a done row deleted from the menu on its number ------------------------------------------------------
@@ -112,7 +112,7 @@ test('structural edits with rows done in Work, and the desktop opens the result'
   const del = page.getByRole('alertdialog', { name: 'Delete a row you’ve worked?' })
   await expect(del).toContainText('This removes 1 row you’ve marked done in the Work stage.')
   await del.getByRole('button', { name: 'Delete row' }).click()
-  await expect(stats(page)).toHaveText(/^16 cols × 13 rows/)
+  await expect(stats(page)).toHaveText(/^16 × 13 /)
   await expect(page.locator('.design__message')).toHaveText('Deleted row 3.')
   // The menu also inserts, and Escape closes it.
   const col = await cellCentre(page, 0, 4)
@@ -144,7 +144,7 @@ test('structural edits with rows done in Work, and the desktop opens the result'
   await expect(field(page, 'Bottom')).toHaveValue('0')
   await expect(field(page, 'Width')).toHaveValue('20') // the size stays
   await page.getByRole('button', { name: 'Apply' }).click()
-  await expect(stats(page)).toHaveText(/^20 cols × 15 rows/)
+  await expect(stats(page)).toHaveText(/^20 × 15 /)
 
   // --- Export PNG ----------------------------------------------------------------------------------------------------
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export PNG' }).click()])
@@ -187,15 +187,15 @@ test('Add row and Add column preview where the pointer is, and add there on a cl
   }
   await page.keyboard.press('Shift+H')
   await expect(page.getByRole('button', { name: /^Add row/ })).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.locator('.design__message')).toContainText('Point at the chart where the new row goes')
+  await expect(page.locator('.design__message')).toContainText('Click where the new row goes')
   // The mouse only points: the new row shows at row 3, in black, the colour painted with.
   const at = await cellCentre(page, 3, 5)
   await page.mouse.move(at.x, at.y)
   await expect.poll(shown).toBe(11)
-  await expect(stats(page)).toHaveText(/^12 cols × 10 rows/)
+  await expect(stats(page)).toHaveText(/^12 × 10 /)
   await page.locator('.design__canvas').screenshot({ path: testInfo.outputPath('add-row-preview.png') })
   await page.mouse.click(at.x, at.y)
-  await expect(stats(page)).toHaveText(/^12 cols × 11 rows/)
+  await expect(stats(page)).toHaveText(/^12 × 11 /)
   // Worked bottom up by default? Either way the message names the row by its number on the chart.
   await expect(page.locator('.design__message')).toHaveText(/^Added row \d+: now 12 × 11\.$/)
   await expect.poll(shown).toBe(11)
@@ -204,11 +204,11 @@ test('Add row and Add column preview where the pointer is, and add there on a cl
   const col = await cellCentre(page, 2, 12) // just past the last column: one at the end
   await page.mouse.move(col.x + 40, col.y)
   await page.mouse.click(col.x + 40, col.y)
-  await expect(stats(page)).toHaveText(/^13 cols × 11 rows/)
+  await expect(stats(page)).toHaveText(/^13 × 11 /)
   await expect(page.locator('.design__message')).toHaveText('Added column 13: now 13 × 11.')
   await page.keyboard.press('ControlOrMeta+z')
   await page.keyboard.press('ControlOrMeta+z')
-  await expect(stats(page)).toHaveText(/^12 cols × 10 rows/)
+  await expect(stats(page)).toHaveText(/^12 × 10 /)
 })
 
 test.describe('on a tablet', () => {
@@ -248,7 +248,7 @@ test.describe('on a tablet', () => {
   test('narrower than 700 px, it says it needs a larger screen, and offers the Work stage', async ({ page }) => {
     await banner(page)
     await page.setViewportSize({ width: 500, height: 800 })
-    await expect(page.getByRole('heading', { name: 'The Design stage needs a larger screen' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Editing needs a bigger screen' })).toBeVisible()
     await expect(page.getByRole('link', { name: '← Library' })).toBeVisible()
     // Wide again: the editor is as it was, undo and all.
     await page.setViewportSize({ width: 1024, height: 768 })

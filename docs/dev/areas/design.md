@@ -176,6 +176,30 @@ Newest last, as they were built.
   accessible names now say which way ("Rotate 90° clockwise"). Deleting a colour is a
   bin, not ×, which elsewhere means close. Tier A: main chunk 106.8 KB gzipped (+2.1 KB),
   Design 31.8 KB (+1.7 KB).
+- <a id="toolbar-wraps"></a>**The tablet toolbar's tools wrap** (`.design__toolbar .tools`): on a 700 px
+  tablet with text at 125%, the last tools ran 36 px off the edge, out of reach. Caught
+  by `e2e/overflow.spec.ts` ([rules](../rules.md#nothing-sticks-out)).
+
+- <a id="less-text"></a>**Less text** (with the home screen's,
+  [library.md#less-text](library.md#less-text)):
+  - The bottom bar is "30 × 30 · 900 stitches · 5 colours" (`readout.format_stats`,
+    Python first, fixtures regenerated): "31 strings needed" (cols + 1) is a friendship
+    bracelet's count, and was shown on every crochet pattern. The Design stage adds
+    "· 31 strings" when the craft is **Alpha friendship bracelet** only. "1 colours" is
+    "1 colour" now.
+  - Gone from the tools column: "22 px per cell" (Fit's tooltip says how to zoom; e2e
+    reads the zoom from the scroller's `data-cell`) and "Painting with **Blue**" (the
+    Colours list ticks the colour you paint with).
+  - **Border & size** lost its paragraph: a line above the four sides says "Cells to add
+    on each side (below 0 removes them)", and the chart's "Previewing: drag the pattern
+    to move it." covers moving. **Scale** lost "Every cell becomes a block of cells", since
+    its result line shows the size.
+  - Messages say what happened, with how-to only where a tool needs it: "Selected 12
+    cells." (was "… Drag inside them to move them."), "Click where the new row goes. To
+    delete a row, click its number."
+  - "Yarn & size" and "Visualize" keep their numbers with one short line each; Export
+    PNG's tooltip no longer mentions the desktop app, which is retired. On a phone the
+    message is "Editing needs a bigger screen".
 
 ## During the port
 

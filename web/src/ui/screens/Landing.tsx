@@ -1,7 +1,8 @@
 /**
  * The first screen: a large drop zone to import a chart, with the other ways in beside
- * it (Photo to pattern, Design pattern, Library, Settings, Help, Feedback): the two ways
- * to make a new pattern sit together. Reading a
+ * it (Photo to pattern, Design from scratch, Library, Settings, Help, Feedback): the two
+ * ways to make a new pattern sit together. Each tile is its name alone, named so that
+ * it needs no description; the drop zone keeps one line, for what it takes. Reading a
  * chart is what the app is for, so it has the drop zone, and a dropped or pasted image is
  * read as one; turning a photo into a pattern is asked for by its own tile (§5a). The desktop opened straight onto the Library; the web
  * app starts here instead (docs/dev/history/web-port.md#landing-screen).
@@ -16,7 +17,7 @@ import { DropOverlay, ImportButton, Notices, ReplaceDialog } from '../components
 import { useDocumentTitle, useFileDrop, usePastedImage, useProjects } from '../hooks.ts'
 import { PHOTO_TO_PATTERN } from '../../importer/picture.ts'
 import { DesignIcon, FeedbackIcon, HelpIcon, ImportIcon, LibraryIcon, Logo, PhotoIcon, SettingsIcon } from '../icons.tsx'
-import { NewPatternDialog } from '../NewPattern.tsx'
+import { DESIGN_FROM_SCRATCH, NewPatternDialog } from '../NewPattern.tsx'
 import { openImageImport, useAlphaImport } from '../useAlphaImport.ts'
 
 const openPasted = (file: File) => openImageImport({ file })
@@ -45,7 +46,6 @@ export function Landing() {
       <header className="landing__header">
         <Logo />
         <h1 tabIndex={-1}>Alpha Pattern Editor</h1>
-        <p className="muted">Turn a photo of a crochet alpha chart into a pattern you can edit and follow row by row.</p>
       </header>
 
       <div className="home">
@@ -57,14 +57,8 @@ export function Landing() {
         >
           <ImportIcon />
           <span className="drop-zone__title">Import a chart</span>
-          <span className="drop-zone__text">
-            A screenshot or photo of an alpha chart, or pixel art: every square becomes one stitch, exactly as charted
-            (PNG, JPEG or WebP). Or a <code>.alpha</code> file.
-          </span>
-          <span className="drop-zone__how drop-zone__how--pointer">
-            Drop it here, paste it, or click to choose a file.
-          </span>
-          <span className="drop-zone__how drop-zone__how--touch">Tap to choose a file.</span>
+          <span className="drop-zone__how drop-zone__how--pointer">Drop, paste or click to choose an image or .alpha file</span>
+          <span className="drop-zone__how drop-zone__how--touch">Tap to choose an image or .alpha file</span>
         </ImportButton>
 
         <ul className="tiles">
@@ -72,50 +66,46 @@ export function Landing() {
             <a className="tile" href={href(paths.photo)} onPointerEnter={preloadDetection} onFocus={preloadDetection}>
               <PhotoIcon />
               <span className="tile__title">{PHOTO_TO_PATTERN}</span>
-              <span className="tile__text">Make a new pattern from any photo or drawing. You choose its size and colours.</span>
             </a>
           </li>
           <li>
             <button type="button" className="tile" onClick={() => setCreating(true)} disabled={!repo}>
               <DesignIcon />
-              <span className="tile__title">Design pattern</span>
-              <span className="tile__text">Start from a blank grid, and paint your own chart.</span>
+              <span className="tile__title">{DESIGN_FROM_SCRATCH}</span>
             </button>
           </li>
           <li>
             <a className="tile" href={href(paths.library)}>
               <LibraryIcon />
               <span className="tile__title">Library</span>
-              <span className="tile__text">
-                {count === null
-                  ? 'Your saved projects.'
-                  : count === 0
-                    ? 'No projects yet.'
-                    : `${count} project${count === 1 ? '' : 's'} saved in this browser.`}
-              </span>
+              {count !== null && count > 0 && (
+                <span className="tile__aside">
+                  <span aria-hidden="true">{count}</span>
+                  <span className="visually-hidden">
+                    , {count} project{count === 1 ? '' : 's'}
+                  </span>
+                </span>
+              )}
             </a>
           </li>
           <li>
             <a className="tile" href={href(paths.settings)}>
               <SettingsIcon />
               <span className="tile__title">Settings</span>
-              <span className="tile__text">How the Work chart looks: stitch numbers, where to carry yarn, and your row.</span>
             </a>
           </li>
           <li>
             <a className="tile" href={helpUrl('home')} target="_blank" rel="noopener noreferrer">
               <HelpIcon />
               <span className="tile__title">Help</span>
-              <span className="tile__text">The user guide: how to import, design and follow a pattern. Opens in a new tab.</span>
+              <NewTab />
             </a>
           </li>
           <li>
             <a className="tile" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">
               <FeedbackIcon />
               <span className="tile__title">Feedback</span>
-              <span className="tile__text">
-                Report a problem or suggest an idea, on GitHub (needs a free account). Opens in a new tab.
-              </span>
+              <NewTab />
             </a>
           </li>
         </ul>
@@ -127,6 +117,16 @@ export function Landing() {
       {question && <ReplaceDialog question={question} />}
       {creating && repo && <NewPatternDialog repo={repo} onCancel={() => setCreating(false)} />}
     </main>
+  )
+}
+
+/** Help and Feedback leave the app for a new tab: an arrow says so, and the link's name. */
+function NewTab() {
+  return (
+    <span className="tile__aside">
+      <span aria-hidden="true">↗</span>
+      <span className="visually-hidden"> (opens in a new tab)</span>
+    </span>
   )
 }
 

@@ -11,14 +11,14 @@ describe('Settings screen', () => {
   it('shows the five Work chart switches, in the order Options has them, with their defaults', async () => {
     await renderApp('#/settings')
     expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeTruthy()
-    expect(screen.getByRole('heading', { level: 2, name: 'Work chart' })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 2, name: 'Work chart, for every pattern' })).toBeTruthy()
     const switches = screen.getAllByRole<HTMLInputElement>('switch')
     expect(switches.map((s) => [s.labels![0]!.textContent, s.checked])).toEqual([
       ['Number the stitches', true],
       ['Show the colours in this row', true],
       ['Show where to carry yarn', false],
       ['Enlarge the current row', true],
-      ['Focus mode', false],
+      ['Show only the rows near yours', false],
     ])
     expect(screen.queryByText(/contrast/i)).toBeNull()
   })
@@ -26,7 +26,7 @@ describe('Settings screen', () => {
   it('says which version and build this is, with links to what changed and to help', async () => {
     await renderApp('#/settings')
     const about = screen.getByRole('region', { name: 'About' })
-    expect(about.textContent).toContain(`version ${APP_VERSION}`)
+    expect(about.textContent).toContain(`Version ${APP_VERSION}`)
     expect(APP_VERSION).toMatch(/^\d+\.\d+\.\d+$/)
     // Tests run in a git checkout, so the build knows its commit.
     expect(APP_COMMIT).toMatch(/^[0-9a-f]{7}$/)
@@ -45,7 +45,7 @@ describe('Settings screen', () => {
     const storage = memoryStorage()
     const settings = createSettingsStore(() => storage)
     await renderApp('#/settings', { settings })
-    await userEvent.click(screen.getByRole('switch', { name: 'Focus mode' }))
+    await userEvent.click(screen.getByRole('switch', { name: 'Show only the rows near yours' }))
     await userEvent.click(screen.getByRole('switch', { name: 'Show where to carry yarn' }))
     await userEvent.click(screen.getByRole('switch', { name: 'Number the stitches' }))
     await userEvent.click(screen.getByRole('switch', { name: 'Enlarge the current row' }))

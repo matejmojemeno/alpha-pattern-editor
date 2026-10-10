@@ -122,8 +122,7 @@ export function YarnEstimate({ name, pattern, onClose }: { name: string; pattern
           Your swatch
         </h3>
         <p className="yarn__help muted">
-          Crochet a square in the yarn, hook and stitch you’ll use, lay it flat and measure it. Weigh it too, on a kitchen
-          scale, for the closest yarn estimate.
+          Crochet a square in your yarn and stitch, then measure it. Weighing it makes the yarn estimate closer.
         </p>
         <div className="yarn__inputs">
           <NumberField
@@ -222,8 +221,8 @@ export function YarnEstimate({ name, pattern, onClose }: { name: string; pattern
         </div>
         <p className="yarn__help muted">
           {usage.basis === 'weight'
-            ? 'By your swatch’s weight. '
-            : 'Without a weighed swatch, by yarn per stitch: work 10 stitches, pull them out, measure and divide by 10. '}
+            ? 'Counted from your swatch’s weight. '
+            : 'To measure yarn per stitch: work 10 stitches, pull them out, measure and divide by 10. '}
           {fromLibrary && `Ball: ${LIBRARY_LABELS[library.id]}. `}
           {!fromLibrary && library && libraryBall && (
             <button type="button" className="linklike" onClick={() => set({ ballMetres: null, ballGrams: null })}>
@@ -287,9 +286,8 @@ export function YarnEstimate({ name, pattern, onClose }: { name: string; pattern
       </table>
       {!showBalls && <p className="yarn__help muted">Enter a ball’s length or weight, from its label, to count balls.</p>}
       <p className="yarn__help muted">
-        An estimate, rounded up: one stitch per cell
-        {usage.carried > 0 ? `, and ${n(usage.carried)} stitches of carried yarn` : ''}. Ends, a foundation chain and
-        borders aren’t counted; the extra is for those.
+        Rounded up{usage.carried > 0 ? `, with ${n(usage.carried)} stitches of carried yarn` : ''}. Ends, the foundation chain
+        and edging aren’t counted: Extra covers them.
       </p>
     </Modal>
   )

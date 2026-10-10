@@ -1,12 +1,15 @@
 /**
  * The Work stage's Options menu, in three groups:
  *
- * - **How you work it**: the craft, the corner the first stitch is in, and whether rows go
- *   back and forth or in the round. These are saved with the pattern. Each choice with two
- *   or more named sides is a set of radio buttons, so the side not chosen is in view too:
- *   a checkbox such as "Start rows from the right" left you to work out what unticked meant.
- * - **Chart**: switches for how the chart looks, app-wide (also in Settings).
- * - **Pattern**: rename, edit in Design, export the chart as a picture, and help.
+ * - **How you work this pattern**: the craft, the corner the first stitch is in, and whether
+ *   rows go back and forth or in the round. These are saved with the pattern. Each choice
+ *   with two or more named sides is a set of radio buttons, so the side not chosen is in
+ *   view too: a checkbox such as "Start rows from the right" left you to work out what
+ *   unticked meant. The corner and the rows say the reading order between them, so there
+ *   is no sentence spelling it out under them.
+ * - **Chart, for every pattern**: switches for how the chart looks, app-wide (also in
+ *   Settings). The titles say where each group is saved, so neither needs a note.
+ * - Untitled, under a rule: rename, edit in Design, export the chart as a picture, and help.
  */
 import { useId, type ReactNode } from 'react'
 
@@ -15,7 +18,6 @@ import { CRAFTS, isCraftId, type Craft, type CraftId } from '../../craft/crafts.
 import type { Direction, Pattern } from '../../model/types.ts'
 import type { Settings } from '../../settings/store.ts'
 import { CHART_OPTIONS } from '../chartOptions.ts'
-import { readingOrder } from './segments.ts'
 
 /** The four corners, as they sit on the chart. */
 const CORNERS: readonly { label: string; bottomUp: boolean; start: Direction }[] = [
@@ -45,7 +47,7 @@ export function OptionsMenu(props: OptionsMenuProps) {
   const id = useId()
   return (
     <div className="work__menu">
-      <Group title="How you work it" note="Saved with this pattern.">
+      <Group title="How you work this pattern">
         <label className="options__field">
           Craft
           <select value={isCraftId(p.craft) ? p.craft : craft.id} onChange={(e) => props.onCraft(e.target.value as CraftId)}>
@@ -85,12 +87,9 @@ export function OptionsMenu(props: OptionsMenuProps) {
             </label>
           </div>
         </fieldset>
-        <p className="options__summary muted" aria-live="polite">
-          {readingOrder(p, craft.inRounds)}
-        </p>
       </Group>
 
-      <Group title="Chart" note="For every pattern; also in Settings.">
+      <Group title="Chart, for every pattern">
         {/* "This row" has its own button in the header, right by it. */}
         {CHART_OPTIONS.filter((o) => o.key !== 'showRowColours' && (o.key !== 'showCarries' || craft.carries)).map((o) => (
           <div className="options__switch" key={o.key}>
@@ -99,18 +98,20 @@ export function OptionsMenu(props: OptionsMenuProps) {
               type="checkbox"
               role="switch"
               checked={settings[o.key]}
-              aria-describedby={`${id}-${o.key}-hint`}
+              aria-describedby={o.hint ? `${id}-${o.key}-hint` : undefined}
               onChange={(e) => setSettings({ [o.key]: e.target.checked })}
             />
             <label htmlFor={`${id}-${o.key}`}>{o.label}</label>
-            <p id={`${id}-${o.key}-hint`} className="muted">
-              {o.hint}
-            </p>
+            {o.hint && (
+              <p id={`${id}-${o.key}-hint`} className="muted">
+                {o.hint}
+              </p>
+            )}
           </div>
         ))}
       </Group>
 
-      <Group title="Pattern">
+      <Group label="Pattern">
         <div className="options__actions">
           <button type="button" className="button button--small" aria-label={`Rename “${p.name}”`} onClick={props.onRename}>
             Rename…
@@ -118,7 +119,7 @@ export function OptionsMenu(props: OptionsMenuProps) {
           <button type="button" className="button button--small" onClick={props.onEdit}>
             Edit in Design
           </button>
-          <button type="button" className="button button--small" onClick={props.onExportPng} title="The chart as a picture, with stitch numbers and where to carry yarn when they are on. No progress is shown.">
+          <button type="button" className="button button--small" onClick={props.onExportPng} title="The chart as a picture, with the numbers and carried yarn it shows, but not your progress">
             Export PNG
           </button>
           {/* Also here, for phones, where the header has no room for its "?". */}
@@ -131,16 +132,16 @@ export function OptionsMenu(props: OptionsMenuProps) {
   )
 }
 
-function Group({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
+/** A group of the menu, under its title; or untitled, named for a screen reader by `label`. */
+function Group({ title, label, children }: { title?: string; label?: string; children: ReactNode }) {
   const id = useId()
   return (
-    <section className="options__group" aria-labelledby={id}>
-      <div className="options__head">
+    <section className="options__group" aria-labelledby={title ? id : undefined} aria-label={title ? undefined : label}>
+      {title && (
         <h2 id={id} className="options__title">
           {title}
         </h2>
-        {note && <span className="options__note muted">{note}</span>}
-      </div>
+      )}
       {children}
     </section>
   )

@@ -86,7 +86,7 @@ test('the whole flow: import, save, Design, Row 1, reload, export, and the deskt
   await saveAs(page, 'Cats')
   // A fresh detection opens in the Design stage, to be cleaned up first (§7.3).
   await expect(page).toHaveURL(/#\/design\//)
-  await expect(page.locator('.design__stats')).toHaveText(new RegExp(`^${want.cols} cols × ${want.rows} rows`))
+  await expect(page.locator('.design__stats')).toHaveText(new RegExp(`^${want.cols} × ${want.rows} `))
   await page.getByRole('button', { name: 'Start working →' }).click()
   await expect(page).toHaveURL(/#\/work\//)
   await expect(page.locator('.work__row')).toHaveText(/^Row 1 of 45/)
@@ -387,7 +387,7 @@ test.describe('on a phone', () => {
     expect(scrollWidth).toBeLessThanOrEqual(innerWidth)
     await save.click()
     // Design needs a larger screen than a phone's: it says so, and offers the Work stage.
-    await expect(page.getByRole('heading', { name: 'The Design stage needs a larger screen' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Editing needs a bigger screen' })).toBeVisible()
     await page.getByRole('button', { name: 'Start working →' }).click()
     await expect(page.locator('.work__row')).toHaveText(/^Row 1 of/)
   })

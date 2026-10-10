@@ -90,6 +90,7 @@ import {
 } from '../../logic/edit.ts'
 import { carryProgress, losesProgress, progressLoss, type ProgressLoss } from '../../logic/progress.ts'
 import { formatStats, workingNumber } from '../../logic/readout.ts'
+import { craftOf } from '../../craft/crafts.ts'
 import type { Pattern, Project } from '../../model/types.ts'
 import { fitCell, zoomStep, type Overlay } from '../../render/design.ts'
 import { exportPng } from '../../render/png.ts'
@@ -426,11 +427,11 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       const kind = ADD_TOOLS[tool]
       if (kind) {
         const one = kind === 'row' ? 'row' : 'column'
-        setMessage(`Point at the chart where the new ${one} goes, and click to add it. To delete a ${one}, press its number.`)
+        setMessage(`Click where the new ${one} goes. To delete a ${one}, click its number.`)
       } else if (tool === 'select') {
-        setMessage('Drag over the chart to select cells, then drag inside the selection to move them.')
+        setMessage('Drag to select cells, then drag inside them to move them.')
       } else if (tool === 'object') {
-        setMessage('Click a shape to select it without its background, then drag it to move it.')
+        setMessage('Click a shape to select it, then drag to move it.')
       }
     },
     [update],
@@ -442,7 +443,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
     const d = latest.current.drag
     update((s) => pointerUp(s, c))
     const sel = latest.current.selection
-    if (d?.tool === 'select' && sel) setMessage(`Selected ${cellsIn(sel.rect)} cells. Drag inside them to move them.`)
+    if (d?.tool === 'select' && sel) setMessage(`Selected ${cellsIn(sel.rect)} cells.`)
     else if (d?.tool === 'select') setMessage('')
   }
   const onDown = (c: { r: number; c: number }) => {
@@ -452,7 +453,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
     const sel = latest.current.selection
     if (!sel) setMessage('That’s the background. Click a shape to select it.')
     else if (sel.floating?.clear && sel.floating !== before?.floating) {
-      setMessage(`Selected a shape, ${rectCols(sel.rect)} × ${rectRows(sel.rect)}, without its background. Drag it to move it.`)
+      setMessage(`Selected a shape, ${rectCols(sel.rect)} × ${rectRows(sel.rect)}.`)
     }
   }
   const onCopy = () => {
@@ -477,7 +478,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
     update((s) => paste(s, c))
     const added = latest.current.pattern.palette.length - before
     setMessage(
-      `Pasted ${c.block.cols} × ${c.block.rows} cells${added ? `, adding ${plural(added, 'colour')}` : ''}. Drag them into place, then click outside them.`,
+      `Pasted ${c.block.cols} × ${c.block.rows} cells${added ? `, adding ${plural(added, 'colour')}` : ''}. Drag them into place, then click outside.`,
     )
   }
   const onEmpty = () => {
@@ -491,7 +492,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
     update(toggleBackground)
     const clear = latest.current.selection?.floating?.clear
     const n = clear ? clear.reduce((a, v) => a + v, 0) : 0
-    setMessage(clear ? `Removed the background: ${plural(n, 'cell')} now show what is under them. Drag it into place.` : 'Put the background back.')
+    setMessage(clear ? `Removed the background: ${plural(n, 'cell')} now see-through.` : 'Put the background back.')
   }
   const onCrop = () =>
     guarded(() => {
@@ -801,12 +802,14 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       <button type="button" className="button button--small" aria-label="Zoom in" onClick={() => zoom(1)}>
         +
       </button>
-      <button type="button" className="button button--small" onClick={() => setZoomed(null)}>
+      <button
+        type="button"
+        className="button button--small"
+        title={`Fit the chart to the window. ${MOD} + scroll, or pinch, over the chart to zoom.`}
+        onClick={() => setZoomed(null)}
+      >
         Fit
       </button>
-      <span className="zoom__label muted" title={`${MOD} + scroll, or pinch, over the chart to zoom`}>
-        {cell ?? '–'} px per cell
-      </span>
     </div>
   )
   const colours = (
@@ -841,11 +844,8 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       <main className="screen design design--small">
         <h1 className="design__name">{p.name}</h1>
         <section className="design__too-small" aria-labelledby="design-too-small">
-          <h2 id="design-too-small">The Design stage needs a larger screen</h2>
-          <p>
-            Editing a pattern needs a tablet or a computer. On this screen you can work from it, row by row, or go back to your
-            library.
-          </p>
+          <h2 id="design-too-small">Editing needs a bigger screen</h2>
+          <p>Use a tablet or a computer to edit. On this screen you can still work from the pattern.</p>
           <div className="design__too-small-actions">
             <button type="button" className="button button--primary" onClick={startWorking}>
               Start working →
@@ -910,7 +910,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
         <button
           type="button"
           className="button button--small design__export"
-          title="Save the chart as an image, as the desktop's Export PNG does"
+          title="Save the chart as an image"
           onClick={() => {
             const { blob, filename } = exportPng(latest.current.pattern)
             downloadBlob(blob, filename)
@@ -973,14 +973,6 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
             )}
             <h2 className="design__heading">Zoom</h2>
             {zoomControls}
-            {current && (
-              <div className="design__current">
-                <span className="colour__swatch" style={{ background: current.hex }} aria-hidden="true" />
-                <span>
-                  Painting with <strong>{current.name || 'Unnamed'}</strong>
-                </span>
-              </div>
-            )}
           </aside>
         )}
 
@@ -1043,7 +1035,11 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       </div>
 
       <footer className="design__bar">
-        <span className="design__stats">{formatStats(p.cols, p.rows, p.palette.length)}</span>
+        <span className="design__stats">
+          {formatStats(p.cols, p.rows, p.palette.length)}
+          {/* A friendship bracelet is knotted on cols + 1 strings; no other craft needs it. */}
+          {craftOf(p).id === 'bracelet' && `   ·   ${p.cols + 1} strings`}
+        </span>
         <span className="design__message" role="status" aria-live="polite">
           {message}
         </span>

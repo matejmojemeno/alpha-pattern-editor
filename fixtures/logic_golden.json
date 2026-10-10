@@ -89,7 +89,7 @@
    },
    "readout": {
     "export_all_rows_text": "Row 1 →  3 Brown, 1 Red, 1 Brown, 1 Red, 1 Brown\nRow 2 ←  2 Red, 1 White, 3 Red, 1 Brown\nRow 3 →  1 White, 1 Red, 2 White, 3 Brown\nRow 4 ←  1 Brown, 1 White, 1 Brown, 2 White, 1 Red, 1 Brown\nRow 5 →  1 Brown, 3 White, 3 Brown",
-    "format_stats": "7 cols × 5 rows   ·   35 stitches   ·   3 colours   ·   8 strings needed",
+    "format_stats": "7 × 5   ·   35 stitches   ·   3 colours",
     "rows": [
      {
       "compact": "1B 3W 3B",
@@ -2109,7 +2109,7 @@
    },
    "readout": {
     "export_all_rows_text": "Row 1 →  3 Brown, 1 Red, 1 Brown, 1 Red, 1 Brown\nRow 2 →  1 Brown, 3 Red, 1 White, 2 Red\nRow 3 →  1 White, 1 Red, 2 White, 3 Brown\nRow 4 →  1 Brown, 1 Red, 2 White, 1 Brown, 1 White, 1 Brown\nRow 5 →  1 Brown, 3 White, 3 Brown",
-    "format_stats": "7 cols × 5 rows   ·   35 stitches   ·   3 colours   ·   8 strings needed",
+    "format_stats": "7 × 5   ·   35 stitches   ·   3 colours",
     "rows": [
      {
       "compact": "1B 3W 3B",
@@ -4175,7 +4175,7 @@
    },
    "readout": {
     "export_all_rows_text": "Row 1 ←  1 Brown, 1 Red, 1 Brown, 1 Red, 3 Brown\nRow 2 →  1 Brown, 3 Red, 1 White, 2 Red\nRow 3 ←  3 Brown, 2 White, 1 Red, 1 White\nRow 4 →  1 Brown, 1 Red, 2 White, 1 Brown, 1 White, 1 Brown\nRow 5 ←  3 Brown, 3 White, 1 Brown",
-    "format_stats": "7 cols × 5 rows   ·   35 stitches   ·   3 colours   ·   8 strings needed",
+    "format_stats": "7 × 5   ·   35 stitches   ·   3 colours",
     "rows": [
      {
       "compact": "3B 3W 1B",
@@ -6224,7 +6224,7 @@
    },
    "readout": {
     "export_all_rows_text": "Row 1 ←  1 Brown, 1 Red, 1 Brown, 1 Red, 3 Brown\nRow 2 ←  2 Red, 1 White, 3 Red, 1 Brown\nRow 3 ←  3 Brown, 2 White, 1 Red, 1 White\nRow 4 ←  1 Brown, 1 White, 1 Brown, 2 White, 1 Red, 1 Brown\nRow 5 ←  3 Brown, 3 White, 1 Brown",
-    "format_stats": "7 cols × 5 rows   ·   35 stitches   ·   3 colours   ·   8 strings needed",
+    "format_stats": "7 × 5   ·   35 stitches   ·   3 colours",
     "rows": [
      {
       "compact": "3B 3W 1B",
@@ -8258,7 +8258,7 @@
    },
    "readout": {
     "export_all_rows_text": "Row 1 →  1 Brown, 3 White, 3 Brown\nRow 2 ←  1 Brown, 1 White, 1 Brown, 2 White, 1 Red, 1 Brown\nRow 3 →  1 White, 1 Red, 2 White, 3 Brown\nRow 4 ←  2 Red, 1 White, 3 Red, 1 Brown\nRow 5 →  3 Brown, 1 Red, 1 Brown, 1 Red, 1 Brown",
-    "format_stats": "7 cols × 5 rows   ·   35 stitches   ·   3 colours   ·   8 strings needed",
+    "format_stats": "7 × 5   ·   35 stitches   ·   3 colours",
     "rows": [
      {
       "compact": "1B 3W 3B",
@@ -10236,7 +10236,7 @@
    },
    "readout": {
     "export_all_rows_text": "Row 1 →  1 Brown, 3 White, 3 Brown\nRow 2 →  1 Brown, 1 Red, 2 White, 1 Brown, 1 White, 1 Brown\nRow 3 →  1 White, 1 Red, 2 White, 3 Brown\nRow 4 →  1 Brown, 3 Red, 1 White, 2 Red\nRow 5 →  3 Brown, 1 Red, 1 Brown, 1 Red, 1 Brown",
-    "format_stats": "7 cols × 5 rows   ·   35 stitches   ·   3 colours   ·   8 strings needed",
+    "format_stats": "7 × 5   ·   35 stitches   ·   3 colours",
     "rows": [
      {
       "compact": "1B 3W 3B",
@@ -12229,7 +12229,7 @@
    },
    "readout": {
     "export_all_rows_text": "Row 1 ←  3 Brown, 3 White, 1 Brown\nRow 2 →  1 Brown, 1 Red, 2 White, 1 Brown, 1 White, 1 Brown\nRow 3 ←  3 Brown, 2 White, 1 Red, 1 White\nRow 4 →  1 Brown, 3 Red, 1 White, 2 Red\nRow 5 ←  1 Brown, 1 Red, 1 Brown, 1 Red, 3 Brown",
-    "format_stats": "7 cols × 5 rows   ·   35 stitches   ·   3 colours   ·   8 strings needed",
+    "format_stats": "7 × 5   ·   35 stitches   ·   3 colours",
     "rows": [
      {
       "compact": "3B 3W 1B",
@@ -14249,7 +14249,7 @@
    },
    "readout": {
     "export_all_rows_text": "Row 1 ←  3 Brown, 3 White, 1 Brown\nRow 2 ←  1 Brown, 1 White, 1 Brown, 2 White, 1 Red, 1 Brown\nRow 3 ←  3 Brown, 2 White, 1 Red, 1 White\nRow 4 ←  2 Red, 1 White, 3 Red, 1 Brown\nRow 5 ←  1 Brown, 1 Red, 1 Brown, 1 Red, 3 Brown",
-    "format_stats": "7 cols × 5 rows   ·   35 stitches   ·   3 colours   ·   8 strings needed",
+    "format_stats": "7 × 5   ·   35 stitches   ·   3 colours",
     "rows": [
      {
       "compact": "3B 3W 1B",
@@ -16325,7 +16325,7 @@
    },
    "readout": {
     "export_all_rows_text": "Row 1 ←  1 White, 1 Red, 2 Brown, 1 Blue\nRow 2 →  1 White, 1 Red, 1 Blue, 1 White, 1 Red\nRow 3 ←  1 Red, 1 White, 1 Blue, 2 Red\nRow 4 →  1 Brown, 2 White, 1 Blue, 1 White\nRow 5 ←  1 Red, 2 White, 1 Brown, 1 Red\nRow 6 →  1 Brown, 4 White",
-    "format_stats": "5 cols × 6 rows   ·   30 stitches   ·   4 colours   ·   6 strings needed",
+    "format_stats": "5 × 6   ·   30 stitches   ·   4 colours",
     "rows": [
      {
       "compact": "1B 4W",
@@ -18325,7 +18325,7 @@
    },
    "readout": {
     "export_all_rows_text": "Row 1 ←  1 White",
-    "format_stats": "1 cols × 1 rows   ·   1 stitches   ·   1 colours   ·   2 strings needed",
+    "format_stats": "1 × 1   ·   1 stitch   ·   1 colour",
     "rows": [
      {
       "compact": "1W",
@@ -19639,7 +19639,7 @@
    },
    "readout": {
     "export_all_rows_text": "Row 1 ←  1 White\nRow 2 →  1 Brown\nRow 3 ←  1 Brown\nRow 4 →  1 White",
-    "format_stats": "1 cols × 4 rows   ·   4 stitches   ·   2 colours   ·   2 strings needed",
+    "format_stats": "1 × 4   ·   4 stitches   ·   2 colours",
     "rows": [
      {
       "compact": "1W",
@@ -21170,7 +21170,7 @@
    },
    "readout": {
     "export_all_rows_text": "Row 1 ←  1 Red, 3 Brown, 2 White",
-    "format_stats": "6 cols × 1 rows   ·   6 stitches   ·   3 colours   ·   7 strings needed",
+    "format_stats": "6 × 1   ·   6 stitches   ·   3 colours",
     "rows": [
      {
       "compact": "1R 3B 2W",
@@ -22555,7 +22555,7 @@
    },
    "readout": {
     "export_all_rows_text": "Row 1 ←  1 Brown, 1 White, 1 Brown, 1 White\nRow 2 →  4 Brown\nRow 3 ←  4 White",
-    "format_stats": "4 cols × 3 rows   ·   12 stitches   ·   2 colours   ·   5 strings needed",
+    "format_stats": "4 × 3   ·   12 stitches   ·   2 colours",
     "rows": [
      {
       "compact": "4W",
@@ -24074,7 +24074,7 @@
    },
    "readout": {
     "export_all_rows_text": "Row 1 ←  1 , 1 White, 2 #7\nRow 2 →  1 White, 2 skip, 1 ",
-    "format_stats": "4 cols × 2 rows   ·   8 stitches   ·   2 colours   ·   5 strings needed",
+    "format_stats": "4 × 2   ·   8 stitches   ·   2 colours",
     "rows": [
      {
       "compact": "1W 2S 1?",
@@ -25658,7 +25658,7 @@
    },
    "readout": {
     "export_all_rows_text": "Row 1 ←  2 Yellow, 1 Red, 2 Blue, 1 Red, 1 Brown, 2 White, 1 Brown, 2 Red, 1 Brown, 1 Yellow, 1 Blue, 1 Yellow, 2 Blue, 1 Red, 1 Brown, 1 White, 2 Red\nRow 2 →  1 Red, 1 Brown, 2 Yellow, 2 White, 1 Blue, 1 White, 1 Brown, 2 White, 1 Brown, 1 White, 1 Red, 1 Brown, 1 Blue, 1 Red, 1 Yellow, 1 Blue, 1 Brown, 1 Red, 1 Brown, 1 Red\nRow 3 ←  1 White, 1 Brown, 1 Red, 2 Yellow, 1 Red, 1 Brown, 1 White, 1 Red, 1 Brown, 1 Red, 1 Brown, 1 Yellow, 1 White, 1 Blue, 2 White, 1 Yellow, 1 Red, 2 Brown, 1 Blue, 1 White\nRow 4 →  1 White, 1 Brown, 4 Blue, 2 Yellow, 1 White, 2 Yellow, 2 Blue, 3 Red, 1 Yellow, 1 Brown, 1 Yellow, 1 White, 1 Yellow, 1 Brown, 1 Red",
-    "format_stats": "23 cols × 4 rows   ·   92 stitches   ·   5 colours   ·   24 strings needed",
+    "format_stats": "23 × 4   ·   92 stitches   ·   5 colours",
     "rows": [
      {
       "compact": "1W 1B 4B 2Y 1W 2Y 2B 3R 1Y 1B 1Y 1W 1Y 1B 1R",

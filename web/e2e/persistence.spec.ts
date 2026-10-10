@@ -20,7 +20,7 @@ test('import, reload, open, export, delete, re-import', async ({ page }, testInf
   await page.goto('/')
   await page.getByRole('link', { name: /Library/ }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Your projects' })).toBeVisible()
-  await expect(page.getByText('No saved projects yet.')).toBeVisible()
+  await expect(page.getByText('No projects yet.')).toBeVisible()
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(FIXTURE)
 
   // 2. It is in the Library.
@@ -70,9 +70,9 @@ test('import, reload, open, export, delete, re-import', async ({ page }, testInf
   // ...delete it...
   await card.getByRole('button', { name: `Delete “${basic.name}”` }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click()
-  await expect(page.getByText('No saved projects yet.')).toBeVisible()
+  await expect(page.getByText('No projects yet.')).toBeVisible()
   await page.reload()
-  await expect(page.getByText('No saved projects yet.')).toBeVisible()
+  await expect(page.getByText('No projects yet.')).toBeVisible()
 
   // ...re-import the export, and check it matches.
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(exported)

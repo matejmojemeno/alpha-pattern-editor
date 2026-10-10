@@ -112,7 +112,7 @@ async function expectPlaceInView(page: Page, n: number, runIndex: number, stitch
 async function completeSegment(page: Page, i: number) {
   await chips(page).nth(i).click()
   const dialog = page.getByRole('dialog', { name: 'Record progress' })
-  await dialog.getByRole('button', { name: 'Mark segment complete' }).click()
+  await dialog.getByRole('button', { name: 'Mark as done' }).click()
   await expect(dialog).toBeHidden()
 }
 
@@ -155,7 +155,7 @@ test('the chart follows your place across a wide chart', async ({ page }, testIn
   await chips(page).nth(mid).click()
   const dialog = page.getByRole('dialog', { name: 'Record progress' })
   await dialog.getByLabel('Stitches done').fill('5')
-  await dialog.getByRole('button', { name: 'Save progress' }).click()
+  await dialog.getByRole('button', { name: 'Save' }).click()
   await expect(dialog).toBeHidden()
   s = await expectPlaceInView(page, 2, mid, 5)
   expect(s.left).toBeLessThan(s.max)
@@ -212,7 +212,7 @@ test('zoomed in, saving part way through a segment moves the chart on to the sti
   const save = async (stitches: number) => {
     await chips(page).nth(2).click()
     await dialog.getByLabel('Stitches done').fill(String(stitches))
-    await dialog.getByRole('button', { name: 'Save progress' }).click()
+    await dialog.getByRole('button', { name: 'Save' }).click()
     await expect(dialog).toBeHidden()
     return expectPlaceInView(page, 1, 2, stitches, scarf.pattern)
   }

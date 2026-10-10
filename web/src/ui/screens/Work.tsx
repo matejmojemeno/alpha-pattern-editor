@@ -410,8 +410,8 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
           {!settings.focusMode && !done && cur !== null && (
             <p className="work__next muted">
               {nextRow === null
-                ? 'Next: this is the last row.'
-                : `Next: Row ${workingNumber(p, nextRow)}: ${formatRowText(p, nextRow)}`}
+                ? 'This is the last row.'
+                : `Next, row ${workingNumber(p, nextRow)}: ${formatRowText(p, nextRow)}`}
             </p>
           )}
         </section>
@@ -431,14 +431,19 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
       </div>
 
       <div className="work__bar">
-        <button type="button" className="button work__prev" onClick={previousRow} disabled={position === 0}>
+        <button type="button" className="button work__prev" title="Previous row (←)" onClick={previousRow} disabled={position === 0}>
           ← Previous row
         </button>
-        <button type="button" className="button button--primary work__complete" onClick={completeRow} disabled={done}>
+        <button
+          type="button"
+          className="button button--primary work__complete"
+          title="Row complete (Space or →). Click a stitch in this row to mark up to it."
+          onClick={completeRow}
+          disabled={done}
+        >
           Row complete →
         </button>
       </div>
-      <p className="work__hint muted">Space or → completes a row · ← goes back · click a stitch in this row to mark up to it</p>
 
       {openRun && segment !== null && (
         <SegmentDialog

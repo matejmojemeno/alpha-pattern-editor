@@ -113,6 +113,25 @@ Newest last, as they were built.
   - One font size per row, set by its longest number (so a 10 isn't smaller than the 9
     beside it), at most 16 px; under `NUMBER_MIN_FONT` (8 px) the cell stays plain, so a
     big chart shows numbers only on its taller rows, or once zoomed in.
+  - <a id="numbers-whole-row"></a>**A row is numbered whole or not at all**
+    (`rowNumberFont`). Where the longest number didn't fit, each number used to be sized
+    on its own, so a long run on a zoomed-out chart showed 1 to 9 at each end and a gap
+    where 10 and on were too wide; the owner found that looked broken. Now the row's
+    longest number, over the whole row and not just the part on screen (so scrolling
+    never switches a row's numbers on or off), decides for every stitch in it. The
+    strands' foot strip (`footStrip`) follows the same rule, so a row without numbers
+    keeps its strands in the middle. Stitches a middle strand crosses still go without,
+    as before.
+  - <a id="numbers-zoom-note"></a>**"Zoom in for stitch numbers"** (`ui/work/ChartView.tsx`,
+    `.chart__tools` in `ui/app.css`). When numbers are on and the current row has none,
+    a note sits over the chart's top right corner, beside the zoom's **Fit**: a small
+    button with Lucide's ZoomIn and a joined **×**. Pressing it sets the least zoom (in
+    5% steps, up to `MAX_ZOOM`) at which `rowNumberFont` gives the current row a size,
+    and the chart follows your place as after any progress change. The × hides it until
+    the Work stage is opened again, as the zoom itself resets then. On a phone it reads
+    "Zoom for numbers" (its accessible name stays the long one), as the chart there is
+    short. Only the current row counts: the other rows are shorter by design, and a
+    note about them would never go away. Tested in `e2e/work-numbers.spec.ts`.
   - Not in the Python: the desktop never showed it, and it only reads the pattern.
 - <a id="options-menu"></a>**The Options menu in three groups** (`ui/work/OptionsMenu.tsx`,
   `ui/chartOptions.ts`). It was one column of nine checkboxes and three buttons, in no
@@ -299,6 +318,30 @@ Newest last, as they were built.
     cells). On the old code 6 unit tests and both e2e tests fail: zoomed in, 154 px of
     worked stitches stayed on screen where 83 is the margin.
   - Not in the Python: the desktop always fit the chart and never zoomed.
+- <a id="narrow-header"></a>**The header fits a 320 px phone** (`.work__top` in `ui/app.css`). With the
+  name squeezed to nothing, ← Library, the panel button, Saved and Options still ran 4 px
+  past the edge, and with bigger text Options was cut off. Under 360 px the gaps are
+  0.5rem and the name is hidden (it stays the heading for screen readers): it had room
+  for a sliver of a letter at most. The header wraps as a last resort (320 px with text
+  at 125% puts Options on a second line). The Record progress buttons are two
+  `minmax(0, 1fr)` halves, since plain `1fr` made both as wide as "Save progress" and
+  pushed Cancel out on the left. Caught by `e2e/overflow.spec.ts`
+  ([rules](../rules.md#nothing-sticks-out)).
+
+- <a id="less-text"></a>**Less text** (with the home screen's,
+  [library.md#less-text](library.md#less-text)):
+  - Options: the groups are **How you work this pattern** and **Chart, for every
+    pattern**, so the notes "Saved with this pattern." and "For every pattern; also in
+    Settings." went; the actions are a last, untitled group under a rule. The
+    reading-order sentence under the corner and rows ("Row 1 is the bottom row…",
+    `readingOrder`) is gone: **First stitch** and **Rows** say it between them. Switches
+    show a `hint` only where the name can't say enough.
+  - The line under the buttons ("Space or → completes a row · ← goes back · click a
+    stitch…") is gone; the shortcuts are in **Row complete →** and **← Previous row**'s
+    tooltips, and in the guide.
+  - "Next: Row 8: …" reads "Next, row 8: …", and on the last row "This is the last row."
+  - Record progress: **Mark as done** (was "Mark segment complete": nobody calls a block
+    of one colour a segment) and **Save** (was "Save progress").
 
 ## During the port
 

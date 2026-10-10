@@ -13,6 +13,7 @@ import {
   cellPixels,
   drawChart,
   numberFont,
+  rowNumberFont,
   spotlightPixels,
   stitchNumbers,
   type CellImage,
@@ -287,6 +288,28 @@ describe('drawChart', () => {
     const current = ink.filter((c) => Math.abs((c.args[2] as number) - mid) < 0.01)
     expect(current).toHaveLength(12)
     expect(new Set(current.map((c) => c.font))).toEqual(new Set([`${two}px sans-serif`]))
+  })
+
+  it('numbers a row whole or not at all: where its longest number can’t fit, none of it', () => {
+    // Cells room for 1 to 9 but not for 10. Row 0 is one run of 12 red: none of it is
+    // numbered (not 1..9 and a gap). Row 1 alternates, every number 1: all numbered.
+    const cols = 12
+    const cells = [...Array.from({ length: cols }, () => 0), ...Array.from({ length: cols }, (_, i) => i % 2)]
+    const p = pattern(2, cols, cells)
+    const layout = computeLayout({ rows: 2, cols, current: 1, emphasise: true, focus: false, width: 160, height: 400 })
+    const h = layout.heights[0]!
+    expect(numberFont(layout.cell, h, 1)).toBeGreaterThan(0)
+    expect(numberFont(layout.cell, h, 2)).toBe(0)
+    const d = { layout, pattern: p, carries: null, numbers: true }
+    expect(rowNumberFont(d, 0)).toBe(0)
+    expect(rowNumberFont(d, 1)).toBe(numberFont(layout.cell, h, 1))
+    expect(rowNumberFont({ ...d, numbers: false }, 1)).toBe(0)
+    const { ctx, calls } = recorder()
+    drawChart(ctx, { ...d, image: {} as CellImage, completed: new Set(), scrollX: 0, scrollY: 0, width: 160, height: 400, dpr: 1, colors })
+    const rowOf = (y: number) => [0, 1].find((i) => Math.abs(AXIS_TOP + layout.offsets[i]! + h / 2 - y) < 0.01)
+    const stitchText = calls.filter((c) => c.op === 'fillText' && (c.fillStyle === '#000000' || c.fillStyle === '#ffffff'))
+    expect(stitchText.filter((c) => rowOf(c.args[2] as number) === 0)).toHaveLength(0)
+    expect(stitchText.filter((c) => rowOf(c.args[2] as number) === 1)).toHaveLength(cols)
   })
 
   it('in a numbered row, lays the strands along the foot of the stitches, under numbers of the usual size', () => {

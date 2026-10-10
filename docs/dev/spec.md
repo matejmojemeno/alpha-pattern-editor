@@ -396,7 +396,7 @@ Dense, tool-oriented, desktop layout.
 - Left: tool palette (paint, fill, rect, eyedropper, row/column fill).
 - Right: color palette with swatches, counts, names; structural panel (borders, insert/delete row/column, mirror, rotate, trim).
 - Center: zoomable canvas with rulers, gridlines, optional row/column numbers.
-- Bottom: dimensions, stitch/knot count, strings-needed readout (`cols + 1`).
+- Bottom: dimensions, stitch count and colours; for a friendship bracelet, the strings it needs (`cols + 1`).
 - Full undo/redo. No progress display anywhere.
 
 ### 6.3 Work stage

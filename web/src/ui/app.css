@@ -193,25 +193,19 @@ code {
 /* --- landing --------------------------------------------------------------------------- */
 
 .landing__header {
-  display: grid;
-  grid-template-columns: auto 1fr;
+  display: flex;
   align-items: center;
-  gap: 0.25rem 0.75rem;
+  gap: 0.75rem;
   margin: 1.5rem 0 2rem;
 }
 
 .landing__header .logo {
   width: 2.5rem;
   height: 2.5rem;
-  grid-row: span 2;
 }
 
 .landing__header h1 {
   font-size: 1.85rem;
-}
-
-.landing__header p {
-  margin: 0;
 }
 
 /* The drop zone on the left, the other ways in stacked beside it; one column on phones,
@@ -274,10 +268,6 @@ code {
   font-weight: 700;
 }
 
-.drop-zone__text {
-  max-width: 26rem;
-}
-
 .drop-zone__how {
   color: var(--muted);
 }
@@ -305,11 +295,11 @@ code {
   gap: 1rem;
 }
 
+/* A tile is its icon and its name, with a count or a new-tab arrow at the far end. */
 .tile {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-content: center;
-  gap: 0.35rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   width: 100%;
   height: 100%;
   min-height: 5rem;
@@ -327,7 +317,7 @@ code {
 .tile .icon {
   width: 1.75rem;
   height: 1.75rem;
-  grid-row: span 3;
+  flex: none;
   stroke-width: 1.75;
 }
 
@@ -350,9 +340,10 @@ code {
   font-weight: 600;
 }
 
-.tile__text {
-  font-size: var(--text-sm);
-  grid-column: 2;
+.tile__aside {
+  margin-left: auto;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .badge {
@@ -430,11 +421,18 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
+/* Narrow padding so all three fit a card at its narrowest (--card-w); if bigger text
+   still doesn't fit, the row wraps rather than sticking out of the card. */
 .card__actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.5rem;
   padding: 0 var(--card-pad) var(--card-pad);
+}
+
+.card__actions .button {
+  padding: 0 0.5rem;
 }
 
 .thumb {
@@ -620,11 +618,6 @@ code {
   font-size: var(--text-sm);
 }
 
-.settings__note {
-  max-width: 40rem;
-  font-size: var(--text-sm);
-}
-
 .settings__about {
   max-width: 40rem;
   margin-top: 2rem;
@@ -654,11 +647,30 @@ code {
   overflow: hidden;
 }
 
+/* Wraps only as a last resort (a 320 px phone with bigger text): the name's basis is 0,
+   so it never takes a line of its own. */
 .work__top {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.25rem 0.75rem;
   flex: none;
+}
+
+/* On the narrowest phones, Options otherwise runs past the edge, and the name would get
+   a sliver of a letter at most: it stays a heading for screen readers only. */
+@media (max-width: 359px) {
+  .work__top {
+    column-gap: 0.5rem;
+  }
+
+  .work__name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
 }
 
 /* Hides and shows "This row", like a browser's sidebar button. */
@@ -711,7 +723,7 @@ code {
 }
 
 .work__name {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
   font-size: var(--text-lg);
   overflow: hidden;
@@ -763,22 +775,12 @@ code {
   border-top: 1px solid var(--border);
 }
 
-.options__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0 0.75rem;
-}
-
 .options__title {
   margin: 0;
   font-size: var(--text-name);
   font-weight: 700;
 }
 
-.options__note,
-.options__summary,
 .options__switch p {
   margin: 0;
   font-size: var(--text-sm);
@@ -1268,13 +1270,62 @@ code {
   touch-action: pan-x pan-y;
 }
 
-.chart__unzoom {
+/* Over the chart's top right corner: the stitch-numbers note, then the zoom's Fit. */
+.chart__tools {
   position: absolute;
   top: 0.35rem;
   right: 0.35rem;
+  left: 0.35rem;
   z-index: 1;
-  font-variant-numeric: tabular-nums;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  pointer-events: none;
+}
+
+.chart__tools > * {
+  pointer-events: auto;
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.2);
+}
+
+.chart__unzoom {
+  font-variant-numeric: tabular-nums;
+}
+
+/* One pill: the note, and its × joined on. */
+.chart__hint {
+  display: inline-flex;
+  border-radius: var(--radius-md);
+}
+
+.chart__hint > .button:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* A phone's chart is short: the note's words are too. */
+.chart__hint-short {
+  display: none;
+}
+
+@media (max-width: 699px) {
+  .chart__hint-long {
+    display: none;
+  }
+
+  .chart__hint-short {
+    display: inline;
+  }
+}
+
+.chart__hint-close {
+  margin-left: -1px;
+  padding: 0;
+  min-width: 2.25rem;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  color: var(--muted);
 }
 
 .work__bar {
@@ -1301,20 +1352,6 @@ code {
 
   .work__complete {
     flex: 0 1 18rem;
-  }
-}
-
-.work__hint {
-  flex: none;
-  margin: -0.25rem 0 0;
-  font-size: var(--text-sm);
-  text-align: center;
-}
-
-/* Touch screens have no keyboard to hint at. */
-@media (pointer: coarse) {
-  .work__hint {
-    display: none;
   }
 }
 
@@ -1430,9 +1467,15 @@ code {
 }
 
 /* Cancel and Save progress share the dialog's width, as Mark segment complete has it. */
+/* Two equal halves even when "Save progress" is the wider: with plain 1fr both took the
+   wider one's width, and Cancel stuck out on the left on a narrow phone. */
 .segment .dialog__buttons {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.segment .dialog__buttons .button {
+  padding: 0 0.5rem;
 }
 
 .segment__complete {
@@ -1535,9 +1578,11 @@ code {
 
 /* --- the new-pattern dialog (Landing and Library) --------------------------------------- */
 
+/* minmax(0, …) and max-width: the name field's own width (about 20 letters) would
+   otherwise push past the dialog on a narrow phone. */
 .new-pattern__form {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 0.6rem 0.9rem;
 }
@@ -1547,6 +1592,7 @@ code {
 }
 
 .new-pattern__form input:not([type='color']) {
+  max-width: 100%;
   min-height: var(--tap);
   padding: 0 0.6rem;
   border: 1px solid var(--border);

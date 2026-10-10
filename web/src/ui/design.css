@@ -127,19 +127,6 @@
   min-width: 2.25rem;
 }
 
-.zoom__label {
-  margin: 0.35rem 0 0;
-  font-size: var(--text-sm);
-}
-
-.design__current {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-  font-size: var(--text-sm);
-}
-
 /* --- the chart ------------------------------------------------------------------------------ */
 
 .design__canvas {
@@ -738,11 +725,6 @@
   align-items: center;
 }
 
-.design__tools .zoom__label {
-  flex-basis: 100%;
-  margin-top: 0.15rem;
-}
-
 .design--compact .design__body {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
@@ -760,8 +742,10 @@
   width: 0.5rem;
 }
 
+/* Wraps, or with bigger text the last tools run off a 700 px tablet out of reach. */
 .design__toolbar .tools {
   flex-direction: row;
+  flex-wrap: wrap;
 }
 
 .design__toolbar .tool {

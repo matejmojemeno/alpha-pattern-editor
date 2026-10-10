@@ -73,7 +73,7 @@ const CW = turned(START, true)
 /** A 12 × 5 white pattern, painted as START. */
 async function wide(page: Page) {
   await page.goto('/')
-  await page.getByRole('button', { name: /Design pattern/ }).click()
+  await page.getByRole('button', { name: 'Design from scratch' }).click()
   const dialog = page.getByRole('dialog', { name: 'New pattern' })
   await dialog.getByLabel('Name').fill('Wide')
   await dialog.getByLabel('Columns').fill('12')
@@ -110,7 +110,7 @@ test('a quarter turn each way, undo and redo, and a reload', async ({ page }) =>
   // Clockwise: the top row becomes the right-hand column. No progress: no question.
   await clockwise(page).click()
   await expect(page.getByRole('alertdialog')).toHaveCount(0)
-  await expect(stats(page)).toHaveText(/^5 cols × 12 rows\s+·\s+60 stitches/)
+  await expect(stats(page)).toHaveText(/^5 × 12 \s+·\s+60 stitches/)
   await expect(page.locator('.design__message')).toHaveText('Rotated 90° clockwise: now 5 × 12.')
   await expect(page.getByRole('img', { name: 'Pattern, 5 by 12' })).toBeVisible()
   expect(CW[0]).toBe('...BB') // the top-left black, now top right
@@ -121,7 +121,7 @@ test('a quarter turn each way, undo and redo, and a reload', async ({ page }) =>
 
   // Anticlockwise, back where it started.
   await anticlockwise(page).click()
-  await expect(stats(page)).toHaveText(/^12 cols × 5 rows/)
+  await expect(stats(page)).toHaveText(/^12 × 5 /)
   expect(await grid(page, 12, 5)).toEqual(START)
   await expect(page.getByLabel('Width', { exact: true })).toHaveValue('12')
 
@@ -145,7 +145,7 @@ test('a quarter turn each way, undo and redo, and a reload', async ({ page }) =>
   await expect(page.getByText('Saved', { exact: true })).toBeVisible()
   await page.reload()
   await expect(page).toHaveURL(new RegExp(`#/design/${id}$`))
-  await expect(stats(page)).toHaveText(/^5 cols × 12 rows/)
+  await expect(stats(page)).toHaveText(/^5 × 12 /)
   expect(await grid(page, 5, 12)).toEqual(CW)
 
   expect(pyodide).toEqual([])
@@ -175,16 +175,16 @@ test('with rows done in Work: asks first, starts progress again, and Undo brings
   )
   await expect(ask).toContainText('Undo brings it all back.')
   await ask.getByRole('button', { name: 'Cancel' }).click()
-  await expect(stats(page)).toHaveText(/^12 cols × 5 rows/)
+  await expect(stats(page)).toHaveText(/^12 × 5 /)
   expect(await grid(page, 12, 5)).toEqual(START)
 
   // --- confirmed, then undone: the progress is back --------------------------------------------------------
   await clockwise(page).click()
   await ask.getByRole('button', { name: 'Rotate' }).click()
-  await expect(stats(page)).toHaveText(/^5 cols × 12 rows/)
+  await expect(stats(page)).toHaveText(/^5 × 12 /)
   expect(await grid(page, 5, 12)).toEqual(CW)
   await page.getByRole('button', { name: 'Undo', exact: true }).click()
-  await expect(stats(page)).toHaveText(/^12 cols × 5 rows/)
+  await expect(stats(page)).toHaveText(/^12 × 5 /)
   await page.getByRole('button', { name: 'Start working →' }).click()
   await expect(page).toHaveURL(new RegExp(`#/work/${id}$`))
   await expect(page.locator('.work__row')).toHaveText(/^Row 3 of 5/)
@@ -193,7 +193,7 @@ test('with rows done in Work: asks first, starts progress again, and Undo brings
   await toDesign()
   await clockwise(page).click()
   await page.getByRole('alertdialog', { name: 'Start progress again?' }).getByRole('button', { name: 'Rotate' }).click()
-  await expect(stats(page)).toHaveText(/^5 cols × 12 rows/)
+  await expect(stats(page)).toHaveText(/^5 × 12 /)
   await page.getByRole('button', { name: 'Start working →' }).click()
   await expect(page).toHaveURL(new RegExp(`#/work/${id}$`))
   await expect(page.locator('.work__row')).toHaveText(/^Row 1 of 12/)

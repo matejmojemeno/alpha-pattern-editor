@@ -48,7 +48,7 @@ describe('Import screen', () => {
     await openImport()
     await waitFor(() => expect(worker.of('boot')).toHaveLength(1))
     expect(await screen.findByText('Getting the pattern reader ready…')).toBeTruthy()
-    expect(screen.getByText(/The first import downloads about \d+ MB/)).toBeTruthy()
+    expect(screen.getByText(/First time only: about \d+ MB/)).toBeTruthy()
 
     act(() => worker.progress({ stage: 'runtime', loaded: 25, total: 100 }))
     expect(screen.getByText('Downloading Python (1 of 3) · 25%')).toBeTruthy()
@@ -309,7 +309,8 @@ describe('Import screen', () => {
 
   it('asks for an image when there is none (after a reload)', async () => {
     await openImport(null)
-    expect(screen.getByText('Choose a screenshot or photo of an alpha chart, or a piece of pixel art.')).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: 'Import a chart' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Choose image…' })).toBeTruthy()
     expect(detection.worker.sent).toEqual([]) // nothing is loaded until there's an image
     await userEvent.upload(screen.getByLabelText('Choose an image'), photo('cat.webp'))
     expect(await saveButton()).toBeTruthy()
@@ -491,7 +492,8 @@ describe('Import a chart', () => {
 describe('Photo to pattern', () => {
   it('asks for a photo or drawing when there is none', async () => {
     await openPhoto(null)
-    expect(screen.getByText('Choose a photo or drawing to make a new pattern from.')).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: 'Photo to pattern' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Choose image…' })).toBeTruthy()
     expect(detection.worker.sent).toEqual([])
   })
 

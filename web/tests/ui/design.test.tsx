@@ -39,7 +39,7 @@ describe('Design stage', () => {
     expect(swatches()).toEqual(p.palette.map((e) => `${e.name}, ${e.hex}, ${e.count} cell${e.count === 1 ? '' : 's'}`))
     expect(palette()[0]!.getAttribute('aria-pressed')).toBe('true')
     expect(document.querySelector('.design__stats')!.textContent).toMatch(
-      new RegExp(`${p.cols} cols × ${p.rows} rows\\s+·\\s+${p.cols * p.rows} stitches\\s+·\\s+${p.palette.length} colours\\s+·\\s+${p.cols + 1} strings needed`),
+      new RegExp(`^${p.cols} × ${p.rows}\\s+·\\s+${p.cols * p.rows} stitches\\s+·\\s+${p.palette.length} colours$`),
     )
     expect(
       screen.getByRole('link', { name: 'Help with designing (opens in a new tab)' }).getAttribute('href'),
@@ -47,6 +47,16 @@ describe('Design stage', () => {
     // No progress anywhere (§6.1), and no warning without any.
     expect(screen.queryByText(/% done/)).toBeNull()
     expect(screen.queryByText(/rows? into this project/)).toBeNull()
+  })
+
+  it('counts strings only for a friendship bracelet, which is knotted on one more than its width', async () => {
+    const repo = await freshRepo()
+    const { project } = readAlpha(fixture('basic.alpha'))
+    const p = project.pattern
+    await repo.save({ ...project, pattern: { ...p, craft: 'bracelet' }, stage: 'design' })
+    await renderApp(`#/design/${p.id}`, { repo })
+    await screen.findByRole('heading', { level: 1, name: p.name }, { timeout: 3000 })
+    expect(document.querySelector('.design__stats')!.textContent).toMatch(new RegExp(`·\\s+${p.cols + 1} strings$`))
   })
 
   it('adds, recolours, renames and deletes colours from their menus, each one undo step, and saves them', async () => {

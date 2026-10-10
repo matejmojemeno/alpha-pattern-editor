@@ -1,5 +1,5 @@
 /**
- * "Design pattern": start from a blank grid (docs/dev/history/web-port.md#landing-screen).
+ * "Design from scratch": start from a blank grid (docs/dev/history/web-port.md#landing-screen).
  * A small dialog asks for the size and the colour, then the pattern is saved and opened
  * in the Design stage.
  */
@@ -11,7 +11,10 @@ import type { ProjectRepo } from '../storage/repo.ts'
 import { Modal } from './components.tsx'
 import { cleanName, MAX_NAME_LENGTH } from './names.ts'
 
-const NEW_DEFAULTS = { name: 'New pattern', cols: 40, rows: 40, hex: '#ffffff' } as const
+/** The home tile's and the Library button's name for starting from a blank grid. */
+export const DESIGN_FROM_SCRATCH = 'Design from scratch'
+
+const NEW_DEFAULTS ={ name: 'New pattern', cols: 40, rows: 40, hex: '#ffffff' } as const
 
 function side(value: string): number | null {
   const n = Number(value)
@@ -104,11 +107,9 @@ export function NewPatternDialog({ repo, onCancel }: { repo: ProjectRepo; onCanc
         <label htmlFor={`${id}-colour`}>Colour</label>
         <input id={`${id}-colour`} type="color" value={hex} onChange={(e) => setHex(e.target.value)} />
       </form>
-      <p className="muted new-pattern__note">
-        {c !== null && r !== null
-          ? `${c * r} stitches, ${c + 1} strings needed. You can add more colours as you go.`
-          : `Columns and rows can each be 1 to ${MAX_SIDE}.`}
-      </p>
+      {(c === null || r === null) && (
+        <p className="muted new-pattern__note">Columns and rows can each be 1 to {MAX_SIDE}.</p>
+      )}
       {error && (
         <p className="notice notice--error" role="alert">
           {error}

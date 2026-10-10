@@ -109,7 +109,7 @@ async function completeRows(page: Page, n: number) {
 
 test('landing.png', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByText('No projects yet.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Design from scratch' })).toBeEnabled()
   await shoot(page, 'landing.png')
 })
 

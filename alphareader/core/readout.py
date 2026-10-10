@@ -72,12 +72,13 @@ def _initial(name: str) -> str:
 
 
 def format_stats(cols: int, rows: int, palette_len: int) -> str:
-    """The one-line size summary shown on the import and design screens.
+    """The one-line size summary under the design screen's chart.
 
-    'strings' is the number of vertical strands an alpha pattern needs — one more than
-    the stitch count across."""
-    return (f"{cols} cols × {rows} rows   ·   {rows * cols} stitches   ·   "
-            f"{palette_len} colours   ·   {cols + 1} strings needed")
+    It used to end with "31 strings needed" (cols + 1): a friendship bracelet's count,
+    shown on every crochet pattern. The web app adds it for the bracelet craft only."""
+    stitches = rows * cols
+    return (f"{cols} × {rows}   ·   {stitches} stitch{'' if stitches == 1 else 'es'}   ·   "
+            f"{palette_len} colour{'' if palette_len == 1 else 's'}")
 
 
 def format_row_text(p: Pattern, r: int) -> str:

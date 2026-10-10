@@ -209,3 +209,11 @@ def test_progress_survives_when_row_ids_shift():
     p.cells = np.vstack([[[0, 0]], p.cells]).astype(np.uint16)
     assert work.completed_count(p, pr) == 2          # r0, r1 still counted
     assert work.first_incomplete_row(p, pr) == "new"  # the new top row is next
+
+
+def test_format_stats_counts_and_plurals():
+    """No bracelet "strings needed" on every pattern, and one colour is "1 colour"."""
+    from ..core.readout import format_stats
+    assert format_stats(30, 30, 5) == "30 × 30   ·   900 stitches   ·   5 colours"
+    assert format_stats(1, 1, 1) == "1 × 1   ·   1 stitch   ·   1 colour"
+    assert "strings" not in format_stats(12, 10, 2)

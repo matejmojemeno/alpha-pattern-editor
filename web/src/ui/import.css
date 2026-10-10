@@ -482,8 +482,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Without margin-inline: 0, Chromium's own 2 px margin makes 100% stick out. */
 .picture-controls__slider {
   width: 100%;
+  margin-inline: 0;
   accent-color: var(--accent);
 }
 

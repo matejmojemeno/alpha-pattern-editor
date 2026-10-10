@@ -162,10 +162,6 @@ export function StructurePanel(props: StructurePanelProps) {
       </div>
 
       <Disclosure section="border" title="Border & size" form={form} onForm={onForm}>
-        <p className="structure__hint muted">
-          Set a size, or the cells to add on each side (negative numbers remove cells). Drag the pattern on the chart to
-          move it.
-        </p>
         <div className="structure__sides">
           {(['width', 'height'] as const).map((axis) => (
             <label key={axis} className="structure__field">
@@ -203,6 +199,7 @@ export function StructurePanel(props: StructurePanelProps) {
           />
           Same on every side
         </label>
+        <p className="structure__hint muted">Cells to add on each side (below 0 removes them)</p>
         <div className="structure__sides">
           {SIDES.map((side) => (
             <label key={side} className="structure__field">
@@ -251,7 +248,6 @@ export function StructurePanel(props: StructurePanelProps) {
       </Disclosure>
 
       <Disclosure section="scale" title="Scale" form={form} onForm={onForm}>
-        <p className="structure__hint muted">Every cell becomes a block of cells; no new colours.</p>
         <div className="structure__field structure__field--wide">
           <label htmlFor={`${id}-scale`}>Factor</label>
           <select id={`${id}-scale`} value={form.scale} onChange={(e) => onForm((f) => ({ ...f, scale: Number(e.target.value) }))}>
@@ -267,8 +263,7 @@ export function StructurePanel(props: StructurePanelProps) {
         </p>
         {scaled.large && (
           <p className="structure__result structure__result--warn" role="alert">
-            That’s more than {MAX_SIDE} on a side, the most the import screen allows. A pattern this large is slow to edit and
-            to work from.
+            Over {MAX_SIDE} on a side: slow to edit and to work from.
           </p>
         )}
         <div className="structure__apply">

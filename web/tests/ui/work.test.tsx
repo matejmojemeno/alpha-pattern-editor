@@ -64,7 +64,7 @@ describe('Work stage', () => {
     expect(document.title).toBe(`${p.name} · Alpha Pattern Editor`)
     // Next: the second row worked.
     const next = p.rows - 2
-    expect(screen.getByText(`Next: Row 2: ${formatRowText(p, next)}`)).toBeTruthy()
+    expect(screen.getByText(`Next, row 2: ${formatRowText(p, next)}`)).toBeTruthy()
   })
 
   it('says cleanly when there is no such project', async () => {
@@ -133,7 +133,7 @@ describe('segment dialog', () => {
     const input = within(dialog).getByLabelText('Stitches done')
     await user.clear(input)
     await user.type(input, '1')
-    await user.click(within(dialog).getByRole('button', { name: 'Save progress' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
 
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(work.setRunStitches).toHaveBeenCalledTimes(1)
@@ -163,7 +163,7 @@ describe('segment dialog', () => {
     await openWork('basic.alpha')
     const user = userEvent.setup()
     await user.click(openChip(0))
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Mark segment complete' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Mark as done' }))
     expect(work.markSegmentComplete).toHaveBeenCalledTimes(1)
     expect(vi.mocked(work.markSegmentComplete).mock.calls[0]![2]).toBe(0)
     expect(work.setRunStitches).not.toHaveBeenCalled()
@@ -182,14 +182,14 @@ describe('segment dialog', () => {
     expect(work.markSegmentComplete).not.toHaveBeenCalled()
   })
 
-  it('opens on Mark segment complete, so Return marks it', async () => {
+  it('opens on Mark as done, so Return marks it', async () => {
     await openWork('basic.alpha')
     const user = userEvent.setup()
     await user.click(openChip(1))
     const dialog = screen.getByRole('dialog', { name: 'Record progress' })
-    expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Mark segment complete' }))
-    // The one primary button; Save progress is an ordinary one.
-    expect([...dialog.querySelectorAll('.button--primary')].map((b) => b.textContent!.trim())).toEqual(['Mark segment complete'])
+    expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Mark as done' }))
+    // The one primary button; Save is an ordinary one.
+    expect([...dialog.querySelectorAll('.button--primary')].map((b) => b.textContent!.trim())).toEqual(['Mark as done'])
     await user.keyboard('{Enter}')
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(vi.mocked(work.markSegmentComplete).mock.calls.map((c) => c[2])).toEqual([1])
@@ -261,7 +261,7 @@ describe('keyboard', () => {
     expect(rowLabel()).toMatch(/^Row 1 /)
 
     await user.keyboard('{Escape}')
-    const option = screen.getByLabelText('Focus mode')
+    const option = screen.getByLabelText('Show only the rows near yours')
     fireEvent.keyDown(option, { key: 'ArrowRight' })
     expect(work.completeCurrentRow).not.toHaveBeenCalled()
 
@@ -341,7 +341,7 @@ describe('options', () => {
     const names = chips().map((c) => c.querySelector('.chip__text')!.textContent)
     expect(names).toEqual(flipped.map((run) => `${run.count} ${p.palette[run.palette_index]!.name}`))
     expect(chips().findIndex((c) => c.className.includes('chip--current'))).toBe(0)
-    expect(screen.getByText(`Next: Row ${workingNumber(p, r) + 1}: ${formatRowText({ ...p, start_direction: 'RTL' }, r + 1)}`)).toBeTruthy()
+    expect(screen.getByText(`Next, row ${workingNumber(p, r) + 1}: ${formatRowText({ ...p, start_direction: 'RTL' }, r + 1)}`)).toBeTruthy()
 
     // ...and at the start of a row, nothing to ask: back it goes at once.
     await userEvent.click(left)
@@ -364,22 +364,22 @@ describe('options', () => {
     expect(rowLabel()).toMatch(new RegExp(`^Row ${workingNumber(next, r)} `))
   })
 
-  it('says the reading order in words, and keeps up as it changes', async () => {
+  it('says the reading order by its choices alone, and names rows that don’t turn by the craft', async () => {
     await openWork('basic.alpha')
-    const summary = () => document.querySelector('.options__summary')!.textContent
+    const radio = (name: string) => screen.getByRole<HTMLInputElement>('radio', { name })
     // Tapestry crochet: bottom right, turning.
-    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Bottom right' }).checked).toBe(true)
-    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Back and forth' }).checked).toBe(true)
-    expect(summary()).toBe('Row 1 is the bottom row of the chart, worked right to left; row 2 comes back left to right.')
-    await userEvent.click(screen.getByRole('radio', { name: 'In the round' }))
-    expect(summary()).toBe('Round 1 is the bottom row of the chart, worked right to left, and so is every round after it.')
-    await userEvent.click(screen.getByRole('radio', { name: 'Top left' }))
-    expect(summary()).toBe('Round 1 is the top row of the chart, worked left to right, and so is every round after it.')
+    expect(radio('Bottom right').checked).toBe(true)
+    expect(radio('Back and forth').checked).toBe(true)
+    // The corner and the rows say it between them: no sentence spells it out.
+    expect(document.querySelector('.options__summary')).toBeNull()
+    await userEvent.click(radio('In the round'))
+    expect(radio('In the round').checked).toBe(true)
+    await userEvent.click(radio('Top left'))
+    expect(radio('Top left').checked).toBe(true)
     // A bead loom's rows aren't rounds.
     await userEvent.selectOptions(screen.getByLabelText('Craft'), 'bead-loom')
     expect(screen.queryByRole('radio', { name: 'In the round' })).toBeNull()
-    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'All the same way' }).checked).toBe(true)
-    expect(summary()).toBe('Row 1 is the top row of the chart, worked left to right, and so is every row after it.')
+    expect(radio('All the same way').checked).toBe(true)
   })
 
   it('a craft sets the reading order, the words and whether carrying is offered', async () => {
@@ -433,7 +433,7 @@ describe('options', () => {
   it('hides the colours in this row with the panel button, leaving the chart, app-wide', async () => {
     const { settings } = await openWork('basic.alpha')
     const region = screen.getByRole('region', { name: 'This row' })
-    expect(screen.getByText(/^Next: Row 2/)).toBeTruthy()
+    expect(screen.getByText(/^Next, row 2/)).toBeTruthy()
     // Not in Options: the button is right there.
     expect(screen.queryByRole('switch', { name: 'Show the colours in this row' })).toBeNull()
     const hide = screen.getByRole('button', { name: 'Hide the colours in this row' })
@@ -456,7 +456,7 @@ describe('options', () => {
     expect(settings.get().showRowColours).toBe(true)
     expect(region.hasAttribute('inert')).toBe(false)
     expect(screen.getByRole('region', { name: 'This row' })).toBe(region)
-    expect(screen.getByText(/^Next: Row 3/)).toBeTruthy()
+    expect(screen.getByText(/^Next, row 3/)).toBeTruthy()
   })
 
   it('says once, on the chip it begins in, to carry a colour on to the end of the row or from its start', async () => {
@@ -526,10 +526,10 @@ describe('options', () => {
 
   it('focus mode hides the next-row preview', async () => {
     const { settings } = await openWork('basic.alpha')
-    expect(screen.getByText(/^Next: Row 2/)).toBeTruthy()
-    await userEvent.click(screen.getByLabelText('Focus mode'))
+    expect(screen.getByText(/^Next, row 2/)).toBeTruthy()
+    await userEvent.click(screen.getByLabelText('Show only the rows near yours'))
     expect(settings.get().focusMode).toBe(true)
-    expect(screen.queryByText(/^Next:/)).toBeNull()
+    expect(screen.queryByText(/^Next, row/)).toBeNull()
   })
 
   it('exports the chart as a PNG with the numbers and strands switched on, and no text export', async () => {

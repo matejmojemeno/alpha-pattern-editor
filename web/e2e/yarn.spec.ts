@@ -126,7 +126,7 @@ test('no yarn on import; in Design, match to a yarn range and estimate yarn and 
   const total = carried.reduce((n, c) => n + c, 0)
   expect(total).toBeGreaterThan(0)
   await dialog.getByRole('checkbox', { name: /Count yarn carried inside the stitches/ }).check()
-  await expect(dialog.getByText(`and ${total.toLocaleString('en-GB')} stitches of carried yarn`, { exact: false })).toBeVisible()
+  await expect(dialog.getByText(`with ${total.toLocaleString('en-GB')} stitches of carried yarn`, { exact: false })).toBeVisible()
   // White gains one 1 cm stitch width per stitch it's carried inside, and the margin.
   const white = Math.ceil(605 * 0.55 + carried[0]! * 0.01 * 1.1 - 1e-9)
   await expect.poll(async () => (await estimate(page))[1]![2]).toBe(String(white))
