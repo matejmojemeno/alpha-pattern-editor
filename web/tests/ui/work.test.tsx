@@ -430,6 +430,29 @@ describe('options', () => {
     expect(settings.get().stitchNumbers).toBe(true)
   })
 
+  it('hides the colours in this row when turned off in Options, leaving the chart, app-wide', async () => {
+    const { settings } = await openWork('basic.alpha')
+    expect(screen.getByRole('region', { name: 'This row' })).toBeTruthy()
+    expect(screen.getByText(/^Next: Row 2/)).toBeTruthy()
+    const box = screen.getByLabelText<HTMLInputElement>('Show the colours in this row')
+    expect(box.checked).toBe(true)
+    await userEvent.click(box)
+    expect(settings.get().showRowColours).toBe(false)
+    expect(screen.queryByRole('region', { name: 'This row' })).toBeNull()
+    expect(document.querySelector('.chip')).toBeNull()
+    expect(screen.queryByText(/^Next:/)).toBeNull()
+    expect(document.querySelector('.work__body')!.classList.contains('work__body--chart')).toBe(true)
+    expect(document.querySelector('.work__body .chart')).toBeTruthy()
+    // The row is still worked from the bar.
+    await userEvent.click(screen.getByRole('button', { name: /Row complete/ }))
+    expect(document.querySelector('.work__row')!.textContent).toMatch(/^Row 2 /)
+    // And back.
+    await userEvent.click(box)
+    expect(settings.get().showRowColours).toBe(true)
+    expect(screen.getByRole('region', { name: 'This row' })).toBeTruthy()
+    expect(screen.getByText(/^Next: Row 3/)).toBeTruthy()
+  })
+
   it('says once, on the chip it begins in, to carry a colour on to the end of the row or from its start', async () => {
     const { project } = await openWork('basic.alpha')
     const p = project.pattern

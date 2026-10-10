@@ -25,6 +25,8 @@ line per change, under the release it's in.
   knots or beads where that's the word.
 - **Start from the top row** and **Rows turn** in the Work stage's **Options**, for
   patterns worked from the top, or in the round.
+- **Show the colours in this row** in the Work stage's **Options** and in Settings: switch
+  it off to hide the list of the row's colours and give the chart its room.
 
 ### Changed
 

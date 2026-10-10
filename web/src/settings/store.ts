@@ -27,6 +27,9 @@ export interface Settings {
   /** Number each stitch on the Work chart by its place in its run of one colour, counted
    *  the way the row is worked (render/chart.ts, stitchNumbers). */
   readonly stitchNumbers: boolean
+  /** Show the Work stage's "This row" list: the current row's blocks of one colour with
+   *  their stitch counts. Off, the chart takes its room. */
+  readonly showRowColours: boolean
   /** The library each palette colour is matched to (yarn/libraries.ts), or null for none. */
   readonly colourLibrary: LibraryId | null
   /** The swatch the yarn estimate and finished size come from (yarn/usage.ts): its
@@ -61,6 +64,7 @@ export const DEFAULT_SETTINGS: Settings = {
   focusMode: false,
   showCarries: false,
   stitchNumbers: true,
+  showRowColours: true,
   colourLibrary: DEFAULT_LIBRARY,
   // 10 × 10: the swatch Magic Yarn Pixels' calculators ask for (docs/dev/areas/yarn.md#yarn-and-size).
   swatchStitches: 10,
@@ -90,6 +94,7 @@ const VALID: { [K in keyof Settings]: (v: unknown) => boolean } = {
   focusMode: (v) => typeof v === 'boolean',
   showCarries: (v) => typeof v === 'boolean',
   stitchNumbers: (v) => typeof v === 'boolean',
+  showRowColours: (v) => typeof v === 'boolean',
   colourLibrary: (v) => v === null || isLibraryId(v),
   swatchStitches: count,
   swatchRows: count,

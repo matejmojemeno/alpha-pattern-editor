@@ -269,11 +269,15 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
   // you're on at the top, with a little of the one before it showing, so the ones still
   // to do are in view; a new row starts at the top of the list. Only the list moves, and
   // only when it's longer than its space. A scroll by hand stays until the next change.
+  // Switched off and on again, the list comes back already at your place.
   const chipsBox = useRef<HTMLElement>(null)
   const chipsPlaced = useRef(false)
   useLayoutEffect(() => {
     const box = chipsBox.current
-    if (!box) return
+    if (!box) {
+      chipsPlaced.current = false
+      return
+    }
     const current = box.querySelector<HTMLElement>('.chip--current')
     let top = 0
     if (current && pr.current_run_index > 0) {
@@ -288,7 +292,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
       else box.scrollTop = top
     }
     chipsPlaced.current = true
-  }, [pr])
+  }, [pr, settings.showRowColours])
 
   const openRun = segment === null ? undefined : runs[segment]
   const arrow = cur !== null && rowDirection(p, cur) === 'LTR' ? '→' : '←'
@@ -361,30 +365,34 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
         <ProgressBar pct={progressPct(p, pr)} />
       </section>
 
-      <div className={settings.focusMode ? 'work__body work__body--focus' : 'work__body'}>
-        <section ref={chipsBox} className="work__chips" aria-label="This row">
-          <h2 className="work__label">This row</h2>
-          {done ? (
-            <p className="muted">Every row is done.</p>
-          ) : (
-            <Chips
-              pattern={p}
-              runs={runs}
-              cursor={pr.current_run_index}
-              stitches={pr.current_run_stitches}
-              carries={runCarries}
-              onChip={setSegment}
-              onTick={tick}
-            />
-          )}
-          {!settings.focusMode && !done && cur !== null && (
-            <p className="work__next muted">
-              {nextRow === null
-                ? 'Next: this is the last row.'
-                : `Next: Row ${workingNumber(p, nextRow)}: ${formatRowText(p, nextRow)}`}
-            </p>
-          )}
-        </section>
+      <div
+        className={['work__body', settings.focusMode && 'work__body--focus', !settings.showRowColours && 'work__body--chart'].filter(Boolean).join(' ')}
+      >
+        {settings.showRowColours && (
+          <section ref={chipsBox} className="work__chips" aria-label="This row">
+            <h2 className="work__label">This row</h2>
+            {done ? (
+              <p className="muted">Every row is done.</p>
+            ) : (
+              <Chips
+                pattern={p}
+                runs={runs}
+                cursor={pr.current_run_index}
+                stitches={pr.current_run_stitches}
+                carries={runCarries}
+                onChip={setSegment}
+                onTick={tick}
+              />
+            )}
+            {!settings.focusMode && !done && cur !== null && (
+              <p className="work__next muted">
+                {nextRow === null
+                  ? 'Next: this is the last row.'
+                  : `Next: Row ${workingNumber(p, nextRow)}: ${formatRowText(p, nextRow)}`}
+              </p>
+            )}
+          </section>
+        )}
         <ChartView
           pattern={p}
           completed={completed}

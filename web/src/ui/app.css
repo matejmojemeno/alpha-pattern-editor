@@ -1000,6 +1000,11 @@ code {
   }
 }
 
+/* "Show the colours in this row" off: the chart alone, the whole width and height. */
+.work__body--chart .chart {
+  flex: 1 1 auto;
+}
+
 .chips {
   list-style: none;
   margin: 0;

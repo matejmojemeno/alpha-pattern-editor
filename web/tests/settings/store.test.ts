@@ -28,6 +28,7 @@ describe('parseSettings', () => {
       focusMode: false,
       showCarries: false,
       stitchNumbers: true,
+      showRowColours: true,
       colourLibrary: null,
       swatchStitches: 10,
       swatchRows: 10,
