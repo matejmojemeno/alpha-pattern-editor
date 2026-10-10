@@ -8,13 +8,14 @@ import { DEFAULT_SETTINGS, SETTINGS_KEY, createSettingsStore } from '../../src/s
 import { memoryStorage, renderApp, screen } from './helpers.tsx'
 
 describe('Settings screen', () => {
-  it('shows the four Work chart switches, in the order Options has them, with their defaults', async () => {
+  it('shows the five Work chart switches, in the order Options has them, with their defaults', async () => {
     await renderApp('#/settings')
     expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeTruthy()
     expect(screen.getByRole('heading', { level: 2, name: 'Work chart' })).toBeTruthy()
     const switches = screen.getAllByRole<HTMLInputElement>('switch')
     expect(switches.map((s) => [s.labels![0]!.textContent, s.checked])).toEqual([
       ['Number the stitches', true],
+      ['Show the colours in this row', true],
       ['Show where to carry yarn', false],
       ['Enlarge the current row', true],
       ['Focus mode', false],
@@ -48,9 +49,11 @@ describe('Settings screen', () => {
     await userEvent.click(screen.getByRole('switch', { name: 'Show where to carry yarn' }))
     await userEvent.click(screen.getByRole('switch', { name: 'Number the stitches' }))
     await userEvent.click(screen.getByRole('switch', { name: 'Enlarge the current row' }))
+    await userEvent.click(screen.getByRole('switch', { name: 'Show the colours in this row' }))
     expect(createSettingsStore(() => storage).get()).toEqual({
       ...DEFAULT_SETTINGS,
       emphasiseRows: false,
+      showRowColours: false,
       focusMode: true,
       showCarries: true,
       stitchNumbers: false,

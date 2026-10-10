@@ -170,6 +170,11 @@ break without noticing.
   `drawChart` shifts the whole canvas by it, and `cellAt` and the zoom anchor in
   `ChartView` take it off. Anything new that turns a point into a stitch, or draws
   outside `drawChart`, must too, or it lands up to half the spare width off.
+- <a id="chart-fit-instant"></a>**Never transition the Work chart's `flex-basis`.** On a phone it is
+  `--chart-fit`, which `ChartView` sets as it measures; a transition on it animates every
+  re-fit (first paint, rotating, zoom), so the chart is briefly the wrong size and
+  `e2e/work-phone.spec.ts` reads small stitches. The "This row" slide animates the
+  chart's `flex-grow` only ([work.md](areas/work.md#row-colours-switch)).
 - <a id="floating-selection"></a>**A floating selection must be put down before any other edit.** While the Select
   tool's block floats (`editor.ts` `Selection.floating`), the pattern is its `under` with
   the block written over it, and both hold palette *indices*. An edit that renumbers the

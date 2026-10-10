@@ -249,6 +249,36 @@ Newest last, as they were built.
     the inset centres the grid only when it's narrower than the view; and taps find the
     right stitch with and without one. On the old code the phone spec gets 4 px stitches
     where it asks for 7.
+- <a id="row-colours-switch"></a>**Hide "This row"** (`showRowColours` in `settings/store.ts`;
+  the panel button `.work__panel` in the Work header, `ui/screens/Work.tsx`;
+  `.work__body--chart` in `ui/app.css`; **on** by default, app-wide). The owner works wide
+  charts from the stitch numbers or by counting, and the list (20rem beside the chart, or
+  the lower part of a phone's screen) took room the chart could use.
+  - **A panel button, as browsers have for their sidebar** (the owner's ask, after Zen's
+    "Toggle Compact Mode"), just right of **← Library**: Lucide's PanelLeft on a wide
+    screen, PanelBottom on a phone, where the list is under the chart. `aria-expanded`
+    and `aria-controls` name the region; its label says what pressing it does ("Hide the
+    colours in this row" / "Show …"). It was first a switch in Options (Chart); with the
+    button right there it left Options and stays in Settings only, as **Show the colours
+    in this row** (`CHART_OPTIONS`, filtered out in `OptionsMenu`).
+  - **It slides** (0.25 s, none under `prefers-reduced-motion`). The region stays
+    mounted: hidden, it's `inert` and `aria-hidden` at once, and `visibility: hidden` once
+    shut. Wider up, its 20rem column narrows to 0 (with the gap, a −0.75rem margin) while
+    its contents keep at least 18rem, clipped, not rewrapped. On a phone the list's
+    `flex-grow` goes 1 → 0 as the chart's goes 0 → 1, so together they always fill the
+    body. Only `flex-grow` is animated on the chart: animating its `flex-basis`
+    (`--chart-fit`) made every re-fit animate too, and `e2e/work-phone.spec.ts` measured
+    5 px stitches mid-slide where it wants 7.
+  - Hidden, the chips, ticks, **Next:** line and the carry notes on the chips go (the
+    strands on the chart stay). Progress is still recorded with **Row complete →**, the
+    keys, and a tap on a stitch of the current row; Record progress only opens from a
+    chip, so not while it's hidden. Shown again, the list is put at your place at once.
+  - On a phone the button takes 44 px from the pattern's name in the header.
+  - Measured in `e2e/work-row-colours.spec.ts`: a 150 × 30 chart at 1280 × 800 goes from 5
+    to 8 px stitches; the phone's 38 × 45 chart at 393 × 660 from 7 to 8 px. Partway
+    through the slide the list is narrower than it was and not gone, and once shut Tab
+    never reaches into it.
+  - Not in the Python: the desktop always showed its chips.
 
 ## During the port
 

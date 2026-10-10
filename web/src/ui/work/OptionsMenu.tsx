@@ -91,7 +91,8 @@ export function OptionsMenu(props: OptionsMenuProps) {
       </Group>
 
       <Group title="Chart" note="For every pattern; also in Settings.">
-        {CHART_OPTIONS.filter((o) => o.key !== 'showCarries' || craft.carries).map((o) => (
+        {/* "This row" has its own button in the header, right by it. */}
+        {CHART_OPTIONS.filter((o) => o.key !== 'showRowColours' && (o.key !== 'showCarries' || craft.carries)).map((o) => (
           <div className="options__switch" key={o.key}>
             <input
               id={`${id}-${o.key}`}

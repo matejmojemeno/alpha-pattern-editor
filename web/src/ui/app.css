@@ -661,6 +661,55 @@ code {
   flex: none;
 }
 
+/* Hides and shows "This row", like a browser's sidebar button. */
+.work__panel {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.work__panel:focus-visible {
+  color: var(--text);
+  background: var(--raised);
+}
+
+/* Not on touch, where a tapped button would keep it. */
+@media (hover: hover) {
+  .work__panel:hover {
+    color: var(--text);
+    background: var(--raised);
+  }
+}
+
+.work__panel .icon {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+/* The list is under the chart on a phone and beside it wider up: the icon says which. */
+.work__panel .icon--wide {
+  display: none;
+}
+
+@media (min-width: 700px) {
+  .work__panel .icon--wide {
+    display: block;
+  }
+
+  .work__panel .icon--narrow {
+    display: none;
+  }
+}
+
 .work__name {
   flex: 1 1 auto;
   min-width: 0;
@@ -997,6 +1046,69 @@ code {
   .work__body .chart,
   .work__body--focus .chart {
     flex: 1 1 auto;
+  }
+}
+
+/* "This row" hidden: it slides shut and the chart grows into its room, the whole width
+   and height. On a phone the list gives up its share of the height (flex-grow 1 to 0) as
+   the chart takes it (0 to 1), so between them they always fill the body; wider up, the
+   list's 20rem column narrows to nothing. Its contents keep their width as it goes, so
+   nothing rewraps on the way, and the gap goes with it. Hidden once shut (visibility,
+   after the slide), and inert from the start (Work.tsx). */
+/* Only what hiding changes: the chart's height at its width (--chart-fit) must take
+   effect at once, or every re-fit would animate. */
+.work__body .chart {
+  transition: flex-grow var(--slide) ease;
+}
+
+.work__chips {
+  transition:
+    flex-grow var(--slide) ease,
+    flex-basis var(--slide) ease,
+    min-height var(--slide) ease,
+    margin var(--slide) ease,
+    opacity var(--slide) ease,
+    visibility 0s;
+}
+
+.work__body {
+  --slide: 0.25s;
+}
+
+.work__body--chart .chart {
+  flex-grow: 1;
+}
+
+.work__body--chart .work__chips {
+  flex-grow: 0;
+  min-height: 0;
+  margin-top: -0.75rem;
+  opacity: 0;
+  overflow: hidden;
+  visibility: hidden;
+  transition-delay: 0s, 0s, 0s, 0s, 0s, var(--slide);
+}
+
+@media (min-width: 700px) {
+  /* Room for a scrollbar inside the 20rem; clipped, never rewrapped, as it narrows. */
+  .work__chips {
+    overflow-x: hidden;
+  }
+
+  .work__chips > * {
+    min-width: 18rem;
+  }
+
+  .work__body--chart .work__chips {
+    flex-basis: 0;
+    margin-top: 0;
+    margin-right: -0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .work__body {
+    --slide: 0s;
   }
 }
 

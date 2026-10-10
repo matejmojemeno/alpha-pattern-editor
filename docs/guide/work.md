@@ -154,6 +154,19 @@ numbers only on the taller rows around your place, or none until you zoom in. To
 the numbers, switch off **Number the stitches** in **Options** (or in
 [Settings](settings.md)).
 
+## Give the chart the whole width
+
+On a wide pattern, the **This row** list beside the chart takes room the chart could use.
+If you count from the stitch numbers or the chart itself, press the panel button at the
+top, next to **← Library** (it looks like a browser's sidebar button). The list and its
+**Next:** line slide away, and the chart grows into the space. Press it again to bring the
+list back. It stays the way you left it, for every pattern; [Settings](settings.md) has
+the same choice as **Show the colours in this row**.
+
+Without the list, finish rows with **Row complete →**, and to stop partway through a row,
+tap the last stitch you worked in the outlined row. Bring it back to tick off colours or
+to see where to carry yarn row by row.
+
 ## Zoom and scroll on a phone
 
 Scroll the chart with one finger. Pinch with two fingers to zoom in or out; on a
