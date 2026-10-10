@@ -61,7 +61,8 @@ Newest last, as they were built.
   tall used to be sized to its height and scroll across; it now fits like any other
   chart. A row is worked whole, so it should be on screen in one piece, not scrolled
   along stitch by stitch. A wide chart still scrolls across, following your place
-  (`followCurrentX`), once its cells reach `MIN_CELL` or when zoomed in. The Python had
+  (`followCurrentX`, see [moves on with every save](#follow-ahead)), once its cells reach
+  `MIN_CELL` or when zoomed in. The Python had
   no scroll mode (it always fit), so nothing to keep in step.
 - <a id="crafts"></a>**Crafts** (`web/src/craft/crafts.ts`, §15; Work stage, **Options**).
   - **Craft** (tapestry crochet, intarsia crochet, stranded knitting, intarsia knitting,
@@ -279,6 +280,25 @@ Newest last, as they were built.
     through the slide the list is narrower than it was and not gone, and once shut Tab
     never reaches into it.
   - Not in the Python: the desktop always showed its chips.
+- <a id="follow-ahead"></a>**The chart moves on with every save** (`followCurrentX` in
+  `render/layout.ts`). On a chart that scrolls across (zoomed in, or at `MIN_CELL`), the
+  view used to stay put while your place was more than a margin inside it, and only
+  jumped on once your place neared the edge, so the chart "doesn't move on every stitch".
+  Zoomed in, the owner saved part way through a row and was left looking at the stitches
+  already done. Now every progress change (a segment marked complete, **Save progress**
+  part way through one, a chip's tick, a tap on a stitch) puts your place a margin
+  (`followMargin`: three cells, 24 px to a quarter of the view) in from the side the row
+  came from, so a few worked stitches show behind it and the rest of the view is the
+  stitches still to work, as the chips list puts your segment at its top. The start of a
+  row is its starting edge, as before, and the ends of the chart clamp. A scroll by hand
+  or a zoom is still left alone until the next progress change.
+  - Tested in `tests/render/layout.test.ts` (each stitch of a row worked in turn, both
+    ways, never more than the margin of worked stitches in view short of the far edge) and
+    `e2e/follow.spec.ts` (the same on a phone after every segment, and a 40-column chart
+    zoomed about 4.5× with Ctrl + wheel, saved 2 then 4 stitches into a segment, moving 2
+    cells). On the old code 6 unit tests and both e2e tests fail: zoomed in, 154 px of
+    worked stitches stayed on screen where 83 is the margin.
+  - Not in the Python: the desktop always fit the chart and never zoomed.
 
 ## During the port
 

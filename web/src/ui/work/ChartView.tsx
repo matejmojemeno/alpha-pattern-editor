@@ -7,7 +7,8 @@
  * event redraws the canvas from the new offset on the next animation frame. Whenever the
  * layout changes (the current row moves, the window resizes, a setting changes), the
  * scroller is moved to keep the current row in view; and whenever your place in the row
- * changes, it's moved across to keep that in view on a chart wider than the screen.
+ * changes, it's moved across on a chart wider than the screen, to show the stitches still
+ * to work after it.
  *
  * The chart is laid out in the scroller's content box, which leaves out a classic
  * (non-overlay) scrollbar, so nothing sits under one. The axis a chart scrolls along
@@ -206,7 +207,8 @@ export function ChartView({
 
   // Follow the current row whenever the layout changes (and only then, so a scroll to look
   // ahead is left alone until the next row), and your place in it across whenever that
-  // changes too: every progress change is a new `place`. A scroll by hand stays until the
+  // changes too, moving on to what's next: every progress change is a new `place`, even
+  // part way through a segment. A scroll by hand stays until the
   // next one. The first placement is instant; later moves glide, unless the user asked
   // for less motion.
   const placed = useRef(false)
