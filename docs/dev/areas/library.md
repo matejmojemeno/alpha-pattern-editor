@@ -62,7 +62,10 @@ Newest last, as they were built.
   the 220 px inside, and the right-aligned row stuck out past the card's left edge. On a
   card the buttons have 0.5rem padding, so all three fit one row; the row wraps if bigger
   text still doesn't fit. `e2e/library-card.spec.ts` checks every window width from 320
-  to 1400 px.
+  to 1400 px. The same sweep across the whole app (`e2e/overflow.spec.ts`, see
+  [rules](../rules.md#nothing-sticks-out)) found the **New pattern** dialog's Name field
+  wider than the dialog on a phone: its grid column is now `minmax(0, 1fr)` and the inputs
+  `max-width: 100%`.
 
 ## During the port
 

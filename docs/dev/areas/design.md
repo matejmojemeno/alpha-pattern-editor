@@ -176,6 +176,9 @@ Newest last, as they were built.
   accessible names now say which way ("Rotate 90° clockwise"). Deleting a colour is a
   bin, not ×, which elsewhere means close. Tier A: main chunk 106.8 KB gzipped (+2.1 KB),
   Design 31.8 KB (+1.7 KB).
+- <a id="toolbar-wraps"></a>**The tablet toolbar's tools wrap** (`.design__toolbar .tools`): on a 700 px
+  tablet with text at 125%, the last tools ran 36 px off the edge, out of reach. Caught
+  by `e2e/overflow.spec.ts` ([rules](../rules.md#nothing-sticks-out)).
 
 ## During the port
 

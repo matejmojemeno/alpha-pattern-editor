@@ -299,6 +299,10 @@ Newest last, as they were built.
     corpus chart, picture and pixel image through `read_chart`: never a picture.
   - Tier A (gzipped, `main` → this): main chunk 109.66 → 110.48 KB (the tile, its icon,
     the route), Import 10.84 → 10.45 KB, Design 33.34 → 33.19 KB.
+- <a id="slider-margin"></a>**Photo to pattern's sliders have no margin** (`.picture-controls__slider`):
+  Chromium gives a range input 2 px each side, so at `width: 100%` they stuck out of
+  their column by 2 px. Invisible, but `e2e/overflow.spec.ts` allows no exceptions
+  ([rules](../rules.md#nothing-sticks-out)).
 
 ## During the port
 
