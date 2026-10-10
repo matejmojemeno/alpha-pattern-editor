@@ -128,7 +128,8 @@ Newest last, as they were built.
     `readingOrder` (`ui/work/segments.ts`) says the result in a sentence ("Row 1 is the
     bottom row of the chart, worked right to left; row 2 comes back left to right.").
   - **Chart** (app-wide, switches with a one-line hint, the same list as Settings):
-    **Number the stitches**, **Show where to carry yarn** (tapestry crochet only),
+    **Number the stitches**, **Show the colours in this row** (added later, see
+    [its note](#row-colours-switch)), **Show where to carry yarn** (tapestry crochet only),
     **Enlarge the current row** (was "Taller rows around the current one" here and
     "Emphasise the rows around the current one" in Settings), **Focus mode** (renamed
     "Hide the rest of the chart" for a while; the owner preferred the old name, and the
@@ -249,6 +250,20 @@ Newest last, as they were built.
     the inset centres the grid only when it's narrower than the view; and taps find the
     right stitch with and without one. On the old code the phone spec gets 4 px stitches
     where it asks for 7.
+- <a id="row-colours-switch"></a>**Show the colours in this row** (`showRowColours` in
+  `settings/store.ts` and `ui/chartOptions.ts`, `ui/screens/Work.tsx`, `.work__body--chart`
+  in `ui/app.css`; **on** by default, app-wide, in Options (Chart) and Settings). The
+  owner works wide charts from the stitch numbers or by counting, and the "This row" list
+  (20rem beside the chart, or half a phone's height under it) took room the chart could
+  use. Off, the whole region goes (chips, ticks, the **Next:** line, and the carry notes
+  on the chips; the strands on the chart stay), and the chart fills the body both ways.
+  - Progress is still recorded without it: **Row complete →**, the keys, and a tap on a
+    stitch of the current row. Record progress has no other way in, so it isn't reachable
+    while the list is off; tapping a stitch does the same job.
+  - Shown again, the list is put at your place straight away, not scrolled there.
+  - Measured in `e2e/work-row-colours.spec.ts`: a 150 × 30 chart at 1280 × 800 goes from 5
+    to 8 px stitches; the phone's 38 × 45 chart at 393 × 660 from 7 to 8 px.
+  - Not in the Python: the desktop always showed its chips.
 
 ## During the port
 
