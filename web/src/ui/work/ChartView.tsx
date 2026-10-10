@@ -21,6 +21,11 @@
  * after a scroll by hand. One finger still scrolls natively. The zoom lives here, so it
  * is back to 1× whenever the Work stage is opened.
  *
+ * With stitch numbers on, a row too small for its numbers gets none (render/chart.ts,
+ * rowNumberFont). When that's the row you're on, a note over the chart's corner says so:
+ * pressing it zooms in just far enough for them, about your place, and its × hides it
+ * until the Work stage is opened again.
+ *
  * A tap on a stitch is passed up (`onStitch`) as its row and column, for the Work stage to
  * decide what it means. Only a tap counts: one finger or the mouse's main button, put
  * down and lifted within TAP_SLOP px and TAP_MS ms, with no second finger in between. A
@@ -31,7 +36,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 
 import { TwoFingers, scrollAbout, type PinchStep } from '../gestures.ts'
 
-import { buildCellImage, drawChart, type ChartColors } from '../../render/chart.ts'
+import { CloseIcon, ZoomInIcon } from '../icons.tsx'
+import { buildCellImage, drawChart, rowNumberFont, type ChartColors } from '../../render/chart.ts'
 import { readColors, useDarkScheme } from '../chartColors.ts'
 import {
   AXIS_LEFT,
@@ -43,6 +49,7 @@ import {
   fitHeight,
   followCurrent,
   followCurrentX,
+  type LayoutInput,
   type RowPlace,
 } from '../../render/layout.ts'
 import type { Carry } from '../../logic/carry.ts'
@@ -127,21 +134,25 @@ export function ChartView({
   const { cells, palette, rows, cols } = pattern
   const image = useMemo(() => buildCellImage({ cells, palette, rows, cols }), [cells, palette, rows, cols])
 
-  const layout = useMemo(
-    () =>
-      computeLayout({
-        rows: pattern.rows,
-        cols: pattern.cols,
-        current,
-        width: size.width,
-        height: size.height,
-        emphasise,
-        focus,
-        dpr,
-        zoom,
-      }),
-    [pattern.rows, pattern.cols, current, size.width, size.height, emphasise, focus, dpr, zoom],
+  const input = useMemo<LayoutInput>(
+    () => ({ rows: pattern.rows, cols: pattern.cols, current, width: size.width, height: size.height, emphasise, focus, dpr }),
+    [pattern.rows, pattern.cols, current, size.width, size.height, emphasise, focus, dpr],
   )
+  const layout = useMemo(() => computeLayout({ ...input, zoom }), [input, zoom])
+
+  // Your row too small for its stitch numbers: the least zoom that fits them, if any does.
+  const numbersZoom = useMemo(() => {
+    const row = current === null ? -1 : current - layout.range.start
+    if (!numbers || size.width === 0 || row < 0 || row >= layout.heights.length) return null
+    const fits = (l: typeof layout) => rowNumberFont({ layout: l, pattern, carries, numbers }, current! - l.range.start) > 0
+    if (fits(layout)) return null
+    for (let z = zoom; z < MAX_ZOOM; ) {
+      z = Math.min(MAX_ZOOM, z * 1.05)
+      if (fits(computeLayout({ ...input, zoom: z }))) return z
+    }
+    return null
+  }, [layout, input, zoom, current, numbers, pattern, carries, size.width])
+  const [hintHidden, setHintHidden] = useState(false)
   // The height the chart can use at its width (layout.ts, fitHeight), for the page's
   // layout to give it no more than that (app.css, .work__body on a phone).
   const fit = useMemo(
@@ -423,17 +434,49 @@ export function ChartView({
           }}
         />
       </div>
-      {zoom > 1 && (
-        <button
-          type="button"
-          className="button button--small chart__unzoom"
-          onClick={() => {
-            anchor.current = null
-            setZoom(1)
-          }}
-        >
-          {zoom.toFixed(1)}× · Fit
-        </button>
+      {((numbersZoom !== null && !hintHidden) || zoom > 1) && (
+        <div className="chart__tools">
+          {numbersZoom !== null && !hintHidden && (
+            <div className="chart__hint" role="group" aria-label="Stitch numbers">
+              <button
+                type="button"
+                className="button button--small"
+                aria-label="Zoom in for stitch numbers"
+                title="The stitches are too small to show their numbers"
+                onClick={() => {
+                  // No anchor: the chart follows your place, as after any progress change.
+                  anchor.current = null
+                  setZoom(numbersZoom)
+                }}
+              >
+                <ZoomInIcon />
+                <span className="chart__hint-long">Zoom in for stitch numbers</span>
+                <span className="chart__hint-short">Zoom for numbers</span>
+              </button>
+              <button
+                type="button"
+                className="button button--small chart__hint-close"
+                aria-label="Hide this note"
+                title="Hide this note"
+                onClick={() => setHintHidden(true)}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+          )}
+          {zoom > 1 && (
+            <button
+              type="button"
+              className="button button--small chart__unzoom"
+              onClick={() => {
+                anchor.current = null
+                setZoom(1)
+              }}
+            >
+              {zoom.toFixed(1)}× · Fit
+            </button>
+          )}
+        </div>
       )}
     </div>
   )
