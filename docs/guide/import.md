@@ -68,16 +68,16 @@ The screen has three parts:
 Compare the pattern with your image. The most common problems are a row or column missing
 at an edge, or two shades that should be one colour. Both are fixed below.
 
-A warning (⚠) above the image means the app is less sure than usual; see
-[Troubleshooting](troubleshooting.md#a-warning-shows-above-the-image). "Many squares
-were hard to read" means many squares didn't come out as one clear colour: compare the
-pattern with your image before you save. If your image is really a photo and not a chart,
-**Use Photo to pattern instead** beside it takes the same image there.
+A boxed **⚠ Check it against your image** above the image means the app is less sure than
+usual, and says why in a few words; see
+[Troubleshooting](troubleshooting.md#a-warning-shows-above-the-image). "Many squares are
+hard to read" means many squares didn't come out as one clear colour. If your image is
+really a photo and not a chart, **Open in Photo to pattern** in the same box takes the
+same image there. **×** puts the box away.
 
-"Is this a photo or drawing, not a chart?" above the image, with the same button, means
-the grid the app found looks more like a photo's than a chart's. It's read as a chart all
-the same, since some real charts look like that. If the pattern is nonsense, use the
-button.
+"Looks like a photo, not a chart", with the same button, means the grid the app found
+looks more like a photo's than a chart's. It's read as a chart all the same, since some
+real charts look like that. If the pattern is nonsense, use the button.
 
 ## Fix a grid that's a row or column short
 

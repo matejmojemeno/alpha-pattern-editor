@@ -299,6 +299,31 @@ Newest last, as they were built.
     corpus chart, picture and pixel image through `read_chart`: never a picture.
   - Tier A (gzipped, `main` → this): main chunk 109.66 → 110.48 KB (the tile, its icon,
     the route), Import 10.84 → 10.45 KB, Design 33.34 → 33.19 KB.
+- <a id="check-note"></a>**One boxed note above the stages** (`importer/picture.ts`'s
+  `check`, `Import.tsx`'s `Check`). The owner found the two lines there ugly and
+  intrusive: the "hard to read" sentence in warning orange with a ghost button nobody
+  saw was a button, and detection's log sentence ("Grid found via a fallback for faint /
+  low-contrast gridlines — please double-check the dimensions before committing.") under
+  it. Now there's one box, edged and lightly tinted in `--warn` when the pattern may be
+  wrong: an icon, a short title, the reasons after it in muted text ("⚠ **Check it
+  against your image** · Many squares are hard to read · The grid lines are faint"),
+  **Open in Photo to pattern** as a real bordered button with the tile's wand icon, and
+  × (puts it away until it says something else, or for another image). Without a
+  reason to doubt the pattern it's a plain-edged note: "Looks like a photo, not a chart"
+  (with the button) or "Read as pixel art: each block is one stitch".
+  - The bridge words the warnings for the screen (`bridge._lattice_words`,
+    `_warnings`): "The grid lines are faint", "N squares match none of the colours".
+    "Used tighter dark threshold (…) for a dark image." is no longer shown: it says how
+    the grid was found, not that it may be wrong. Detection's own warnings
+    (`DetectionResult.warnings`, the parity digest) are unchanged.
+  - **Gone:** the shrink notice ("Reduced from 4000×3000 to 2000×1500 for detection…").
+    Most phone photos are over 4 MP, so it showed on nearly every photo of a chart, and
+    shrinking is no reason on its own to doubt the pattern; the other reasons say when
+    the reading suffered.
+  - `brick-wall.jpg` (in `test_images/pictures/`) gives the box with both reasons and
+    the button; `arctic-fox.jpg` the plain "Looks like a photo" note.
+  - Tier A (gzipped, `main` → this): main chunk 113.14 → 113.30 KB (the Info and X
+    icons), Import 10.45 → 10.38 KB, Design 33.13 → 33.14 KB.
 
 ## During the port
 
