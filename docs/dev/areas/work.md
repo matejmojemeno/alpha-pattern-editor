@@ -318,6 +318,15 @@ Newest last, as they were built.
     cells). On the old code 6 unit tests and both e2e tests fail: zoomed in, 154 px of
     worked stitches stayed on screen where 83 is the margin.
   - Not in the Python: the desktop always fit the chart and never zoomed.
+- <a id="narrow-header"></a>**The header fits a 320 px phone** (`.work__top` in `ui/app.css`). With the
+  name squeezed to nothing, ← Library, the panel button, Saved and Options still ran 4 px
+  past the edge, and with bigger text Options was cut off. Under 360 px the gaps are
+  0.5rem and the name is hidden (it stays the heading for screen readers): it had room
+  for a sliver of a letter at most. The header wraps as a last resort (320 px with text
+  at 125% puts Options on a second line). The Record progress buttons are two
+  `minmax(0, 1fr)` halves, since plain `1fr` made both as wide as "Save progress" and
+  pushed Cancel out on the left. Caught by `e2e/overflow.spec.ts`
+  ([rules](../rules.md#nothing-sticks-out)).
 
 - <a id="less-text"></a>**Less text** (with the home screen's,
   [library.md#less-text](library.md#less-text)):

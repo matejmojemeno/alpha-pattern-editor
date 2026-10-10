@@ -742,8 +742,10 @@
   width: 0.5rem;
 }
 
+/* Wraps, or with bigger text the last tools run off a 700 px tablet out of reach. */
 .design__toolbar .tools {
   flex-direction: row;
+  flex-wrap: wrap;
 }
 
 .design__toolbar .tool {

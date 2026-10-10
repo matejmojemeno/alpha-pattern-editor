@@ -212,6 +212,18 @@ break without noticing.
   only after an import, which a fresh test never sees. Prefix a class with its screen or
   component (`segment__count`, not `stepper`), and test a screen after visiting the
   others when its look matters (`e2e/work-chips.spec.ts`).
+- <a id="nothing-sticks-out"></a>**Nothing may stick out of its box, at any width or text size.**
+  `e2e/overflow.spec.ts` sweeps every screen and main dialog from 320 to 1600 px, at the
+  default text size and at 125%, and fails on anything wider than a parent that neither
+  clips nor scrolls. Three traps it has caught:
+  - A row of buttons that can't wrap (`flex-wrap: wrap` as a fallback).
+  - A `1fr` grid column, whose minimum is its content's width: an input's own width of
+    about 20 letters, or the wider of two "equal" buttons. Use `minmax(0, 1fr)`.
+  - `width: 100%` on a range input, which Chromium gives a 2 px margin
+    (`margin-inline: 0`).
+
+  Reaching out by an element's own negative margin is allowed (`← Home` lines its arrow up
+  with the text below). A new screen or dialog belongs in the sweep.
 - <a id="known-failure"></a>**The Python suite has one known failure,** `test_edge_numbers_all_sides`: a 44×5 chart
   whose dimensions come out one column short. It's documented in `test_images/README.md`.
   Any other failure is new.

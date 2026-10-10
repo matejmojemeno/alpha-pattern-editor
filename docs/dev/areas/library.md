@@ -57,6 +57,15 @@ Newest last, as they were built.
   like every screen, while Import and Design filled the window. Now `.screen.library`
   has no cap and the card grid adds columns. The home screen and Settings keep 72rem:
   their tiles and form would only spread out.
+- <a id="card-buttons"></a>**A card's buttons stay inside it**: at a card's narrowest
+  (`--card-w`, 15rem, about a 530 px window) Rename, Export and Delete needed ~237 px of
+  the 220 px inside, and the right-aligned row stuck out past the card's left edge. On a
+  card the buttons have 0.5rem padding, so all three fit one row; the row wraps if bigger
+  text still doesn't fit. `e2e/library-card.spec.ts` checks every window width from 320
+  to 1400 px. The same sweep across the whole app (`e2e/overflow.spec.ts`, see
+  [rules](../rules.md#nothing-sticks-out)) found the **New pattern** dialog's Name field
+  wider than the dialog on a phone: its grid column is now `minmax(0, 1fr)` and the inputs
+  `max-width: 100%`.
 
 - <a id="less-text"></a>**Less text: names that say it, rather than notes that explain it** (the owner:
   "this home page should not need any of that text apart from the big import button").

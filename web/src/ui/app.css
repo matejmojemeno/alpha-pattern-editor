@@ -421,11 +421,18 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
+/* Narrow padding so all three fit a card at its narrowest (--card-w); if bigger text
+   still doesn't fit, the row wraps rather than sticking out of the card. */
 .card__actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.5rem;
   padding: 0 var(--card-pad) var(--card-pad);
+}
+
+.card__actions .button {
+  padding: 0 0.5rem;
 }
 
 .thumb {
@@ -640,11 +647,30 @@ code {
   overflow: hidden;
 }
 
+/* Wraps only as a last resort (a 320 px phone with bigger text): the name's basis is 0,
+   so it never takes a line of its own. */
 .work__top {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.25rem 0.75rem;
   flex: none;
+}
+
+/* On the narrowest phones, Options otherwise runs past the edge, and the name would get
+   a sliver of a letter at most: it stays a heading for screen readers only. */
+@media (max-width: 359px) {
+  .work__top {
+    column-gap: 0.5rem;
+  }
+
+  .work__name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
 }
 
 /* Hides and shows "This row", like a browser's sidebar button. */
@@ -697,7 +723,7 @@ code {
 }
 
 .work__name {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
   font-size: var(--text-lg);
   overflow: hidden;
@@ -1441,9 +1467,15 @@ code {
 }
 
 /* Cancel and Save progress share the dialog's width, as Mark segment complete has it. */
+/* Two equal halves even when "Save progress" is the wider: with plain 1fr both took the
+   wider one's width, and Cancel stuck out on the left on a narrow phone. */
 .segment .dialog__buttons {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.segment .dialog__buttons .button {
+  padding: 0 0.5rem;
 }
 
 .segment__complete {
@@ -1546,9 +1578,11 @@ code {
 
 /* --- the new-pattern dialog (Landing and Library) --------------------------------------- */
 
+/* minmax(0, …) and max-width: the name field's own width (about 20 letters) would
+   otherwise push past the dialog on a narrow phone. */
 .new-pattern__form {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 0.6rem 0.9rem;
 }
@@ -1558,6 +1592,7 @@ code {
 }
 
 .new-pattern__form input:not([type='color']) {
+  max-width: 100%;
   min-height: var(--tap);
   padding: 0 0.6rem;
   border: 1px solid var(--border);
