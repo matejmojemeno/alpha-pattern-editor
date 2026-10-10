@@ -430,11 +430,18 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
+/* Narrow padding so all three fit a card at its narrowest (--card-w); if bigger text
+   still doesn't fit, the row wraps rather than sticking out of the card. */
 .card__actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.5rem;
   padding: 0 var(--card-pad) var(--card-pad);
+}
+
+.card__actions .button {
+  padding: 0 0.5rem;
 }
 
 .thumb {
