@@ -44,33 +44,36 @@ export function sizeText(cols: number, rows: number, s: Swatch): string | null {
 /** The name of the other way in, on the home screen and the buttons that lead to it. */
 export const PHOTO_TO_PATTERN = 'Photo to pattern'
 
-/** A line above the stages, when there's something to say about what was read. */
-export interface ReadingNote {
-  text: string
-  /** A chart read with doubts: set apart, as a warning. */
+/** The one short note above the stages, when there's something to say about what was
+ *  read: a title, and the reasons behind it in a few words each. */
+export interface Check {
+  /** Something may be wrong with the pattern: set apart, as a warning. */
   warning: boolean
+  title: string
+  reasons: string[]
   /** Offer "Photo to pattern" with the same image. */
   offerPhoto: boolean
 }
 
-/** What to say about an image read as `mode`. Nothing for a chart read cleanly, or for a
- *  picture, whose screen is named for it; a note for pixel art, read block by block; a
- *  warning for a chart with many unsure squares, where the image may be a photo after
- *  all; and a quiet offer of Photo to pattern for a grid that looked more like a photo's
- *  (most such are photos, with a nonsense grid; some are charts, read all the same). */
-export function readingNote(mode: Mode, reading: Reading): ReadingNote | null {
+/** What to say about an image read as `mode`, with the bridge's warnings (already in a
+ *  few words each). Nothing for a chart read cleanly, or for a picture, whose screen is
+ *  named for it; nor that a large image was shrunk to be read, as most phone photos are,
+ *  which is no reason on its own to doubt the pattern. Any reason to doubt the pattern
+ *  makes it "Check it against your image", with the reasons; otherwise a note for pixel
+ *  art, read block by block, or for a grid that looked more
+ *  like a photo's (most such are photos, with a nonsense grid; some are charts, read all
+ *  the same). A chart read with doubts, or that looked like a photo, offers Photo to
+ *  pattern, should the image be a photo after all. */
+export function check(mode: Mode, reading: Reading, warnings: readonly string[]): Check | null {
+  if (mode === 'picture') return null
+  const offerPhoto = mode === 'chart' && (!reading.sure || reading.photoLike)
+  const reasons = [...(mode === 'chart' && !reading.sure ? ['Many squares are hard to read'] : []), ...warnings]
+  if (reasons.length > 0) return { warning: true, title: 'Check it against your image', reasons, offerPhoto }
   if (mode === 'pixels') {
-    return { text: 'Read as pixel art: each block of your image is one stitch.', warning: false, offerPhoto: false }
+    return { warning: false, title: 'Read as pixel art: each block is one stitch', reasons, offerPhoto }
   }
-  if (mode === 'chart' && !reading.sure) {
-    return {
-      text: 'Many squares were hard to read. Check the pattern against your image before you save.',
-      warning: true,
-      offerPhoto: true,
-    }
-  }
-  if (mode === 'chart' && reading.photoLike) {
-    return { text: 'Is this a photo or drawing, not a chart?', warning: false, offerPhoto: true }
+  if (reading.photoLike) {
+    return { warning: false, title: 'Looks like a photo, not a chart', reasons, offerPhoto }
   }
   return null
 }

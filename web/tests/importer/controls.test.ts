@@ -1,16 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { cellSize, shrinkNotice } from '../../src/importer/controls.ts'
-
-describe('the shrink notice', () => {
-  it('says what was reduced to what, only when it was', () => {
-    const p = { imageWidth: 4000, imageHeight: 3000, detectedWidth: 2000, detectedHeight: 1500 }
-    expect(shrinkNotice(p)).toBe(
-      'Reduced from 4000×3000 to 2000×1500 for detection. Check the size, and fix it in Design if needed.',
-    )
-    expect(shrinkNotice({ ...p, detectedWidth: 4000, detectedHeight: 3000 })).toBeNull()
-  })
-})
+import { cellSize } from '../../src/importer/controls.ts'
 
 describe('the pattern’s cell size', () => {
   it('is the largest whole number of device pixels that fits, gridline included', () => {

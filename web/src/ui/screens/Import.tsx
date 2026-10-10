@@ -60,11 +60,10 @@ import {
   type Preview,
   type Reading,
 } from '../../detect/protocol.ts'
-import { shrinkNotice } from '../../importer/controls.ts'
 import { decodeImage, ImageDecodeError, sourcePng } from '../../importer/decode.ts'
 import { hintFor, OUT_OF_MEMORY_HINT, TIMEOUT_HINT } from '../../importer/hints.ts'
 import type { Grid } from '../../importer/outline.ts'
-import { clampWidth, colourSteps, detailText, MIN_WIDTH, PHOTO_TO_PATTERN, readingNote, sizeText, swatchAspect } from '../../importer/picture.ts'
+import { check, clampWidth, colourSteps, detailText, MIN_WIDTH, PHOTO_TO_PATTERN, sizeText, swatchAspect } from '../../importer/picture.ts'
 import type { Swatch } from '../../yarn/usage.ts'
 import { applyRemovals, mergeCandidate, type Removal } from '../../importer/removals.ts'
 import { emptyProgress } from '../../model/types.ts'
@@ -73,7 +72,7 @@ import { useDelayedFlag, useDocumentTitle, useFileDrop, useMediaQuery, usePasted
 import { Palette } from '../import/Palette.tsx'
 import { PatternView } from '../import/PatternView.tsx'
 import { SourceView } from '../import/SourceView.tsx'
-import { WarningIcon } from '../icons.tsx'
+import { CloseIcon, InfoIcon, PhotoIcon, WarningIcon } from '../icons.tsx'
 import { cleanName, MAX_NAME_LENGTH } from '../names.ts'
 import { isChartImage, type Notice } from '../useAlphaImport.ts'
 
@@ -178,6 +177,9 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
   /** The colour pointed at, and the one kept showing, in the colour list: by hex. */
   const [pointed, setPointed] = useState<string | null>(null)
   const [pinned, setPinned] = useState<string | null>(null)
+  /** The note above the stages put away with its ×, by what it said: it comes back if it
+   *  comes to say something else, or for another image. */
+  const [hiddenCheck, setHiddenCheck] = useState<string | null>(null)
 
   const session = useRef<DetectSession | null>(null)
   /** Updates asked for and not yet answered. */
@@ -193,6 +195,7 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
   const choose = useCallback((file: File) => {
     setImage({ file })
     setNotices([])
+    setHiddenCheck(null)
     setShown(null)
     setSize(null)
     setRun({ attempt: 0 })
@@ -477,8 +480,9 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
       />
       <Notices notices={notices} />
       <div className="confirm" data-dim={dim || undefined} style={stageShape}>
-        {preview && <Note preview={preview} disabled={busy || loading} onPhoto={toPhoto} />}
-        {preview && <Summary preview={preview} />}
+        {preview && (
+          <Check preview={preview} disabled={busy || loading} onPhoto={toPhoto} hidden={hiddenCheck} onHide={setHiddenCheck} />
+        )}
         <div className="confirm__grid">
           <section className="confirm__col confirm__col--image" aria-labelledby={`${ids}-image`}>
             <div className="confirm__head">
@@ -643,22 +647,50 @@ function Size({ cols, rows }: { cols: number; rows: number }) {
   )
 }
 
-/** A line above the stages, only when there's something to say (importer/picture.ts's
- *  readingNote): pixel art read block by block, quietly; a chart read with doubts, set
- *  apart, with the way to "Photo to pattern" should the image be a photo after all. */
-function Note({ preview, disabled, onPhoto }: { preview: Preview; disabled: boolean; onPhoto: () => void }) {
-  const note = readingNote(preview.mode, preview.reading)
+/** One short, boxed note above the stages, only when there's something to say
+ *  (importer/picture.ts's `check`): its title, the reasons in a few words each, the way
+ *  to "Photo to pattern" should the image be a photo after all, and × to put it away.
+ *  Recomputed with every preview, as moving the outline changes the reasons. */
+function Check({
+  preview,
+  disabled,
+  onPhoto,
+  hidden,
+  onHide,
+}: {
+  preview: Preview
+  disabled: boolean
+  onPhoto: () => void
+  /** What the note said when it was put away. */
+  hidden: string | null
+  onHide: (said: string) => void
+}) {
+  const note = check(preview.mode, preview.reading, preview.warnings)
   if (!note) return null
+  const said = [note.title, ...note.reasons].join('\n')
+  if (said === hidden) return null
+  const Icon = note.warning ? WarningIcon : InfoIcon
   return (
-    <p className="confirm__kind" data-mode={preview.mode} data-prominent={note.warning || undefined}>
-      {note.warning && <span aria-hidden="true">⚠ </span>}
-      <span className="confirm__kind-text">{note.text}</span>
+    <div className="check" data-warning={note.warning || undefined} role="status">
+      <Icon />
+      <p className="check__text">
+        <strong>{note.title}</strong>
+        {note.reasons.map((r) => (
+          <span key={r} className="check__reason">
+            {r}
+          </span>
+        ))}
+      </p>
       {note.offerPhoto && (
-        <button type="button" className="button button--ghost button--small" disabled={disabled} onClick={onPhoto}>
-          Use {PHOTO_TO_PATTERN} instead
+        <button type="button" className="button button--small check__photo" disabled={disabled} onClick={onPhoto}>
+          <PhotoIcon />
+          Open in {PHOTO_TO_PATTERN}
         </button>
       )}
-    </p>
+      <button type="button" className="check__hide" aria-label="Hide this note" title="Hide" onClick={() => onHide(said)}>
+        <CloseIcon />
+      </button>
+    </div>
   )
 }
 
@@ -771,29 +803,6 @@ function PictureControls({
       <p id={`${id}-outlines`} className="picture-controls__note">
         For drawings with dark lines: keeps them, one stitch thick.
       </p>
-    </div>
-  )
-}
-
-/** The warnings, and the shrink notice. Recomputed with every preview. A picture has no
- *  warnings, and its shrinking is only a detail of making it. */
-function Summary({ preview }: { preview: Preview }) {
-  if (preview.picture) return null
-  const shrunk = shrinkNotice(preview)
-  if (preview.warnings.length === 0 && !shrunk) return null
-  return (
-    <div className="confirm__summary">
-      {preview.warnings.length > 0 && (
-        <ul className="confirm__warnings" aria-label="Warnings">
-          {preview.warnings.map((w, i) => (
-            <li key={i}>
-              <WarningIcon />
-              {w}
-            </li>
-          ))}
-        </ul>
-      )}
-      {shrunk && <p className="confirm__note">{shrunk}</p>}
     </div>
   )
 }

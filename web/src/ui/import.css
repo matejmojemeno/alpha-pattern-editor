@@ -361,36 +361,95 @@
   opacity: 0.45;
 }
 
-/* --- summary -------------------------------------------------------------------------- */
+/* --- the note above the stages ----------------------------------------------------------- */
 
-.confirm__summary {
+/* One short boxed line: icon, title, the reasons after it, then "Open in Photo to pattern"
+   as a real button and × to put it away. A warning is tinted and edged in --warn; a note
+   (pixel art, a photo-like grid) only edged. The text stays --text: the colour is in the
+   edge and the icon, so a long reason stays readable. Outside the size container, so it
+   takes its height from the stages. */
+.check {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.confirm__warnings {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  color: var(--warn);
-}
-
-/* What the image was read as (chart or picture), and the way to the other reading: one
-   quiet line, set apart only when the chart reading is in doubt. Outside the size
-   container, so it takes its height from the stages, as the warnings do. */
-.confirm__kind {
-  display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem 0.75rem;
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.9rem;
+  gap: 0.6rem;
+  padding: 0.3rem 0.3rem 0.3rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
 }
 
-.confirm__kind[data-prominent] {
+.check[data-warning] {
+  border-color: color-mix(in srgb, var(--warn) 55%, var(--border));
+  background: color-mix(in srgb, var(--warn) 8%, var(--bg));
+}
+
+.check > .icon {
+  flex: none;
+  color: var(--muted);
+}
+
+.check[data-warning] > .icon {
   color: var(--warn);
+}
+
+.check__text {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.check__reason {
+  color: var(--muted);
+}
+
+/* "Title · reason · reason". */
+.check__reason::before {
+  content: ' · ';
+}
+
+.check__photo {
+  flex: none;
+}
+
+.check__hide {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.check__hide:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+/* A phone: the button drops under the words, the × stays in the corner. */
+@media (max-width: 40rem) {
+  .check {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .check > .icon {
+    margin-top: 0.15rem;
+  }
+
+  .check__text {
+    flex-basis: calc(100% - 5rem);
+  }
+
+  .check__photo {
+    order: 1;
+    margin-left: 1.6rem;
+  }
 }
 
 /* --- a picture's settings, above the colour list ------------------------------------- */
@@ -806,9 +865,4 @@
 .import__failure-title {
   font-weight: 600;
   font-size: var(--t-section);
-}
-
-.confirm__warnings .icon {
-  margin-right: 0.35rem;
-  vertical-align: -0.15em;
 }
