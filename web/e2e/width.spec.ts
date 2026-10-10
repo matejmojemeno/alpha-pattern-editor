@@ -21,7 +21,7 @@ test('Library, Design and Work use the whole width', async ({ page }) => {
   await expect(page.getByRole('listitem')).toHaveCount(1)
   expect(await screenWidth(page)).toBe(WIDTH)
 
-  await page.getByRole('listitem').getByRole('link').click()
+  await page.getByRole('listitem').getByRole('link', { name: /^Open / }).click()
   await expect(page.locator('main.screen.design')).toBeVisible()
   expect(await screenWidth(page)).toBe(WIDTH)
 

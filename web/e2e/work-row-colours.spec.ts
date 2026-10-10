@@ -45,7 +45,7 @@ async function open(page: Page, file: string, p: Project) {
   writeFileSync(file, writeAlpha(p).bytes)
   await page.goto('/#/library')
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(file)
-  await page.getByRole('listitem').filter({ hasText: p.pattern.name }).getByRole('link').click()
+  await page.getByRole('listitem').filter({ hasText: p.pattern.name }).getByRole('link', { name: /^Open / }).click()
   await expect(page.locator('.work__row')).toHaveText(/^Row 1 of/)
 }
 

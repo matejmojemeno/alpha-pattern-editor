@@ -297,7 +297,7 @@ test('design a pattern with every tool, undo, colours, reload, and Work and back
 
   // From the Library, a project with progress opens in Work.
   await page.getByRole('link', { name: 'Library' }).click()
-  await page.getByRole('listitem').filter({ hasText: 'Sampler' }).getByRole('link').click()
+  await page.getByRole('listitem').filter({ hasText: 'Sampler' }).getByRole('link', { name: /^Open / }).click()
   await expect(page).toHaveURL(new RegExp(`#/work/${id}$`))
   await expect(row).toHaveText(/^Row 3 of 10/)
 

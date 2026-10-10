@@ -16,7 +16,10 @@ async function withProjects(...names: string[]) {
   return renderApp('#/library', { repo })
 }
 
-const cards = () => within(screen.getByRole('list', { name: 'Projects' })).getAllByRole('listitem')
+// Every card, in every section, in the order they're shown.
+const cards = () => [...document.querySelectorAll<HTMLElement>('ul.cards > li')]
+const section = (name: string) => screen.queryByRole('region', { name: new RegExp(`^${name}`) })
+const sectionNames = () => screen.queryAllByRole('region').map((r) => r.querySelector('h2')!.textContent)
 const card = (name: string) => cards().find((c) => c.querySelector('.card__name')?.textContent === name)!
 
 describe('Library', () => {
@@ -35,7 +38,8 @@ describe('Library', () => {
     expect(withSource.getByText('33% done')).toBeTruthy()
     const basic = within(card('basic'))
     expect(basic.getByText('7×5')).toBeTruthy()
-    expect(basic.getByText('0% done')).toBeTruthy()
+    // Not started: no bar, which could only say 0%.
+    expect(basic.queryByText(/% done/)).toBeNull()
     expect(document.querySelectorAll('.thumb--photo img')).toHaveLength(1)
     expect(document.querySelectorAll('.thumb--cells img')).toHaveLength(1)
     expect(document.querySelector('.thumb img')!.getAttribute('src')).toMatch(/^blob:/)
@@ -46,10 +50,11 @@ describe('Library', () => {
     const links = cards().map((c) => c.querySelector('a')!)
     expect(links.every((a) => a.tabIndex === 0)).toBe(true)
 
-    // Tab order: Home, Import, Help, then each card's link, Export and Delete.
+    // Tab order: the header, then each card's link, name, Design (not started only),
+    // Export and Delete.
     const user = userEvent.setup()
     const order: Element[] = []
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 12; i++) {
       await user.tab()
       order.push(document.activeElement!)
     }
@@ -181,6 +186,7 @@ describe('Library', () => {
       await repo.save({ ...project, progress: { ...project.progress, completed_row_ids: new Set([project.pattern.row_ids[0]!]) } })
     })
     await waitFor(() => expect(within(card('basic')).getByText('20% done')).toBeTruthy())
+    expect(section('In progress')!.contains(card('basic'))).toBe(true)
 
     await act(async () => {
       await repo.delete(idOf('unicode.alpha'))
@@ -188,12 +194,52 @@ describe('Library', () => {
     await waitFor(() => expect(cards()).toHaveLength(2))
   })
 
+  it('lists projects under In progress, Not started and Finished, leaving out empty ones', async () => {
+    const { repo } = await withProjects('basic.alpha', 'with-source.alpha', 'unicode.alpha')
+    expect(sectionNames()).toEqual(['In progress 1', 'Not started 2'])
+    expect(section('In progress')!.contains(card('with-source'))).toBe(true)
+    expect(section('Not started')!.contains(card('basic'))).toBe(true)
+
+    // Part of a row worked, no row finished: in progress, at 0%.
+    const basic = (await repo.open(idOf('basic.alpha'))).project
+    await act(async () => {
+      await repo.save({ ...basic, progress: { ...basic.progress, current_row_id: basic.pattern.row_ids[0]!, current_run_index: 1 } })
+    })
+    await waitFor(() => expect(section('In progress')!.contains(card('basic'))).toBe(true))
+    expect(within(card('basic')).getByText('0% done')).toBeTruthy()
+
+    // Every row done: finished, and listed last.
+    const withSource = (await repo.open(idOf('with-source.alpha'))).project
+    await act(async () => {
+      await repo.save({
+        ...withSource,
+        progress: { ...withSource.progress, completed_row_ids: new Set(withSource.pattern.row_ids) },
+      })
+    })
+    await waitFor(() => expect(sectionNames()).toEqual(['In progress 1', 'Not started 1', 'Finished 1']))
+    expect(section('Finished')!.contains(card('with-source'))).toBe(true)
+    expect(within(card('with-source')).getByText('100% done')).toBeTruthy()
+  })
+
+  it('gives a project not started a Design button, and only those', async () => {
+    await withProjects('basic.alpha', 'with-source.alpha')
+    const design = within(card('basic')).getByRole('link', { name: 'Design' })
+    expect(design.getAttribute('href')).toBe(`#/design/${idOf('basic.alpha')}`)
+    expect(within(card('with-source')).queryByRole('link', { name: 'Design' })).toBeNull()
+    await userEvent.click(design)
+    await waitFor(() => expect(window.location.hash).toBe(`#/design/${idOf('basic.alpha')}`))
+  })
+
   it('renames a project from its card', async () => {
     const { repo } = await withProjects('with-source.alpha')
     const user = userEvent.setup()
     const before = await repo.open(idOf('with-source.alpha'))
+    // The name is the button: pressing it renames rather than opening the project.
     const renameButton = screen.getByRole('button', { name: 'Rename “with-source”' })
+    expect(renameButton.textContent).toBe('with-source')
+    expect(screen.queryByRole('button', { name: 'Rename' })).toBeNull()
     await user.click(renameButton)
+    expect(window.location.hash).toBe('#/library')
     const input = screen.getByLabelText<HTMLInputElement>('Project name')
     expect(document.activeElement).toBe(input)
     expect(input.value).toBe('with-source')

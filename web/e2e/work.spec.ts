@@ -27,7 +27,7 @@ async function importAndOpen(page: Page, file: string, name: string) {
   await page.goto('/#/library')
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(file)
   const card = page.getByRole('listitem').filter({ hasText: name })
-  await card.getByRole('link').click()
+  await card.getByRole('link', { name: /^Open / }).click()
   await expect(page).toHaveURL(/#\/design\//)
   await page.getByRole('button', { name: 'Start working →' }).click()
   await expect(page).toHaveURL(/#\/work\//)
@@ -114,7 +114,7 @@ test('work through rows, reload, export and re-import', async ({ page }, testInf
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click()
   await expect(page.getByText('No projects yet.')).toBeVisible()
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(exported)
-  await card.getByRole('link').click()
+  await card.getByRole('link', { name: /^Open / }).click()
   await expect(rowLabel(page)).toHaveText('Row 4 of 5 →')
   expect(await progressOnScreen(page)).toEqual(before)
 

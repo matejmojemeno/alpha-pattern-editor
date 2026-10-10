@@ -41,7 +41,7 @@ test('import, reload, open, export, delete, re-import', async ({ page }, testInf
   // 4. Open it. The desktop saved it in the Design stage with no progress, so the card
   //    opens Design (§6.4); the Work stage is a deep link away. Opening either saves
   //    nothing, which the byte-for-byte export below relies on.
-  await card.getByRole('link').click()
+  await card.getByRole('link', { name: /^Open / }).click()
   await expect(page).toHaveURL(new RegExp(`#/design/${basic.id}$`))
   await expect(page.getByRole('heading', { level: 1, name: basic.name })).toBeVisible()
   await page.goto(`/#/work/${basic.id}`)
@@ -77,7 +77,7 @@ test('import, reload, open, export, delete, re-import', async ({ page }, testInf
   // ...re-import the export, and check it matches.
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(exported)
   await expect(card).toBeVisible()
-  await card.getByRole('link').click()
+  await card.getByRole('link', { name: /^Open / }).click()
   await expect(page).toHaveURL(new RegExp(`#/design/${basic.id}$`))
   await page.goto(`/#/work/${basic.id}`)
   await expect(page.getByRole('heading', { level: 1, name: basic.name })).toBeVisible()

@@ -121,7 +121,7 @@ test('the chart follows your place across a wide chart', async ({ page }, testIn
   writeFileSync(file, writeAlpha(project).bytes)
   await page.goto('/#/library')
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(file)
-  await page.getByRole('listitem').filter({ hasText: p.name }).getByRole('link').click()
+  await page.getByRole('listitem').filter({ hasText: p.name }).getByRole('link', { name: /^Open / }).click()
   await expect(rowLabel(page)).toHaveText(`Row 1 of ${ROWS} →`)
 
   // Genuinely wide: the chart scrolls across by more than a screen.
@@ -193,7 +193,7 @@ test('zoomed in, saving part way through a segment moves the chart on to the sti
   writeFileSync(file, writeAlpha(scarf).bytes)
   await page.goto('/#/library')
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(file)
-  await page.getByRole('listitem').filter({ hasText: 'Zoomed scarf' }).getByRole('link').click()
+  await page.getByRole('listitem').filter({ hasText: 'Zoomed scarf' }).getByRole('link', { name: /^Open / }).click()
   await expect(rowLabel(page)).toHaveText(`Row 1 of ${ROWS} →`)
   expect((await settledScroll(page)).max).toBe(0)
 
@@ -229,7 +229,7 @@ test('a wide chart that fits on screen is shown whole, never scrolled', async ({
   writeFileSync(file, writeAlpha(scarf).bytes)
   await page.goto('/#/library')
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(file)
-  await page.getByRole('listitem').filter({ hasText: 'Narrow scarf' }).getByRole('link').click()
+  await page.getByRole('listitem').filter({ hasText: 'Narrow scarf' }).getByRole('link', { name: /^Open / }).click()
   await expect(rowLabel(page)).toHaveText(`Row 1 of ${ROWS} →`)
   const fits = () =>
     scroller(page).evaluate((el) => ({ x: el.scrollWidth - el.clientWidth, y: el.scrollHeight - el.clientHeight }))
@@ -247,7 +247,7 @@ test('a chart that fits across never scrolls sideways', async ({ page }) => {
   await page.goto('/#/library')
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(BASIC)
   // Saved by the desktop in the Design stage, with no progress: the card opens Design.
-  await page.getByRole('listitem').first().getByRole('link').click()
+  await page.getByRole('listitem').first().getByRole('link', { name: /^Open / }).click()
   await page.getByRole('button', { name: 'Start working →' }).click()
   await expect(rowLabel(page)).toHaveText('Row 1 of 5 ←')
   for (const key of ['ArrowRight', 'ArrowRight', 'ArrowLeft']) {

@@ -11,7 +11,7 @@ import { useRepo } from '../../app/context.ts'
 import { preloadDetection } from '../../app/detection.ts'
 import { downloadBlob } from '../../app/download.ts'
 import { href, navigate, paths } from '../../app/router.ts'
-import type { ProjectSummary } from '../../storage/repo.ts'
+import type { ProjectSummary, WorkStatus } from '../../storage/repo.ts'
 import {
   ConfirmDialog,
   DropOverlay,
@@ -23,12 +23,21 @@ import {
   Thumb,
   TopBar,
 } from '../components.tsx'
+import { RenameIcon } from '../icons.tsx'
 import { useDocumentTitle, useFileDrop, usePastedImage, useProjects } from '../hooks.ts'
 import { DESIGN_FROM_SCRATCH, NewPatternDialog } from '../NewPattern.tsx'
 import { openImageImport, useAlphaImport, type Notice } from '../useAlphaImport.ts'
 import { StorageUnavailable } from './Landing.tsx'
 
 const openPasted = (file: File) => openImageImport({ file })
+
+/** The Library's sections, in this order; an empty one isn't shown. What you're making
+ *  comes first, then what's waiting to be started, then what's done. */
+const SECTIONS: { status: WorkStatus; title: string }[] = [
+  { status: 'in-progress', title: 'In progress' },
+  { status: 'not-started', title: 'Not started' },
+  { status: 'finished', title: 'Finished' },
+]
 
 export function Library() {
   useDocumentTitle('Library')
@@ -115,17 +124,29 @@ export function Library() {
           <p>No projects yet.</p>
         </div>
       ) : (
-        <ul className="cards" aria-label="Projects">
-          {projects.map((s) => (
-            <ProjectCard
-              key={s.id}
-              summary={s}
-              onExport={() => void onExport(s)}
-              onDelete={() => setDeleting(s)}
-              onRename={(name) => onRename(s, name)}
-            />
-          ))}
-        </ul>
+        SECTIONS.map(({ status, title }) => {
+          const here = projects.filter((s) => s.work_status === status)
+          if (!here.length) return null
+          const id = `library-${status}`
+          return (
+            <section key={status} className="library__section" aria-labelledby={id}>
+              <h2 id={id} className="library__heading">
+                {title} <span className="library__count">{here.length}</span>
+              </h2>
+              <ul className="cards" aria-label={title}>
+                {here.map((s) => (
+                  <ProjectCard
+                    key={s.id}
+                    summary={s}
+                    onExport={() => void onExport(s)}
+                    onDelete={() => setDeleting(s)}
+                    onRename={(name) => onRename(s, name)}
+                  />
+                ))}
+              </ul>
+            </section>
+          )
+        })
       )}
 
       <p className="storage-note">
@@ -166,11 +187,11 @@ function ProjectCard({
   onRename: (name: string) => Promise<void>
 }) {
   const [renaming, setRenaming] = useState(false)
-  const renameButton = useRef<HTMLButtonElement>(null)
+  const nameButton = useRef<HTMLButtonElement>(null)
   const wasRenaming = useRef(false)
-  // Back from the rename field, focus returns to the Rename button.
+  // Back from the rename field, focus returns to the name.
   useEffect(() => {
-    if (wasRenaming.current && !renaming) renameButton.current?.focus()
+    if (wasRenaming.current && !renaming) nameButton.current?.focus()
     wasRenaming.current = renaming
   }, [renaming])
   const stopRenaming = () => setRenaming(false)
@@ -182,48 +203,59 @@ function ProjectCard({
       navigate(paths.open(s.id))
     }
   }
+  const notStarted = s.work_status === 'not-started'
   return (
     <li className="card">
-      {/* #/open picks the stage: Work if there's progress, else the one it was last in. */}
-      <a className="card__open" href={href(paths.open(s.id))} onKeyDown={onKeyDown}>
+      {/* #/open picks the stage: Work if there's progress, else the one it was last in.
+          The link covers the whole card (::after); the name and the buttons sit above it. */}
+      <a className="card__open" href={href(paths.open(s.id))} onKeyDown={onKeyDown} aria-label={`Open “${s.name}”`}>
         <Thumb blob={s.thumbnail} kind={s.thumbnail_kind} />
-        <span className="card__name">{s.name}</span>
+      </a>
+      <div className="card__body">
+        {renaming ? (
+          <RenameForm
+            className="rename card__rename"
+            name={s.name}
+            onCancel={stopRenaming}
+            onRename={(name) => void onRename(name).then(stopRenaming)}
+          />
+        ) : (
+          <button
+            ref={nameButton}
+            type="button"
+            className="card__name"
+            onClick={() => setRenaming(true)}
+            aria-label={`Rename “${s.name}”`}
+            title="Rename"
+          >
+            {s.name}
+            <RenameIcon className="icon card__name-icon" />
+          </button>
+        )}
         <span className="card__meta">
           {s.cols}×{s.rows}
         </span>
-        <ProgressBar pct={s.progress_pct} />
-      </a>
-      {renaming ? (
-        <RenameForm
-          className="rename card__rename"
-          name={s.name}
-          onCancel={stopRenaming}
-          onRename={(name) => void onRename(name).then(stopRenaming)}
-        />
-      ) : (
-        <div className="card__actions">
-          <button
-            ref={renameButton}
-            type="button"
-            className="button button--small"
-            onClick={() => setRenaming(true)}
-            aria-label={`Rename “${s.name}”`}
-          >
-            Rename
-          </button>
-          <button type="button" className="button button--small" onClick={onExport} aria-label={`Export “${s.name}”`}>
-            Export
-          </button>
-          <button
-            type="button"
-            className="button button--small button--danger-quiet"
-            onClick={onDelete}
-            aria-label={`Delete “${s.name}”`}
-          >
-            Delete
-          </button>
-        </div>
-      )}
+        {/* Not started is always 0%: the section heading says it already. */}
+        {!notStarted && <ProgressBar pct={s.progress_pct} />}
+      </div>
+      <div className="card__actions">
+        {notStarted && (
+          <a className="button button--small button--primary" href={href(paths.design(s.id))}>
+            Design
+          </a>
+        )}
+        <button type="button" className="button button--small" onClick={onExport} aria-label={`Export “${s.name}”`}>
+          Export
+        </button>
+        <button
+          type="button"
+          className="button button--small button--danger-quiet"
+          onClick={onDelete}
+          aria-label={`Delete “${s.name}”`}
+        >
+          Delete
+        </button>
+      </div>
     </li>
   )
 }

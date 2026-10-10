@@ -21,7 +21,7 @@ const ACCENT = [240, 168, 0]
 async function openWork(page: Page) {
   await page.goto('/#/library')
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(BASIC)
-  await page.getByRole('listitem').filter({ hasText: basic.name }).getByRole('link').click()
+  await page.getByRole('listitem').filter({ hasText: basic.name }).getByRole('link', { name: /^Open / }).click()
   await page.getByRole('button', { name: 'Start working →' }).click()
   await expect(page.getByRole('heading', { level: 1, name: basic.name })).toBeVisible()
 }

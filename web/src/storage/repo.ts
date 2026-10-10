@@ -5,12 +5,13 @@
  * Archives are stored exactly as a `.alpha` file, so export is a straight copy and
  * import is a validate-then-store: the bytes a user brings in are the bytes they get out.
  */
+import { workStatus } from '../app/stages.ts'
 import type { Project } from '../model/types.ts'
 import { alphaFileName, progressPct, readAlpha, writeAlpha, type AlphaContents } from './alpha.ts'
 import * as db from './db.ts'
 import { makeThumbnail, type Downscaler } from './thumbnail.ts'
 
-export type { ProjectSummary } from './db.ts'
+export type { ProjectSummary, WorkStatus } from './db.ts'
 
 /** Seconds since the epoch, like Python's time.time(). */
 export type Clock = () => number
@@ -46,6 +47,7 @@ async function summarize(
     rows: pattern.rows,
     cols: pattern.cols,
     progress_pct: progressPct(pattern, progress),
+    work_status: workStatus(pattern, progress),
     updated_at: pattern.updated_at,
     thumbnail: thumbnail.thumbnail,
     thumbnail_kind: thumbnail.thumbnail_kind,
@@ -78,15 +80,21 @@ export class ProjectRepo {
     return repo
   }
 
-  /** Recreate the summary of every archive that lacks one. Returns how many. An archive
-   *  that no longer parses is left alone rather than deleted: it is still exportable. */
+  /** Recreate the summary of every archive that lacks one, or whose summary lacks a
+   *  field added since (keeping its thumbnail). Returns how many. An archive that no
+   *  longer parses is left alone rather than deleted: it is still exportable. */
   async rebuildMissingSummaries(): Promise<number> {
     let rebuilt = 0
-    for (const id of await db.idsMissingSummaries(this.db)) {
+    const { missing, stale } = await db.idsMissingSummaries(this.db)
+    const jobs: [string, db.ProjectSummary | undefined][] = [
+      ...missing.map((id): [string, undefined] => [id, undefined]),
+      ...stale.map((s): [string, db.ProjectSummary] => [s.id, s]),
+    ]
+    for (const [id, old] of jobs) {
       const blob = await db.getArchive(this.db, id)
       if (blob === undefined) continue
       try {
-        await db.putSummary(this.db, await summarize(readAlpha(await bytesOf(blob)), this.opts.downscale))
+        await db.putSummary(this.db, await summarize(readAlpha(await bytesOf(blob)), this.opts.downscale, old))
         rebuilt++
       } catch {
         // Unreadable archive: nothing sensible to show for it.

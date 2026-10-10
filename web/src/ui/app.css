@@ -376,16 +376,33 @@ code {
   max-width: none;
 }
 
+.library__heading {
+  margin: 1.5rem 0 0.75rem;
+}
+
+.library__count {
+  color: var(--muted);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
 .cards {
   list-style: none;
-  margin: 0 0 2rem;
+  margin: 0 0 1rem;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--card-w)), 1fr));
   gap: 1rem;
 }
 
+.library__section:last-of-type .cards {
+  margin-bottom: 2rem;
+}
+
+/* The card's link is stretched over the whole card (its ::after), so a click anywhere
+   opens the project; the name (which renames) and the buttons sit above it. */
 .card {
+  position: relative;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
@@ -399,20 +416,78 @@ code {
 }
 
 .card__open {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  padding: var(--card-pad);
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  display: block;
+  padding: var(--card-pad) var(--card-pad) 0;
   color: inherit;
   text-decoration: none;
 }
 
+.card__open::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+}
+
+.card__open:focus-visible {
+  outline: none;
+}
+
+.card__open:focus-visible::after {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.card__body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.4rem var(--card-pad) var(--card-pad);
+}
+
+/* Looks like the name, not a button; hovering it shows it can be changed. */
 .card__name {
-  margin-top: 0.4rem;
+  position: relative;
+  z-index: 1;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  margin: 0 -0.3rem;
+  padding: 0.15rem 0.3rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
   font-size: var(--text-name);
   font-weight: 600;
+  text-align: left;
   overflow-wrap: anywhere;
+  cursor: text;
+}
+
+.card__name:hover {
+  background: var(--raised);
+}
+
+.card__name-icon {
+  color: var(--muted);
+  opacity: 0;
+}
+
+.card__name:hover .card__name-icon,
+.card__name:focus-visible .card__name-icon {
+  opacity: 1;
+}
+
+/* No hover on a touch screen: the pencil always shows the name can be tapped. */
+@media (hover: none) {
+  .card__name-icon {
+    opacity: 1;
+  }
 }
 
 .card__meta {
@@ -424,6 +499,8 @@ code {
 /* Narrow padding so all three fit a card at its narrowest (--card-w); if bigger text
    still doesn't fit, the row wraps rather than sticking out of the card. */
 .card__actions {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -1573,7 +1650,8 @@ code {
 }
 
 .card__rename {
-  padding: 0 var(--card-pad) var(--card-pad);
+  position: relative;
+  z-index: 1;
 }
 
 /* --- the new-pattern dialog (Landing and Library) --------------------------------------- */

@@ -54,6 +54,7 @@ describe('db', () => {
       rows: 1,
       cols: 1,
       progress_pct: 0,
+      work_status: 'not-started',
       updated_at,
       thumbnail: new Blob(),
       thumbnail_kind: 'cells',
@@ -102,6 +103,7 @@ describe('ProjectRepo', () => {
       rows: 2,
       cols: 2,
       progress_pct: 50,
+      work_status: 'in-progress',
       updated_at: 5,
       thumbnail_kind: 'cells', // no source image: the pattern's own cells
     })
