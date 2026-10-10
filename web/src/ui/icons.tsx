@@ -8,7 +8,21 @@
  * The Design stage's own icons (its tools, the turns, deleting a colour) are in
  * design/icons.tsx, so they load with that stage rather than with the app.
  */
-import { Circle, CircleCheck, CircleHelp, ImageUp, LibraryBig, MessageSquareText, Pencil, Settings, TriangleAlert, WandSparkles, type LucideProps } from 'lucide-react'
+import {
+  Circle,
+  CircleCheck,
+  CircleHelp,
+  ImageUp,
+  LibraryBig,
+  MessageSquareText,
+  PanelBottom,
+  PanelLeft,
+  Pencil,
+  Settings,
+  TriangleAlert,
+  WandSparkles,
+  type LucideProps,
+} from 'lucide-react'
 
 /** The props every icon gets: decorative (its button or link has the words), and sized
  *  by CSS (`.icon`) rather than by the set's 24 px default. */
@@ -28,6 +42,16 @@ export const FeedbackIcon = (props: LucideProps) => <MessageSquareText {...ICON}
 /** A chip's tick in the Work stage: an empty ring, and the ring ticked once it's done. */
 export const NotDoneIcon = (props: LucideProps) => <Circle {...ICON} {...props} />
 export const DoneIcon = (props: LucideProps) => <CircleCheck {...ICON} {...props} />
+
+/** The Work stage's button that hides and shows "This row", as browsers draw the one for
+ *  their sidebar: the list is beside the chart on a wide screen and under it on a phone,
+ *  so the button has both, and CSS shows the one that matches. */
+export const PanelIcon = () => (
+  <>
+    <PanelLeft {...ICON} className="icon icon--wide" />
+    <PanelBottom {...ICON} className="icon icon--narrow" />
+  </>
+)
 
 export const WarningIcon = (props: LucideProps) => <TriangleAlert {...ICON} {...props} />
 

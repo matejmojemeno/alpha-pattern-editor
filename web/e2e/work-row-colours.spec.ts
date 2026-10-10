@@ -1,6 +1,6 @@
 /**
- * "Show the colours in this row" off, in real Chromium: the "This row" list goes and the
- * chart takes its room, beside it on a computer and under it on a phone.
+ * The Work header's panel button, in real Chromium: the "This row" list slides shut and
+ * the chart takes its room, beside it on a computer and under it on a phone.
  */
 import { writeFileSync } from 'node:fs'
 
@@ -49,10 +49,10 @@ async function open(page: Page, file: string, p: Project) {
   await expect(page.locator('.work__row')).toHaveText(/^Row 1 of/)
 }
 
+/** Press the panel button and wait for the slide to end. */
 async function toggle(page: Page) {
-  await page.getByText('Options', { exact: true }).click()
-  await page.getByRole('switch', { name: 'Show the colours in this row' }).click()
-  await page.getByText('Options', { exact: true }).click()
+  await page.getByRole('button', { name: /^(Hide|Show) the colours in this row$/ }).click()
+  await page.waitForTimeout(400)
 }
 
 async function measure(page: Page) {
@@ -66,7 +66,8 @@ async function measure(page: Page) {
       cell: Number(sc.dataset.cell),
       chart: { left: chart.left, right: chart.right, top: chart.top, bottom: chart.bottom },
       body: { left: body.left, right: body.right, top: body.top, bottom: body.bottom },
-      chips: document.querySelector('.work__chips') !== null,
+      chips: getComputedStyle(document.querySelector('.work__chips')!).visibility === 'visible',
+      list: box('.work__chips'),
     }
   })
 }
@@ -78,7 +79,13 @@ test.describe('on a computer', () => {
     await open(page, testInfo.outputPath('wide.alpha'), project(30, 150))
     const before = await measure(page)
     expect(before.chips).toBe(true)
-    await toggle(page)
+    // It slides: partway through, the list is narrower than it was and not yet gone.
+    await page.getByRole('button', { name: 'Hide the colours in this row' }).click()
+    await page.waitForTimeout(100)
+    const mid = await page.evaluate(() => document.querySelector('.work__chips')!.getBoundingClientRect().width)
+    expect(mid).toBeGreaterThan(10)
+    expect(mid).toBeLessThan(before.list.width - 10)
+    await page.waitForTimeout(300)
     const after = await measure(page)
     expect(after.chips).toBe(false)
     await expect(page.getByRole('region', { name: 'This row' })).toHaveCount(0)
@@ -88,6 +95,12 @@ test.describe('on a computer', () => {
     // 150 stitches across, sized by the width: 20rem more of it makes them bigger.
     expect(after.cell).toBeGreaterThan(before.cell)
     testInfo.annotations.push({ type: 'cell', description: `${before.cell} → ${after.cell} px` })
+    // Shut, nothing in it can be reached with Tab.
+    await page.getByRole('button', { name: 'Show the colours in this row' }).focus()
+    for (let i = 0; i < 6; i++) {
+      await page.keyboard.press('Tab')
+      expect(await page.evaluate(() => document.activeElement?.closest('.work__chips') ?? null)).toBeNull()
+    }
     // Kept for every pattern, and back on again.
     await page.reload()
     await expect(page.locator('.work__row')).toHaveText(/^Row 1 of/)

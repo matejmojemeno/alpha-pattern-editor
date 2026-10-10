@@ -5,7 +5,7 @@
  * next to the yarn. Every progress change goes through logic/work.ts; nothing here edits
  * the pattern's cells (§13.7).
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { AutoSaver, type SaveStatus } from '../../app/autosave.ts'
 import { useSettings } from '../../app/context.ts'
@@ -36,6 +36,7 @@ import type { ProjectRepo } from '../../storage/repo.ts'
 import { ConfirmDialog, HelpLink, ProgressBar, RenameForm } from '../components.tsx'
 import { useDocumentTitle } from '../hooks.ts'
 import { ProjectGate } from '../ProjectGate.tsx'
+import { PanelIcon } from '../icons.tsx'
 import { ChartView } from '../work/ChartView.tsx'
 import { Chips } from '../work/Chips.tsx'
 import { OptionsMenu } from '../work/OptionsMenu.tsx'
@@ -60,6 +61,10 @@ const activates = (target: EventTarget | null) =>
 
 function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
   const [settings, setSettings] = useSettings()
+  // "This row" shown beside (or under) the chart; the header's panel button and Settings
+  // both set it.
+  const shown = settings.showRowColours
+  const chipsId = useId()
   const [project, setProject] = useState<Project>(() => ({
     ...initial,
     // Made sound first: a structural edit (or a file from elsewhere) can leave progress
@@ -269,12 +274,12 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
   // you're on at the top, with a little of the one before it showing, so the ones still
   // to do are in view; a new row starts at the top of the list. Only the list moves, and
   // only when it's longer than its space. A scroll by hand stays until the next change.
-  // Switched off and on again, the list comes back already at your place.
+  // Hidden and shown again, the list comes back already at your place.
   const chipsBox = useRef<HTMLElement>(null)
   const chipsPlaced = useRef(false)
   useLayoutEffect(() => {
     const box = chipsBox.current
-    if (!box) {
+    if (!box || !shown) {
       chipsPlaced.current = false
       return
     }
@@ -292,7 +297,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
       else box.scrollTop = top
     }
     chipsPlaced.current = true
-  }, [pr, settings.showRowColours])
+  }, [pr, shown])
 
   const openRun = segment === null ? undefined : runs[segment]
   const arrow = cur !== null && rowDirection(p, cur) === 'LTR' ? '→' : '←'
@@ -303,6 +308,17 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
         <a className="topbar__home" href={href(paths.library)}>
           <span aria-hidden="true">←</span> Library
         </a>
+        <button
+          type="button"
+          className="work__panel"
+          aria-controls={chipsId}
+          aria-expanded={shown}
+          aria-label={shown ? 'Hide the colours in this row' : 'Show the colours in this row'}
+          title={shown ? 'Hide the colours in this row' : 'Show the colours in this row'}
+          onClick={() => setSettings({ showRowColours: !shown })}
+        >
+          <PanelIcon />
+        </button>
         {renaming ? (
           <RenameForm
             className="rename work__rename"
@@ -366,33 +382,39 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
       </section>
 
       <div
-        className={['work__body', settings.focusMode && 'work__body--focus', !settings.showRowColours && 'work__body--chart'].filter(Boolean).join(' ')}
+        className={['work__body', settings.focusMode && 'work__body--focus', !shown && 'work__body--chart'].filter(Boolean).join(' ')}
       >
-        {settings.showRowColours && (
-          <section ref={chipsBox} className="work__chips" aria-label="This row">
-            <h2 className="work__label">This row</h2>
-            {done ? (
-              <p className="muted">Every row is done.</p>
-            ) : (
-              <Chips
-                pattern={p}
-                runs={runs}
-                cursor={pr.current_run_index}
-                stitches={pr.current_run_stitches}
-                carries={runCarries}
-                onChip={setSegment}
-                onTick={tick}
-              />
-            )}
-            {!settings.focusMode && !done && cur !== null && (
-              <p className="work__next muted">
-                {nextRow === null
-                  ? 'Next: this is the last row.'
-                  : `Next: Row ${workingNumber(p, nextRow)}: ${formatRowText(p, nextRow)}`}
-              </p>
-            )}
-          </section>
-        )}
+        {/* Hidden, it stays on the page and slides shut (app.css), out of reach: inert. */}
+        <section
+          ref={chipsBox}
+          id={chipsId}
+          className="work__chips"
+          aria-label="This row"
+          inert={!shown}
+          aria-hidden={!shown || undefined}
+        >
+          <h2 className="work__label">This row</h2>
+          {done ? (
+            <p className="muted">Every row is done.</p>
+          ) : (
+            <Chips
+              pattern={p}
+              runs={runs}
+              cursor={pr.current_run_index}
+              stitches={pr.current_run_stitches}
+              carries={runCarries}
+              onChip={setSegment}
+              onTick={tick}
+            />
+          )}
+          {!settings.focusMode && !done && cur !== null && (
+            <p className="work__next muted">
+              {nextRow === null
+                ? 'Next: this is the last row.'
+                : `Next: Row ${workingNumber(p, nextRow)}: ${formatRowText(p, nextRow)}`}
+            </p>
+          )}
+        </section>
         <ChartView
           pattern={p}
           completed={completed}

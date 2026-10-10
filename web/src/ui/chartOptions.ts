@@ -1,7 +1,8 @@
 /**
  * The Work chart's display switches, worded once for both places they're set: the Work
  * stage's Options ("Chart", with the short `hint`) and the Settings screen (with `help`).
- * In the order both show them.
+ * In the order both show them. "Show the colours in this row" is in Settings only: in the
+ * Work stage it's the panel button in the header.
  */
 import type { Settings } from '../settings/store.ts'
 
@@ -21,7 +22,7 @@ export const CHART_OPTIONS: readonly { key: ChartSwitch; label: string; hint: st
     key: 'showRowColours',
     label: 'Show the colours in this row',
     hint: 'The list of the row’s colour blocks and their stitch counts. Off, the chart gets the room.',
-    help: 'Lists the row you are working beside the chart (under it on a phone): each block of one colour, with how many stitches it is, to tick off as you go. Switch it off to give a wide chart the whole width, and count from the stitch numbers or the chart itself. Tap a stitch in the row to mark your place up to it.',
+    help: 'Lists the row you are working beside the chart (under it on a phone): each block of one colour, with how many stitches it is, to tick off as you go. Switch it off to give a wide chart the whole width, and count from the stitch numbers or the chart itself. In the Work stage the panel button at the top, beside Library, does the same.',
   },
   {
     key: 'showCarries',

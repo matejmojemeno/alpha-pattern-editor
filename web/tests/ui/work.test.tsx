@@ -430,26 +430,32 @@ describe('options', () => {
     expect(settings.get().stitchNumbers).toBe(true)
   })
 
-  it('hides the colours in this row when turned off in Options, leaving the chart, app-wide', async () => {
+  it('hides the colours in this row with the panel button, leaving the chart, app-wide', async () => {
     const { settings } = await openWork('basic.alpha')
-    expect(screen.getByRole('region', { name: 'This row' })).toBeTruthy()
+    const region = screen.getByRole('region', { name: 'This row' })
     expect(screen.getByText(/^Next: Row 2/)).toBeTruthy()
-    const box = screen.getByLabelText<HTMLInputElement>('Show the colours in this row')
-    expect(box.checked).toBe(true)
-    await userEvent.click(box)
+    // Not in Options: the button is right there.
+    expect(screen.queryByRole('switch', { name: 'Show the colours in this row' })).toBeNull()
+    const hide = screen.getByRole('button', { name: 'Hide the colours in this row' })
+    expect(hide.getAttribute('aria-expanded')).toBe('true')
+    expect(hide.getAttribute('aria-controls')).toBe(region.id)
+    await userEvent.click(hide)
     expect(settings.get().showRowColours).toBe(false)
+    // Still on the page, to slide shut, but out of reach and unread.
+    expect(region.hasAttribute('inert')).toBe(true)
     expect(screen.queryByRole('region', { name: 'This row' })).toBeNull()
-    expect(document.querySelector('.chip')).toBeNull()
-    expect(screen.queryByText(/^Next:/)).toBeNull()
+    expect(screen.queryAllByRole('button', { name: /Record progress/ })).toEqual([])
     expect(document.querySelector('.work__body')!.classList.contains('work__body--chart')).toBe(true)
-    expect(document.querySelector('.work__body .chart')).toBeTruthy()
+    const show = screen.getByRole('button', { name: 'Show the colours in this row' })
+    expect(show.getAttribute('aria-expanded')).toBe('false')
     // The row is still worked from the bar.
     await userEvent.click(screen.getByRole('button', { name: /Row complete/ }))
     expect(document.querySelector('.work__row')!.textContent).toMatch(/^Row 2 /)
     // And back.
-    await userEvent.click(box)
+    await userEvent.click(show)
     expect(settings.get().showRowColours).toBe(true)
-    expect(screen.getByRole('region', { name: 'This row' })).toBeTruthy()
+    expect(region.hasAttribute('inert')).toBe(false)
+    expect(screen.getByRole('region', { name: 'This row' })).toBe(region)
     expect(screen.getByText(/^Next: Row 3/)).toBeTruthy()
   })
 
