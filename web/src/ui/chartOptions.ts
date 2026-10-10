@@ -5,7 +5,10 @@
  */
 import type { Settings } from '../settings/store.ts'
 
-export type ChartSwitch = Extract<keyof Settings, 'stitchNumbers' | 'showCarries' | 'emphasiseRows' | 'focusMode'>
+export type ChartSwitch = Extract<
+  keyof Settings,
+  'stitchNumbers' | 'showRowColours' | 'showCarries' | 'emphasiseRows' | 'focusMode'
+>
 
 export const CHART_OPTIONS: readonly { key: ChartSwitch; label: string; hint: string; help: string }[] = [
   {
@@ -13,6 +16,12 @@ export const CHART_OPTIONS: readonly { key: ChartSwitch; label: string; hint: st
     label: 'Number the stitches',
     hint: 'Counts from 1 in each block of one colour.',
     help: 'Writes on each stitch of the Work chart which one it is in its block of one colour, counted the way you work the row, so you can keep count as you go. Stitches too small to hold a number stay plain; zoom in to see them.',
+  },
+  {
+    key: 'showRowColours',
+    label: 'Show the colours in this row',
+    hint: 'The list of the row’s colour blocks and their stitch counts. Off, the chart gets the room.',
+    help: 'Lists the row you are working beside the chart (under it on a phone): each block of one colour, with how many stitches it is, to tick off as you go. Switch it off to give a wide chart the whole width, and count from the stitch numbers or the chart itself. Tap a stitch in the row to mark your place up to it.',
   },
   {
     key: 'showCarries',
