@@ -225,12 +225,12 @@ describe('structural edits with Work-stage progress on the pattern', () => {
     } else {
       expect(screen.queryByRole('alertdialog')).toBeNull()
     }
-    expect(stats()).toMatch(new RegExp(`^${op.size[0]} cols × ${op.size[1]} rows`))
+    expect(stats()).toMatch(new RegExp(`^${op.size[0]} × ${op.size[1]} `))
     // One undo step, whatever it was.
     fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true })
     expect(stats()).toBe(before)
     fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true, shiftKey: true })
-    expect(stats()).toMatch(new RegExp(`^${op.size[0]} cols × ${op.size[1]} rows`))
+    expect(stats()).toMatch(new RegExp(`^${op.size[0]} × ${op.size[1]} `))
 
     // Back to Work: it opens, on a sound place.
     await user.click(screen.getByRole('button', { name: 'Start working →' }))
@@ -281,7 +281,7 @@ describe('rotating a quarter turn', () => {
 
     await user.click(screen.getByRole('button', { name: 'Rotate 90° clockwise' }))
     expect(screen.queryByRole('alertdialog')).toBeNull()
-    expect(stats()).toMatch(/^5 cols × 12 rows/)
+    expect(stats()).toMatch(/^5 × 12 /)
     expect(message()).toBe('Rotated 90° clockwise: now 5 × 12.')
     let q = (await saved(repo, p.id)).pattern
     // Clockwise: the top-left cell goes to the top right, the bottom-left to the top left.
@@ -296,7 +296,7 @@ describe('rotating a quarter turn', () => {
     expect([...q.cells]).toEqual([...p.cells])
 
     await user.click(screen.getByRole('button', { name: 'Rotate 90° anticlockwise' }))
-    expect(stats()).toMatch(/^5 cols × 12 rows/)
+    expect(stats()).toMatch(/^5 × 12 /)
     expect(message()).toBe('Rotated 90° anticlockwise: now 5 × 12.')
     q = (await saved(repo, p.id)).pattern
     // Anticlockwise: the top-left cell goes to the bottom left, the bottom-left to the bottom right.
@@ -308,7 +308,7 @@ describe('rotating a quarter turn', () => {
     q = (await saved(repo, p.id)).pattern
     expect([...q.cells]).toEqual([...p.cells])
     fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true })
-    expect(stats()).toMatch(/^5 cols × 12 rows/)
+    expect(stats()).toMatch(/^5 × 12 /)
     fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true })
     expect(stats()).toBe(before)
     expect((await saved(repo, p.id)).pattern.row_ids).toEqual(p.row_ids)
@@ -360,7 +360,7 @@ describe('rotating a quarter turn', () => {
 
     await user.click(screen.getByRole('button', { name: 'Rotate 90° anticlockwise' }))
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Rotate' }))
-    expect(stats()).toMatch(/^5 cols × 7 rows/)
+    expect(stats()).toMatch(/^5 × 7 /)
     got = await saved(repo, p.id)
     expect(got.progress.completed_row_ids.size).toBe(0)
 
@@ -399,7 +399,7 @@ describe('the structural panel', () => {
     await fill(user, 'Top', '-1')
     await user.click(screen.getByRole('button', { name: 'Apply' }))
     expect(screen.queryByRole('alertdialog')).toBeNull()
-    expect(stats()).toMatch(/^4 cols × 2 rows/)
+    expect(stats()).toMatch(/^4 × 2 /)
     expect(message()).toBe('Border applied: now 4 × 2.')
   })
 
@@ -437,7 +437,7 @@ describe('the structural panel', () => {
     await user.click(apply())
     const dialog = await screen.findByRole('alertdialog', { name: 'Remove part of the pattern?' })
     await user.click(within(dialog).getByRole('button', { name: 'Remove cells' }))
-    expect(stats()).toMatch(/^5 cols × 9 rows/)
+    expect(stats()).toMatch(/^5 × 9 /)
   })
 
   it('shows the size a scale gives, and warns past 999', async () => {
@@ -451,11 +451,11 @@ describe('the structural panel', () => {
     expect(screen.queryByRole('alert')).toBeNull()
     await user.selectOptions(screen.getByLabelText('Factor'), '10')
     expect(screen.getByText('Result: 1000 × 100')).toBeTruthy()
-    expect(screen.getByRole('alert').textContent).toMatch(/more than 999 on a side/)
+    expect(screen.getByRole('alert').textContent).toMatch(/Over 999 on a side/)
     // No progress: no question.
     await user.click(screen.getByRole('button', { name: 'Scale ×10' }))
     expect(screen.queryByRole('alertdialog')).toBeNull()
-    expect(stats()).toMatch(/^1000 cols × 100 rows/)
+    expect(stats()).toMatch(/^1000 × 100 /)
   })
 
   it('won’t delete the last row or column', async () => {
@@ -474,7 +474,7 @@ describe('the structural panel', () => {
       expect(item.title).toBe(why)
       fireEvent.keyDown(item, { key: 'Escape' })
     }
-    expect(stats()).toMatch(/^1 cols × 1 rows/)
+    expect(stats()).toMatch(/^1 × 1 /)
   })
 
   it('trims single-colour edges, or says there are none', async () => {
@@ -486,9 +486,9 @@ describe('the structural panel', () => {
     await section(user, 'Border & size')
     await fill(user, 'Top', '1')
     await user.click(screen.getByRole('button', { name: 'Apply' }))
-    expect(stats()).toMatch(/^9 cols × 7 rows/)
+    expect(stats()).toMatch(/^9 × 7 /)
     await user.click(screen.getByRole('button', { name: 'Trim edges' }))
-    expect(stats()).toMatch(/^7 cols × 5 rows/)
+    expect(stats()).toMatch(/^7 × 5 /)
   })
 })
 
@@ -507,13 +507,13 @@ describe('Add row and Add column', () => {
     const { repo, p } = await basic()
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: /^Add row/ }))
-    expect(message()).toMatch(/^Point at the chart where the new row goes, and click to add it. To delete a row, press its number./)
+    expect(message()).toMatch(/^Click where the new row goes. To delete a row, click its number./)
     const { sc } = chart()
 
     // Pointing previews it (the chart has a row more), without changing the pattern.
     fireEvent.pointerMove(sc, ev(onRow(2)))
     expect(shownRows()).toBe(6)
-    expect(stats()).toMatch(/^7 cols × 5 rows/)
+    expect(stats()).toMatch(/^7 × 5 /)
     // Over the numbers, or off the chart, nothing is previewed.
     fireEvent.pointerMove(sc, ev({ x: AXIS_LEFT / 2, y: onRow(2).y }))
     expect(shownRows()).toBe(5)
@@ -523,7 +523,7 @@ describe('Add row and Add column', () => {
 
     // Anywhere below the chart adds one at the end: bottom up, the new first row.
     click({ x: AXIS_LEFT + 500, y: AXIS_TOP + 900 })
-    expect(stats()).toMatch(/^7 cols × 6 rows/)
+    expect(stats()).toMatch(/^7 × 6 /)
     expect(message()).toBe('Added row 1: now 7 × 6.')
     // What was added is shown, not another one, until the pointer moves to another row.
     expect(shownRows()).toBe(6)
@@ -532,7 +532,7 @@ describe('Add row and Add column', () => {
 
     // One undo step.
     fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true })
-    expect(stats()).toMatch(/^7 cols × 5 rows/)
+    expect(stats()).toMatch(/^7 × 5 /)
     fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true, shiftKey: true })
     const q = (await saved(repo, p.id)).pattern
     expect(q.rows).toBe(6)
@@ -553,9 +553,9 @@ describe('Add row and Add column', () => {
     fireEvent.pointerDown(sc, ev(t(0)))
     expect(shownCols()).toBe(8)
     fireEvent.pointerMove(sc, ev(t(3)))
-    expect(stats()).toMatch(/^7 cols × 5 rows/)
+    expect(stats()).toMatch(/^7 × 5 /)
     fireEvent.pointerUp(sc, ev(t(3)))
-    expect(stats()).toMatch(/^8 cols × 5 rows/)
+    expect(stats()).toMatch(/^8 × 5 /)
     expect(message()).toBe('Added column 4: now 8 × 5.')
     const q = (await saved(repo, p.id)).pattern
     for (let r = 0; r < 5; r++) {

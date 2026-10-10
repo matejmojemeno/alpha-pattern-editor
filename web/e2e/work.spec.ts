@@ -61,7 +61,7 @@ test('work through rows, reload, export and re-import', async ({ page }, testInf
   for (let i = 0; i < 4; i++) {
     await openChip(page, i).click()
     const dialog = page.getByRole('dialog', { name: 'Record progress' })
-    await dialog.getByRole('button', { name: 'Mark segment complete' }).click()
+    await dialog.getByRole('button', { name: 'Mark as done' }).click()
     await expect(dialog).toBeHidden()
     if (i < 3) await expect(chips(page).nth(i)).toHaveClass(/chip--done/)
   }
@@ -72,7 +72,7 @@ test('work through rows, reload, export and re-import', async ({ page }, testInf
   const dialog = page.getByRole('dialog', { name: 'Record progress' })
   await expect(dialog.locator('.segment__head')).toHaveText('White2 stitches')
   await dialog.getByLabel('Stitches done').fill('1')
-  await dialog.getByRole('button', { name: 'Save progress' }).click()
+  await dialog.getByRole('button', { name: 'Save' }).click()
   await expect(chips(page).nth(2)).toHaveText('2 White1/2')
   await expect(page.getByText('Saved', { exact: true })).toBeVisible()
 
@@ -112,7 +112,7 @@ test('work through rows, reload, export and re-import', async ({ page }, testInf
   // ...and deleting and re-importing it brings the progress back.
   await card.getByRole('button', { name: `Delete “${basic.name}”` }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click()
-  await expect(page.getByText('No saved projects yet.')).toBeVisible()
+  await expect(page.getByText('No projects yet.')).toBeVisible()
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(exported)
   await card.getByRole('link').click()
   await expect(rowLabel(page)).toHaveText('Row 4 of 5 →')

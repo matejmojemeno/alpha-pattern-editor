@@ -22,46 +22,45 @@ describe('Landing screen', () => {
 
     const importTile = screen.getByRole('button', { name: /Import a chart/ })
     expect(importTile.className).toContain('drop-zone')
-    expect(importTile.textContent).toMatch(/\.alpha/)
-    expect(importTile.textContent).toMatch(/screenshot or photo of an alpha chart, or pixel art/)
-    expect(importTile.textContent).toMatch(/Drop it here, paste it, or click to choose a file/)
+    // One line under the title, and nothing else: what it takes, and how.
+    expect(importTile.textContent).toMatch(/Drop, paste or click to choose an image or \.alpha file/)
+    expect(importTile.querySelectorAll('.drop-zone__how--pointer').length).toBe(1)
     const accept = (screen.getByLabelText(pickerLabel) as HTMLInputElement).accept
     for (const t of ['.alpha', '.png', '.jpg', '.webp', 'image/jpeg']) expect(accept).toContain(t)
 
-    const design = screen.getByRole('button', { name: /Design pattern/ })
-    expect(design.textContent).toMatch(/blank grid/)
+    expect(screen.getByRole('button', { name: 'Design from scratch' })).toBeTruthy()
 
     expect(screen.getByRole('link', { name: /Library/ }).getAttribute('href')).toBe('#/library')
-    expect(screen.getByRole('link', { name: /Settings/ }).getAttribute('href')).toBe('#/settings')
+    expect(screen.getByRole('link', { name: 'Settings' }).getAttribute('href')).toBe('#/settings')
 
-    // No backend: feedback goes to the public repo's issues, in a new tab.
-    const feedback = screen.getByRole('link', { name: /Feedback/ })
+    // No backend: feedback goes to the public repo's issues, in a new tab, which its name says.
+    const feedback = screen.getByRole('link', { name: /^Feedback ?\(opens in a new tab\)$/ })
     expect(feedback.getAttribute('href')).toBe('https://github.com/matejmojemeno/alpha-pattern-editor/issues/new')
     expect(feedback.getAttribute('target')).toBe('_blank')
     expect(feedback.getAttribute('rel')).toContain('noopener')
 
     // Help opens the guide's first page, in a new tab so the app stays where it is.
-    const help = screen.getByRole('link', { name: /^Help/ })
+    const help = screen.getByRole('link', { name: /^Help ?\(opens in a new tab\)$/ })
     expect(help.getAttribute('href')).toBe(
       'https://github.com/matejmojemeno/alpha-pattern-editor/blob/main/docs/guide/index.md',
     )
     expect(help.getAttribute('target')).toBe('_blank')
     expect(help.getAttribute('rel')).toContain('noopener')
 
-    // What the app is for, as the README says it.
-    expect(screen.getByText(/Turn a photo of a crochet alpha chart into a pattern/)).toBeTruthy()
-    expect(screen.getByRole('link', { name: /Settings/ }).textContent).toMatch(/carry yarn/)
-
     // A photo is made into a pattern by asking for it, on its own tile.
-    const photo = screen.getByRole('link', { name: /Photo to pattern/ })
+    const photo = screen.getByRole('link', { name: 'Photo to pattern' })
     expect(photo.getAttribute('href')).toBe('#/photo')
-    expect(photo.textContent).toMatch(/any photo or drawing/)
+
+    // Each tile is its name alone (and a count or a new-tab arrow), and the header the
+    // app's name alone: no descriptions.
+    expect(document.querySelector('.tile__text')).toBeNull()
+    expect(document.querySelector('.landing__header p')).toBeNull()
 
     // Stacked beside the drop zone, the two ways to make a new pattern together.
     const tiles = within(screen.getByRole('list')).getAllByRole('listitem').map((li) => li.textContent)
-    expect(tiles.map((t) => /^(Photo to pattern|Library|Design pattern|Settings|Help|Feedback)/.exec(t ?? '')?.[1])).toEqual([
+    expect(tiles.map((t) => /^(Photo to pattern|Library|Design from scratch|Settings|Help|Feedback)/.exec(t ?? '')?.[1])).toEqual([
       'Photo to pattern',
-      'Design pattern',
+      'Design from scratch',
       'Library',
       'Settings',
       'Help',
@@ -83,8 +82,8 @@ describe('Landing screen', () => {
   it('designs a new pattern: size and colour, saved, then opened in the Design stage', async () => {
     const { repo } = await renderApp('#/')
     const user = userEvent.setup()
-    await waitFor(() => expect((screen.getByRole('button', { name: /Design pattern/ }) as HTMLButtonElement).disabled).toBe(false))
-    await user.click(screen.getByRole('button', { name: /Design pattern/ }))
+    await waitFor(() => expect((screen.getByRole('button', { name: 'Design from scratch' }) as HTMLButtonElement).disabled).toBe(false))
+    await user.click(screen.getByRole('button', { name: 'Design from scratch' }))
     const dialog = screen.getByRole('dialog', { name: 'New pattern' })
     expect(document.activeElement).toBe(within(dialog).getByLabelText('Name'))
 
@@ -105,7 +104,7 @@ describe('Landing screen', () => {
     await user.clear(name)
     await user.type(name, 'Bookmark')
     fireEvent.input(within(dialog).getByLabelText('Colour'), { target: { value: '#336699' } })
-    expect(dialog.textContent).toMatch(/84 stitches, 13 strings needed/)
+    expect(dialog.textContent).not.toMatch(/strings|1 to 999/)
     await user.click(create)
 
     await waitFor(() => expect(window.location.hash).toMatch(/^#\/design\/[0-9a-f]{32}$/))
@@ -119,8 +118,8 @@ describe('Landing screen', () => {
 
   it('cancels the new-pattern dialog without creating anything', async () => {
     const { repo } = await renderApp('#/')
-    await waitFor(() => expect((screen.getByRole('button', { name: /Design pattern/ }) as HTMLButtonElement).disabled).toBe(false))
-    await userEvent.click(screen.getByRole('button', { name: /Design pattern/ }))
+    await waitFor(() => expect((screen.getByRole('button', { name: 'Design from scratch' }) as HTMLButtonElement).disabled).toBe(false))
+    await userEvent.click(screen.getByRole('button', { name: 'Design from scratch' }))
     await userEvent.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(window.location.hash).toBe('#/')
@@ -129,26 +128,26 @@ describe('Landing screen', () => {
 
   it('counts the projects in the Library', async () => {
     const { repo } = await renderApp('#/')
-    expect(screen.getByRole('link', { name: /Library/ }).textContent).toMatch(/No projects yet/)
+    expect(screen.getByRole('link', { name: /Library/ }).textContent).not.toMatch(/[0-9]/)
     await repo.importFile(fixture('basic.alpha'))
     // Re-render from scratch, as returning to the screen would.
     await renderApp('#/', { repo })
-    expect(screen.getAllByRole('link', { name: /Library/ }).at(-1)!.textContent).toMatch(/1 project saved/)
+    expect(screen.getAllByRole('link', { name: /Library/ }).at(-1)!.textContent).toMatch(/, 1 project$/)
   })
 
   it('updates the count when projects change while it is showing', async () => {
     const { repo } = await renderApp('#/')
     const tile = () => screen.getByRole('link', { name: /Library/ }).textContent
-    expect(tile()).toMatch(/No projects yet/)
+    expect(tile()).not.toMatch(/[0-9]/)
     await act(async () => {
       await repo.importFile(fixture('basic.alpha'))
       await repo.importFile(fixture('unicode.alpha'))
     })
-    await waitFor(() => expect(tile()).toMatch(/2 projects saved/))
+    await waitFor(() => expect(tile()).toMatch(/, 2 projects$/))
     await act(async () => {
       await repo.delete(basicId())
     })
-    await waitFor(() => expect(tile()).toMatch(/1 project saved/))
+    await waitFor(() => expect(tile()).toMatch(/, 1 project$/))
   })
 
   it('imports a .alpha file through the picker and opens it', async () => {

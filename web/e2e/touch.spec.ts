@@ -47,7 +47,7 @@ async function black(page: Page): Promise<number> {
 
 async function newDesign(page: Page) {
   await page.goto('/')
-  await page.getByRole('button', { name: /Design pattern/ }).click()
+  await page.getByRole('button', { name: 'Design from scratch' }).click()
   const dialog = page.getByRole('dialog', { name: 'New pattern' })
   await dialog.getByLabel('Name').fill('Touchy')
   await dialog.getByLabel('Columns').fill('10')

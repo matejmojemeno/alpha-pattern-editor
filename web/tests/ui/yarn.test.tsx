@@ -116,7 +116,7 @@ describe('Yarn & size, in the Design stage', () => {
     // 5 m (4 g a metre) that is 8.25 m, and 2 balls by weight.
     await type('Weight (optional)', '500')
     expect(screen.queryByRole('textbox', { name: 'Yarn per stitch' })).toBeNull()
-    expect(screen.getByText(/By your swatch’s weight\./)).toBeTruthy()
+    expect(screen.getByText(/Counted from your swatch’s weight\./)).toBeTruthy()
     // Grams alone: no metres or balls until the ball's weight is known.
     expect(rows().slice(0, 2)).toEqual([
       ['Colour', 'Stitches', 'Grams'],
@@ -143,7 +143,7 @@ describe('Yarn & size, in the Design stage', () => {
     await type('Width', '10')
     expect(screen.queryByText(/to count carried yarn/)).toBeNull()
     expect(rows().slice(1).map((r) => r[3])).toEqual(['34', '34', '67'])
-    expect(screen.getByText(/and 10 stitches of carried yarn/)).toBeTruthy()
+    expect(screen.getByText(/with 10 stitches of carried yarn/)).toBeTruthy()
     // By weight it needs the ball's grams per metre.
     await userEvent.clear(field('Ball weight'))
     await userEvent.tab()

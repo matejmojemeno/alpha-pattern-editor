@@ -193,25 +193,19 @@ code {
 /* --- landing --------------------------------------------------------------------------- */
 
 .landing__header {
-  display: grid;
-  grid-template-columns: auto 1fr;
+  display: flex;
   align-items: center;
-  gap: 0.25rem 0.75rem;
+  gap: 0.75rem;
   margin: 1.5rem 0 2rem;
 }
 
 .landing__header .logo {
   width: 2.5rem;
   height: 2.5rem;
-  grid-row: span 2;
 }
 
 .landing__header h1 {
   font-size: 1.85rem;
-}
-
-.landing__header p {
-  margin: 0;
 }
 
 /* The drop zone on the left, the other ways in stacked beside it; one column on phones,
@@ -274,10 +268,6 @@ code {
   font-weight: 700;
 }
 
-.drop-zone__text {
-  max-width: 26rem;
-}
-
 .drop-zone__how {
   color: var(--muted);
 }
@@ -305,11 +295,11 @@ code {
   gap: 1rem;
 }
 
+/* A tile is its icon and its name, with a count or a new-tab arrow at the far end. */
 .tile {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-content: center;
-  gap: 0.35rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   width: 100%;
   height: 100%;
   min-height: 5rem;
@@ -327,7 +317,7 @@ code {
 .tile .icon {
   width: 1.75rem;
   height: 1.75rem;
-  grid-row: span 3;
+  flex: none;
   stroke-width: 1.75;
 }
 
@@ -350,9 +340,10 @@ code {
   font-weight: 600;
 }
 
-.tile__text {
-  font-size: var(--text-sm);
-  grid-column: 2;
+.tile__aside {
+  margin-left: auto;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .badge {
@@ -620,11 +611,6 @@ code {
   font-size: var(--text-sm);
 }
 
-.settings__note {
-  max-width: 40rem;
-  font-size: var(--text-sm);
-}
-
 .settings__about {
   max-width: 40rem;
   margin-top: 2rem;
@@ -763,22 +749,12 @@ code {
   border-top: 1px solid var(--border);
 }
 
-.options__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0 0.75rem;
-}
-
 .options__title {
   margin: 0;
   font-size: var(--text-name);
   font-weight: 700;
 }
 
-.options__note,
-.options__summary,
 .options__switch p {
   margin: 0;
   font-size: var(--text-sm);
@@ -1301,20 +1277,6 @@ code {
 
   .work__complete {
     flex: 0 1 18rem;
-  }
-}
-
-.work__hint {
-  flex: none;
-  margin: -0.25rem 0 0;
-  font-size: var(--text-sm);
-  text-align: center;
-}
-
-/* Touch screens have no keyboard to hint at. */
-@media (pointer: coarse) {
-  .work__hint {
-    display: none;
   }
 }
 

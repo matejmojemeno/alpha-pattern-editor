@@ -24,7 +24,7 @@ import {
   TopBar,
 } from '../components.tsx'
 import { useDocumentTitle, useFileDrop, usePastedImage, useProjects } from '../hooks.ts'
-import { NewPatternDialog } from '../NewPattern.tsx'
+import { DESIGN_FROM_SCRATCH, NewPatternDialog } from '../NewPattern.tsx'
 import { openImageImport, useAlphaImport, type Notice } from '../useAlphaImport.ts'
 import { StorageUnavailable } from './Landing.tsx'
 
@@ -97,10 +97,10 @@ export function Library() {
             onPreload={preloadDetection}
             disabled={!repo || busy}
           >
-            Import pattern…
+            Import…
           </ImportButton>
           <button type="button" className="button" onClick={() => setCreating(true)} disabled={!repo}>
-            Design pattern…
+            {DESIGN_FROM_SCRATCH}…
           </button>
         </TopBar>
       </div>
@@ -112,11 +112,7 @@ export function Library() {
         state.status !== 'error' && <p className="muted">Loading…</p>
       ) : projects.length === 0 ? (
         <div className="empty">
-          <p>No saved projects yet.</p>
-          <p className="muted">
-            Import a photo of a chart or a <code>.alpha</code> file with the button above, or drop or paste one
-            here. Or design a pattern of your own from a blank grid.
-          </p>
+          <p>No projects yet.</p>
         </div>
       ) : (
         <ul className="cards" aria-label="Projects">
@@ -133,9 +129,8 @@ export function Library() {
       )}
 
       <p className="storage-note">
-        Projects are saved in this browser only. Browsers can clear saved data, for example after a long time
-        without a visit, so use <strong>Export</strong> to keep a copy of anything you'd hate to lose, or to move it
-        to another device.
+        Projects are saved in this browser only, and browsers can clear them. <strong>Export</strong> anything you'd hate
+        to lose.
       </p>
 
       <DropOverlay show={drop.over} />
@@ -148,8 +143,8 @@ export function Library() {
           onCancel={() => setDeleting(null)}
         >
           <p>
-            Delete “{deleting.name}” from your library? This removes it from this browser and can't be undone.
-            {deleting.progress_pct > 0 && ' Export it first if you want to keep your progress.'}
+            “{deleting.name}” will be gone from this browser. This can't be undone.
+            {deleting.progress_pct > 0 && ' Export it first to keep your progress.'}
           </p>
         </ConfirmDialog>
       )}

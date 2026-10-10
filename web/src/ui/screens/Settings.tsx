@@ -19,30 +19,27 @@ export function Settings() {
   return (
     <main className="screen settings">
       <TopBar title="Settings" help="settings" />
-      <h2 className="settings__heading">Work chart</h2>
+      <h2 className="settings__heading">Work chart, for every pattern</h2>
       <form className="settings__list" onSubmit={(e) => e.preventDefault()}>
-        {CHART_OPTIONS.map(({ key, label, help }) => (
+        {CHART_OPTIONS.map(({ key, label, hint }) => (
           <div className="setting" key={key}>
             <input
               id={`${id}-${key}`}
               type="checkbox"
               role="switch"
               checked={settings[key]}
-              aria-describedby={`${id}-${key}-help`}
+              aria-describedby={hint ? `${id}-${key}-help` : undefined}
               onChange={(e) => set({ [key]: e.target.checked })}
             />
             <label htmlFor={`${id}-${key}`}>{label}</label>
-            <p id={`${id}-${key}-help`} className="muted">
-              {help}
-            </p>
+            {hint && (
+              <p id={`${id}-${key}-help`} className="muted">
+                {hint}
+              </p>
+            )}
           </div>
         ))}
       </form>
-      <p className="muted settings__note">
-        These are saved in this browser and apply to every project. You can also change them while you work, from
-        Options in the Work stage, under Chart. Which corner you start from, and whether rows go back and forth or in
-        the round, are saved with each pattern instead, under How you work it.
-      </p>
       <About />
     </main>
   )
@@ -54,7 +51,7 @@ function About() {
     <section className="settings__about" aria-labelledby="about-heading">
       <h2 id="about-heading">About</h2>
       <p>
-        Alpha Pattern Editor, version {APP_VERSION}
+        Version {APP_VERSION}
         {APP_COMMIT && (
           <>
             {' '}
@@ -65,13 +62,10 @@ function About() {
             )
           </>
         )}
-        .
-      </p>
-      <p>
+        {' · '}
         <a href={CHANGELOG_URL} target="_blank" rel="noopener noreferrer">
           What&rsquo;s new
-        </a>{' '}
-        lists the changes in each version. If you report a problem, say which version you are using.
+        </a>
       </p>
     </section>
   )

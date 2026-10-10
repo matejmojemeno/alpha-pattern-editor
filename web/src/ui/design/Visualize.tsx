@@ -143,7 +143,7 @@ export function Visualize({ pattern, onClose }: { pattern: Pattern; onClose: () 
         <span className="muted">
           {mine
             ? `From your swatch: ${settings.swatchStitches} stitches × ${settings.swatchRows} rows.`
-            : `Typical proportions, from ${stitch.gauges.length === 1 ? 'a published gauge' : `${stitch.gauges.length} published gauges`}; your yarn, hook and tension change them. The look of each stitch is drawn, not photographed.`}
+            : `From ${stitch.gauges.length === 1 ? 'a published gauge' : `${stitch.gauges.length} published gauges`}; your yarn, hook and tension change it.`}
         </span>
       </p>
     </Modal>

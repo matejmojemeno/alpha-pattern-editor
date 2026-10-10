@@ -69,7 +69,7 @@ async function dragThrough(page: Page, cells: [number, number][]) {
 async function newPattern(page: Page, name: string, inApp = false) {
   if (inApp) await page.getByRole('link', { name: /Library/ }).click()
   else await page.goto('/')
-  await page.getByRole('button', { name: /Design pattern/ }).click()
+  await page.getByRole('button', { name: 'Design from scratch' }).click()
   const dialog = page.getByRole('dialog', { name: 'New pattern' })
   await dialog.getByLabel('Name').fill(name)
   await dialog.getByLabel('Columns').fill(String(COLS))
@@ -248,7 +248,7 @@ test('Select object: a press on a shape picks it up without its background, and 
   await page.keyboard.press('w')
   await expect(page.getByRole('group', { name: 'Tool' }).getByRole('button', { name: /^Select object\s*W$/ })).toHaveAttribute('aria-pressed', 'true')
   await dragThrough(page, [[2, 3], [2, 5], [2, 6]])
-  await expect(page.locator('.design__message')).toHaveText('Selected a shape, 5 × 5, without its background. Drag it to move it.')
+  await expect(page.locator('.design__message')).toHaveText('Selected a shape, 5 × 5.')
   expect(await grid(page)).toEqual(['...B....', '....B...', '.....BBB', '.....B.B', 'R....BBB', '........'])
   await expect(selectionButton(page, 'Put background back')).toBeVisible()
 

@@ -127,19 +127,6 @@
   min-width: 2.25rem;
 }
 
-.zoom__label {
-  margin: 0.35rem 0 0;
-  font-size: var(--text-sm);
-}
-
-.design__current {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-  font-size: var(--text-sm);
-}
-
 /* --- the chart ------------------------------------------------------------------------------ */
 
 .design__canvas {
@@ -736,11 +723,6 @@
 .zoom {
   flex-wrap: wrap;
   align-items: center;
-}
-
-.design__tools .zoom__label {
-  flex-basis: 100%;
-  margin-top: 0.15rem;
 }
 
 .design--compact .design__body {

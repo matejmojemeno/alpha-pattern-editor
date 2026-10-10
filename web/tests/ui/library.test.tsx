@@ -23,7 +23,7 @@ describe('Library', () => {
   it('shows an empty state and the storage note', async () => {
     await renderApp('#/library')
     expect(screen.getByRole('heading', { level: 1, name: 'Your projects' })).toBeTruthy()
-    expect(screen.getByText('No saved projects yet.')).toBeTruthy()
+    expect(screen.getByText('No projects yet.')).toBeTruthy()
     expect(screen.getByText(/saved in this browser only/).textContent).toMatch(/Export/)
   })
 
@@ -75,7 +75,7 @@ describe('Library', () => {
 
   it('offers designing a new pattern', async () => {
     await withProjects('basic.alpha')
-    await userEvent.click(screen.getByRole('button', { name: 'Design pattern…' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Design from scratch…' }))
     expect(screen.getByRole('dialog', { name: 'New pattern' })).toBeTruthy()
   })
 
@@ -97,7 +97,7 @@ describe('Library', () => {
     await user.click(del)
     dialog = screen.getByRole('alertdialog')
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
-    await waitFor(() => expect(screen.getByText('No saved projects yet.')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText('No projects yet.')).toBeTruthy())
     expect(await repo.list()).toEqual([])
     expect(screen.getByRole('status').textContent).toMatch(/Deleted “basic”/)
   })
@@ -126,7 +126,7 @@ describe('Library', () => {
 
   it('sends a chart image to the import screen, and preloads detection on hover', async () => {
     await renderApp('#/library')
-    const button = screen.getByRole('button', { name: 'Import pattern…' })
+    const button = screen.getByRole('button', { name: 'Import…' })
     fireEvent.pointerEnter(button)
     expect(detection.preload).toHaveBeenCalled()
     const photo = new File([new Uint8Array([1])], 'rose.jpeg', { type: 'image/jpeg' })
