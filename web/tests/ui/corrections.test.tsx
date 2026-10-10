@@ -119,7 +119,7 @@ describe('what the screen shows', () => {
     worker.auto = (msg) =>
       msg.type === 'open' ? makePreview(1, 3, 4, { imageWidth: 4000, imageHeight: 3000, detectedWidth: 2000, detectedHeight: 1500 }) : auto(msg)
     await openImport(worker)
-    expect(document.querySelector('.check')).toBeNull()
+    expect(document.querySelector('.import-note')).toBeNull()
     expect(screen.queryByText(/Reduced from|shrunk/)).toBeNull()
   })
 
@@ -318,19 +318,19 @@ describe('moving the outline', () => {
   it('recomputes the warnings with every preview', async () => {
     const missing = '2 squares match none of the colours'
     await openFound((p) => ({ ...echo(p), warnings: p.rows === 3 ? [missing] : [] }))
-    expect(document.querySelector('.check')).toBeNull()
+    expect(document.querySelector('.import-note')).toBeNull()
     screen.getByRole('slider', { name: 'Top edge of the grid' }).focus()
     await userEvent.keyboard('{ArrowUp}')
     expect(await screen.findByText(missing)).toBeTruthy()
     await userEvent.keyboard('{ArrowDown}')
-    await waitFor(() => expect(document.querySelector('.check')).toBeNull())
+    await waitFor(() => expect(document.querySelector('.import-note')).toBeNull())
   })
 
   it('puts the note away with its ×, until it has something else to say', async () => {
     const faint = 'The grid lines are faint'
     const missing = '2 squares match none of the colours'
     await openFound((p) => ({ ...echo(p), warnings: p.rows === 3 ? [faint, missing] : [faint] }))
-    const note = () => document.querySelector('.check')?.textContent ?? null
+    const note = () => document.querySelector('.import-note')?.textContent ?? null
     const top = screen.getByRole('slider', { name: 'Top edge of the grid' })
     top.focus()
     await userEvent.keyboard('{ArrowDown}')

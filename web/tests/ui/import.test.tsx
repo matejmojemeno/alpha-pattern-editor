@@ -91,7 +91,7 @@ describe('Import screen', () => {
       'White, #ffffff, 6 stitches',
       'Brown, #8b4513, 6 stitches',
     ])
-    expect(document.querySelector('.check')?.textContent).toBe('Check it against your imageCheck the dimensions.')
+    expect(document.querySelector('.import-note')?.textContent).toBe('Check it against your imageCheck the dimensions.')
     expect(nameField()).toMatchObject({ value: '', placeholder: 'Untitled pattern' })
     expect(screen.getByText('Pattern name').tagName).toBe('LABEL')
   })
@@ -393,7 +393,7 @@ function readingWorker(first: 'chart' | 'pixels', { sure = true, photoLike = fal
   return w
 }
 
-const noteText = () => document.querySelector('.check')?.textContent ?? null
+const noteText = () => document.querySelector('.import-note')?.textContent ?? null
 
 /** Open the import screen with every box 400×300 (jsdom measures everything as 0), so
  *  the image and its outline are drawn (as corrections.test.tsx does). */
@@ -429,7 +429,7 @@ describe('Import a chart', () => {
     await openImport()
     await saveButton()
     expect(noteText()).toBe('Check it against your imageMany squares are hard to readOpen in Photo to pattern')
-    expect(document.querySelector('.check')!.hasAttribute('data-warning')).toBe(true)
+    expect(document.querySelector('.import-note')!.hasAttribute('data-warning')).toBe(true)
     await userEvent.type(nameField(), 'Bunny')
     await userEvent.click(screen.getByRole('button', { name: 'Open in Photo to pattern' }))
     await screen.findByRole('heading', { level: 1, name: 'Photo to pattern' })
@@ -448,7 +448,7 @@ describe('Import a chart', () => {
     await saveButton()
     expect(sizeShown()).toBe('4 columns × 3 rows')
     expect(noteText()).toBe('Looks like a photo, not a chartOpen in Photo to pattern')
-    expect(document.querySelector('.check')!.hasAttribute('data-warning')).toBe(false)
+    expect(document.querySelector('.import-note')!.hasAttribute('data-warning')).toBe(false)
     await userEvent.click(screen.getByRole('button', { name: 'Open in Photo to pattern' }))
     await screen.findByRole('heading', { level: 1, name: 'Photo to pattern' })
   })
@@ -479,7 +479,7 @@ describe('Import a chart', () => {
     detection.reset(readingWorker('pixels'))
     await openLaidOut()
     expect(noteText()).toBe('Read as pixel art: each block is one stitch')
-    expect(within(document.querySelector('.check') as HTMLElement).queryByRole('button', { name: /Photo to pattern/ })).toBeNull()
+    expect(within(document.querySelector('.import-note') as HTMLElement).queryByRole('button', { name: /Photo to pattern/ })).toBeNull()
     // Exact: no outline to move (a chart's has four edges, above), no picture settings.
     expect(screen.getByTestId('grid-overlay')).toBeTruthy()
     expect(edgeHandles()).toHaveLength(0)

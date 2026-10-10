@@ -366,10 +366,12 @@
 /* One short boxed line: icon, title, the reasons after it, then "Open in Photo to pattern"
    as a real button and × to put it away. A warning is tinted and edged in --warn; a note
    (pixel art, a photo-like grid) only edged. The text stays --text: the colour is in the
-   edge and the icon, so a long reason stays readable. Outside the size container, so it
-   takes its height from the stages. */
-.check {
+   edge and the icon, so a long reason stays readable. As wide as what it says, not the
+   page. Outside the size container, so it takes its height from the stages. */
+.import-note {
   display: flex;
+  align-self: flex-start;
+  max-width: 100%;
   align-items: center;
   gap: 0.6rem;
   padding: 0.3rem 0.3rem 0.3rem 0.75rem;
@@ -378,40 +380,40 @@
   font-size: var(--text-sm);
 }
 
-.check[data-warning] {
+.import-note[data-warning] {
   border-color: color-mix(in srgb, var(--warn) 55%, var(--border));
   background: color-mix(in srgb, var(--warn) 8%, var(--bg));
 }
 
-.check > .icon {
+.import-note > .icon {
   flex: none;
   color: var(--muted);
 }
 
-.check[data-warning] > .icon {
+.import-note[data-warning] > .icon {
   color: var(--warn);
 }
 
-.check__text {
+.import-note__text {
   flex: 1;
   min-width: 0;
   margin: 0;
 }
 
-.check__reason {
+.import-note__reason {
   color: var(--muted);
 }
 
 /* "Title · reason · reason". */
-.check__reason::before {
+.import-note__reason::before {
   content: ' · ';
 }
 
-.check__photo {
+.import-note__photo {
   flex: none;
 }
 
-.check__hide {
+.import-note__hide {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -426,27 +428,27 @@
   cursor: pointer;
 }
 
-.check__hide:hover {
+.import-note__hide:hover {
   background: var(--raised);
   color: var(--text);
 }
 
 /* A phone: the button drops under the words, the × stays in the corner. */
 @media (max-width: 40rem) {
-  .check {
+  .import-note {
     flex-wrap: wrap;
     align-items: flex-start;
   }
 
-  .check > .icon {
+  .import-note > .icon {
     margin-top: 0.15rem;
   }
 
-  .check__text {
+  .import-note__text {
     flex-basis: calc(100% - 5rem);
   }
 
-  .check__photo {
+  .import-note__photo {
     order: 1;
     margin-left: 1.6rem;
   }

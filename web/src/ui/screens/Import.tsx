@@ -671,23 +671,23 @@ function Check({
   if (said === hidden) return null
   const Icon = note.warning ? WarningIcon : InfoIcon
   return (
-    <div className="check" data-warning={note.warning || undefined} role="status">
+    <div className="import-note" data-warning={note.warning || undefined} role="status">
       <Icon />
-      <p className="check__text">
+      <p className="import-note__text">
         <strong>{note.title}</strong>
         {note.reasons.map((r) => (
-          <span key={r} className="check__reason">
+          <span key={r} className="import-note__reason">
             {r}
           </span>
         ))}
       </p>
       {note.offerPhoto && (
-        <button type="button" className="button button--small check__photo" disabled={disabled} onClick={onPhoto}>
+        <button type="button" className="button button--small import-note__photo" disabled={disabled} onClick={onPhoto}>
           <PhotoIcon />
           Open in {PHOTO_TO_PATTERN}
         </button>
       )}
-      <button type="button" className="check__hide" aria-label="Hide this note" title="Hide" onClick={() => onHide(said)}>
+      <button type="button" className="import-note__hide" aria-label="Hide this note" title="Hide" onClick={() => onHide(said)}>
         <CloseIcon />
       </button>
     </div>

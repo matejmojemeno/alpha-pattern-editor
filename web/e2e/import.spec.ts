@@ -168,7 +168,7 @@ test('Import a chart never converts a photo; Photo to pattern does, exactly as t
   await expect(page.getByRole('heading', { level: 1, name: 'Photo to pattern' })).toBeVisible()
   const settings = page.getByRole('group', { name: 'Picture settings' })
   await expect(settings).toContainText('60 stitches', { timeout: DETECT_TIMEOUT })
-  await expect(page.locator('.check')).toHaveCount(0)
+  await expect(page.locator('.import-note')).toHaveCount(0)
   await expect(page.locator('.confirm__stats')).toHaveText(`${want.cols} columns × ${want.rows} rows`)
   await saveAs(page, 'Gradient')
 
@@ -199,7 +199,7 @@ test('a chart is read with nothing more to say; given to Photo to pattern, it is
   const want = desktopDetect(file)
   const { save } = await importImage(page, file)
   await expect(save).toBeEnabled()
-  await expect(page.locator('.check')).toHaveCount(0)
+  await expect(page.locator('.import-note')).toHaveCount(0)
   await expect(page.locator('.confirm__stats')).toHaveText(`${want.cols} columns × ${want.rows} rows`)
   await saveAs(page, 'Read')
   const read = readAlpha(new Uint8Array(readFileSync(await exportFromLibrary(page, testInfo, 'Read')))).project.pattern
@@ -277,7 +277,12 @@ test('pixel art without gridlines is read block by block, exactly', async ({ pag
 
   const { save } = await importImage(page, file)
   await expect(save).toBeEnabled()
-  await expect(page.locator('.check')).toHaveText('Read as pixel art: each block is one stitch')
+  const note = page.locator('.import-note')
+  await expect(note).toHaveText('Read as pixel art: each block is one stitch')
+  // Only its button and × are clickable, and it's as wide as what it says, not the page
+  // (it once shared `.check` with the checkbox labels, which made it all a pointer).
+  expect(await note.evaluate((el) => getComputedStyle(el).cursor)).toBe('auto')
+  expect((await note.boundingBox())!.width).toBeLessThan((await page.locator('.confirm').boundingBox())!.width / 2)
   await expect(page.locator('.confirm__stats')).toHaveText(`${cols} columns × ${rows} rows`)
   await expect(page.getByRole('slider', { name: /edge of the grid/ })).toHaveCount(0)
   await saveAs(page, 'Sprite')
