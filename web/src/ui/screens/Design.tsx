@@ -40,6 +40,7 @@ import {
   deselect,
   fillSelection,
   initialEditor,
+  mergeColour,
   nudge,
   paste,
   pointerDown,
@@ -83,6 +84,7 @@ import {
   majorBorderIndex,
   mirrorH,
   mirrorV,
+  nearestEntryId,
   rotate90,
   samePattern,
   scale,
@@ -668,6 +670,19 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
     )
   }
 
+  const onMerge = (i: number, into: number) => {
+    const before = latest.current.pattern
+    const gone = before.palette[i]
+    const target = before.palette[into]
+    update((s) => mergeColour(s, i, into))
+    if (!gone || !target || latest.current.pattern === before) return
+    setMessage(
+      gone.count
+        ? `Merged “${gone.name}” into “${target.name}”: its ${gone.count} cell${gone.count === 1 ? ' is' : 's are'} now “${target.name}”.`
+        : `Merged “${gone.name}” into “${target.name}”.`,
+    )
+  }
+
   const d = editor.drag
   const rectPreview = d?.tool === 'rect' ? { a: d.start, b: d.end, hex: p.palette[editor.colour]?.hex ?? '#000000' } : null
   // As shown: a colour being chosen in its menu shows in "Painting with" too.
@@ -820,6 +835,8 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       onAdd={(hex, name) => update((s) => addColour(s, hex, name))}
       onEdit={(i, hex, name) => update((s) => editColour(s, i, hex, name))}
       onDelete={onDelete}
+      onMerge={onMerge}
+      nearest={(i) => p.palette.findIndex((e) => e.id === nearestEntryId(p, p.palette[i]!.id))}
       onPreview={setColourPreview}
     />
   )

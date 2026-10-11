@@ -13,6 +13,7 @@ import {
   editColour,
   initialEditor,
   lineCells,
+  mergeColour,
   pointerDown,
   pointerMove,
   pointerUp,
@@ -225,6 +226,29 @@ describe('colours', () => {
     expect(deleteColour(s, 0)).toBe(s)
     s = undo(s)
     expect(s.pattern.palette).toHaveLength(2)
+  })
+
+  it('mergeColour folds a colour into the chosen one, as one undo step', () => {
+    let s = drag(selectColour(start(), 2), [at(0, 0), at(0, 1)])
+    s = drag(selectColour(s, 1), [at(1, 0)])
+    s = selectColour(s, 2)
+    const before = s.pattern
+    // Red into the background (white), not the nearest (black, which a delete would take).
+    s = mergeColour(s, 2, 0)
+    expect(s.pattern.palette.map((e) => e.name)).toEqual(['Background', 'Black'])
+    expect(grid(s.pattern).slice(0, 2)).toEqual(['000000', '100000'])
+    expect(s.pattern.palette.map((e) => e.count)).toEqual([23, 1])
+    expect(s.colour).toBe(0) // the merged one's target
+    // Merging one before the current colour keeps the current colour selected.
+    s = selectColour(s, 1)
+    s = mergeColour(s, 0, 1)
+    expect(s.pattern.palette.map((e) => e.name)).toEqual(['Black'])
+    expect(s.colour).toBe(0)
+    // Into itself, or out of range, is no step.
+    expect(mergeColour(s, 0, 0)).toBe(s)
+    expect(mergeColour(s, 0, 5)).toBe(s)
+    s = undo(undo(s))
+    expect(s.pattern).toEqual(before)
   })
 
   it('undo keeps the current colour within the palette', () => {
