@@ -118,6 +118,11 @@ break without noticing.
 - <a id="outlines-switch"></a>**"Keep outlines" stays the user's switch.** Two measures of "has drawn outlines"
   failed on the corpus (photos scored as high as drawings); don't turn it on by itself
   without a measure that separates the pictures in `test_images/pictures/`.
+- <a id="picture-size-order"></a>**With a picture's proportions kept, the last of Width and Height moved wins.** The
+  client folds waiting changes into one request and `bridge.set_params` applies width
+  before height, whatever order they were made in; so a width change sends `height:
+  undefined` (and the reverse) to drop the other from the fold. Don't send both at once
+  while the shape is kept.
 - <a id="ink-ridge"></a>**Ink is a ridge that goes on.** Lightness alone takes the edges of dark areas (a red
   shield); a ridge alone takes their corners. Both tests are in `test_outlines.py`.
   "Goes on" must allow a pixel's drift and darker ink, or thin anti-aliased lines break.

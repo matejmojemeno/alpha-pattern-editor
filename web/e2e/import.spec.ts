@@ -194,6 +194,27 @@ test("a picture's width, colours and detail give what the Python gives", async (
   expect(cellsOf(saved)).toEqual(desktopCells(want))
 })
 
+test("a picture's height, kept in proportion or not, gives what the Python gives", async ({ page }, testInfo) => {
+  const file = pictureFile(testInfo)
+  const want = desktopPicture(file, ['height=24', 'keep=0', 'width=40'])
+
+  await importPhoto(page, file)
+  const settings = page.getByRole('group', { name: 'Picture settings' })
+  const keep = settings.getByRole('checkbox', { name: 'Keep proportions' })
+  await expect(keep).toBeChecked({ timeout: DETECT_TIMEOUT })
+  await settings.getByLabel('Height').fill('24')
+  await expect(page.locator('.confirm__stats')).toHaveText('32 columns × 24 rows', { timeout: DETECT_TIMEOUT })
+  await keep.uncheck()
+  await expect(keep).not.toBeChecked()
+  await settings.getByLabel('Width').fill('40')
+  await expect(page.locator('.confirm__stats')).toHaveText(`${want.cols} columns × ${want.rows} rows`, { timeout: DETECT_TIMEOUT })
+  expect([want.cols, want.rows]).toEqual([40, 24])
+  await saveAs(page, 'Stretched')
+
+  const saved = readAlpha(new Uint8Array(readFileSync(await exportFromLibrary(page, testInfo, 'Stretched')))).project.pattern
+  expect(cellsOf(saved)).toEqual(desktopCells(want))
+})
+
 test('a chart is read with nothing more to say; given to Photo to pattern, it is converted as the Python converts it', async ({ page }, testInfo) => {
   const file = resolve(IMAGES, 'dachshund.png')
   const want = desktopDetect(file)

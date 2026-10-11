@@ -63,7 +63,7 @@ import {
 import { decodeImage, ImageDecodeError, sourcePng } from '../../importer/decode.ts'
 import { hintFor, OUT_OF_MEMORY_HINT, TIMEOUT_HINT } from '../../importer/hints.ts'
 import type { Grid } from '../../importer/outline.ts'
-import { check, clampWidth, colourSteps, detailText, MIN_WIDTH, PHOTO_TO_PATTERN, sizeText, swatchAspect } from '../../importer/picture.ts'
+import { check, clampHeight, clampWidth, colourSteps, croppedRows, detailText, MIN_WIDTH, PHOTO_TO_PATTERN, sizeText, swatchAspect } from '../../importer/picture.ts'
 import type { Swatch } from '../../yarn/usage.ts'
 import { applyRemovals, mergeCandidate, type Removal } from '../../importer/removals.ts'
 import { emptyProgress } from '../../model/types.ts'
@@ -309,13 +309,14 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
   /** A picture's settings, while one is shown. */
   const picture: PictureSettings | null = (state.phase === 'result' && (shown ?? state.preview).picture) || null
 
-  /** Use `extent` of a picture, keeping its width in stitches; the rows follow (drawn
-   *  at once as the Python will count them, so the outline doesn't jump). */
+  /** Use `extent` of a picture, keeping its width in stitches; the rows follow, or stay
+   *  as set without Keep proportions (drawn at once as the Python will count them, so
+   *  the outline doesn't jump). */
   const cropPicture = (extent: Extent, p: PictureSettings) => {
     const w = extent.x1 - extent.x0
     const h = extent.y1 - extent.y0
     const cols = Math.min(p.width, Math.max(1, Math.floor(w)))
-    setOutline({ extent, cols, rows: Math.max(1, Math.round((cols * h) / Math.max(w, 1e-9) / p.cellAspect)) })
+    setOutline({ extent, cols, rows: croppedRows(cols, w, h, p) })
     setAdjusted(extent.x0 > 0 || extent.y0 > 0 || (size !== null && (extent.x1 < size.width || extent.y1 < size.height)))
     update({ extent, width: p.width })
   }
@@ -547,13 +548,19 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
             {picture && display && hasGrid && (
               <PictureControls
                 picture={picture}
-                rows={display.rows}
                 size={sizeText(picture.width, display.rows, swatch)}
                 disabled={busy}
-                onWidth={(width) => {
+                // With proportions kept, the last of width and height set is the one that
+                // counts: it drops the other from any change still waiting to be sent.
+                onWidth={(width, keep) => {
                   setOutline(null)
-                  update({ width: clampWidth(width, picture) })
+                  update({ width: clampWidth(width, picture), ...(keep ? { height: undefined } : {}) })
                 }}
+                onHeight={(height, keep) => {
+                  setOutline(null)
+                  update({ height: clampHeight(height, picture), ...(keep ? { width: undefined } : {}) })
+                }}
+                onKeepShape={(keepShape) => update({ keepShape, ...(keepShape ? { height: undefined } : {}) })}
                 onDetail={(detail) => update({ detail })}
                 onOutlines={(outlines) => update({ outlines })}
               />
@@ -692,23 +699,27 @@ function Check({
   )
 }
 
-/** A picture's width in stitches and how much detail it keeps, above the colour list.
- *  Each change is sent at once; the client folds a drag into a few resamples. */
+/** A picture's width and height in stitches, whether they keep its shape, and how much
+ *  detail it keeps, above the colour list. Each change is sent at once; the client folds
+ *  a drag into a few resamples. */
 function PictureControls({
   picture,
-  rows,
   size,
   disabled,
   onWidth,
+  onHeight,
+  onKeepShape,
   onDetail,
   onOutlines,
 }: {
   picture: PictureSettings
-  rows: number
   /** "about 38 × 28 cm", when the swatch is measured. */
   size: string | null
   disabled: boolean
-  onWidth: (width: number) => void
+  /** A width or height asked for, and whether Keep proportions is on as shown. */
+  onWidth: (width: number, keepShape: boolean) => void
+  onHeight: (height: number, keepShape: boolean) => void
+  onKeepShape: (on: boolean) => void
   onDetail: (detail: number) => void
   onOutlines: (on: boolean) => void
 }) {
@@ -716,13 +727,19 @@ function PictureControls({
   // A control shows the value asked for until the answer to it arrives, then the answer:
   // answers to earlier values of a drag don't pull it back.
   const [askedWidth, setAskedWidth] = useState<number | null>(null)
+  const [askedHeight, setAskedHeight] = useState<number | null>(null)
   const [askedDetail, setAskedDetail] = useState<number | null>(null)
+  const [askedKeep, setAskedKeep] = useState<boolean | null>(null)
   if (askedWidth !== null && picture.width === clampWidth(askedWidth, picture)) setAskedWidth(null)
+  if (askedHeight !== null && picture.height === clampHeight(askedHeight, picture)) setAskedHeight(null)
+  if (askedKeep !== null && picture.keepShape === askedKeep) setAskedKeep(null)
   if (askedDetail !== null && Math.abs(picture.detail - askedDetail) < 1e-9) setAskedDetail(null)
   const [askedOutlines, setAskedOutlines] = useState<boolean | null>(null)
   if (askedOutlines !== null && picture.outlines === askedOutlines) setAskedOutlines(null)
   const outlines = askedOutlines ?? picture.outlines
+  const keep = askedKeep ?? picture.keepShape
   const width = askedWidth ?? picture.width
+  const height = askedHeight ?? picture.height
   const detail = askedDetail ?? picture.detail
   const min = Math.min(MIN_WIDTH, picture.maxWidth)
   return (
@@ -747,13 +764,53 @@ function PictureControls({
         aria-valuetext={`${width} stitches across`}
         onChange={(e) => {
           const w = Number(e.target.value)
+          // With the shape kept, the height follows the width: its answer, not what was
+          // asked of it before.
+          if (keep) setAskedHeight(null)
           setAskedWidth(w)
-          onWidth(w)
+          onWidth(w, keep)
         }}
       />
-      <p className="picture-controls__note">
-        {width} × {rows} stitches{size ? `, ${size}` : ''}
-      </p>
+      <div className="picture-controls__row">
+        <label htmlFor={`${id}-height`} className="picture-controls__label">
+          Height
+        </label>
+        <output className="picture-controls__value" htmlFor={`${id}-height`}>
+          {height} rows
+        </output>
+      </div>
+      <input
+        id={`${id}-height`}
+        type="range"
+        className="picture-controls__slider"
+        min={picture.minHeight}
+        max={picture.maxHeight}
+        step={1}
+        value={height}
+        disabled={disabled}
+        aria-valuetext={`${height} rows`}
+        onChange={(e) => {
+          const h = Number(e.target.value)
+          if (keep) setAskedWidth(null)
+          setAskedHeight(h)
+          onHeight(h, keep)
+        }}
+      />
+      <label className="picture-controls__check">
+        <input
+          type="checkbox"
+          checked={keep}
+          disabled={disabled}
+          onChange={(e) => {
+            setAskedKeep(e.target.checked)
+            if (e.target.checked) setAskedHeight(null)
+            onKeepShape(e.target.checked)
+          }}
+        />
+        <span className="picture-controls__label">Keep proportions</span>
+      </label>
+      {/* The finished size, once the swatch gives it; the stitches are the sliders'. */}
+      {size && <p className="picture-controls__note">{size.charAt(0).toUpperCase() + size.slice(1)}</p>}
       <div className="picture-controls__row">
         <label htmlFor={`${id}-detail`} className="picture-controls__label">
           Detail

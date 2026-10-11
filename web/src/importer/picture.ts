@@ -95,6 +95,20 @@ export function clampWidth(width: number, p: PictureSettings): number {
   return Math.max(Math.min(MIN_WIDTH, p.maxWidth), Math.min(p.maxWidth, Math.round(width)))
 }
 
+/** A height typed or stepped to, within what the picture allows. */
+export function clampHeight(height: number, p: PictureSettings): number {
+  if (!Number.isFinite(height)) return p.height
+  return Math.max(p.minHeight, Math.min(p.maxHeight, Math.round(height)))
+}
+
+/** The rows of a picture cropped to `w` × `h` image pixels at `cols` stitches across, as
+ *  the Python will count them (convert.PictureState.rows): with the shape kept, the ones
+ *  that keep it; otherwise the height as set, at most one row per pixel. */
+export function croppedRows(cols: number, w: number, h: number, p: PictureSettings): number {
+  if (!p.keepShape) return Math.max(1, Math.min(p.height, Math.floor(h)))
+  return Math.max(1, Math.round((cols * h) / Math.max(w, 1e-9) / p.cellAspect))
+}
+
 /** The Detail slider's label for a value. */
 export function detailText(detail: number): string {
   if (detail <= 0.2) return 'Smoothest'

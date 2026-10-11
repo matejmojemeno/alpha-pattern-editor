@@ -128,6 +128,8 @@ def picture(path: str, *settings: str) -> dict:
     conversion with `settings` applied in order, each one of
 
         width=N  colours=N  detail=X  aspect=X   the picture's controls, and the stitch
+        height=N                                  rows (the width follows, kept in shape)
+        keep=0                                    "Keep proportions" off (keep=1 on)
         outlines=1                                "Keep outlines" on
         extent=x0,y0,x1,y1                        a crop, in image pixels (edges)
 
@@ -149,6 +151,10 @@ def picture(path: str, *settings: str) -> dict:
         op, _, arg = s.partition("=")
         if op == "width":
             state.set_width(int(arg))
+        elif op == "height":
+            state.set_height(int(arg))
+        elif op == "keep":
+            state.set_keep_shape(arg == "1")
         elif op == "colours":
             state.set_colours(int(arg))
         elif op == "detail":

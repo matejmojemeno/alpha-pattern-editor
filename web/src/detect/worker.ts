@@ -192,12 +192,14 @@ async function handle(req: Request): Promise<Outcome<Answers[Request['type']]>> 
           }),
         ) as never
       case 'update': {
-        const { rows, cols, extent, width, colours, detail, cellAspect, outlines } = req.params
+        const { rows, cols, extent, width, height, keepShape, colours, detail, cellAspect, outlines } = req.params
         const kwargs: Record<string, unknown> = {}
         if (rows !== undefined) kwargs.rows = rows
         if (cols !== undefined) kwargs.cols = cols
         if (extent !== undefined) kwargs.extent = toPy(extent)
         if (width !== undefined) kwargs.width = width
+        if (height !== undefined) kwargs.height = height
+        if (keepShape !== undefined) kwargs.keep_shape = keepShape
         if (colours !== undefined) kwargs.colours = colours
         if (detail !== undefined) kwargs.detail = detail
         if (cellAspect !== undefined) kwargs.cell_aspect = cellAspect

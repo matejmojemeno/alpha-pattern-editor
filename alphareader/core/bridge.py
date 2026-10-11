@@ -282,6 +282,10 @@ def _preview_payload(session_id: int, session: _Session) -> dict:
         payload["picture"] = {
             "width": int(ps.cols),
             "maxWidth": int(clamp_width(MAX_WIDTH, ps.extent)),
+            "height": int(ps.rows),
+            "minHeight": int(ps.height_range()[0]),
+            "maxHeight": int(ps.height_range()[1]),
+            "keepShape": bool(ps.keep_shape),
             "colours": int(ps.colours),
             "detail": float(ps.detail),
             "cellAspect": float(ps.cell_aspect),
@@ -409,14 +413,16 @@ def redetect(session: int, crop=None, delta_e: float | None = None) -> dict:
 def set_params(session: int, rows: int | None = None, cols: int | None = None,
                delta_e: float | None = None, extent=None, width: int | None = None,
                colours: int | None = None, detail: float | None = None,
-               cell_aspect: float | None = None, outlines: bool | None = None) -> dict:
+               cell_aspect: float | None = None, outlines: bool | None = None,
+               height: int | None = None, keep_shape: bool | None = None) -> dict:
     """Change the settings of the mode the session is in. Nothing is detected or resampled
     until `preview`. `extent` is a dict with x0, y0, x1, y1 in image pixels.
 
     A chart takes rows, cols, delta_e and extent. A picture takes extent (what of the
-    image is used), width (stitches across; `cols` means the same, and the rows follow),
-    colours, detail (0..1), cell_aspect and outlines ("Keep outlines", outlines.py); rows
-    and delta_e don't apply to it."""
+    image is used), keep_shape ("Keep proportions"), width (stitches across; `cols` means
+    the same) and height (rows; with the shape kept, each makes the other follow), colours,
+    detail (0..1), cell_aspect and outlines ("Keep outlines", outlines.py); rows and
+    delta_e don't apply to it. They're applied in that order."""
     s = _session(session)
     if isinstance(s, dict):
         return s
@@ -432,8 +438,12 @@ def set_params(session: int, rows: int | None = None, cols: int | None = None,
             w = s.edge_to_work
             ps.set_extent(Extent(w(float(extent["x0"])), w(float(extent["y0"])),
                                  w(float(extent["x1"])), w(float(extent["y1"]))))
+        if keep_shape is not None:
+            ps.set_keep_shape(bool(keep_shape))
         if width is not None or cols is not None:
             ps.set_width(int(width if width is not None else cols))
+        if height is not None:
+            ps.set_height(int(height))
         if colours is not None:
             ps.set_colours(int(colours))
         if detail is not None:
