@@ -635,16 +635,19 @@ class PictureState:
 
     def max_width(self) -> int:
         """The widest the picture can be made: MAX_WIDTH or one stitch per pixel, and with
-        the shape kept, no wider than keeps its rows within MAX_HEIGHT (a tall picture at
-        MAX_WIDTH would otherwise be squashed to fit)."""
+        the shape kept, no wider than keeps its rows within what `_rows_for` allows
+        (MAX_HEIGHT, or one per pixel): wider, the rows would stop there and the picture be
+        squashed. A portrait photo at MAX_WIDTH would need more than MAX_HEIGHT rows; one
+        made of stitches wider than tall, more rows than it has pixels."""
         widest = clamp_width(MAX_WIDTH, self.extent)
         if not self.keep_shape:
             return widest
         e = self.extent
         w, h = e.x1 - e.x0, e.y1 - e.y0
-        cols = int(np.floor((MAX_HEIGHT + 0.5) * self.cell_aspect * w / max(h, 1e-9)))
+        most = min(max(1, self.img.shape[0]), MAX_HEIGHT)
+        cols = int(np.floor((most + 0.5) * self.cell_aspect * w / max(h, 1e-9)))
         cols = min(widest, cols + 1)
-        while cols > 1 and picture_rows(self.extent, cols, self.cell_aspect) > MAX_HEIGHT:
+        while cols > 1 and picture_rows(self.extent, cols, self.cell_aspect) > most:
             cols -= 1
         return max(cols, clamp_width(MIN_WIDTH, self.extent))
 

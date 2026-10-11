@@ -192,7 +192,8 @@ def test_the_height_keeps_the_shape_by_moving_the_width():
     st.set_extent(Extent(0, 0, 160, 240))         # a crop keeps the width; rows follow
     assert (st.cols, st.rows) == (160, 240)
     st.set_cell_aspect(0.5)
-    assert st.rows == 240                         # 480, but one row per pixel at most
+    assert (st.cols, st.rows) == (80, 240)        # 160 across needs 480 rows: one per pixel
+                                                  # at most, so as wide as keeps the shape
 
 
 
