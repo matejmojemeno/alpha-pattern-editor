@@ -123,6 +123,14 @@ break without noticing.
   before height, whatever order they were made in; so a width change sends `height:
   undefined` (and the reverse) to drop the other from the fold. Don't send both at once
   while the shape is kept.
+- <a id="picture-size-typed"></a>**A picture's size is asked for when typing ends, never at each key.** Every
+  width or height is a fresh conversion, so a field committing as typed (as Border &
+  size's do, where a resize is cheap) would make "144" a 1-, then 14-, then 144-wide
+  pattern. `SizeField` asks on Enter, on leaving the field, or for an arrow key's step.
+- <a id="picture-max-width"></a>**With the shape kept, a picture's widest is `PictureState.max_width()`, not
+  `MAX_WIDTH`.** The rows stop at 999 or one per pixel; a width beyond what keeps them
+  there squashes the picture. The bridge's `maxWidth` is `max_width()`; don't send
+  `clamp_width(MAX_WIDTH, …)` in its place.
 - <a id="ink-ridge"></a>**Ink is a ridge that goes on.** Lightness alone takes the edges of dark areas (a red
   shield); a ridge alone takes their corners. Both tests are in `test_outlines.py`.
   "Goes on" must allow a pixel's drift and darker ink, or thin anti-aliased lines break.

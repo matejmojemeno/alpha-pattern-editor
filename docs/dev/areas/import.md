@@ -339,7 +339,7 @@ Newest last, as they were built.
     should that width be out of bounds, the nearest one, with the rows following it.
     Height's slider then runs over the rows of the narrowest and widest pattern
     (`height_range`), so it can't ask for a shape the width can't make.
-  - **Not kept:** each is as set, the picture stretched to them; rows 4 to 1600
+  - **Not kept:** each is as set, the picture stretched to them; rows 4 to 1600 (999 since [typed sizes](#picture-size-typed))
     (`MAX_HEIGHT`, the cap the rows already had) or one per pixel of the crop. Moving
     the outline keeps both (kept, it keeps the width as before). Unticking keeps the rows
     as they are; ticking again keeps the width and the rows follow it, as Width does. A
@@ -360,6 +360,34 @@ Newest last, as they were built.
     makes (a planted `detail=0.95` fails it). Parity 122/122.
   - Tier A (gzipped, `main` → this): main chunk 113.93 → 114.08 KB, Import 10.25 →
     10.47 KB (+ CSS 2.78 → 2.80 KB), Design 33.40 → 33.40 KB.
+- <a id="picture-size-typed"></a>**A picture's size is typed, up to 999 a side** (`ui/import/SizeField.tsx`,
+  `importer/picture.ts`, `core/convert.py`):
+  - **Why:** Width and Height were sliders from 4 to 400 on a ~300 px column, a stitch
+    and a bit per pixel, so an exact number (144 across: 12 sc to 4" and a 48" blanket,
+    The Crochet Crowd's example) was hard to land on, and harder on a phone. NN/g:
+    sliders suit values that only need to be roughly right. 4–400 and 1600 rows came with
+    `convert.py` with no reason written down, and speed isn't one (CPython on a
+    960 × 641 photo: 0.21 s at 60 across, 0.79 s at 400).
+  - **Fields:** each of Width and Height is a field beside its label, styled as the
+    Yarn & size fields, with its slider kept under it (named "Width slider"/"Height
+    slider"). Asked for on Enter or on leaving the field, not at each key
+    ([rule](../rules.md#picture-size-typed)); arrow keys step by one at once; Escape
+    goes back. Out of bounds, the field is marked invalid and says what it can be
+    ("4 to 768"); Enter asks for the nearest. Not a number: back to the value.
+  - **Finished size:** once the swatch is measured both ways, "Finished size [w] × [h]
+    cm/in", in the units chosen in Yarn & size (it was always "About … cm"). Typing one
+    asks for the nearest stitches (rows) to it (`stitchesFor`), and the field then shows
+    the size those give. Rounded as `formatSize` (a decimal under 100), without its
+    thousands comma, so the field reads back what it shows.
+  - **Bounds:** `MAX_WIDTH = MAX_HEIGHT = 999`, a new pattern's `MAX_SIDE`, so a picture
+    can start as large as a pattern can be made. With the shape kept, the widest is
+    `PictureState.max_width()`: the width whose rows fit in 999 and in the image's
+    pixels, the cap `_rows_for` already applied. Before, a picture wider than that kept
+    the width and the rows stopped, squashing it; with 400 across that took a picture
+    over 4:1 or a short image, at 999 a portrait photo or a 960 × 641 one in stitches
+    0.8 as tall (801 rows wanted, 641 pixels). Rows 4 to 999 when not kept.
+  - **Behaviour that differs from Border & size:** its fields apply each whole number as
+    typed (cheap); these wait for Enter or leaving.
 
 ## During the port
 
