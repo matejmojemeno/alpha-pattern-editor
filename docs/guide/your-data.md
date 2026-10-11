@@ -25,6 +25,13 @@ The only download is the chart reader itself, about 9 MB, fetched from the app's
 the first time you import a picture, and kept by your browser after that. Opening,
 designing and following patterns never needs it.
 
+**Visits are counted**, and nothing else. When you open the app, the page tells Cloudflare
+Web Analytics about the visit. It sets no cookies and keeps no ID for you. It sends the
+page's address without the part after `#`, so never which project you have open; the site
+you came from; which browser and system you use; and how fast the page loaded. It can't
+tell whether two visits came from the same person, and it never sees your projects or
+pictures. Ad blockers often stop it, and the app works the same either way.
+
 **Feedback**, on the home screen, opens a page on GitHub (you need a free account to post). Anything you write or attach
 there is public.
 

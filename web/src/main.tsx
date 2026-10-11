@@ -4,6 +4,9 @@ import { createRoot } from 'react-dom/client'
 import './theme/tokens.css'
 import './ui/app.css'
 import App from './App.tsx'
+import { startAnalytics } from './app/analytics.ts'
+
+startAnalytics()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

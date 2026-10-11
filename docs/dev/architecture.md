@@ -146,6 +146,9 @@ Pyodide threading needs the `Cross-Origin-Opener-Policy: same-origin` and
   a versioned name, and that the site stays within the free plan's limits (25 MiB a file,
   20,000 files; today 16 MB in all). Verified with `wrangler dev`: the import, Design and
   persistence e2e specs pass against it, and `.wasm` is served as `application/wasm`.
+  Visits are counted with Cloudflare Web Analytics (`web/src/app/analytics.ts`), on the
+  production address only: cookie-free, the `#` part of the address left out, and
+  `spa: false`, because every screen is `/`. It's the app's only request to another site.
   **Rule:** a new file under those three folders must carry a version or content hash in
   its name, or returning visitors never see it change.
 
