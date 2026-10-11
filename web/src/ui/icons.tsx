@@ -12,6 +12,7 @@ import {
   Circle,
   CircleCheck,
   CircleHelp,
+  Ellipsis,
   ImageUp,
   Info,
   LibraryBig,
@@ -19,6 +20,7 @@ import {
   PanelBottom,
   PanelLeft,
   Pencil,
+  PencilLine,
   Settings,
   TriangleAlert,
   WandSparkles,
@@ -37,6 +39,10 @@ export const LibraryIcon = (props: LucideProps) => <LibraryBig {...ICON} {...pro
 /** Photo to pattern: a picture made into a chart, not read from one. */
 export const PhotoIcon = (props: LucideProps) => <WandSparkles {...ICON} {...props} />
 export const DesignIcon = (props: LucideProps) => <Pencil {...ICON} {...props} />
+/** A Library card's name, which renames the project when pressed. */
+export const RenameIcon = (props: LucideProps) => <PencilLine {...ICON} {...props} />
+/** A card's menu of the less common things to do with it. */
+export const MoreIcon = (props: LucideProps) => <Ellipsis {...ICON} {...props} />
 export const SettingsIcon = (props: LucideProps) => <Settings {...ICON} {...props} />
 /** A question mark in a circle: help, on the home screen and in each screen's header. */
 export const HelpIcon = (props: LucideProps) => <CircleHelp {...ICON} {...props} />

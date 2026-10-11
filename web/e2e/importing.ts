@@ -39,11 +39,16 @@ export async function saveAs(page: Page, name: string) {
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
 }
 
+/** Choose `item` (Export, Delete, Start working…) from the ⋯ menu on `name`'s Library card. */
+export async function fromCardMenu(page: Page, name: string, item: string) {
+  await page.getByRole('button', { name: `More for “${name}”` }).click()
+  await page.getByRole('menu').getByRole('menuitem', { name: item }).click()
+}
+
 /** Export `name` from the Library; returns the file's path. */
 export async function exportFromLibrary(page: Page, testInfo: TestInfo, name: string): Promise<string> {
   await page.goto('/#/library')
-  const card = page.getByRole('listitem').filter({ hasText: name })
-  const [download] = await Promise.all([page.waitForEvent('download'), card.getByRole('button', { name: `Export “${name}”` }).click()])
+  const [download] = await Promise.all([page.waitForEvent('download'), fromCardMenu(page, name, 'Export')])
   const path = testInfo.outputPath(download.suggestedFilename())
   await download.saveAs(path)
   return path

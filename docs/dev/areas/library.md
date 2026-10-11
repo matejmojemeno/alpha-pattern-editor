@@ -57,6 +57,41 @@ Newest last, as they were built.
   like every screen, while Import and Design filled the window. Now `.screen.library`
   has no cap and the card grid adds columns. The home screen and Settings keep 72rem:
   their tiles and form would only spread out.
+- <a id="sections"></a>**In progress, Not started and Finished** (`ui/screens/Library.tsx`):
+  the Library lists its cards in those three sections, in that order (what you're making
+  first, finished last), each newest first, and leaves out an empty one. A project is
+  in progress when `hasProgress` says so, the same test that opens it in Work, so part of
+  a row counts even at "0% done"; finished is `isComplete` (every live row done). The
+  status is a summary field, `work_status`, so the Library still opens no archives. It
+  was added without a DB version bump: `rebuildMissingSummaries` also rebuilds any
+  summary that lacks it, keeping its thumbnail rather than decoding the photo again.
+  - **Every card has the same row: one button for the next step, and ⋯** (`cardActions`,
+    `CardMenu`). The first version gave only not-started cards a Design button, and
+    the owner found the other sections looked as if they were missing one. The button is
+    what you'd most often do next: **Design** when not started (it's usually still being
+    made; `#/design/<id>`), **Continue** in progress (`#/work/<id>`), **Make again** when
+    finished. ⋯ holds the way to the other stage (**Start working** or **Edit in
+    Design**), **Export** and **Delete**: Export and Delete are rare, and Delete is
+    safer off the card. Not-started cards have no progress bar, which could only say 0%.
+    The button is a plain one, not the filled yellow: a Library of twenty cards would
+    otherwise be twenty of the screen's "main" button.
+  - **⋯ is a menu button**: Enter, Space or a click opens it with focus on the first
+    item, the arrows (and Home/End) move, Escape returns to ⋯, Tab or a click outside
+    closes it. Choosing an item puts focus on ⋯ first, so Delete's dialog gives focus
+    back there.
+  - **Make again copies, it doesn't reset** (`repo.copy`): a new id, the name with the
+    next free number ("Toadstool (2)"; a copy of "(2)" is "(3)", `againName`), no
+    progress, the Work stage, the same source image and row ids. The finished project
+    stays as the record of having made it, so nothing is lost and nothing needs asking;
+    the copy can simply be deleted.
+  - **No Rename button: the name is the button.** Pressing it turns it into the rename
+    field; a pencil shows beside it on hover or focus, and always on a touch screen.
+    For that the name can't be inside the card's link, so the link holds only the
+    thumbnail, is named "Open “<name>”", and is stretched over the whole card (its
+    `::after`); the name and the buttons sit above it (`z-index: 1`). A click on the size
+    or the bar still opens the project. e2e specs open a card with
+    `getByRole('link', { name: /^Open / })`, since a card has more than one link, and
+    reach Export and Delete through `fromCardMenu` (`e2e/importing.ts`).
 - <a id="card-buttons"></a>**A card's buttons stay inside it**: at a card's narrowest
   (`--card-w`, 15rem, about a 530 px window) Rename, Export and Delete needed ~237 px of
   the 220 px inside, and the right-aligned row stuck out past the card's left edge. On a

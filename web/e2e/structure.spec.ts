@@ -12,6 +12,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { readAlpha } from '../src/storage/alpha.ts'
 import { addColour } from './colours.ts'
 import { desktopLoad, desktopPngMatches } from './desktop.ts'
+import { fromCardMenu } from './importing.ts'
 
 const AXIS_LEFT = 34
 const AXIS_TOP = 22
@@ -162,8 +163,7 @@ test('structural edits with rows done in Work, and the desktop opens the result'
 
   // --- the desktop opens what was saved, and makes the same PNG ------------------------------------------------------
   await page.goto('/#/library')
-  const card = page.getByRole('listitem').filter({ hasText: 'Banner' })
-  const [file] = await Promise.all([page.waitForEvent('download'), card.getByRole('button', { name: 'Export “Banner”' }).click()])
+  const [file] = await Promise.all([page.waitForEvent('download'), fromCardMenu(page, 'Banner', 'Export')])
   const alpha = testInfo.outputPath(file.suggestedFilename())
   await file.saveAs(alpha)
   const web = readAlpha(new Uint8Array(readFileSync(alpha))).project

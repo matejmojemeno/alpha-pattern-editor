@@ -8,6 +8,7 @@ import { resolve } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 
 import { readAlpha } from '../src/storage/alpha.ts'
+import { fromCardMenu } from './importing.ts'
 
 const FIXTURES = resolve(import.meta.dirname, '../../fixtures/alpha/desktop')
 const BASIC = resolve(FIXTURES, 'basic.alpha')
@@ -27,7 +28,7 @@ async function importAndOpen(page: Page, file: string, name: string) {
   await page.goto('/#/library')
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(file)
   const card = page.getByRole('listitem').filter({ hasText: name })
-  await card.getByRole('link').click()
+  await card.getByRole('link', { name: /^Open / }).click()
   await expect(page).toHaveURL(/#\/design\//)
   await page.getByRole('button', { name: 'Start working →' }).click()
   await expect(page).toHaveURL(/#\/work\//)
@@ -98,7 +99,7 @@ test('work through rows, reload, export and re-import', async ({ page }, testInf
   await expect(card.getByText('60% done')).toBeVisible()
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    card.getByRole('button', { name: `Export “${basic.name}”` }).click(),
+    fromCardMenu(page, basic.name, 'Export'),
   ])
   const exported = testInfo.outputPath(download.suggestedFilename())
   await download.saveAs(exported)
@@ -110,11 +111,11 @@ test('work through rows, reload, export and re-import', async ({ page }, testInf
   expect(file.progress.current_run_stitches).toBe(1)
 
   // ...and deleting and re-importing it brings the progress back.
-  await card.getByRole('button', { name: `Delete “${basic.name}”` }).click()
+  await fromCardMenu(page, basic.name, 'Delete')
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click()
   await expect(page.getByText('No projects yet.')).toBeVisible()
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(exported)
-  await card.getByRole('link').click()
+  await card.getByRole('link', { name: /^Open / }).click()
   await expect(rowLabel(page)).toHaveText('Row 4 of 5 →')
   expect(await progressOnScreen(page)).toEqual(before)
 

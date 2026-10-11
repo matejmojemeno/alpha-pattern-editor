@@ -125,6 +125,31 @@ describe('upgrading a v1 database', () => {
     repo.close()
   })
 
+  it('adds the work status to a summary saved without one, keeping its thumbnail', async () => {
+    const name = `v2-${++seq}`
+    const repo = await ProjectRepo.open(name)
+    await repo.importFile(readArchives(DESKTOP_DIR)['with-source.alpha']!)
+    await repo.importFile(readArchives(DESKTOP_DIR)['basic.alpha']!)
+    repo.close()
+    // Summaries as v2 wrote them before work_status, with a thumbnail only they have.
+    const raw = await openDB(name)
+    for (const s of await raw.getAll('summaries')) {
+      delete s.work_status
+      await raw.put('summaries', { ...s, thumbnail: new Blob(['kept']) })
+    }
+    raw.close()
+
+    const reopened = await ProjectRepo.open(name)
+    const list = await reopened.list()
+    expect(list.map((s) => [s.name, s.work_status]).sort()).toEqual([
+      ['basic', 'not-started'],
+      ['with-source', 'in-progress'],
+    ])
+    for (const s of list) expect(await s.thumbnail.text()).toBe('kept')
+    expect(await reopened.rebuildMissingSummaries()).toBe(0)
+    reopened.close()
+  })
+
   it('leaves an unreadable archive in place without a summary', async () => {
     const name = `v1-${++seq}`
     const v1 = await openDB(name, 1, {

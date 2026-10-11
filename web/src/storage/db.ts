@@ -14,6 +14,9 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 
 import type { ThumbnailKind } from './thumbnail.ts'
 
+/** Where a project's Library section is: no work recorded, some, or every row done. */
+export type WorkStatus = 'not-started' | 'in-progress' | 'finished'
+
 export interface ProjectSummary {
   id: string
   name: string
@@ -21,6 +24,9 @@ export interface ProjectSummary {
   cols: number
   /** 0..100 */
   progress_pct: number
+  /** Added after v2 without a version bump: a summary lacking it is rebuilt on open,
+   *  keeping its thumbnail (ProjectRepo.rebuildMissingSummaries). */
+  work_status: WorkStatus
   updated_at: number
   /** Preview image, at most THUMB_MAX_EDGE px on its long edge (see thumbnail.ts). */
   thumbnail: Blob
@@ -57,16 +63,20 @@ export function openAlphaDb(name: string = DB_NAME): Promise<AlphaDatabase> {
   })
 }
 
-/** Ids of archives that have no summary (after an upgrade, or any other mishap). */
-export async function idsMissingSummaries(db: AlphaDatabase): Promise<string[]> {
+/** Ids of archives that have no summary (after an upgrade, or any other mishap), and
+ *  of those whose summary predates a field (`stale`, to rebuild keeping its thumbnail). */
+export async function idsMissingSummaries(db: AlphaDatabase): Promise<{ missing: string[]; stale: ProjectSummary[] }> {
   const tx = db.transaction(['projects', 'summaries'])
   const [archives, summaries] = await Promise.all([
     tx.objectStore('projects').getAllKeys(),
-    tx.objectStore('summaries').getAllKeys(),
+    tx.objectStore('summaries').getAll(),
     tx.done,
   ])
-  const have = new Set(summaries)
-  return archives.filter((id) => !have.has(id))
+  const have = new Set(summaries.map((s) => s.id))
+  return {
+    missing: archives.filter((id) => !have.has(id)),
+    stale: summaries.filter((s) => s.work_status === undefined),
+  }
 }
 
 export function putSummary(db: AlphaDatabase, summary: ProjectSummary): Promise<string> {

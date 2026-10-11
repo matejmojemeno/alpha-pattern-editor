@@ -54,6 +54,7 @@ describe('db', () => {
       rows: 1,
       cols: 1,
       progress_pct: 0,
+      work_status: 'not-started',
       updated_at,
       thumbnail: new Blob(),
       thumbnail_kind: 'cells',
@@ -102,6 +103,7 @@ describe('ProjectRepo', () => {
       rows: 2,
       cols: 2,
       progress_pct: 50,
+      work_status: 'in-progress',
       updated_at: 5,
       thumbnail_kind: 'cells', // no source image: the pattern's own cells
     })
@@ -221,5 +223,27 @@ describe('rename', () => {
     expect(reopened.pattern.row_ids).toEqual(saved.pattern.row_ids)
     expect((await repo.summary('a'))!.name).toBe('New')
     await expect(repo.rename('nope', 'x')).rejects.toThrow(ProjectNotFoundError)
+  })
+})
+
+describe('copy', () => {
+  it('saves a new project with a new id and name, no progress, in Work, and leaves the original', async () => {
+    const repo = await ProjectRepo.open(`copy-${++seq}`, () => 1000)
+    const archive = readArchives(DESKTOP_DIR)['with-source.alpha']!
+    const before = (await repo.importFile(archive))
+    const copy = await repo.copy(before.project.pattern.id, 'Again')
+    expect(copy.pattern.id).not.toBe(before.project.pattern.id)
+    expect(copy.pattern.id).toMatch(/^[0-9a-f]{32}$/)
+    expect(copy.pattern.name).toBe('Again')
+    expect(copy.pattern.created_at).toBe(1000)
+    expect(copy.pattern.row_ids).toEqual(before.project.pattern.row_ids)
+    expect(copy.progress.completed_row_ids.size).toBe(0)
+    expect(copy.stage).toBe('work')
+    const reopened = await repo.open(copy.pattern.id)
+    expect(reopened.sourcePng).toEqual(before.sourcePng)
+    expect((await repo.summary(copy.pattern.id))!.work_status).toBe('not-started')
+    expect((await repo.open(before.project.pattern.id)).project.progress).toEqual(before.project.progress)
+    expect(await repo.list()).toHaveLength(2)
+    repo.close()
   })
 })

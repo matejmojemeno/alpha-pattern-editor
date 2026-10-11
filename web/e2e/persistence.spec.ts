@@ -7,6 +7,8 @@ import { resolve } from 'node:path'
 
 import { expect, test } from '@playwright/test'
 
+import { fromCardMenu } from './importing.ts'
+
 const FIXTURE = resolve(import.meta.dirname, '../../fixtures/alpha/desktop/basic.alpha')
 
 // fixtures/alpha/desktop/expected.json records what the desktop wrote into basic.alpha.
@@ -41,7 +43,7 @@ test('import, reload, open, export, delete, re-import', async ({ page }, testInf
   // 4. Open it. The desktop saved it in the Design stage with no progress, so the card
   //    opens Design (§6.4); the Work stage is a deep link away. Opening either saves
   //    nothing, which the byte-for-byte export below relies on.
-  await card.getByRole('link').click()
+  await card.getByRole('link', { name: /^Open / }).click()
   await expect(page).toHaveURL(new RegExp(`#/design/${basic.id}$`))
   await expect(page.getByRole('heading', { level: 1, name: basic.name })).toBeVisible()
   await page.goto(`/#/work/${basic.id}`)
@@ -59,7 +61,7 @@ test('import, reload, open, export, delete, re-import', async ({ page }, testInf
   await page.getByRole('link', { name: 'Library' }).click()
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    card.getByRole('button', { name: `Export “${basic.name}”` }).click(),
+    fromCardMenu(page, basic.name, 'Export'),
   ])
   expect(download.suggestedFilename()).toBe(`${basic.name}-${basic.id.slice(0, 6)}.alpha`)
   const exported = testInfo.outputPath(download.suggestedFilename())
@@ -68,7 +70,7 @@ test('import, reload, open, export, delete, re-import', async ({ page }, testInf
   expect(readFileSync(exported).equals(readFileSync(FIXTURE))).toBe(true)
 
   // ...delete it...
-  await card.getByRole('button', { name: `Delete “${basic.name}”` }).click()
+  await fromCardMenu(page, basic.name, 'Delete')
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click()
   await expect(page.getByText('No projects yet.')).toBeVisible()
   await page.reload()
@@ -77,7 +79,7 @@ test('import, reload, open, export, delete, re-import', async ({ page }, testInf
   // ...re-import the export, and check it matches.
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(exported)
   await expect(card).toBeVisible()
-  await card.getByRole('link').click()
+  await card.getByRole('link', { name: /^Open / }).click()
   await expect(page).toHaveURL(new RegExp(`#/design/${basic.id}$`))
   await page.goto(`/#/work/${basic.id}`)
   await expect(page.getByRole('heading', { level: 1, name: basic.name })).toBeVisible()

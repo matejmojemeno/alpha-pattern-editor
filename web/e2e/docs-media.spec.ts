@@ -116,8 +116,16 @@ test('landing.png', async ({ page }) => {
 test('library.png', async ({ page }) => {
   await openDemo(page)
   await completeRows(page, 6)
+  // A second project, not started, so both sections and its Design button show.
   await page.goto('/#/library')
-  await expect(page.getByRole('listitem').filter({ hasText: demo.name })).toBeVisible()
+  await page.getByRole('button', { name: 'Design from scratch…' }).click()
+  await page.getByRole('textbox', { name: 'Name' }).fill('Scarf')
+  await page.getByRole('button', { name: 'Create' }).click()
+  await expect(page).toHaveURL(/#\/design\//)
+  await page.goto('/#/library')
+  await expect(page.getByRole('region', { name: /^In progress/ }).getByRole('listitem')).toHaveCount(1)
+  await expect(page.getByRole('region', { name: /^Not started/ }).getByRole('listitem')).toHaveCount(1)
+  await blur(page)
   await settle(page)
   await shoot(page, 'library.png')
 })
