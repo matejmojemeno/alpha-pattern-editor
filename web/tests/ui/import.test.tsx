@@ -526,7 +526,9 @@ describe('Photo to pattern', () => {
     expect(noteText()).toBeNull()
     const settings = screen.getByRole('group', { name: 'Picture settings' })
     expect(within(settings).getByText('8 stitches')).toBeTruthy()
-    expect(within(settings).getByText('8 × 6 stitches')).toBeTruthy()
+    expect(within(settings).getByText('6 rows')).toBeTruthy()
+    // The sliders say the size: no line repeating it.
+    expect(within(settings).queryByText(/8 × 6/)).toBeNull()
     expect(within(settings).getByText('Balanced')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Use the whole picture' }).hasAttribute('disabled')).toBe(true)
 
@@ -623,7 +625,7 @@ describe('Photo to pattern', () => {
     await renderApp('#/photo', { settings })
     await saveButton()
     expect(detection.worker.of('open')[0]!.cellAspect).toBeCloseTo(0.8)
-    // …and the finished size, beside the stitches.
-    expect(within(screen.getByRole('group', { name: 'Picture settings' })).getByText(/8 × 6 stitches, about 5 × 3 cm/)).toBeTruthy()
+    // …and the finished size, under the sliders.
+    expect(within(screen.getByRole('group', { name: 'Picture settings' })).getByText('About 5 × 3 cm')).toBeTruthy()
   })
 })

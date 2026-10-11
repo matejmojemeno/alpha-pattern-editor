@@ -548,7 +548,6 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
             {picture && display && hasGrid && (
               <PictureControls
                 picture={picture}
-                rows={display.rows}
                 size={sizeText(picture.width, display.rows, swatch)}
                 disabled={busy}
                 // With proportions kept, the last of width and height set is the one that
@@ -705,7 +704,6 @@ function Check({
  *  a drag into a few resamples. */
 function PictureControls({
   picture,
-  rows,
   size,
   disabled,
   onWidth,
@@ -715,7 +713,6 @@ function PictureControls({
   onOutlines,
 }: {
   picture: PictureSettings
-  rows: number
   /** "about 38 × 28 cm", when the swatch is measured. */
   size: string | null
   disabled: boolean
@@ -812,9 +809,8 @@ function PictureControls({
         />
         <span className="picture-controls__label">Keep proportions</span>
       </label>
-      <p className="picture-controls__note">
-        {width} × {rows} stitches{size ? `, ${size}` : ''}
-      </p>
+      {/* The finished size, once the swatch gives it; the stitches are the sliders'. */}
+      {size && <p className="picture-controls__note">{size.charAt(0).toUpperCase() + size.slice(1)}</p>}
       <div className="picture-controls__row">
         <label htmlFor={`${id}-detail`} className="picture-controls__label">
           Detail

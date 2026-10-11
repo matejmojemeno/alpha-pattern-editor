@@ -350,6 +350,9 @@ Newest last, as they were built.
     sends the other as `undefined`, dropping it from the folded request; ticking Keep
     proportions drops a waiting height the same way. A new `height` parameter, not
     `rows`, which a picture still ignores.
+  - **No "60 × 45 stitches" line any more:** the owner saw it only repeat the two
+    sliders. Under them is just the finished size ("About 38 × 28 cm"), once the swatch
+    is measured.
   - Checks: pytest for the state's rules and the bridge payload; vitest for the
     controls (fake worker following the same rules) and `clampHeight`/`croppedRows`; e2e
     (`import.spec.ts`): Height 24 kept gives 32 × 24, then unticked and Width 40 saves
