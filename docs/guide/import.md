@@ -149,9 +149,12 @@ button returns to reading it as a chart.
 drawing: a pet, a flower, a logo. Unlike importing a chart, nothing is read from the
 image square by square. It's redrawn in stitches, and you choose how:
 
-- **Width:** how many stitches across. The rows follow from the image's shape (and from
-  your swatch, once it's measured in [Settings](settings.md), which also gives the
-  finished size in cm).
+- **Width** and **Height:** how many stitches across and how many rows. With **Keep
+  proportions** ticked, as it is to start with, moving one moves the other, so the
+  piece keeps the image's shape (and your swatch's, once it's measured in
+  [Settings](settings.md), which also gives the finished size in cm). Untick it to set
+  each on its own: the image is stretched or squashed to fit. Ticking it again keeps the
+  width and fits the rows to it.
 - **Detail:** from "Fewer colour changes", which smooths away lone stitches you'd have to
   change yarn for, to "More detail".
 - **Keep outlines:** for drawings with dark lines, such as a cartoon. It keeps them, one

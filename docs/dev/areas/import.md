@@ -329,6 +329,34 @@ Newest last, as they were built.
   - Tier A (gzipped, `main` → this): main chunk 112.41 → 112.49 KB (the Info icon; X
     was already there, for the Work zoom note), Import 10.31 → 10.24 KB, Design
     32.84 → 32.83 KB.
+- <a id="picture-height"></a>**Photo to pattern: Height, and Keep proportions** (`convert.PictureState.height`,
+  `keep_shape`; `Import.tsx`'s `PictureControls`). The owner asked to choose both the
+  width and the height, with a checkbox pinning the image's proportions, on by default.
+  A Height slider ("N rows") sits under Width, and the **Keep proportions** checkbox
+  under both.
+  - **Kept** (the default): Width works as before, the rows following. Height sets the
+    rows as asked and the width that keeps the shape (`round(rows × stitch aspect × w/h)`);
+    should that width be out of bounds, the nearest one, with the rows following it.
+    Height's slider then runs over the rows of the narrowest and widest pattern
+    (`height_range`), so it can't ask for a shape the width can't make.
+  - **Not kept:** each is as set, the picture stretched to them; rows 4 to 1600
+    (`MAX_HEIGHT`, the cap the rows already had) or one per pixel of the crop. Moving
+    the outline keeps both (kept, it keeps the width as before). Unticking keeps the rows
+    as they are; ticking again keeps the width and the rows follow it, as Width does. A
+    swatch measured later moves the rows only while kept.
+  - **The order of folded changes:** the client folds changes made while one is in
+    flight into one request, and `set_params` applies keep_shape, then width, then
+    height. With the shape kept, the last of Width and Height moved must win, so each
+    sends the other as `undefined`, dropping it from the folded request; ticking Keep
+    proportions drops a waiting height the same way. A new `height` parameter, not
+    `rows`, which a picture still ignores.
+  - Checks: pytest for the state's rules and the bridge payload; vitest for the
+    controls (fake worker following the same rules) and `clampHeight`/`croppedRows`; e2e
+    (`import.spec.ts`): Height 24 kept gives 32 × 24, then unticked and Width 40 saves
+    exactly the cells `scripts/desktop_import.py picture … height=24 keep=0 width=40`
+    makes (a planted `detail=0.95` fails it). Parity 122/122.
+  - Tier A (gzipped, `main` → this): main chunk 113.93 → 114.08 KB, Import 10.25 →
+    10.47 KB (+ CSS 2.78 → 2.80 KB), Design 33.40 → 33.40 KB.
 
 ## During the port
 

@@ -318,9 +318,12 @@ knitting, chessboards). `test_kind.py` asserts each one.
 
 The aim is the best pattern, not the most faithful shrink:
 
-- **Size:** width in stitches (default 60, up to 400 or one per pixel); the rows follow
-  from the picture's shape and the stitch's, a stitch's height over its width, from the
-  swatch. A crop (the outline) chooses what of the picture is used.
+- **Size:** width in stitches (default 60, up to 400 or one per pixel) and height in
+  rows. With "Keep proportions" (on by default) each follows from the other, the
+  picture's shape and the stitch's, a stitch's height over its width, from the swatch.
+  Off, each is as set (height 4 to 1600 rows, or one per pixel) and the picture is
+  stretched to them. A crop (the outline) chooses what of the picture is used; it keeps
+  the width, and without Keep proportions the height too.
 - **Colours** (default 6, up to 24): a weighted k-means in Lab, favouring stitches with
   detail and vivid colour, capped at 4× so a large plain area still keeps its colour. A
   group of at least 2 stitches' samples further than ΔE 25 from every colour (an eye,
