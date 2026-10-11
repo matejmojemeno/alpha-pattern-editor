@@ -63,7 +63,21 @@ import {
 import { decodeImage, ImageDecodeError, sourcePng } from '../../importer/decode.ts'
 import { hintFor, OUT_OF_MEMORY_HINT, TIMEOUT_HINT } from '../../importer/hints.ts'
 import type { Grid } from '../../importer/outline.ts'
-import { check, clampHeight, clampWidth, colourSteps, croppedRows, detailText, MIN_WIDTH, PHOTO_TO_PATTERN, sizeText, swatchAspect } from '../../importer/picture.ts'
+import {
+  check,
+  clampHeight,
+  clampWidth,
+  colourSteps,
+  croppedRows,
+  detailText,
+  lengthText,
+  MIN_WIDTH,
+  PHOTO_TO_PATTERN,
+  stitchesFor,
+  stitchLength,
+  swatchAspect,
+} from '../../importer/picture.ts'
+import type { Units } from '../../settings/store.ts'
 import type { Swatch } from '../../yarn/usage.ts'
 import { applyRemovals, mergeCandidate, type Removal } from '../../importer/removals.ts'
 import { emptyProgress } from '../../model/types.ts'
@@ -71,6 +85,7 @@ import { DropOverlay, ImportButton, Notices, TopBar } from '../components.tsx'
 import { useDelayedFlag, useDocumentTitle, useFileDrop, useMediaQuery, usePastedImage } from '../hooks.ts'
 import { Palette } from '../import/Palette.tsx'
 import { PatternView } from '../import/PatternView.tsx'
+import { SizeField } from '../import/SizeField.tsx'
 import { SourceView } from '../import/SourceView.tsx'
 import { CloseIcon, InfoIcon, PhotoIcon, WarningIcon } from '../icons.tsx'
 import { cleanName, MAX_NAME_LENGTH } from '../names.ts'
@@ -548,7 +563,8 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
             {picture && display && hasGrid && (
               <PictureControls
                 picture={picture}
-                size={sizeText(picture.width, display.rows, swatch)}
+                stitch={stitchLength(swatch, settings.units)}
+                units={settings.units}
                 disabled={busy}
                 // With proportions kept, the last of width and height set is the one that
                 // counts: it drops the other from any change still waiting to be sent.
@@ -699,12 +715,14 @@ function Check({
   )
 }
 
-/** A picture's width and height in stitches, whether they keep its shape, and how much
- *  detail it keeps, above the colour list. Each change is sent at once; the client folds
- *  a drag into a few resamples. */
+/** A picture's width and height in stitches, whether they keep its shape, its finished
+ *  size once the swatch gives it, and how much detail it keeps, above the colour list.
+ *  Each size can be typed or slid; a change is sent at once, and the client folds a drag
+ *  into a few resamples. */
 function PictureControls({
   picture,
-  size,
+  stitch,
+  units,
   disabled,
   onWidth,
   onHeight,
@@ -713,8 +731,9 @@ function PictureControls({
   onOutlines,
 }: {
   picture: PictureSettings
-  /** "about 38 × 28 cm", when the swatch is measured. */
-  size: string | null
+  /** One stitch's width and one row's height in `units`, when the swatch is measured. */
+  stitch: { across: number; up: number } | null
+  units: Units
   disabled: boolean
   /** A width or height asked for, and whether Keep proportions is on as shown. */
   onWidth: (width: number, keepShape: boolean) => void
@@ -742,59 +761,71 @@ function PictureControls({
   const height = askedHeight ?? picture.height
   const detail = askedDetail ?? picture.detail
   const min = Math.min(MIN_WIDTH, picture.maxWidth)
+  const askWidth = (w: number) => {
+    // With the shape kept, the height follows the width: its answer, not what was asked
+    // of it before.
+    if (keep) setAskedHeight(null)
+    setAskedWidth(w)
+    onWidth(w, keep)
+  }
+  const askHeight = (h: number) => {
+    if (keep) setAskedWidth(null)
+    setAskedHeight(h)
+    onHeight(h, keep)
+  }
   return (
     <div className="picture-controls" role="group" aria-label="Picture settings">
       <div className="picture-controls__row">
         <label htmlFor={`${id}-width`} className="picture-controls__label">
           Width
         </label>
-        <output className="picture-controls__value" htmlFor={`${id}-width`}>
-          {width} stitches
-        </output>
+        <SizeField
+          id={`${id}-width`}
+          value={width}
+          unit="stitches"
+          min={min}
+          max={picture.maxWidth}
+          disabled={disabled}
+          onCommit={askWidth}
+        />
       </div>
       <input
-        id={`${id}-width`}
         type="range"
         className="picture-controls__slider"
+        aria-label="Width slider"
         min={min}
         max={picture.maxWidth}
         step={1}
         value={width}
         disabled={disabled}
         aria-valuetext={`${width} stitches across`}
-        onChange={(e) => {
-          const w = Number(e.target.value)
-          // With the shape kept, the height follows the width: its answer, not what was
-          // asked of it before.
-          if (keep) setAskedHeight(null)
-          setAskedWidth(w)
-          onWidth(w, keep)
-        }}
+        onChange={(e) => askWidth(Number(e.target.value))}
       />
       <div className="picture-controls__row">
         <label htmlFor={`${id}-height`} className="picture-controls__label">
           Height
         </label>
-        <output className="picture-controls__value" htmlFor={`${id}-height`}>
-          {height} rows
-        </output>
+        <SizeField
+          id={`${id}-height`}
+          value={height}
+          unit="rows"
+          min={picture.minHeight}
+          max={picture.maxHeight}
+          disabled={disabled}
+          onCommit={askHeight}
+        />
       </div>
       <input
-        id={`${id}-height`}
         type="range"
         className="picture-controls__slider"
+        aria-label="Height slider"
         min={picture.minHeight}
         max={picture.maxHeight}
         step={1}
         value={height}
         disabled={disabled}
         aria-valuetext={`${height} rows`}
-        onChange={(e) => {
-          const h = Number(e.target.value)
-          if (keep) setAskedWidth(null)
-          setAskedHeight(h)
-          onHeight(h, keep)
-        }}
+        onChange={(e) => askHeight(Number(e.target.value))}
       />
       <label className="picture-controls__check">
         <input
@@ -809,8 +840,42 @@ function PictureControls({
         />
         <span className="picture-controls__label">Keep proportions</span>
       </label>
-      {/* The finished size, once the swatch gives it; the stitches are the sliders'. */}
-      {size && <p className="picture-controls__note">{size.charAt(0).toUpperCase() + size.slice(1)}</p>}
+      {/* The finished size, once the swatch gives it, typed in the units chosen in "Yarn &
+          size": the nearest stitches and rows to it are asked for, and the fields then
+          show the size those give. */}
+      {stitch && (
+        <div className="picture-controls__row" role="group" aria-labelledby={`${id}-finished`}>
+          <span id={`${id}-finished`} className="picture-controls__label">
+            Finished size
+          </span>
+          <span className="picture-controls__finished">
+            <SizeField
+              label="Finished width"
+              value={width * stitch.across}
+              shown={lengthText(width * stitch.across)}
+              unit="×"
+              min={min * stitch.across}
+              max={picture.maxWidth * stitch.across}
+              whole={false}
+              step={stitch.across}
+              disabled={disabled}
+              onCommit={(n) => askWidth(clampWidth(stitchesFor(n, stitch.across), picture))}
+            />
+            <SizeField
+              label="Finished height"
+              value={height * stitch.up}
+              shown={lengthText(height * stitch.up)}
+              unit={units === 'metric' ? 'cm' : 'in'}
+              min={picture.minHeight * stitch.up}
+              max={picture.maxHeight * stitch.up}
+              whole={false}
+              step={stitch.up}
+              disabled={disabled}
+              onCommit={(n) => askHeight(clampHeight(stitchesFor(n, stitch.up), picture))}
+            />
+          </span>
+        </div>
+      )}
       <div className="picture-controls__row">
         <label htmlFor={`${id}-detail`} className="picture-controls__label">
           Detail

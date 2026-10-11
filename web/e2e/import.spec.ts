@@ -10,7 +10,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { expect, test, type TestInfo } from '@playwright/test'
+import { expect, test, type Locator, type TestInfo } from '@playwright/test'
 
 import { readAlpha } from '../src/storage/alpha.ts'
 import { encodePngRgba } from '../src/storage/thumbnail.ts'
@@ -143,6 +143,13 @@ function pictureFile(testInfo: TestInfo, name = 'picture.png', [w, h] = [320, 24
 }
 
 /** A saved pattern's size, cells and colours, to compare with `desktopPicture`'s. */
+/** A picture's width or height typed into its field, and asked for with Enter. */
+async function typeSize(settings: Locator, name: 'Width' | 'Height', value: string) {
+  const field = settings.getByRole('textbox', { name, exact: true })
+  await field.fill(value)
+  await field.press('Enter')
+}
+
 const cellsOf = (p: { cols: number; rows: number; cells: ArrayLike<number>; palette: readonly { hex: string; count: number }[] }) => ({
   size: [p.cols, p.rows],
   cells: Array.from(p.cells),
@@ -167,7 +174,7 @@ test('Import a chart never converts a photo; Photo to pattern does, exactly as t
   await alert.getByRole('button', { name: 'Use Photo to pattern' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Photo to pattern' })).toBeVisible()
   const settings = page.getByRole('group', { name: 'Picture settings' })
-  await expect(settings).toContainText('60 stitches', { timeout: DETECT_TIMEOUT })
+  await expect(settings.getByRole('textbox', { name: 'Width', exact: true })).toHaveValue('60', { timeout: DETECT_TIMEOUT })
   await expect(page.locator('.import-note')).toHaveCount(0)
   await expect(page.locator('.confirm__stats')).toHaveText(`${want.cols} columns × ${want.rows} rows`)
   await saveAs(page, 'Gradient')
@@ -182,7 +189,7 @@ test("a picture's width, colours and detail give what the Python gives", async (
 
   await importPhoto(page, file)
   const settings = page.getByRole('group', { name: 'Picture settings' })
-  await settings.getByLabel('Width').fill('40')
+  await settings.getByRole('slider', { name: 'Width slider' }).fill('40')
   await expect(page.locator('.confirm__stats')).toHaveText('40 columns × 30 rows', { timeout: DETECT_TIMEOUT })
   await page.getByRole('button', { name: 'Fewer colours' }).click()
   await expect(page.getByRole('heading', { level: 2, name: /^Colours, 5 colours$/ })).toBeVisible({ timeout: DETECT_TIMEOUT })
@@ -202,11 +209,11 @@ test("a picture's height, kept in proportion or not, gives what the Python gives
   const settings = page.getByRole('group', { name: 'Picture settings' })
   const keep = settings.getByRole('checkbox', { name: 'Keep proportions' })
   await expect(keep).toBeChecked({ timeout: DETECT_TIMEOUT })
-  await settings.getByLabel('Height').fill('24')
+  await typeSize(settings, 'Height', '24')
   await expect(page.locator('.confirm__stats')).toHaveText('32 columns × 24 rows', { timeout: DETECT_TIMEOUT })
   await keep.uncheck()
   await expect(keep).not.toBeChecked()
-  await settings.getByLabel('Width').fill('40')
+  await typeSize(settings, 'Width', '40')
   await expect(page.locator('.confirm__stats')).toHaveText(`${want.cols} columns × ${want.rows} rows`, { timeout: DETECT_TIMEOUT })
   expect([want.cols, want.rows]).toEqual([40, 24])
   await saveAs(page, 'Stretched')
@@ -347,7 +354,7 @@ test('"Keep outlines" draws a drawing\'s lines, exactly as the Python does', asy
   const { save } = await importPhoto(page, file)
   await expect(save).toBeEnabled()
   const settings = page.getByRole('group', { name: 'Picture settings' })
-  await settings.getByLabel('Width').fill('36')
+  await typeSize(settings, 'Width', '36')
   await expect(page.locator('.confirm__stats')).toHaveText('36 columns × 36 rows', { timeout: DETECT_TIMEOUT })
   const toggle = settings.getByRole('switch', { name: 'Keep outlines' })
   await expect(toggle).not.toBeChecked()
