@@ -195,6 +195,37 @@ def test_the_height_keeps_the_shape_by_moving_the_width():
     assert st.rows == 240                         # 480, but one row per pixel at most
 
 
+
+def test_a_picture_can_be_as_large_as_a_new_pattern():
+    """999 a side, as Design from scratch allows (web logic/edit.ts MAX_SIDE)."""
+    assert convert.MAX_WIDTH == convert.MAX_HEIGHT == 999
+    st = convert.PictureState(img=_field(h=1500, w=2000), extent=Extent(0, 0, 2000, 1500))
+    st.set_width(999)
+    assert (st.cols, st.rows) == (999, 749)
+    st.set_keep_shape(False)
+    st.set_height(5000)
+    assert st.rows == 999
+
+
+def test_a_tall_picture_kept_in_shape_is_never_squashed_into_the_rows():
+    """With the shape kept, the widest a portrait photo can be is the width whose rows
+    fit in MAX_HEIGHT; asking for more gives that width, not 999 across squashed."""
+    st = convert.PictureState(img=_field(h=2000, w=1500), extent=Extent(0, 0, 1500, 2000))
+    assert st.max_width() == 749 and convert.picture_rows(st.extent, 750, 1.0) == 1000
+    st.set_width(999)
+    assert (st.cols, st.rows) == (749, 999)
+    assert st.height_range()[1] == 999
+    st.set_height(5000)
+    assert (st.cols, st.rows) == (749, 999)
+    st.set_keep_shape(False)                      # each as asked, the width can widen
+    assert st.max_width() == 999
+    st.set_width(999)
+    assert (st.cols, st.rows) == (999, 999)
+    st.set_keep_shape(True)                       # in shape again: back within the rows
+    assert (st.cols, st.rows) == (749, 999)
+    st.set_cell_aspect(0.5)                       # twice the rows a stitch: half as wide
+    assert st.cols == st.max_width() == 374 and st.rows == 997
+
 def test_without_the_shape_kept_width_and_height_are_each_as_asked():
     st = convert.PictureState(img=_gradient(), extent=Extent(0, 0, 320, 240))
     st.set_keep_shape(False)
