@@ -201,6 +201,24 @@ Newest last, as they were built.
     PNG's tooltip no longer mentions the desktop app, which is retired. On a phone the
     message is "Editing needs a bigger screen".
 
+- <a id="merge-colour"></a>**Merge a colour into one you pick** (`ColoursPanel.tsx`,
+  `editor.mergeColour` over `edit.mergePaletteEntries`, already ported and in the golden
+  fixtures): a "Merge into another colour" section at the foot of the colour's menu,
+  rather than a second button beside the bin. The bin already is a merge, into the
+  nearest colour; a second row button would have done the same thing with one more choice,
+  and the menu is where everything about one colour lives. The section shows the other
+  colours as swatches (radios, in palette order so they are where the list has them), with
+  the nearest (`nearestEntryId`, the one the bin gives) picked to start with, so
+  "Merge into Sienna" is one click and another colour two. Pointing at the section, or
+  picking a swatch (a touch screen has no pointing), shows the merge on the chart through
+  the same preview a colour being chosen uses; Cancel, Escape or a press elsewhere drop it.
+  Merge is one undo step, drops any unsaved name or colour change (the colour is gone),
+  says "Merged “Poppy” into “Background”: its 12 cells are now “Background”.", makes the
+  colour merged into the one painted with if the merged one was, and moves the focus to
+  it. The bin stays, for the quick case. Checked in `e2e/design.spec.ts` (preview, pick,
+  Cancel, Merge, message, focus, undo) and `e2e/overflow.spec.ts` (the open menu at
+  every width).
+
 ## During the port
 
 What each phase of the port built here, newest first. The plan each phase followed is in

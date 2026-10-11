@@ -364,6 +364,64 @@
   gap: 0.35rem;
 }
 
+/* Merge into another colour: the others as swatches, the one picked ringed. Many colours
+   wrap, and past a few rows scroll on their own. */
+.colour-menu__merge {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.6rem 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.colour-menu__merge legend {
+  float: left;
+  padding: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.colour-menu__targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  max-height: 6.5rem;
+  padding: 3px;
+  overflow-y: auto;
+}
+
+.colour-menu__target {
+  display: block;
+  cursor: pointer;
+}
+
+.colour-menu__target span {
+  display: block;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.colour-menu__target input:checked + span {
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 4px var(--text);
+}
+
+.colour-menu__target input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.colour-menu__merge-button {
+  align-self: stretch;
+  overflow-wrap: anywhere;
+}
+
 .picker {
   display: flex;
   flex-direction: column;

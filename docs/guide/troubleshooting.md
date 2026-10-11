@@ -79,7 +79,7 @@ about 6 columns, with row numbers beside it can come out a column short: this fi
 
 Press **−** beside **Colours** on the import screen to merge the two most alike colours
 ([details](import.md#merge-colours-that-should-be-one)). To merge a particular colour
-into its nearest, delete it in [Design](design.md#delete-a-colour).
+into another one you choose, use its menu in [Design](design.md#merge-or-delete-a-colour).
 
 ## Two colours came out as one
 

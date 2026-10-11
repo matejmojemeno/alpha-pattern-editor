@@ -30,6 +30,7 @@ import {
   insertColumn,
   insertRow,
   majorBorderIndex,
+  mergePaletteEntries,
   nearestEntryId,
   pasteBlock,
   recolorPaletteEntry,
@@ -580,5 +581,21 @@ export function deleteColour(s: EditorState, index: number): EditorState {
   const into = nearestEntryId(p, e.id)
   const next = commit(s, deletePaletteEntryNearest(p, e.id))
   const cur = p.palette[s.colour]!.id === e.id ? into : p.palette[s.colour]!.id
+  return { ...next, colour: Math.max(0, next.pattern.palette.findIndex((x) => x.id === cur)) }
+}
+
+/**
+ * Merge a colour into another of the user's choosing (`merge_palette_entries`): its cells
+ * take that colour and it goes, as a delete does into the nearest. One undo step. The
+ * current colour follows its entry, or becomes the one merged into when it is the one
+ * merged. Into itself is no merge: this returns the state unchanged.
+ */
+export function mergeColour(s: EditorState, index: number, into: number): EditorState {
+  const p = s.pattern
+  const e = p.palette[index]
+  const t = p.palette[into]
+  if (!e || !t || e.id === t.id) return s
+  const next = commit(s, mergePaletteEntries(p, e.id, t.id))
+  const cur = p.palette[s.colour]!.id === e.id ? t.id : p.palette[s.colour]!.id
   return { ...next, colour: Math.max(0, next.pattern.palette.findIndex((x) => x.id === cur)) }
 }

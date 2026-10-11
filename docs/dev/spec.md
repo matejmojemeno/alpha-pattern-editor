@@ -441,7 +441,8 @@ into a pattern as a picture, §5a.)
 - **Color similarity slider** (ΔE 2–15) with live palette preview: swatches, cell counts, merge/split controls.
   (Web: no slider. Colours closer than ΔE 15 are always merged, so a chart comes out with
   as few yarns as it really has. A colour left over can be removed right there, or deleted
-  in Design; either gives its cells the nearest remaining one. Pointing at a colour in the
+  in Design; either gives its cells the nearest remaining one. Design can also merge it
+  into a colour the user picks. Pointing at a colour in the
   list shows where the pattern uses it.)
 - Reconstructed pattern rendered **side by side** with the source. Visual diff is the fastest way for a human to spot an error.
 - Low-confidence cells highlighted in the reconstruction.

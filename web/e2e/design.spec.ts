@@ -397,3 +397,58 @@ test('editing a desktop-written file keeps its photo, and the desktop still open
   expect(desktop.source).not.toBeNull()
   expect(desktop.completed).toBe(before.project.progress.completed_row_ids.size)
 })
+
+test('a colour merges into the nearest, or into the colour picked in its menu', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Design from scratch' }).click()
+  const dialog = page.getByRole('dialog', { name: 'New pattern' })
+  await dialog.getByLabel('Name').fill('Merge')
+  await dialog.getByLabel('Columns').fill(String(COLS))
+  await dialog.getByLabel('Rows').fill(String(ROWS))
+  await dialog.getByLabel('Colour').fill(WHITE)
+  await dialog.getByRole('button', { name: 'Create' }).click()
+  await expect(page).toHaveURL(/#\/design\/[0-9a-f]{32}$/)
+  await expect(scroller(page)).toHaveAttribute('data-cell', /^\d+$/)
+  await addColour(page, BLACK, 'Black')
+  await addColour(page, RED, 'Poppy')
+  // Red across the top row (red is the colour being painted with, as just added).
+  await tool(page, 'Fill row').click()
+  await click(page, 0, 3)
+  const painted = ['R'.repeat(COLS), ...blank.slice(1)]
+  expect(await grid(page)).toEqual(painted)
+
+  // Its menu offers the other colours, the nearest (black, as × would) picked to start with.
+  await palette(page).nth(2).click()
+  const menu = page.getByRole('dialog', { name: 'Edit “Poppy”' })
+  const merge = menu.getByRole('group', { name: 'Merge into another colour' })
+  await expect(merge.getByRole('radio')).toHaveCount(2)
+  await expect(merge.getByRole('radio', { name: 'Black (nearest)' })).toBeChecked()
+  await expect(merge.getByRole('button', { name: 'Merge into Black' })).toBeVisible()
+  // Pointing at it shows the merge on the chart; picking another shows that one.
+  expect(await grid(page)).toEqual(painted)
+  await merge.hover()
+  expect(await grid(page)).toEqual(['B'.repeat(COLS), ...blank.slice(1)])
+  await merge.getByRole('radio', { name: 'Background' }).check({ force: true })
+  await expect(merge.getByRole('button', { name: 'Merge into Background' })).toBeVisible()
+  expect(await grid(page)).toEqual(blank)
+  // Cancel drops it: nothing merged, nothing to undo.
+  await menu.getByRole('button', { name: 'Cancel' }).click()
+  await expect(menu).toHaveCount(0)
+  expect(await grid(page)).toEqual(painted)
+  await expect(palette(page)).toHaveCount(3)
+
+  // Merge into the background: red's cells go white, and white is painted with now.
+  await palette(page).nth(2).click()
+  await merge.getByRole('radio', { name: 'Background' }).check({ force: true })
+  await merge.getByRole('button', { name: 'Merge into Background' }).click()
+  await expect(menu).toHaveCount(0)
+  await expect(palette(page)).toHaveCount(2)
+  await expect(page.locator('.design__message')).toHaveText(`Merged “Poppy” into “Background”: its ${COLS} cells are now “Background”.`)
+  expect(await grid(page)).toEqual(blank)
+  await expect(palette(page).nth(0)).toHaveAttribute('aria-pressed', 'true')
+  await expect(palette(page).nth(0)).toBeFocused()
+  // One undo step brings red back, with its cells.
+  await page.keyboard.press('ControlOrMeta+z')
+  await expect(palette(page)).toHaveCount(3)
+  expect(await grid(page)).toEqual(painted)
+})

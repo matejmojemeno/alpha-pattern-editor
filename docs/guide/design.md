@@ -131,11 +131,17 @@ Press **+ Add colour**. The same menu opens for a new colour, starting from the 
 you're painting with and named after what it looks like, until you type a name. Choose
 the colour and press **Add**.
 
-## Delete a colour
+## Merge or delete a colour
 
-Point at a colour in the list and press its **×** (on a touch screen, it's always shown).
-Its stitches take the nearest remaining colour. A pattern always keeps at least one
-colour.
+To fold a colour into another one, click it in the **Colours** list. At the bottom of
+its menu, **Merge into another colour** shows the other colours, with the nearest one
+already picked. Pick a different one if you like (point at them to see the result on the
+chart), then press **Merge into …**. Its stitches become that colour.
+
+For the quick way, point at a colour and press its bin (on a touch screen, it's always
+shown): its stitches take the nearest remaining colour.
+
+Either can be undone. A pattern always keeps at least one colour.
 
 ## Mirror, flip, rotate or trim the whole pattern
 

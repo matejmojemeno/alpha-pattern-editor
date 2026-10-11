@@ -11,9 +11,14 @@
  * dropped one would be gone. The press still does what it was for, so a press on the
  * chart paints with the colour just made.
  *
- * Its × deletes a colour, as on the import screen: its cells take the nearest remaining
- * colour. "Add colour" opens the same menu for a new colour, shown at the end of the list
- * while it is chosen, starting from the colour being painted with and named after what it
+ * Its bin deletes a colour, as the import screen's × does: its cells take the nearest
+ * remaining colour. Its menu can merge it into a colour of the user's choosing instead:
+ * the other colours as swatches, the nearest (the one the bin gives) picked to start
+ * with. Pointing at them, or picking one, shows the merge on the chart, as a colour being
+ * chosen does; Merge is one undo step.
+ *
+ * "Add colour" opens the same menu for a new colour, shown at the end of the list while
+ * it is chosen, starting from the colour being painted with and named after what it
  * looks like until a name is typed. A new colour left untouched is not added.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -30,6 +35,8 @@ interface Menu {
   id: string
   hex: string | null
   name: string | null
+  /** The id of the colour picked to merge into; null until one is picked (the nearest). */
+  into: string | null
 }
 
 const NEW = 'new'
@@ -43,6 +50,8 @@ export function ColoursPanel({
   onAdd,
   onEdit,
   onDelete,
+  onMerge,
+  nearest,
   onPreview,
 }: {
   palette: readonly PaletteEntry[]
@@ -51,6 +60,10 @@ export function ColoursPanel({
   onAdd: (hex: string, name: string) => void
   onEdit: (index: number, hex: string, name: string) => void
   onDelete: (index: number) => void
+  /** Merge the colour at `index` into the one at `into`. */
+  onMerge: (index: number, into: number) => void
+  /** The index of the colour nearest the one at `index`: where a delete would put its cells. */
+  nearest: (index: number) => number
   /** The colour being chosen for an entry, to show on the chart; null when none is. */
   onPreview: (preview: { id: string; hex: string } | null) => void
 }) {
@@ -71,7 +84,13 @@ export function ColoursPanel({
   useLayoutEffect(() => {
     preview.current = onPreview
   })
-  const previewHex = entry && menu?.hex && menu.hex !== entry.hex ? menu.hex : null
+  // Merge into: the colour picked, else the nearest. Pointing at the section, or picking a
+  // colour in it, shows the merge on the chart; else the colour being chosen shows.
+  const nearestId = entry && !only ? palette[nearest(index)]?.id : undefined
+  const into = (menu?.into && palette.find((e) => e.id === menu.into)) || palette.find((e) => e.id === nearestId) || null
+  const [pointing, setPointing] = useState(false)
+  const merging = into && (menu?.into || pointing) ? into.hex : null
+  const previewHex = entry ? (merging ?? (menu?.hex && menu.hex !== entry.hex ? menu.hex : null)) : null
   useEffect(() => {
     preview.current(previewHex && entry ? { id: entry.id, hex: previewHex } : null)
   }, [previewHex, entry?.id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -96,6 +115,22 @@ export function ColoursPanel({
     setMenu(null)
     if (refocus) (anchors.current.get(menu.id === NEW ? 'add' : menu.id)?.querySelector('button') ?? null)?.focus()
   }
+  /** Merge the colour into the one picked; its menu goes with it, its edits unkept. */
+  const merge = () => {
+    if (!menu || !entry || !into || live.current !== menu) return
+    live.current = null
+    setMenu(null)
+    onMerge(index, palette.indexOf(into))
+    focusAfter.current = into.id
+  }
+  // After a merge, the focus goes to the colour merged into: the one it was on is gone.
+  const focusAfter = useRef<string | null>(null)
+  useEffect(() => {
+    const id = focusAfter.current
+    if (!id) return
+    focusAfter.current = null
+    anchors.current.get(id)?.querySelector('button')?.focus()
+  })
   const closeRef = useRef(close)
   useLayoutEffect(() => {
     closeRef.current = close
@@ -106,7 +141,8 @@ export function ColoursPanel({
     if (menu?.id === id) return close('away')
     if (menu) close('away', false)
     if (id === NEW) setStart(palette[current]?.hex ?? '#000000')
-    setMenu({ id, hex: null, name: null })
+    setMenu({ id, hex: null, name: null, into: null })
+    setPointing(false)
     focusMenu.current = byKeyboard
   }
 
@@ -214,6 +250,35 @@ export function ColoursPanel({
             {menu.id === NEW ? 'Add' : 'Save'}
           </button>
         </div>
+        {entry && into && (
+          <fieldset
+            className="colour-menu__merge"
+            onPointerEnter={() => setPointing(true)}
+            onPointerLeave={() => setPointing(false)}
+          >
+            <legend>Merge into another colour</legend>
+            <div className="colour-menu__targets">
+              {palette.map((t) =>
+                t.id === entry.id ? null : (
+                  <label key={t.id} className="colour-menu__target" title={`${t.name || 'Unnamed'}${t.id === nearestId ? ' (nearest)' : ''}`}>
+                    <input
+                      type="radio"
+                      className="visually-hidden"
+                      name="merge-into"
+                      checked={t.id === into.id}
+                      aria-label={`${t.name || 'Unnamed'}${t.id === nearestId ? ' (nearest)' : ''}`}
+                      onChange={() => setMenu({ ...menu, into: t.id })}
+                    />
+                    <span style={{ background: t.hex }} aria-hidden="true" />
+                  </label>
+                ),
+              )}
+            </div>
+            <button type="button" className="button button--small colour-menu__merge-button" onClick={merge}>
+              Merge into {into.name || 'Unnamed'}
+            </button>
+          </fieldset>
+        )}
       </form>
     </div>
   )
@@ -253,7 +318,11 @@ export function ColoursPanel({
                 type="button"
                 className="colours__remove"
                 aria-label={`Delete “${e.name}”`}
-                title={only ? 'A pattern needs at least one colour' : `Delete ${e.name}: its cells take the nearest remaining colour`}
+                title={
+                  only
+                    ? 'A pattern needs at least one colour'
+                    : `Delete ${e.name}: its cells take the nearest remaining colour (click the colour to choose which)`
+                }
                 disabled={only}
                 onClick={() => onDelete(i)}
               >
