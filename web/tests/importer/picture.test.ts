@@ -2,8 +2,20 @@
 import { describe, expect, it } from 'vitest'
 
 import type { PictureSettings, Reading } from '../../src/detect/protocol.ts'
-import { check, clampHeight, clampWidth, colourSteps, croppedRows, detailText, MAX_COLOURS, sizeText, swatchAspect } from '../../src/importer/picture.ts'
-import { finishedSize, type Swatch } from '../../src/yarn/usage.ts'
+import {
+  check,
+  clampHeight,
+  clampWidth,
+  colourSteps,
+  croppedRows,
+  detailText,
+  lengthText,
+  MAX_COLOURS,
+  stitchesFor,
+  stitchLength,
+  swatchAspect,
+} from '../../src/importer/picture.ts'
+import { cmIn, finishedSize, formatSize, type Swatch } from '../../src/yarn/usage.ts'
 
 const swatch = (over: Partial<Swatch> = {}): Swatch => ({ stitches: 10, rows: 10, widthCm: null, heightCm: null, grams: null, ...over })
 const reading = (over: Partial<Reading> = {}): Reading => ({ kind: 'chart', sure: true, photoLike: false, failure: null, ...over })
@@ -30,15 +42,34 @@ describe('the stitch shape and size from the swatch', () => {
   })
 
   it('gives the finished size once it can, as "Yarn & size" does', () => {
-    expect(sizeText(60, 45, swatch())).toBeNull()
+    expect(stitchLength(swatch(), 'metric')).toBeNull()
+    expect(stitchLength(swatch({ widthCm: 10 }), 'metric')).toBeNull()
     const s = swatch({ stitches: 16, rows: 20, widthCm: 10, heightCm: 10 })
-    expect(sizeText(60, 45, s)).toBe('about 38 × 23 cm')
-    // The same arithmetic as yarn/usage.ts, which this doesn't import (bundle size).
-    for (const sw of [s, swatch({ stitches: 7, rows: 9, widthCm: 4.2, heightCm: 3.1 }), swatch({ widthCm: 10 })]) {
-      const want = finishedSize(33, 21, sw)
-      const got = sizeText(33, 21, sw)
-      expect(got).toBe(want.widthCm === null || want.heightCm === null ? null : `about ${Math.round(want.widthCm)} × ${Math.round(want.heightCm)} cm`)
+    expect(stitchLength(s, 'metric')).toEqual({ across: 0.625, up: 0.5 })
+    // The same arithmetic and rounding as yarn/usage.ts, which this doesn't import (bundle
+    // size), in either units.
+    for (const units of ['metric', 'imperial'] as const) {
+      for (const sw of [s, swatch({ stitches: 7, rows: 9, widthCm: 4.2, heightCm: 3.1 })]) {
+        for (const [cols, rows] of [[33, 21], [180, 240], [999, 4]] as const) {
+          const want = finishedSize(cols, rows, sw)
+          const one = stitchLength(sw, units)!
+          expect(cols * one.across).toBeCloseTo(cmIn(want.widthCm!, units), 9)
+          expect(`${lengthText(cols * one.across)} × ${lengthText(rows * one.up)} ${units === 'metric' ? 'cm' : 'in'}`).toBe(
+            formatSize(want.widthCm!, want.heightCm!, units).replace(/,/g, ''),
+          )
+        }
+      }
     }
+  })
+
+  it('turns a finished size typed into the nearest stitches, at least one', () => {
+    expect(stitchesFor(120, 0.625)).toBe(192)
+    expect(stitchesFor(120.2, 0.625)).toBe(192)
+    expect(stitchesFor(48, 1 / 3)).toBe(144) // 48 inches at 3 stitches an inch
+    expect(stitchesFor(0.1, 0.625)).toBe(1)
+    expect(lengthText(119.99)).toBe('120')
+    expect(lengthText(1234.4)).toBe('1234') // no thousands comma: the field reads it back
+    expect(lengthText(37.5)).toBe('37.5')
   })
 })
 

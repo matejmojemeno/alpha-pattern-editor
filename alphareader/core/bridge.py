@@ -45,7 +45,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from .confirm import ConfirmState, Extent, Preview, pattern_from_preview
-from .convert import MAX_WIDTH, PictureState, clamp_width
+from .convert import PictureState
 from .detect.palette import DEFAULT_DELTA_E
 from .kind import Reading, read_chart
 from .pixels import PixelArt, pixel_preview
@@ -281,7 +281,7 @@ def _preview_payload(session_id: int, session: _Session) -> dict:
         ps = _picture(session)
         payload["picture"] = {
             "width": int(ps.cols),
-            "maxWidth": int(clamp_width(MAX_WIDTH, ps.extent)),
+            "maxWidth": int(ps.max_width()),
             "height": int(ps.rows),
             "minHeight": int(ps.height_range()[0]),
             "maxHeight": int(ps.height_range()[1]),

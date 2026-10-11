@@ -40,9 +40,9 @@ DEFAULT_COLOURS = 6         # graphghans work best with about 4–10 (docs, "Pic
 DEFAULT_DETAIL = 0.5
 MAX_COLOURS = 24
 MIN_WIDTH = 4
-MAX_WIDTH = 400
+MAX_WIDTH = 999             # as a new pattern's side (web logic/edit.ts MAX_SIDE)
 MIN_HEIGHT = MIN_WIDTH
-MAX_HEIGHT = MAX_WIDTH * 4  # rows: a tall picture, at its widest
+MAX_HEIGHT = MAX_WIDTH
 _SUB = 4                    # samples per stitch, per axis, at most
 _MAX_CHANGE_COST = 100.0    # ΔE a colour change along a row costs at detail 0
 _COLUMN_SHARE = 0.5         # a change up a column costs this share of one along a row
@@ -627,9 +627,32 @@ class PictureState:
         H, W = self.img.shape[:2]
         self.extent = clamp_edges(self.extent, W, H)
         self.cols = clamp_width(self.cols, self.extent)
+        if self.keep_shape:
+            self._fit_width()
         self.colours = int(np.clip(self.colours, 1, MAX_COLOURS))
         if self.height is not None:
             self.set_height(self.height)
+
+    def max_width(self) -> int:
+        """The widest the picture can be made: MAX_WIDTH or one stitch per pixel, and with
+        the shape kept, no wider than keeps its rows within what `_rows_for` allows
+        (MAX_HEIGHT, or one per pixel): wider, the rows would stop there and the picture be
+        squashed. A portrait photo at MAX_WIDTH would need more than MAX_HEIGHT rows; one
+        made of stitches wider than tall, more rows than it has pixels."""
+        widest = clamp_width(MAX_WIDTH, self.extent)
+        if not self.keep_shape:
+            return widest
+        e = self.extent
+        w, h = e.x1 - e.x0, e.y1 - e.y0
+        most = min(max(1, self.img.shape[0]), MAX_HEIGHT)
+        cols = int(np.floor((most + 0.5) * self.cell_aspect * w / max(h, 1e-9)))
+        cols = min(widest, cols + 1)
+        while cols > 1 and picture_rows(self.extent, cols, self.cell_aspect) > most:
+            cols -= 1
+        return max(cols, clamp_width(MIN_WIDTH, self.extent))
+
+    def _fit_width(self) -> None:
+        self.cols = min(self.cols, self.max_width())
 
     def _rows_for(self, cols: int) -> int:
         """The rows that keep the picture's shape at `cols` stitches across."""
@@ -645,7 +668,7 @@ class PictureState:
         the narrowest and the widest the picture can be made."""
         if self.keep_shape:
             return (self._rows_for(clamp_width(MIN_WIDTH, self.extent)),
-                    self._rows_for(clamp_width(MAX_WIDTH, self.extent)))
+                    self._rows_for(self.max_width()))
         return clamp_height(MIN_HEIGHT, self.extent), clamp_height(MAX_HEIGHT, self.extent)
 
     def set_extent(self, extent: Extent) -> None:
@@ -653,6 +676,7 @@ class PictureState:
         self.extent = clamp_edges(extent, W, H)
         self.cols = clamp_width(self.cols, self.extent)
         if self.keep_shape:
+            self._fit_width()
             self.height = None                  # the width stays, the rows follow
         elif self.height is not None:
             self.height = clamp_height(self.height, self.extent)
@@ -660,6 +684,7 @@ class PictureState:
     def set_width(self, cols: int) -> None:
         self.cols = clamp_width(cols, self.extent)
         if self.keep_shape:
+            self._fit_width()
             self.height = None
 
     def set_height(self, rows: int) -> None:
@@ -672,7 +697,7 @@ class PictureState:
             return
         e = self.extent
         want = int(round(rows * self.cell_aspect * (e.x1 - e.x0) / max(e.y1 - e.y0, 1e-9)))
-        self.cols = clamp_width(want, self.extent)
+        self.cols = min(clamp_width(want, self.extent), self.max_width())
         self.height = rows if self.cols == want else None
 
     def set_keep_shape(self, on: bool) -> None:
@@ -682,11 +707,14 @@ class PictureState:
         if on != self.keep_shape:
             self.height = None if on else self.rows
             self.keep_shape = on
+            if on:
+                self._fit_width()
 
     def set_cell_aspect(self, aspect: float) -> None:
         if aspect > 0:
             self.cell_aspect = float(aspect)
             if self.keep_shape:
+                self._fit_width()
                 self.height = None
 
     def set_colours(self, colours: int) -> None:

@@ -482,6 +482,48 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* A size typed beside its label, as the "Yarn & size" fields look (yarn.css). Wraps
+   under the label where the column is narrow. */
+.picture-controls__row:has(.picture-controls__field) {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.picture-controls__field,
+.picture-controls__finished {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.picture-controls__input {
+  width: 4.5rem;
+  min-height: 2rem;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.picture-controls__input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+/* What a size can be, while one typed is outside it: under the field. */
+.picture-controls__bounds {
+  flex-basis: 100%;
+  text-align: right;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 /* Without margin-inline: 0, Chromium's own 2 px margin makes 100% stick out. */
 .picture-controls__slider {
   width: 100%;

@@ -39,6 +39,8 @@ async function openPhoto(name: string | null = 'dog') {
 }
 
 const saveButton = () => screen.findByRole('button', { name: 'Save & edit pattern' })
+/** A picture's size field, by its name. */
+const field = (within_: HTMLElement, name: string) => within(within_).getByRole('textbox', { name }) as HTMLInputElement
 const nameField = () => screen.getByRole('textbox', { name: 'Pattern name' }) as HTMLInputElement
 
 describe('Import screen', () => {
@@ -525,14 +527,14 @@ describe('Photo to pattern', () => {
     // The screen is named for what it does: no line saying what the image was read as.
     expect(noteText()).toBeNull()
     const settings = screen.getByRole('group', { name: 'Picture settings' })
-    expect(within(settings).getByText('8 stitches')).toBeTruthy()
-    expect(within(settings).getByText('6 rows')).toBeTruthy()
-    // The sliders say the size: no line repeating it.
+    expect(field(settings, 'Width').value).toBe('8')
+    expect(field(settings, 'Height').value).toBe('6')
+    // The fields say the size: no line repeating it.
     expect(within(settings).queryByText(/8 × 6/)).toBeNull()
     expect(within(settings).getByText('Balanced')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Use the whole picture' }).hasAttribute('disabled')).toBe(true)
 
-    const width = within(settings).getByLabelText('Width') as HTMLInputElement
+    const width = within(settings).getByRole('slider', { name: 'Width slider' }) as HTMLInputElement
     act(() => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(width, '12')
       width.dispatchEvent(new Event('input', { bubbles: true }))
@@ -554,9 +556,9 @@ describe('Photo to pattern', () => {
     const settings = screen.getByRole('group', { name: 'Picture settings' })
     const keep = within(settings).getByRole('checkbox', { name: 'Keep proportions' }) as HTMLInputElement
     expect(keep.checked).toBe(true)
-    expect(within(settings).getByText('6 rows')).toBeTruthy()
+    expect(field(settings, 'Height').value).toBe('6')
     const slide = (label: string, value: string) => {
-      const input = within(settings).getByLabelText(label) as HTMLInputElement
+      const input = within(settings).getByRole('slider', { name: `${label} slider` }) as HTMLInputElement
       act(() => {
         Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value)
         input.dispatchEvent(new Event('input', { bubbles: true }))
@@ -567,7 +569,7 @@ describe('Photo to pattern', () => {
     slide('Height', '9')
     await waitFor(() => expect(detection.worker.of('update').at(-1)!.params).toEqual({ height: 9 }))
     await waitFor(() => expect(sizeShown()).toBe('12 columns × 9 rows'))
-    expect(within(settings).getByText('12 stitches')).toBeTruthy()
+    expect(field(settings, 'Width').value).toBe('12')
 
     // Let go: each is as set.
     await userEvent.click(keep)
@@ -625,7 +627,98 @@ describe('Photo to pattern', () => {
     await renderApp('#/photo', { settings })
     await saveButton()
     expect(detection.worker.of('open')[0]!.cellAspect).toBeCloseTo(0.8)
-    // …and the finished size, under the sliders.
-    expect(within(screen.getByRole('group', { name: 'Picture settings' })).getByText('About 5 × 3 cm')).toBeTruthy()
+    // …and the finished size, under the sliders: 8 stitches of 0.625 cm, 6 rows of 0.5.
+    const finished = screen.getByRole('group', { name: 'Finished size' })
+    expect(field(finished, 'Finished width').value).toBe('5')
+    expect(field(finished, 'Finished height').value).toBe('3')
+    expect(within(finished).getByText('cm')).toBeTruthy()
+  })
+
+  it('takes a width or height typed, asked for on Enter or on leaving the field', async () => {
+    detection.reset(readingWorker('chart'))
+    await openPhoto()
+    await saveButton()
+    const settings = screen.getByRole('group', { name: 'Picture settings' })
+    const width = field(settings, 'Width')
+    const sent = () => detection.worker.of('update').length
+    const before = sent()
+    await userEvent.clear(width)
+    await userEvent.type(width, '144')
+    // Not 1, then 14, then 144 across: nothing asked for while typing.
+    expect(sent()).toBe(before)
+    expect(width.value).toBe('144')
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(detection.worker.of('update').at(-1)!.params).toEqual({ width: 144 }))
+    await waitFor(() => expect(sizeShown()).toBe('144 columns × 108 rows'))
+    expect(width.value).toBe('144')
+
+    // Leaving the field asks too; the height, kept in shape, moves the width.
+    const height = field(settings, 'Height')
+    await userEvent.clear(height)
+    await userEvent.type(height, '30')
+    await userEvent.tab()
+    await waitFor(() => expect(detection.worker.of('update').at(-1)!.params).toEqual({ height: 30 }))
+    await waitFor(() => expect(width.value).toBe('40'))
+
+    // The arrow keys step by one, at once.
+    await userEvent.click(width)
+    await userEvent.keyboard('{ArrowUp}')
+    await waitFor(() => expect(detection.worker.of('update').at(-1)!.params).toEqual({ width: 41 }))
+  })
+
+  it('says what a size can be, and asks for the nearest, when one typed is outside it', async () => {
+    detection.reset(readingWorker('chart'))
+    await openPhoto()
+    await saveButton()
+    const settings = screen.getByRole('group', { name: 'Picture settings' })
+    const width = field(settings, 'Width')
+    await userEvent.clear(width)
+    await userEvent.type(width, '5000')
+    expect(width.getAttribute('aria-invalid')).toBe('true')
+    // The fake picture is 400 pixels across: one stitch per pixel at most.
+    expect(settings.querySelector('.picture-controls__bounds')?.textContent).toBe('4 to 400')
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(detection.worker.of('update').at(-1)!.params).toEqual({ width: 400 }))
+    await waitFor(() => expect(width.value).toBe('400'))
+    expect(settings.querySelector('.picture-controls__bounds')).toBeNull()
+
+    // Not a number, or Escape: back to the value, nothing asked.
+    const before = detection.worker.of('update').length
+    await userEvent.clear(width)
+    await userEvent.type(width, 'abc')
+    expect(width.getAttribute('aria-invalid')).toBe('true')
+    await userEvent.tab()
+    expect(width.value).toBe('400')
+    await userEvent.clear(width)
+    await userEvent.type(width, '50{Escape}')
+    expect(width.value).toBe('400')
+    expect(detection.worker.of('update').length).toBe(before)
+  })
+
+  it('takes a finished size typed, in the units chosen, as the nearest stitches and rows', async () => {
+    const storage = memoryStorage()
+    const settings = createSettingsStore(() => storage)
+    // 3 stitches and 3.25 rows an inch (The Crochet Crowd's 12 sc and 13 rows over 4").
+    settings.set({ units: 'imperial', swatchStitches: 12, swatchRows: 13, swatchWidthCm: 4 * 2.54, swatchHeightCm: 4 * 2.54 })
+    detection.reset(readingWorker('chart'))
+    handOffImage({ file: photo('cat.png') })
+    await renderApp('#/photo', { settings })
+    await saveButton()
+    const finished = screen.getByRole('group', { name: 'Finished size' })
+    expect(within(finished).getByText('in')).toBeTruthy()
+    const across = field(finished, 'Finished width')
+    await userEvent.clear(across)
+    await userEvent.type(across, '48{Enter}')
+    // 48 inches at 3 an inch.
+    await waitFor(() => expect(detection.worker.of('update').at(-1)!.params).toEqual({ width: 144 }))
+    await waitFor(() => expect(field(screen.getByRole('group', { name: 'Picture settings' }), 'Width').value).toBe('144'))
+    expect(across.value).toBe('48')
+  })
+
+  it('shows no finished size until the swatch is measured', async () => {
+    detection.reset(readingWorker('chart'))
+    await openPhoto()
+    await saveButton()
+    expect(screen.queryByRole('group', { name: 'Finished size' })).toBeNull()
   })
 })

@@ -554,7 +554,8 @@ def test_picture_settings_change_the_pattern_without_detecting_again(count_detec
     bridge.set_params(sid, extent={"x0": 0, "y0": 0, "x1": 160, "y1": 240})
     p = bridge.preview(sid)
     assert p["extent"] == {"x0": 0.0, "y0": 0.0, "x1": 160.0, "y1": 240.0}
-    assert p["picture"]["maxWidth"] == 160
+    assert p["picture"]["maxWidth"] == 120            # 160 across, in stitches 0.75 as tall
+    # as wide, would need 320 rows of a picture 240 pixels tall
     # Rows and colour detail are the chart's; a picture ignores them.
     bridge.set_params(sid, rows=5, delta_e=3.0)
     assert bridge.preview(sid)["rows"] == p["rows"]

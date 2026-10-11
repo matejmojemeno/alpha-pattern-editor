@@ -149,12 +149,19 @@ button returns to reading it as a chart.
 drawing: a pet, a flower, a logo. Unlike importing a chart, nothing is read from the
 image square by square. It's redrawn in stitches, and you choose how:
 
-- **Width** and **Height:** how many stitches across and how many rows. With **Keep
-  proportions** ticked, as it is to start with, moving one moves the other, so the
-  piece keeps the image's shape (and your swatch's, once it's measured in
-  [Settings](settings.md), which also gives the finished size in cm). Untick it to set
-  each on its own: the image is stretched or squashed to fit. Ticking it again keeps the
-  width and fits the rows to it.
+- **Width** and **Height:** how many stitches across and how many rows. Type the number
+  you want and press Enter, or drag the slider under it. The arrow keys change it one
+  stitch at a time. Each can be up to 999, the most a pattern can have on a side, or one
+  stitch per pixel of the image if it's smaller. Type more than that and you get the
+  most it can be. With **Keep proportions** ticked, as it is to start with, changing one
+  changes the other, so the piece keeps the image's shape (and your swatch's, once
+  it's measured in [Settings](settings.md)). Untick it to set each on its own: the image
+  is stretched or squashed to fit. Ticking it again keeps the width and fits the rows
+  to it.
+- **Finished size:** once your swatch is measured, the size the piece will be, in cm or
+  inches as chosen in [Yarn & size](yarn-and-size.md). Type the size you want, such as
+  120 cm for a blanket, and the width or height becomes the nearest number of stitches
+  to it.
 - **Detail:** from "Fewer colour changes", which smooths away lone stitches you'd have to
   change yarn for, to "More detail".
 - **Keep outlines:** for drawings with dark lines, such as a cartoon. It keeps them, one

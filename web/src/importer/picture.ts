@@ -4,6 +4,7 @@
  * are the Python's (core/kind.py, core/convert.py); this is only wording and arithmetic.
  */
 import type { Mode, PictureSettings, Reading } from '../detect/protocol.ts'
+import type { Units } from '../settings/store.ts'
 import type { Swatch } from '../yarn/usage.ts'
 
 const positive = (n: number | null): n is number => n !== null && Number.isFinite(n) && n > 0
@@ -34,11 +35,27 @@ export function swatchAspect(s: Swatch): number | undefined {
   return Number.isFinite(aspect) && aspect > 0 ? aspect : undefined
 }
 
-/** "about 38 × 28 cm", or null until the swatch is measured both ways. */
-export function sizeText(cols: number, rows: number, s: Swatch): string | null {
+/** As yarn/usage.ts's CM_PER_INCH. */
+const CM_PER_INCH = 2.54
+
+/** One stitch's width and one row's height in `units` (cm or inches), or null until the
+ *  swatch is measured both ways: the finished size is shown, and typed, with both. */
+export function stitchLength(s: Swatch, units: Units): { across: number; up: number } | null {
   const one = stitchSize(s)
   if (one.widthCm === null || one.heightCm === null) return null
-  return `about ${Math.round(cols * one.widthCm)} × ${Math.round(rows * one.heightCm)} cm`
+  const k = units === 'metric' ? 1 : 1 / CM_PER_INCH
+  return { across: one.widthCm * k, up: one.heightCm * k }
+}
+
+/** A finished length as a field shows it: a decimal under 100, as "Yarn & size" does
+ *  (usage.ts formatSize), and nothing a field couldn't read back (no thousands comma). */
+export function lengthText(n: number): string {
+  return String(Number(n.toFixed(n < 100 ? 1 : 0)))
+}
+
+/** The stitches (or rows) nearest to a finished length, each `per` long; at least one. */
+export function stitchesFor(length: number, per: number): number {
+  return Math.max(1, Math.round(length / per))
 }
 
 /** The name of the other way in, on the home screen and the buttons that lead to it. */
