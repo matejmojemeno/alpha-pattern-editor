@@ -79,16 +79,25 @@ export function makePreview(session: number, rows = 3, cols = 4, over: Partial<P
 }
 
 /** A picture's preview, as bridge.preview returns one in picture mode: `width` stitches
- *  across a 400 × 300 image, the rows following for square stitches. */
+ *  across a 400 × 300 image, and `height` rows, or the rows following for square
+ *  stitches. */
 export function makePicturePreview(
   session: number,
-  { width = 8, colours = 6, detail = 0.5, outlines = false, extent = { x0: 0, y0: 0, x1: 400, y1: 300 } } = {},
+  {
+    width = 8,
+    height = null as number | null,
+    keepShape = true,
+    colours = 6,
+    detail = 0.5,
+    outlines = false,
+    extent = { x0: 0, y0: 0, x1: 400, y1: 300 },
+  } = {},
 ): Preview {
-  const rows = Math.max(1, Math.round((width * (extent.y1 - extent.y0)) / (extent.x1 - extent.x0)))
+  const rows = height ?? Math.max(1, Math.round((width * (extent.y1 - extent.y0)) / (extent.x1 - extent.x0)))
   return makePreview(session, rows, width, {
     mode: 'picture',
     reading: { kind: 'picture', sure: true, photoLike: false, failure: null },
-    picture: { width, maxWidth: 400, colours, detail, cellAspect: 1, outlines },
+    picture: { width, maxWidth: 400, height: rows, minHeight: keepShape ? 3 : 4, maxHeight: 300, keepShape, colours, detail, cellAspect: 1, outlines },
     extent,
     imageWidth: 400,
     imageHeight: 300,

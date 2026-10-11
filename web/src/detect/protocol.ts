@@ -70,10 +70,20 @@ export interface Reading {
 
 /** A picture's settings (convert.PictureState), in a picture's preview. */
 export interface PictureSettings {
-  /** Stitches across; the rows follow from the picture's shape and the stitch's. */
+  /** Stitches across. */
   width: number
   /** The widest it can be: 400 stitches, or one per detected pixel. */
   maxWidth: number
+  /** Rows: with `keepShape`, they follow from the width, the picture's shape and the
+   *  stitch's (or the width from them, when the height was set). */
+  height: number
+  /** The fewest and most rows the height can be set to: with `keepShape`, those of the
+   *  narrowest and the widest the picture can be made. */
+  minHeight: number
+  maxHeight: number
+  /** "Keep proportions": the width and height move together, keeping the picture's
+   *  shape. On to start with. */
+  keepShape: boolean
   /** The number of colours asked for (the palette may have fewer). */
   colours: number
   /** 0 = smooth (few colour changes) … 1 = every stitch its nearest colour. */
@@ -136,13 +146,15 @@ export interface Preview {
 export type Outcome<T> = T | Failure
 
 /** Settings a preview can be adjusted by (bridge.set_params). A chart takes rows, cols
- *  and extent; a picture takes extent (what of the image is used), width, colours,
- *  detail, cellAspect and outlines. */
+ *  and extent; a picture takes extent (what of the image is used), keepShape, width,
+ *  height, colours, detail, cellAspect and outlines. */
 export interface Params {
   rows?: number
   cols?: number
   extent?: Extent
   width?: number
+  height?: number
+  keepShape?: boolean
   colours?: number
   detail?: number
   cellAspect?: number

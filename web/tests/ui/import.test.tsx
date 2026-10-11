@@ -355,7 +355,15 @@ describe('Import screen', () => {
 function readingWorker(first: 'chart' | 'pixels', { sure = true, photoLike = false, failWith = null as DetectionErrorCode | null } = {}) {
   const w = detectingWorker()
   const auto = w.auto!
-  const s = { width: 8, colours: 6, detail: 0.5, outlines: false, extent: { x0: 0, y0: 0, x1: 400, y1: 300 } }
+  const s = {
+    width: 8,
+    height: null as number | null,
+    keepShape: true,
+    colours: 6,
+    detail: 0.5,
+    outlines: false,
+    extent: { x0: 0, y0: 0, x1: 400, y1: 300 },
+  }
   const pictures = new Set<number>()
   const answer = (session: number) =>
     pictures.has(session)
@@ -381,10 +389,22 @@ function readingWorker(first: 'chart' | 'pixels', { sure = true, photoLike = fal
         return answer(opened.session)
       }
       case 'update':
-        if (msg.params.width !== undefined) s.width = msg.params.width
+        // In bridge.set_params's order, by convert.PictureState's rules (square stitches).
+        if (msg.params.extent !== undefined) s.extent = msg.params.extent
+        if (msg.params.keepShape !== undefined && msg.params.keepShape !== s.keepShape) {
+          s.keepShape = msg.params.keepShape
+          s.height = s.keepShape ? null : makePicturePreview(msg.session, s).rows
+        }
+        if (msg.params.width !== undefined) {
+          s.width = msg.params.width
+          if (s.keepShape) s.height = null
+        }
+        if (msg.params.height !== undefined) {
+          s.height = msg.params.height
+          if (s.keepShape) s.width = Math.round((s.height * 400) / 300)
+        }
         if (msg.params.colours !== undefined) s.colours = msg.params.colours
         if (msg.params.detail !== undefined) s.detail = msg.params.detail
-        if (msg.params.extent !== undefined) s.extent = msg.params.extent
         if (msg.params.outlines !== undefined) s.outlines = msg.params.outlines
         return answer(msg.session)
       default:
@@ -523,6 +543,44 @@ describe('Photo to pattern', () => {
     expect(screen.getByRole('button', { name: 'Fewer colours' }).hasAttribute('disabled')).toBe(true)
     await userEvent.click(screen.getByRole('button', { name: 'More colours' }))
     await waitFor(() => expect(detection.worker.of('update').at(-1)!.params).toEqual({ colours: 3 }))
+  })
+
+  it('sets the height too, keeping the proportions unless that is unticked', async () => {
+    detection.reset(readingWorker('chart'))
+    await openPhoto()
+    await saveButton()
+    const settings = screen.getByRole('group', { name: 'Picture settings' })
+    const keep = within(settings).getByRole('checkbox', { name: 'Keep proportions' }) as HTMLInputElement
+    expect(keep.checked).toBe(true)
+    expect(within(settings).getByText('6 rows')).toBeTruthy()
+    const slide = (label: string, value: string) => {
+      const input = within(settings).getByLabelText(label) as HTMLInputElement
+      act(() => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value)
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+      })
+    }
+
+    // Kept: the width follows the height.
+    slide('Height', '9')
+    await waitFor(() => expect(detection.worker.of('update').at(-1)!.params).toEqual({ height: 9 }))
+    await waitFor(() => expect(sizeShown()).toBe('12 columns × 9 rows'))
+    expect(within(settings).getByText('12 stitches')).toBeTruthy()
+
+    // Let go: each is as set.
+    await userEvent.click(keep)
+    await waitFor(() => expect(detection.worker.of('update').at(-1)!.params).toEqual({ keepShape: false }))
+    await waitFor(() => expect(keep.checked).toBe(false))
+    slide('Height', '20')
+    await waitFor(() => expect(sizeShown()).toBe('12 columns × 20 rows'))
+    slide('Width', '30')
+    await waitFor(() => expect(detection.worker.of('update').at(-1)!.params).toEqual({ width: 30 }))
+    await waitFor(() => expect(sizeShown()).toBe('30 columns × 20 rows'))
+
+    // Kept again: the width stays, and the rows follow it.
+    await userEvent.click(keep)
+    await waitFor(() => expect(sizeShown()).toBe('30 columns × 23 rows'))
+    expect(keep.checked).toBe(true)
   })
 
   it('keeps outlines when asked, off to start with', async () => {

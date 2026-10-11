@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { PictureSettings, Reading } from '../../src/detect/protocol.ts'
-import { check, clampWidth, colourSteps, detailText, MAX_COLOURS, sizeText, swatchAspect } from '../../src/importer/picture.ts'
+import { check, clampHeight, clampWidth, colourSteps, croppedRows, detailText, MAX_COLOURS, sizeText, swatchAspect } from '../../src/importer/picture.ts'
 import { finishedSize, type Swatch } from '../../src/yarn/usage.ts'
 
 const swatch = (over: Partial<Swatch> = {}): Swatch => ({ stitches: 10, rows: 10, widthCm: null, heightCm: null, grams: null, ...over })
@@ -10,6 +10,10 @@ const reading = (over: Partial<Reading> = {}): Reading => ({ kind: 'chart', sure
 const picture = (over: Partial<PictureSettings> = {}): PictureSettings => ({
   width: 60,
   maxWidth: 320,
+  height: 45,
+  minHeight: 3,
+  maxHeight: 240,
+  keepShape: true,
   colours: 6,
   detail: 0.5,
   cellAspect: 1,
@@ -104,6 +108,23 @@ describe("a picture's settings", () => {
     expect(clampWidth(40.4, picture())).toBe(40)
     expect(clampWidth(Number.NaN, picture())).toBe(60)
     expect(clampWidth(10, picture({ maxWidth: 3 }))).toBe(3)
+  })
+
+  it('keeps a height within what the picture allows', () => {
+    expect(clampHeight(1, picture())).toBe(3)
+    expect(clampHeight(1000, picture())).toBe(240)
+    expect(clampHeight(30.6, picture())).toBe(31)
+    expect(clampHeight(Number.NaN, picture())).toBe(45)
+  })
+
+  it('counts a cropped picture’s rows as convert.PictureState does', () => {
+    // Kept in shape, the rows follow the width: 40 across 160 × 240 pixels, square or
+    // wider than tall stitches.
+    expect(croppedRows(40, 160, 240, picture())).toBe(60)
+    expect(croppedRows(40, 160, 240, picture({ cellAspect: 0.75 }))).toBe(80)
+    // Let go, they stay as set, but no more than one a pixel.
+    expect(croppedRows(40, 160, 240, picture({ keepShape: false, height: 20 }))).toBe(20)
+    expect(croppedRows(40, 160, 10.5, picture({ keepShape: false, height: 20 }))).toBe(10)
   })
 
   it('names the Detail slider’s positions', () => {
