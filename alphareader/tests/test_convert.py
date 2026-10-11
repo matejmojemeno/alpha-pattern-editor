@@ -177,6 +177,54 @@ def test_the_state_caches_each_step(monkeypatch):
     assert calls == {"sample": 2, "colours": 3, "assign": 4}
 
 
+def test_the_height_keeps_the_shape_by_moving_the_width():
+    st = convert.PictureState(img=_gradient(), extent=Extent(0, 0, 320, 240))
+    assert st.keep_shape and (st.cols, st.rows) == (60, 45)
+    st.set_height(90)
+    assert (st.cols, st.rows) == (120, 90)
+    st.set_width(40)                              # the rows follow the width again
+    assert (st.cols, st.rows) == (40, 30)
+    st.set_height(31)                             # 41.3 across: the rows as asked
+    assert (st.cols, st.rows) == (41, 31)
+    assert st.height_range() == (3, 240)          # those of 4 and of 320 stitches across
+    st.set_height(1000)
+    assert (st.cols, st.rows) == (320, 240)
+    st.set_extent(Extent(0, 0, 160, 240))         # a crop keeps the width; rows follow
+    assert (st.cols, st.rows) == (160, 240)
+    st.set_cell_aspect(0.5)
+    assert st.rows == 240                         # 480, but one row per pixel at most
+
+
+def test_without_the_shape_kept_width_and_height_are_each_as_asked():
+    st = convert.PictureState(img=_gradient(), extent=Extent(0, 0, 320, 240))
+    st.set_keep_shape(False)
+    assert (st.cols, st.rows) == (60, 45)         # as they were
+    st.set_height(20)
+    st.set_width(80)
+    assert (st.cols, st.rows) == (80, 20)
+    p = st.preview()
+    assert p.cells.shape == (20, 80)
+    assert st.height_range() == (4, 240)
+    st.set_height(1)
+    assert st.rows == 4
+    st.set_extent(Extent(0, 0, 320, 10))          # a crop keeps both, within its pixels
+    assert (st.cols, st.rows) == (80, 4)
+    st.set_height(50)
+    assert st.rows == 10
+    st.set_cell_aspect(0.5)
+    assert st.rows == 10
+    st.set_keep_shape(True)                       # the width stays, the rows follow it
+    assert (st.cols, st.rows) == (80, 5)
+
+
+def test_the_state_made_with_a_height():
+    st = convert.PictureState(img=_gradient(), extent=Extent(0, 0, 320, 240), height=30)
+    assert (st.cols, st.rows) == (40, 30)
+    st = convert.PictureState(img=_gradient(), extent=Extent(0, 0, 320, 240), height=30,
+                              keep_shape=False)
+    assert (st.cols, st.rows) == (60, 30)
+
+
 @pytest.mark.parametrize("shape", [(1, 1), (3, 50), (50, 3)])
 def test_tiny_pictures_still_convert(shape):
     img = np.zeros(shape + (3,), np.uint8)

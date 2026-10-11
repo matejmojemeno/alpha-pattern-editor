@@ -41,6 +41,8 @@ DEFAULT_DETAIL = 0.5
 MAX_COLOURS = 24
 MIN_WIDTH = 4
 MAX_WIDTH = 400
+MIN_HEIGHT = MIN_WIDTH
+MAX_HEIGHT = MAX_WIDTH * 4  # rows: a tall picture, at its widest
 _SUB = 4                    # samples per stitch, per axis, at most
 _MAX_CHANGE_COST = 100.0    # ΔE a colour change along a row costs at detail 0
 _COLUMN_SHARE = 0.5         # a change up a column costs this share of one along a row
@@ -92,6 +94,12 @@ def clamp_width(cols: int, extent: Extent) -> int:
     """At least MIN_WIDTH stitches, at most MAX_WIDTH or one per pixel."""
     px = max(1, int(np.floor(extent.x1 - extent.x0)))
     return int(max(1, min(max(MIN_WIDTH, int(cols)), MAX_WIDTH, px)))
+
+
+def clamp_height(rows: int, extent: Extent) -> int:
+    """At least MIN_HEIGHT rows, at most MAX_HEIGHT or one per pixel."""
+    px = max(1, int(np.floor(extent.y1 - extent.y0)))
+    return int(max(1, min(max(MIN_HEIGHT, int(rows)), MAX_HEIGHT, px)))
 
 
 # --- 1. sampling -------------------------------------------------------------------------
@@ -592,10 +600,18 @@ def whole(img: np.ndarray) -> Extent:
 class PictureState:
     """What the import screen edits for a picture, with each step cached until something
     it depends on changes: moving the Detail slider reruns only the stitch assignment,
-    changing the number of colours only the colours onwards."""
+    changing the number of colours only the colours onwards.
+
+    With `keep_shape` ("Keep proportions", on to start with) the rows follow the width, or
+    the width the rows, so the crocheted piece keeps the picture's shape; `height` is the
+    rows asked for, or None while they follow the width. With it off, the width and the
+    rows are each as asked and the picture is stretched to them; moving the crop keeps
+    both."""
     img: np.ndarray
     extent: Extent
     cols: int = DEFAULT_WIDTH
+    height: int | None = None
+    keep_shape: bool = True
     cell_aspect: float = 1.0
     colours: int = DEFAULT_COLOURS
     detail: float = DEFAULT_DETAIL
@@ -612,23 +628,66 @@ class PictureState:
         self.extent = clamp_edges(self.extent, W, H)
         self.cols = clamp_width(self.cols, self.extent)
         self.colours = int(np.clip(self.colours, 1, MAX_COLOURS))
+        if self.height is not None:
+            self.set_height(self.height)
+
+    def _rows_for(self, cols: int) -> int:
+        """The rows that keep the picture's shape at `cols` stitches across."""
+        H = self.img.shape[0]
+        return int(min(picture_rows(self.extent, cols, self.cell_aspect), max(1, H), MAX_HEIGHT))
 
     @property
     def rows(self) -> int:
-        H = self.img.shape[0]
-        return int(min(picture_rows(self.extent, self.cols, self.cell_aspect), max(1, H), MAX_WIDTH * 4))
+        return self.height if self.height is not None else self._rows_for(self.cols)
+
+    def height_range(self) -> tuple[int, int]:
+        """The fewest and most rows the height can be set to: with the shape kept, those of
+        the narrowest and the widest the picture can be made."""
+        if self.keep_shape:
+            return (self._rows_for(clamp_width(MIN_WIDTH, self.extent)),
+                    self._rows_for(clamp_width(MAX_WIDTH, self.extent)))
+        return clamp_height(MIN_HEIGHT, self.extent), clamp_height(MAX_HEIGHT, self.extent)
 
     def set_extent(self, extent: Extent) -> None:
         H, W = self.img.shape[:2]
         self.extent = clamp_edges(extent, W, H)
         self.cols = clamp_width(self.cols, self.extent)
+        if self.keep_shape:
+            self.height = None                  # the width stays, the rows follow
+        elif self.height is not None:
+            self.height = clamp_height(self.height, self.extent)
 
     def set_width(self, cols: int) -> None:
         self.cols = clamp_width(cols, self.extent)
+        if self.keep_shape:
+            self.height = None
+
+    def set_height(self, rows: int) -> None:
+        """`rows` rows; with the shape kept, and the width that keeps it. Should that width
+        be out of bounds, the nearest that isn't, and the rows follow it."""
+        lo, hi = self.height_range()
+        rows = int(max(lo, min(hi, int(rows))))
+        if not self.keep_shape:
+            self.height = rows
+            return
+        e = self.extent
+        want = int(round(rows * self.cell_aspect * (e.x1 - e.x0) / max(e.y1 - e.y0, 1e-9)))
+        self.cols = clamp_width(want, self.extent)
+        self.height = rows if self.cols == want else None
+
+    def set_keep_shape(self, on: bool) -> None:
+        """Keeping the shape again keeps the width, and the rows follow it; letting it go
+        keeps the rows as they are, to change on their own."""
+        on = bool(on)
+        if on != self.keep_shape:
+            self.height = None if on else self.rows
+            self.keep_shape = on
 
     def set_cell_aspect(self, aspect: float) -> None:
         if aspect > 0:
             self.cell_aspect = float(aspect)
+            if self.keep_shape:
+                self.height = None
 
     def set_colours(self, colours: int) -> None:
         self.colours = int(np.clip(colours, 1, MAX_COLOURS))

@@ -529,7 +529,8 @@ def test_a_picture_opens_as_a_picture_and_saves_what_convert_makes(count_detecti
     p = _open(img, intent="picture")
     assert count_detections == []                     # nothing is detected in a picture
     assert (p["mode"], p["reading"]["kind"]) == ("picture", "picture")
-    assert p["picture"] == {"width": 60, "maxWidth": 320, "colours": 6, "detail": 0.5,
+    assert p["picture"] == {"width": 60, "maxWidth": 320, "height": 45, "minHeight": 3,
+                            "maxHeight": 240, "keepShape": True, "colours": 6, "detail": 0.5,
                             "cellAspect": 1.0, "outlines": False}
     assert (p["cols"], p["rows"]) == (60, 45)
     assert p["confidence"].min() == 1.0 and p["lowConfidenceFraction"] == 0.0
@@ -558,6 +559,23 @@ def test_picture_settings_change_the_pattern_without_detecting_again(count_detec
     bridge.set_params(sid, rows=5, delta_e=3.0)
     assert bridge.preview(sid)["rows"] == p["rows"]
     assert len(count_detections) == 0
+
+
+def test_a_pictures_height_moves_its_width_unless_the_shape_is_let_go():
+    sid = _open(_photo(), intent="picture")["session"]       # 320 × 240
+    bridge.set_params(sid, height=30)
+    p = bridge.preview(sid)
+    assert (p["cols"], p["rows"]) == (40, 30)
+    assert p["picture"]["width"] == 40 and p["picture"]["height"] == 30
+    bridge.set_params(sid, keep_shape=False, height=50)
+    p = bridge.preview(sid)
+    assert (p["cols"], p["rows"]) == (40, 50)
+    assert p["picture"]["keepShape"] is False
+    assert (p["picture"]["minHeight"], p["picture"]["maxHeight"]) == (4, 240)
+    bridge.set_params(sid, width=70)
+    assert (bridge.preview(sid)["cols"], bridge.preview(sid)["rows"]) == (70, 50)
+    bridge.set_params(sid, keep_shape=True)                  # the width stays, rows follow
+    assert (bridge.preview(sid)["cols"], bridge.preview(sid)["rows"]) == (70, 52)
 
 
 def test_a_chart_asked_for_as_a_picture_is_converted():
