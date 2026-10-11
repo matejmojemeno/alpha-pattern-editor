@@ -68,6 +68,14 @@ build image has Node and Python 3 preinstalled (the build's Python step uses onl
 standard library), and the build needs network access to jsDelivr once, for numpy's
 wheel.
 
+**Visit counts.** On the production address only, `src/app/analytics.ts` adds Cloudflare
+Web Analytics' beacon: no cookies, page views and visits only, with the `#` part of the
+address left out. See them in the dashboard under Web Analytics (Quick search finds it).
+The site was added there by hand, as a hostname with a JS snippet, because a `workers.dev`
+address can't get the automatic setup. Previews and `localhost` don't load it. A new
+production address (a custom domain) needs `ANALYTICS_HOST` changed and the site added
+in Web Analytics.
+
 **By hand:** `npx wrangler login` once, then `npm run deploy` (build, then
 `wrangler deploy`). `npx wrangler deploy --dry-run` checks the config without an account.
 

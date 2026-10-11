@@ -59,7 +59,8 @@ to see which colours to carry inside the stitches, and for how long.
 
 ## Your projects stay on your device
 
-There's no account and no server: photos and patterns never leave your browser. Projects
+There's no account and no server: photos and patterns never leave your browser (the site
+only counts visits, without cookies; see [Your data](docs/guide/your-data.md)). Projects
 are saved in the browser you use, so use **Export** in the Library to keep a copy or to
 move a project to another device, and import the `.alpha` file there. Clearing your
 browser's data for the site deletes its projects.
