@@ -120,7 +120,8 @@ in-between shade along outlines. The number beside **Colours** shows how many th
 - **+** undoes the last merge.
 
 Merges are kept when you move the outline or draw a box. To remove a particular colour
-instead, save and use its × in [Design](design.md#delete-a-colour).
+instead, or merge it into one you choose, save and use it in
+[Design](design.md#merge-or-delete-a-colour).
 
 ## Name and save the pattern
 
