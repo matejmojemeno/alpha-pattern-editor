@@ -17,8 +17,12 @@ Newest last, as they were built.
   sit together, under the drop zone's way of reading one;
   one column under 44rem, drop zone first. The zone highlights while a file is dragged
   over the page, and on touch screens (`hover: none` and `pointer: coarse`) says "Tap to
-  choose a file" instead of drop or paste. There is no backend, so **Feedback** opens
-  the public repo's GitHub "New issue" page in a new tab (needs a GitHub account).
+  choose a file" instead of drop or paste. There is no backend, so **Feedback** is a
+  `mailto:` link (`app/feedback.ts`): crocheters rarely have a GitHub account, which the
+  repo's "New issue" page (what it opened before) needs. The email has a subject, the
+  app's version and commit, and a line asking for the browser and device. The address
+  is a placeholder, `feedback@example.com` (reserved, so nothing reaches a stranger),
+  until the app has its own domain; `FEEDBACK_EMAIL` is the one line to change.
 
 - <a id="home-icons"></a>**Home-screen icons that mean something** (`ui/icons.tsx`, from Lucide): the tiles
   had the app's 3×3 grid with arbitrary cells inked (Settings a middle row, Feedback an
@@ -108,10 +112,10 @@ Newest last, as they were built.
     tagline went; the README and the page's description still have it). **Design
     pattern** is **Design from scratch** (`DESIGN_FROM_SCRATCH`, also the Library's
     button), so "Start from a blank grid" isn't needed. The Library tile shows its count
-    as a muted number (none when empty), and Help and Feedback an ↗ with "(opens in a new
-    tab)" for a screen reader. The drop zone keeps one line: "Drop, paste or click to
-    choose an image or .alpha file" ("Tap to choose…" on touch). That Feedback needs a
-    GitHub account is in the guide's [Your data](../../guide/your-data.md) now.
+    as a muted number (none when empty), and Help an ↗ with "(opens in a new tab)" for a
+    screen reader (Feedback opens the mail app, not a tab, so it has none). The drop zone keeps one line: "Drop, paste or click to
+    choose an image or .alpha file" ("Tap to choose…" on touch). Where Feedback goes is
+    in the guide's [Your data](../../guide/your-data.md).
   - Library: **Import…** and **Design from scratch…**; the empty state is "No projects
     yet." (the buttons are right above it); the storage note is one sentence; the Delete
     dialog is shorter.

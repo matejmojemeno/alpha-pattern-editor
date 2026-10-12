@@ -2,9 +2,11 @@
 
 Each problem below is a heading, with what to do about it. Most are messages the app
 shows, quoted as it shows them. If yours isn't here, or the fix doesn't work, please
-[open an issue](https://github.com/matejmojemeno/alpha-pattern-editor/issues/new) (or use
-**Feedback** on the home screen), and say which browser and device you use, and the
-version from **About** at the bottom of [Settings](settings.md#find-which-version-youre-using).
+use **Feedback** on the home screen, which starts an email to us with the app's version
+already in it, and say which browser and device you use. If you have a GitHub account,
+you can [open an issue](https://github.com/matejmojemeno/alpha-pattern-editor/issues/new)
+instead, with the version from **About** at the bottom of
+[Settings](settings.md#find-which-version-youre-using).
 
 ## Import messages
 

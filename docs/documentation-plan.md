@@ -57,8 +57,9 @@ never collides; every PR preview includes the guide.
   turned off.
 - **Issue templates** (`.github/ISSUE_TEMPLATE/`): a bug report that asks for the browser
   and device and, optionally, the chart or an exported `.alpha` (with a note that
-  attaching it makes it public); an idea template. The app's **Feedback** tile opens
-  `issues/new`, which will then offer these.
+  attaching it makes it public); an idea template. The app's **Feedback** tile is an
+  email now (most crocheters have no GitHub account); the README and Troubleshooting
+  still link `issues/new`, which will then offer these.
 - **Browser support.** The e2e suite runs Chromium only, so the README says "tested in
   Chrome". Crocheters follow patterns on iPhones and iPads, which means Safari: adding
   Playwright's WebKit project (at least for Work and Library) would let the README say
