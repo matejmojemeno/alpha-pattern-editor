@@ -10,6 +10,7 @@
 import { useCallback, useState } from 'react'
 
 import { useRepo } from '../../app/context.ts'
+import { FEEDBACK_URL } from '../../app/feedback.ts'
 import { helpUrl } from '../../app/help.ts'
 import { preloadDetection } from '../../app/detection.ts'
 import { href, navigate, paths } from '../../app/router.ts'
@@ -21,9 +22,6 @@ import { DESIGN_FROM_SCRATCH, NewPatternDialog } from '../NewPattern.tsx'
 import { openImageImport, useAlphaImport } from '../useAlphaImport.ts'
 
 const openPasted = (file: File) => openImageImport({ file })
-
-/** There is no backend to send feedback to, so it goes to the public repo's issues. */
-export const FEEDBACK_URL = 'https://github.com/matejmojemeno/alpha-pattern-editor/issues/new'
 
 export function Landing() {
   useDocumentTitle('')
@@ -102,10 +100,9 @@ export function Landing() {
             </a>
           </li>
           <li>
-            <a className="tile" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">
+            <a className="tile" href={FEEDBACK_URL}>
               <FeedbackIcon />
               <span className="tile__title">Feedback</span>
-              <NewTab />
             </a>
           </li>
         </ul>
@@ -120,7 +117,7 @@ export function Landing() {
   )
 }
 
-/** Help and Feedback leave the app for a new tab: an arrow says so, and the link's name. */
+/** Help leaves the app for a new tab: an arrow says so, and the link's name. */
 function NewTab() {
   return (
     <span className="tile__aside">
