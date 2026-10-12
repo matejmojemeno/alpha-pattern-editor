@@ -3,6 +3,8 @@ import { act, fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 
+import { APP_VERSION } from '../../src/app/build.ts'
+import { FEEDBACK_EMAIL } from '../../src/app/feedback.ts'
 import { pendingImage } from '../../src/app/pendingImage.ts'
 import { readAlpha } from '../../src/storage/alpha.ts'
 import { detection } from './fakeDetection.ts'
@@ -33,11 +35,16 @@ describe('Landing screen', () => {
     expect(screen.getByRole('link', { name: /Library/ }).getAttribute('href')).toBe('#/library')
     expect(screen.getByRole('link', { name: 'Settings' }).getAttribute('href')).toBe('#/settings')
 
-    // No backend: feedback goes to the public repo's issues, in a new tab, which its name says.
-    const feedback = screen.getByRole('link', { name: /^Feedback ?\(opens in a new tab\)$/ })
-    expect(feedback.getAttribute('href')).toBe('https://github.com/matejmojemeno/alpha-pattern-editor/issues/new')
-    expect(feedback.getAttribute('target')).toBe('_blank')
-    expect(feedback.getAttribute('rel')).toContain('noopener')
+    // No backend: feedback is an email (no GitHub account needed), with a subject, and a
+    // body that has the version and asks for the browser and device. Not a new tab.
+    const feedback = screen.getByRole('link', { name: 'Feedback' })
+    const mail = new URL(feedback.getAttribute('href')!)
+    expect(mail.protocol).toBe('mailto:')
+    expect(mail.pathname).toBe(FEEDBACK_EMAIL)
+    expect(mail.searchParams.get('subject')).toBe('Alpha Pattern Editor feedback')
+    expect(mail.searchParams.get('body')).toContain(`Version: ${APP_VERSION}`)
+    expect(mail.searchParams.get('body')).toMatch(/Browser and device/)
+    expect(feedback.getAttribute('target')).toBeNull()
 
     // Help opens the guide's first page, in a new tab so the app stays where it is.
     const help = screen.getByRole('link', { name: /^Help ?\(opens in a new tab\)$/ })

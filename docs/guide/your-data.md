@@ -32,8 +32,9 @@ you came from; which browser and system you use; and how fast the page loaded. I
 tell whether two visits came from the same person, and it never sees your projects or
 pictures. Ad blockers often stop it, and the app works the same either way.
 
-**Feedback**, on the home screen, opens a page on GitHub (you need a free account to post). Anything you write or attach
-there is public.
+**Feedback**, on the home screen, starts an email in your own mail app, with the app's
+version filled in. Nothing is sent until you send it, and it goes only to us. (Issues on
+GitHub, the other way to report a problem, are public.)
 
 ## Clearing browser data deletes your projects
 

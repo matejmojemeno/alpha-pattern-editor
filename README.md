@@ -76,8 +76,9 @@ doesn't work in yours, please say so.
 The [user guide](docs/guide/index.md) explains each screen and how to do things in it,
 and [Troubleshooting](docs/guide/troubleshooting.md) covers the messages the app shows.
 
-Found a problem or have an idea? [Open an issue](https://github.com/matejmojemeno/alpha-pattern-editor/issues/new),
-or use **Feedback** on the app's home screen.
+Found a problem or have an idea? Use **Feedback** on the app's home screen to email us,
+or [open an issue](https://github.com/matejmojemeno/alpha-pattern-editor/issues/new) if
+you have a GitHub account.
 
 ## Credits
 
