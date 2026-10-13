@@ -4,8 +4,9 @@
  * for cell against the desktop code making the same corrections
  * (scripts/desktop_import.py via desktop.ts). Also: the grid's outline dragged over the
  * rows and columns a detection left out, "Mark one square" putting right a chart read
- * at the wrong size, the phone layout with every control used, the watchdog, with detection made slow by a test hook, and running out of memory,
- * with the worker's memory filled by another.
+ * at the wrong size (with a mouse, and with fingers on a phone), the phone layout with
+ * every control used, the watchdog, with detection made slow by a test hook, and running
+ * out of memory, with the worker's memory filled by another.
  *
  * Needs the repo's Python (.venv, or $PYTHON) with numpy and Pillow for the reference.
  */
@@ -15,7 +16,7 @@ import { resolve } from 'node:path'
 import { expect, test, type Page, type TestInfo } from '@playwright/test'
 
 import type { Crop, Square } from '../src/detect/protocol.ts'
-import { cropFromDrag, fitRect, squareFromDrag } from '../src/importer/letterbox.ts'
+import { cropFromDrag, fitRect } from '../src/importer/letterbox.ts'
 import { readAlpha } from '../src/storage/alpha.ts'
 import { encodePngRgba } from '../src/storage/thumbnail.ts'
 import { desktopDetect, renderHeavyEveryOther, ROOT, type Correction } from './desktop.ts'
@@ -154,26 +155,102 @@ test('dragging the outline takes in the rows and columns a detection left out, a
 })
 
 /**
- * With "Mark one square" on, drag from one corner of a square to the other, given in
- * image pixels. Checks the loupe is up while the pointer is down. Returns the square that
- * asks for, worked out independently through the same letterbox mapping.
+ * Fingers on the screen through Chrome's DevTools protocol: real touches, which the page
+ * sees as touch pointer events (Playwright's own touchscreen only taps).
  */
-async function markSquare(page: Page, { width, height }: { width: number; height: number }, [x0, y0, x1, y1]: Square): Promise<Square> {
-  const source = page.locator('.source')
-  await source.scrollIntoViewIfNeeded()
-  const box = (await source.boundingBox())!
-  const fit = fitRect(box.width, box.height, width, height)
-  const at = (x: number, y: number) => ({ x: box.x + fit.x + (x / width) * fit.width, y: box.y + fit.y + (y / height) * fit.height })
-  const [a, b] = [at(x0, y0), at(x1, y1)]
-  await page.mouse.move(a.x, a.y)
-  await page.mouse.down()
-  await page.mouse.move(b.x, b.y, { steps: 4 })
-  await expect(page.getByTestId('loupe')).toBeVisible()
-  await page.mouse.up()
-  await expect(page.getByTestId('loupe')).toHaveCount(0)
-  const want = squareFromDrag({ x: a.x - box.x, y: a.y - box.y }, { x: b.x - box.x, y: b.y - box.y }, fit, width, height)
-  expect(want).not.toBeNull()
-  return want!
+async function fingers(page: Page) {
+  const cdp = await page.context().newCDPSession(page)
+  type P = { x: number; y: number }
+  const send = (type: 'touchStart' | 'touchMove' | 'touchEnd', points: P[]) =>
+    cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points.map((p, id) => ({ x: p.x, y: p.y, id })) })
+  const lerp = (a: P, b: P, t: number) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t })
+  return {
+    /** One finger down at `from`, moved to `to` in `steps`, and lifted. */
+    async drag(from: P, to: P, steps = 6) {
+      await send('touchStart', [from])
+      for (let i = 1; i <= steps; i++) if (from.x !== to.x || from.y !== to.y) await send('touchMove', [lerp(from, to, i / steps)])
+      await send('touchEnd', [])
+    },
+    /** Two fingers down at `from`, moved to `to` together, and lifted. */
+    async pinch(from: [P, P], to: [P, P], steps = 8) {
+      await send('touchStart', from)
+      for (let i = 1; i <= steps; i++) await send('touchMove', [lerp(from[0], to[0], i / steps), lerp(from[1], to[1], i / steps)])
+      await send('touchEnd', [])
+    },
+  }
+}
+
+/** "Mark one square"'s window, and where an image point is on the screen in it, from the
+ *  box's rectangle and the square it's on (`data-square`, as the app will send it). */
+function markWindow(page: Page) {
+  const dialog = page.getByRole('dialog', { name: 'Mark one square' })
+  const box = dialog.getByTestId('mark-box')
+  const square = async () => (await box.getAttribute('data-square'))!.split(',').map(Number) as Square
+  const screen = async () => {
+    const r = (await box.boundingBox())!
+    const [a, b, c] = await square()
+    const scale = r.width / (c - a)
+    return { scale, at: (x: number, y: number) => ({ x: r.x + (x - a) * scale, y: r.y + (y - b) * scale }) }
+  }
+  return { dialog, box, square, screen }
+}
+type MarkWindow = ReturnType<typeof markWindow>
+
+/** Where a corner of the box is on the screen, and where that corner of `want` is. */
+async function cornerTo(w: MarkWindow, corner: 'top-left' | 'bottom-right', want: Square) {
+  const [a, b, c, d] = await w.square()
+  const { at } = await w.screen()
+  return corner === 'top-left' ? [at(a, b), at(want[0], want[1])] : [at(c, d), at(want[2], want[3])]
+}
+
+/** Expect the box's centre on `want`'s, to within `by` image pixels. */
+async function expectCentredOn(w: MarkWindow, want: Square, by: number) {
+  const [x, y] = [(want[0] + want[2]) / 2, (want[1] + want[3]) / 2]
+  await expect
+    .poll(async () => {
+      const [a, b, c, d] = await w.square()
+      return Math.hypot((a + c) / 2 - x, (b + d) / 2 - y)
+    })
+    .toBeLessThan(by)
+}
+
+/** Expect the box on `want`, to within a screen pixel of the view it was put there in. */
+async function expectOn(w: MarkWindow, want: Square) {
+  const { scale } = await w.screen()
+  const got = await w.square()
+  for (let i = 0; i < 4; i++) expect(Math.abs(got[i]! - want[i]!)).toBeLessThan(1.5 / scale)
+}
+
+/**
+ * With a mouse: open "Mark one square", show the whole image (Fit), click the square to
+ * bring the box there, zoom in on it with the wheel, drag two corners onto its corners
+ * (given in image pixels) and use it. Returns the square the app was handed.
+ */
+async function markSquare(page: Page, want: Square): Promise<Square> {
+  await page.getByRole('button', { name: 'Mark one square' }).click()
+  const w = markWindow(page)
+  await expect(w.box).toBeVisible()
+  await w.dialog.getByRole('button', { name: 'Fit' }).click()
+  const fitted = await w.screen()
+  const mid = fitted.at((want[0] + want[2]) / 2, (want[1] + want[3]) / 2)
+  await page.mouse.click(mid.x, mid.y)
+  await expectCentredOn(w, want, 2 / fitted.scale)
+  // Four notches in, e^(4 × 300 × 0.0015) ≈ 6.05×. The wheel doesn't wait for the page,
+  // so wait for the last notch before measuring where things are.
+  for (let i = 0; i < 4; i++) await page.mouse.wheel(0, -300)
+  await expect.poll(async () => (await w.screen()).scale / fitted.scale).toBeGreaterThan(6)
+  for (const corner of ['top-left', 'bottom-right'] as const) {
+    const [from, to] = await cornerTo(w, corner, want)
+    await page.mouse.move(from!.x, from!.y)
+    await page.mouse.down()
+    await page.mouse.move(to!.x, to!.y, { steps: 4 })
+    await page.mouse.up()
+  }
+  await expectOn(w, want)
+  const square = await w.square()
+  await w.dialog.getByRole('button', { name: 'Use this square' }).click()
+  await expect(w.dialog).toHaveCount(0)
+  return square
 }
 
 test('"Mark one square" puts right a chart read at the wrong size, and matches the desktop', async ({ page }, testInfo) => {
@@ -182,16 +259,20 @@ test('"Mark one square" puts right a chart read at the wrong size, and matches t
   await importImage(page, file)
   // A heavy line on every other gridline: read as pixel art, not as its 24 × 26 squares.
   await expect(stats(page)).not.toHaveText(`${chart.cols} columns × ${chart.rows} rows`, { timeout: DETECT_TIMEOUT })
-  const mark = page.getByRole('button', { name: 'Mark one square' })
   const reset = page.getByRole('button', { name: 'Reset to detected grid' })
   await expect(reset).toBeDisabled()
-  await mark.click()
-  await expect(mark).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.getByText('Drag from one corner of a square to the opposite corner.')).toBeVisible()
-  await expect(page.getByTestId('edge-top')).toHaveCount(0) // the handles step aside
+
+  // Escape closes the window and changes nothing.
+  const before = await stats(page).textContent()
+  await page.getByRole('button', { name: 'Mark one square' }).click()
+  const w = markWindow(page)
+  await expect(w.dialog.getByRole('button', { name: 'Use this square' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(w.dialog).toHaveCount(0)
+  await expect(stats(page)).toHaveText(before!)
+
   const { margin: o, pitch: p } = chart
-  const square = await markSquare(page, pngSize(file), [o + 3 * p + 0.6, o + 2 * p - 0.4, o + 4 * p - 0.5, o + 3 * p + 0.7])
-  await expect(mark).toHaveAttribute('aria-pressed', 'false')
+  const square = await markSquare(page, [o + 3 * p + 0.6, o + 2 * p - 0.4, o + 4 * p - 0.5, o + 3 * p + 0.7])
   await showing(page, chart.cols, chart.rows)
   await expect(reset).toBeEnabled()
   await expectDesktop(page, testInfo, 'Marked', file, [`square=${square.join(',')}`])
@@ -203,8 +284,7 @@ test('a square marked where no chart is says so, and keeps what was there', asyn
   await importImage(page, resolve(ROOT, 'test_images/pictures/lake-mountains.jpg'))
   await expect(page.locator('.confirm__outcome')).toHaveAttribute('aria-busy', 'false')
   const before = await stats(page).textContent()
-  await page.getByRole('button', { name: 'Mark one square' }).click()
-  await markSquare(page, { width: 960, height: 640 }, [300, 200, 312, 212])
+  await markSquare(page, [300, 200, 312, 212])
   await expect(page.getByRole('status').filter({ hasText: 'No grid of squares that size there.' })).toBeVisible({ timeout: DETECT_TIMEOUT })
   await expect(stats(page)).toHaveText(before!)
   await expect(page.getByRole('button', { name: 'Reset to detected grid' })).toBeDisabled()
@@ -411,6 +491,65 @@ test.describe('on a phone', () => {
     await saveInView()
     await noSideways()
     await expectDesktop(page, testInfo, 'Cats on a phone', CATS, [`crop=${c.join(',')}`])
+  })
+
+  test('"Mark one square" fills the screen; a tap, a pinch, a pan and a finger on each corner put the box on a square', async ({ page }, testInfo) => {
+    const file = testInfo.outputPath('heavy-every-other.png')
+    const chart = renderHeavyEveryOther(file)
+    await importImage(page, file)
+    await expect(stats(page)).not.toHaveText(`${chart.cols} columns × ${chart.rows} rows`, { timeout: DETECT_TIMEOUT })
+    await page.getByRole('button', { name: 'Mark one square' }).tap()
+    const w = markWindow(page)
+    await expect(w.box).toBeVisible()
+
+    // The window takes all but a sliver of the screen, and the image most of that.
+    const d = (await w.dialog.boundingBox())!
+    expect(d.width).toBeGreaterThanOrEqual(400 - 16)
+    expect(d.height).toBeGreaterThanOrEqual(860 - 16)
+    const stage = (await w.dialog.getByTestId('mark-stage').boundingBox())!
+    expect(stage.height).toBeGreaterThan(860 * 0.6)
+    const { scrollWidth, innerWidth } = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth }))
+    expect(scrollWidth).toBeLessThanOrEqual(innerWidth)
+
+    const { margin: o, pitch: p } = chart
+    const want: Square = [o + 3 * p + 0.6, o + 2 * p - 0.4, o + 4 * p - 0.5, o + 3 * p + 0.7]
+    const finger = await fingers(page)
+
+    // A tap on the square, in the whole image, brings the box there.
+    await w.dialog.getByRole('button', { name: 'Fit' }).tap()
+    const fitted = await w.screen()
+    const mid = fitted.at((want[0] + want[2]) / 2, (want[1] + want[3]) / 2)
+    await finger.drag(mid, mid, 1)
+    await expectCentredOn(w, want, 2 / fitted.scale)
+
+    // Two fingers spread apart zoom in.
+    const inside = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo + 4), hi - 4)
+    const y = (dy: number) => inside(mid.y + dy, stage.y, stage.y + stage.height)
+    await finger.pinch([{ x: mid.x, y: y(-20) }, { x: mid.x, y: y(20) }], [{ x: mid.x, y: y(-140) }, { x: mid.x, y: y(140) }])
+    await expect.poll(async () => (await w.screen()).scale).toBeGreaterThan(fitted.scale * 3)
+
+    // One finger on the image (away from the box) moves the view: bring the box to the middle.
+    const b = (await w.box.boundingBox())!
+    const centre = { x: stage.x + stage.width / 2, y: stage.y + stage.height / 2 }
+    const from = { x: centre.x, y: b.y + b.height / 2 > centre.y ? stage.y + 60 : stage.y + stage.height - 60 }
+    const before = await w.square()
+    await finger.drag(from, { x: from.x + centre.x - (b.x + b.width / 2), y: from.y + centre.y - (b.y + b.height / 2) })
+    expect(await w.square()).toEqual(before) // panning leaves the box where it is on the image
+    const moved = (await w.box.boundingBox())!
+    expect(Math.abs(moved.x + moved.width / 2 - centre.x) + Math.abs(moved.y + moved.height / 2 - centre.y)).toBeLessThan(
+      Math.abs(b.x + b.width / 2 - centre.x) + Math.abs(b.y + b.height / 2 - centre.y) + 1,
+    )
+
+    for (const corner of ['top-left', 'bottom-right'] as const) {
+      const [a, z] = await cornerTo(w, corner, want)
+      await finger.drag(a!, z!)
+    }
+    await expectOn(w, want)
+    const square = await w.square()
+    await w.dialog.getByRole('button', { name: 'Use this square' }).tap()
+    await expect(w.dialog).toHaveCount(0)
+    await showing(page, chart.cols, chart.rows)
+    await expectDesktop(page, testInfo, 'Marked on a phone', file, [`square=${square.join(',')}`])
   })
 })
 
