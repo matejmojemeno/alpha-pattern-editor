@@ -98,6 +98,24 @@ or a lot of text.
 **Reset to detected grid**, under the image, undoes a box and any moved outline, and reads
 the whole image again.
 
+## Fix squares read at the wrong size
+
+Sometimes the app reads the squares at the wrong size: twice as big as they are (often on
+charts with a heavy line every other square), half as big, or not as squares at all. The
+pattern then has about half, or twice, the rows and columns it should.
+
+1. Press **Mark one square**, under the image.
+2. Drag from one corner of any square on the chart to the opposite corner. A magnifier
+   follows your finger or pointer, so you can put the corners on the lines. With a mouse
+   it shows before you press, too.
+3. Let go. The app looks for the grid again, now knowing how big a square is.
+
+The mark doesn't need to be exact: the app finds the lines near it. It does need to be one
+square. Marking a block of four squares gives a grid of squares that size. If the app finds
+no grid of squares that size, it says so under the image and keeps the grid it had; mark a
+square again, a little more carefully. **Reset to detected grid** undoes a mark. Press
+**Mark one square** again, or `Escape`, to stop without marking.
+
 ## Check where each colour is
 
 Point at a colour in the list: every other colour fades in the pattern, so you can see

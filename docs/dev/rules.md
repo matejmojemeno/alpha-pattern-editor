@@ -78,8 +78,19 @@ break without noticing.
   from a choice. Such a browser keeps showing DMC shades until "Nothing" is picked.
 - <a id="parity-check"></a>**After any change to `alphareader/core/detect`, `kind.py`, `pixels.py`, `outlines.py` or `convert.py`, run
   `python scripts/parity/check.py`.** It must report 122/122 bit-identical (89 charts, 25
-  pictures and 8 pixel images, each also read by `kind.py` and converted three times, once with outlines). It exits non-zero
+  pictures and 8 pixel images, each also read by `kind.py` and converted three times, once with outlines;
+  each grid found is also found again from a square marked a pixel or so off, `digest.marked_digest`). It exits non-zero
   otherwise. Run `npm install` in `scripts/parity/` once first.
+- <a id="mark-square-window"></a>**A marked square's size is searched only within 1.4× either way, and a lattice is
+  doubled only when nothing is between its lines** (`periodic.fit_periodic_near`). Two
+  failures sit on either side. Wider than 1.4× above, twice the true size gets into the
+  search, and on a chart with a heavy line every other one it outscores the true size
+  (a top of 1.7× lost 16 of 40 such charts to marks 1.3× too big, 1.9× lost 15 to marks
+  1.15× too big). And detection's own octave test (`_extra_lines_supported`) calls lines
+  under half the others' strength "unsupported", which is exactly the faint line between
+  two heavy ones: used to double, it put back the mistake being corrected. So doubling
+  asks only that the in-between positions be below the profile's mean, inside squares.
+  A mark more than about 30% too small can still miss; the loupe is there for that.
 - <a id="failure-not-picture"></a>**A detection failure is not a picture, and a detected grid is not a chart.** Most
   photos fail as LOW_RESOLUTION, as real charts with small squares do; pictures can fit a
   nonsense grid. `kind.read_image` judges from what the grid looks like, and `test_kind.py`

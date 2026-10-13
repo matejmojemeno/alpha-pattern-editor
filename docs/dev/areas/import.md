@@ -389,6 +389,60 @@ Newest last, as they were built.
   - **Behaviour that differs from Border & size:** its fields apply each whole number as
     typed (cheap); these wait for Enter or leaving.
 
+- <a id="mark-square"></a>**Mark one square** (`core/detect/periodic.fit_periodic_near`,
+  `pipeline.detect_with_square`, `kind.read_marked`, `bridge.mark_square`,
+  `ui/import/SourceView.tsx`'s mark mode and loupe, `ui/screens/Import.tsx`):
+  - **Why:** the outline's handles move in whole squares at the size detection found,
+    and a box detects again from scratch, so a grid read at the wrong size had no fix
+    on the import screen. A chart with a heavy line every other gridline is the classic
+    case: detection reads its squares at twice their size (synthetic, 8 px squares:
+    24 columns read as 12, 22 as 11, 18 as 9), and the app reads one of them as
+    239 × 223 pixel art.
+  - **What:** "Mark one square", beside "Reset to detected grid" on "Import a chart"
+    (not Photo to pattern), when a chart was read or failed to be. Pressed, a drag on the
+    image marks one square corner to corner (fractions of a pixel kept,
+    `letterbox.squareFromDrag`; under 3 image px a side is a slip) and the handles step
+    aside; a loupe shows the image 4× bigger than the stage under the pointer, with the
+    square drawn in (a mouse sees it before pressing). On release `bridge.mark_square`
+    detects again under the watchdog and resets rows, cols and extent, mode chart; a
+    mark that finds no grid keeps the grid shown and says so over the foot of the
+    image. "Reset to detected grid" undoes it; Escape or the button again stops.
+  - **How the size is found:** the mark only says roughly how big a square is: on a
+    scaled-down stage a 7 px square is 3–4 screen px, and a pixel off over 100 squares
+    drifts by several. Each axis's comb score (detection's matched filter) is searched
+    from the smaller marked side ÷ 1.4 to the larger × 1.4 (squares are near square; a
+    mark a third too narrow on one side still works), coarse then fine; the best lattice
+    is refitted by least squares as `fit_periodic_axis` fits its own candidates near it,
+    and the one detection would score best kept, so a grid detection got right comes
+    back as it found it. Then the grid's extent as detection finds it, from the run of
+    lines nearest the mark. Twice the found size is taken when the lines between have
+    nothing under them ([rule](../rules.md#mark-square-window)). `kind.read_marked` then
+    asks what `read_image` asks of a chart's lines: contrast ≥ 2 and coverage ≥ 0.5.
+  - **Measured:**
+    - On the 8 test charts (test_images/ and failed/), 10 marks each with every corner up
+      to 2 px off: 80/80 give detection's grid back exactly (same lines to 1e-9 px, same
+      cells).
+    - Marks 15–45% too small: 90/96; random ±2.5 px: 96/96 (8 charts × 12).
+    - On the heavy-line charts, marks 1.0×, 1.15× and 1.3× the size: 40/40 each.
+    - On test_images/pictures, marks at 8, 14 and 24 px: none is taken for a chart (marked
+      charts score contrast 5.8+, coverage 0.87+; photos contrast ≤ 1.16, or smiley.png
+      43 with coverage 0.07).
+    - Fitting the lattice takes ~0.07 s; the rest is the palette, as for detection.
+  - **What it can't do:** a mark more than ~30% too small can miss (the loupe is the
+    answer); two charts side by side on one lattice are found together whichever is
+    marked (the outline separates them); rotated or perspective photos are
+    still refused (`ROTATED`); squares under 6 px are still `LOW_RESOLUTION`
+    (garment.png).
+  - Parity: `digest.marked_digest` marks every grid's middle square a pixel or so off,
+    122/122 bit-identical. `scripts/desktop_import.py` takes `square=x0,y0,x1,y1`;
+    `e2e/corrections.spec.ts` marks a square on the heavy-line chart (rendered from
+    `test_mark_square._heavy_every_other`) and checks the saved pattern cell for cell,
+    and checks a mark on a photo leaves its grid and says so.
+  - **Layout:** on a wide screen a tall image's column can be too narrow for both buttons
+    on one row, so the row wraps and `--col-chrome` keeps room for two rows on "Import a
+    chart"; the stage is `isolation: isolate`, so the loupe, the caption and the size tag
+    stay under the sticky save bar.
+
 ## During the port
 
 What each phase of the port built here, newest first. The plan each phase followed is in
