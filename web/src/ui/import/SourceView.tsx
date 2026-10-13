@@ -13,6 +13,8 @@
  *   release it's mapped through the letterboxed fit into image pixels (letterbox.ts) and
  *   handed to `onCrop`, which finds the grid again inside it. This replaces the desktop's
  *   Crop mode. The page doesn't scroll under a finger on the image.
+ * - `caption` is a line over the foot of the image: why a square marked ("Mark one
+ *   square", MarkSquare.tsx) found no grid.
  */
 import { useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react'
 
@@ -45,6 +47,8 @@ export interface SourceViewProps {
   canResize: boolean
   onCrop: (crop: Crop) => void
   onResize: (grid: Grid) => void
+  /** A line over the foot of the image, or null. */
+  caption?: string | null
 }
 
 /** What a pointer is doing: drawing a box, or moving a handle from where the grid was. */
@@ -55,7 +59,7 @@ const OUTWARD: Record<Edge, string> = { top: 'ArrowUp', right: 'ArrowRight', bot
 const EDGE_NAME: Record<Edge, string> = { top: 'Top', right: 'Right', bottom: 'Bottom', left: 'Left' }
 const INWARD: Record<Edge, string> = { top: 'ArrowDown', right: 'ArrowLeft', bottom: 'ArrowUp', left: 'ArrowRight' }
 
-export function SourceView({ file, width, height, grid, canCrop, canResize, onCrop, onResize }: SourceViewProps) {
+export function SourceView({ file, width, height, grid, canCrop, canResize, onCrop, onResize, caption = null }: SourceViewProps) {
   const img = useBlobImage(file)
   const [box, size] = useElementSize<HTMLDivElement>()
   const fit = fitRect(size.width, size.height, width, height)
@@ -198,6 +202,11 @@ export function SourceView({ file, width, height, grid, canCrop, canResize, onCr
         <span className="source__size" style={sizeStyle(grid, fit, bounds)} aria-hidden="true">
           {grid.cols} × {grid.rows}
         </span>
+      )}
+      {caption && fit.width > 0 && (
+        <p className="source__caption" role="status" style={{ left: fit.x, bottom: size.height - fit.y - fit.height, maxWidth: fit.width }}>
+          {caption}
+        </p>
       )}
       {band && <div className="source__band" style={band} aria-hidden="true" />}
     </div>

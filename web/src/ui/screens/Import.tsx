@@ -7,7 +7,12 @@
  *   which folds a burst of changes into one pending request and drops stale answers;
  * - a box drawn on the image (a crop) detects again (`DetectSession.redetect`), under
  *   the client's watchdog, and so does "Reset to detected grid", which detects the whole
- *   image again: the desktop's Re-detect, undoing a box and a moved outline alike.
+ *   image again: the desktop's Re-detect, undoing a box and a moved outline alike;
+ * - "Mark one square" (a chart's) detects again told the size of one square, put on the
+ *   image zoomed in a window of its own (MarkSquare.tsx; `DetectSession.markSquare`), for
+ *   a grid read at the wrong size or not found at all. If no grid of about that size is
+ *   there, the grid shown stays, with a note saying so; "Reset to detected grid" undoes a
+ *   mark.
  * While an answer is on its way the last good preview stays up, dimmed after ~200 ms.
  *
  * It is for getting the grid right and nothing else: the colour list shows what was found
@@ -59,6 +64,7 @@ import {
   type PictureSettings,
   type Preview,
   type Reading,
+  type Square,
 } from '../../detect/protocol.ts'
 import { decodeImage, ImageDecodeError, sourcePng } from '../../importer/decode.ts'
 import { hintFor, OUT_OF_MEMORY_HINT, TIMEOUT_HINT } from '../../importer/hints.ts'
@@ -84,6 +90,7 @@ import { emptyProgress } from '../../model/types.ts'
 import { DropOverlay, ImportButton, Notices, TopBar } from '../components.tsx'
 import { useDelayedFlag, useDocumentTitle, useFileDrop, useMediaQuery, usePastedImage } from '../hooks.ts'
 import { Palette } from '../import/Palette.tsx'
+import { MarkSquare } from '../import/MarkSquare.tsx'
 import { PatternView } from '../import/PatternView.tsx'
 import { SizeField } from '../import/SizeField.tsx'
 import { SourceView } from '../import/SourceView.tsx'
@@ -184,6 +191,10 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
    *  only part of it is used, what "Use the whole picture" undoes. */
   const [adjusted, setAdjusted] = useState(false)
   const dim = useDelayedFlag(updating > 0 || redetecting, DIM_AFTER_MS)
+  /** "Mark one square"'s window is open. */
+  const [marking, setMarking] = useState(false)
+  /** Why the last square marked found no grid, until the next mark or detection. */
+  const [markNote, setMarkNote] = useState<string | null>(null)
 
   /** The colour count's merges, in order (importer/removals.ts): replayed on every preview,
    *  so they survive moving the outline. */
@@ -217,8 +228,10 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
     setRemovals([])
     setPointed(null)
     setPinned(null)
+    setMarking(false)
+    setMarkNote(null)
     // Setters never change; listed because the React Compiler infers them here.
-  }, [setPointed, setPinned])
+  }, [setPointed, setPinned, setMarking, setMarkNote])
 
   const onFiles = useCallback(
     (files: File[]) => {
@@ -368,6 +381,7 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
       return
     }
     setAdjusted(crop !== undefined)
+    setMarkNote(null)
     const s = session.current
     if (!s) {
       // Nothing to detect again in: the worker was stopped (the watchdog, or memory ran
@@ -380,6 +394,27 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
       if (!mounted.current) return
       setRedetecting(false)
       if (session.current === s) detected(r)
+    })
+  }
+
+  /** Find the grid again from one square marked on the image. A grid of about that size
+   *  that isn't there leaves the grid shown as it was, and says so. */
+  const markSquare = (square: Square) => {
+    setMarking(false)
+    const s = session.current
+    if (!s) return
+    setMarkNote(null)
+    setRedetecting(true)
+    void s.markSquare(square).then((r) => {
+      if (!mounted.current) return
+      setRedetecting(false)
+      if (session.current !== s) return
+      if (r.ok) {
+        setOutline(null)
+        setAdjusted(true)
+        detected(r)
+      } else if (isDetectionError(r.code)) setMarkNote(MARK_FAILED[r.code])
+      else detected(r)
     })
   }
 
@@ -471,6 +506,9 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
   /** Pixel art read block by block: exact, so there's no outline to move or box to draw. */
   const pixels = state.phase === 'result' && (shown ?? state.preview).mode === 'pixels'
   const canDetect = !loading && !busy && state.phase !== 'error' && size !== null
+  /** A chart's squares can be marked once it's been read, or failed to be: the session is
+   *  open either way. */
+  const canMark = intent === 'chart' && canDetect && (state.phase === 'result' || state.phase === 'failed')
   const preview = state.phase === 'result' ? display : null
   const grid = hasGrid && shown ? (outline ?? { extent: shown.extent, rows: shown.rows, cols: shown.cols }) : null
   // Both stages take the image's shape (import.css); the aspect as a number too, to size
@@ -497,7 +535,7 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
         {preview && (
           <Check preview={preview} disabled={busy || loading} onPhoto={toPhoto} hidden={hiddenCheck} onHide={setHiddenCheck} />
         )}
-        <div className="confirm__grid">
+        <div className="confirm__grid" data-two-below={intent === 'chart' || undefined}>
           <section className="confirm__col confirm__col--image" aria-labelledby={`${ids}-image`}>
             <div className="confirm__head">
               {heading('image', 'Your image')}
@@ -513,6 +551,7 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
                 canResize={hasGrid && !busy && !pixels}
                 onCrop={(crop) => redetect(crop)}
                 onResize={onResize}
+                caption={markNote}
               />
             ) : (
               <Stage>
@@ -523,7 +562,22 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
               <button type="button" className="button" disabled={!adjusted || !canDetect} onClick={() => redetect()}>
                 {picture ? 'Use the whole picture' : 'Reset to detected grid'}
               </button>
-              {!grid && canDetect && <p className="confirm__note confirm__hint">Drag a box around just the squares, then let go.</p>}
+              {intent === 'chart' && (
+                <button
+                  type="button"
+                  className="button"
+                  disabled={!canMark}
+                  onClick={() => {
+                    setMarking(true)
+                    setMarkNote(null)
+                  }}
+                >
+                  Mark one square
+                </button>
+              )}
+              {!grid && canDetect && !markNote && (
+                <p className="confirm__note confirm__hint">Drag a box around just the squares, then let go.</p>
+              )}
             </div>
           </section>
 
@@ -589,9 +643,20 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
           </section>
         </div>
       </div>
+      {marking && canMark && size && (
+        <MarkSquare file={image.file} width={size.width} height={size.height} grid={grid} onMark={markSquare} onCancel={() => setMarking(false)} />
+      )}
       <DropOverlay show={drop.over} text={screen.drop} />
     </main>
   )
+}
+
+/** What a square marked that found no grid says, by detection's refusal. */
+const MARK_FAILED: Record<DetectionErrorCode, string> = {
+  NO_GRIDLINES: 'No grid of squares that size there. Mark one square again, with the box’s corners on its lines.',
+  LOW_RESOLUTION: 'Squares that small are too small to read: each needs about 6 pixels.',
+  ROTATED: 'The chart looks tilted. Straighten the image and import it again.',
+  TOO_SMALL: 'This image is too small to contain a chart.',
 }
 
 /** How close a colour must be to one removed to be taken for it, in a new preview: half

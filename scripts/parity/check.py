@@ -29,6 +29,8 @@ HERE = os.path.join(ROOT, "scripts", "parity")
 # Everything the digest reports except timings, which legitimately differ.
 COMPARED = ("ok", "code", "rows", "cols", "cells_sha", "palette", "warnings",
             "pitch_x", "pitch_y", "x0", "y0", "conf_mean",
+            # The grid found again from a marked square (digest.marked_digest).
+            "marked",
             # kind.py's verdict and convert.py's pattern at two settings (digest.py).
             "kind", "pixels", "picture", "picture_small", "picture_outlines")
 

@@ -20,7 +20,8 @@ WebAssembly memory stops at 4 GB, less on a phone, and numpy raises MemoryError 
 
 The desktop's fast/slow split is kept (confirm_window.py): full detection runs only in
 `open_session` and `redetect`. `set_params` and `preview` only resample, through the
-session's `ConfirmState`, which caches the result until a setting changes.
+session's `ConfirmState`, which caches the result until a setting changes. `mark_square`
+detects again too, told the size of one square.
 
 An image is read as a **chart**, turned into a pattern as a **picture**, or read block by
 block as **pixels** (pixel art without gridlines, pixels.py; nothing to adjust). The
@@ -47,7 +48,8 @@ import numpy as np
 from .confirm import ConfirmState, Extent, Preview, pattern_from_preview
 from .convert import PictureState
 from .detect.palette import DEFAULT_DELTA_E
-from .kind import Reading, read_chart
+from .kind import Reading, read_chart, read_marked
+from .model import DetectionError
 from .pixels import PixelArt, pixel_preview
 
 # The detection warnings that come from sampling the cells rather than from fitting the
@@ -407,6 +409,40 @@ def redetect(session: int, crop=None, delta_e: float | None = None) -> dict:
     if delta_e is not None:
         s.delta_e = float(delta_e)
     return _detect(int(session), s, crop=None if crop is None else tuple(crop))
+
+
+@_out_of_memory_as_data
+def mark_square(session: int, square) -> dict:
+    """Detect a chart's grid again from one square the person marked: `square` = (x0, y0,
+    x1, y1), two opposite corners in image pixels (kind.read_marked). For a grid detection
+    got wrong: squares read at twice or half their size, or no grid found. Resets rows,
+    cols and extent to what is found, as `redetect` does, and the session to a chart
+    (pixel art read by blocks too: the person says where the squares are).
+
+    When no grid near that square's size is found, detection's refusal comes back and
+    the session keeps what it had, so the screen can keep showing it."""
+    s = _session(session)
+    if isinstance(s, dict):
+        return s
+    if s.intent == "picture":
+        return _error("BAD_MODE", "A picture has no squares to mark.")
+    try:
+        x0, y0, x1, y1 = (s.to_work(float(v)) for v in square)
+    except (TypeError, ValueError):
+        return _error("BAD_SQUARE", "A square is four numbers: x0, y0, x1, y1.")
+    try:
+        reading = read_marked(s.img, (x0, y0, x1, y1), delta_e_threshold=s.delta_e)
+    except DetectionError as err:
+        return _error(err.code, str(err), session=int(session))
+    result = reading.result
+    result.debug = None                              # never kept, never sent
+    s.state = ConfirmState.from_detection(s.img, result, delta_e=s.delta_e)
+    s.lattice_warnings = _lattice_words(result.warnings)
+    s.reading = dataclasses.replace(reading, result=None)
+    s.pixels = None
+    s.picture = None
+    s.mode = "chart"
+    return _preview_payload(int(session), s)
 
 
 @_out_of_memory_as_data

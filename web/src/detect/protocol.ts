@@ -18,8 +18,11 @@ export type FailureCode =
   | 'NO_DETECTION'
   /** bridge.py: the pixels don't match the stated size. */
   | 'BAD_IMAGE'
-  /** bridge.py: open_session's intent was neither "chart" nor "picture". */
+  /** bridge.py: open_session's intent was neither "chart" nor "picture", or a square
+   *  was marked on a picture. */
   | 'BAD_MODE'
+  /** bridge.py: a marked square wasn't four numbers. */
+  | 'BAD_SQUARE'
   /** Pyodide failed to load. */
   | 'BOOT_FAILED'
   /** Python raised something unexpected. A bug. */
@@ -166,6 +169,10 @@ export interface Params {
 /** (x0, y0, x1, y1) in image pixels. */
 export type Crop = [number, number, number, number]
 
+/** One square of a chart marked by the person: two opposite corners (x0, y0, x1, y1) in
+ *  image pixels, not rounded to whole ones (bridge.mark_square). */
+export type Square = [number, number, number, number]
+
 /** Test hooks, never set by the app (e2e/corrections.spec.ts). The worker busy-waits
  *  `delayMs` before detecting, as a photo no fitter reads cleanly would; with
  *  `fillMemory`, it first fills Pyodide's memory, so detection runs out of it as a big
@@ -192,6 +199,8 @@ export type Request =
     } & Delay)
   /** Detect again, on the whole image or a crop. */
   | ({ id: number; type: 'redetect'; session: number; crop?: Crop } & Delay)
+  /** Detect again, told the size of one square (bridge.mark_square). */
+  | ({ id: number; type: 'square'; session: number; square: Square } & Delay)
   /** bridge.set_params then bridge.preview, in one round trip. */
   | { id: number; type: 'update'; session: number; params: Params }
   | { id: number; type: 'preview'; session: number }
@@ -213,6 +222,7 @@ export interface Answers {
   boot: { ok: true }
   open: Preview
   redetect: Preview
+  square: Preview
   update: Preview
   preview: Preview
   commit: { ok: true; pattern: Pattern }

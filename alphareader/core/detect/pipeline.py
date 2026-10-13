@@ -32,7 +32,7 @@ from .lattice import fit_axis, line_coverage, walk_extent
 from .mask import dark_mask, extent_mask, line_response, luminance, run_profiles
 from .palette import DEFAULT_DELTA_E, build_palette, compute_confidence, count_unmatched
 from .periodic import (edge_maps, evidence_from_maps, extent_from_peaks,
-                       fit_periodic_axis, profiles_from_maps)
+                       fit_periodic_axis, fit_periodic_near, profiles_from_maps)
 from .sample import sample_cells
 
 MAX_ROTATION_DEG = 1.5
@@ -160,22 +160,38 @@ def _trim_unsupported(mask: np.ndarray, axis: int, x0: float, pitch: float,
     return k_min, k_max
 
 
-def _fit_periodic(img: np.ndarray) -> tuple[_Fit, list[str]]:
+def _fit_periodic(img: np.ndarray,
+                  square: tuple[float, float, float, float] | None = None
+                  ) -> tuple[_Fit, list[str]]:
     """Fit the lattice as the dominant periodic structure of the image (see periodic.py).
 
     Makes no assumption about gridline colour or polarity, so this is the primary path;
     the dark-mask fit below is kept as a second opinion for charts where cell edges are
     weak but the gridlines themselves are solidly black.
+
+    With `square` = (x0, y0, x1, y1), one square the person marked, each axis's pitch is
+    searched near that square's size (periodic.fit_periodic_near) instead of found from
+    scratch, and the grid is the run of lines nearest the square.
     """
     H, W = img.shape[:2]
     dh, dv = edge_maps(img)          # computed once; reused by both passes and the evidence
 
+    def fit(prof, dim, axis):
+        if square is None:
+            return fit_periodic_axis(prof, dim)
+        # Both sides: a chart's squares are close to square (fit_periodic_near).
+        sides = (square[2] - square[0], square[3] - square[1])
+        return fit_periodic_near(prof, (min(sides), max(sides)))
+
+    def near(axis):
+        return None if square is None else (square[axis] + square[axis + 2]) / 2
+
     def pass_(row_span, col_span):
         prof_r, prof_c = profiles_from_maps(dh, dv, row_span=row_span, col_span=col_span)
-        row = fit_periodic_axis(prof_r, H)
-        col = fit_periodic_axis(prof_c, W)
-        rk = extent_from_peaks(row, prof_r)
-        ck = extent_from_peaks(col, prof_c)
+        row = fit(prof_r, H, 1)
+        col = fit(prof_c, W, 0)
+        rk = extent_from_peaks(row, prof_r, near=near(1))
+        ck = extent_from_peaks(col, prof_c, near=near(0))
         return row, col, rk, ck
 
     row, col, rk, ck = pass_(None, None)
@@ -292,6 +308,32 @@ def _spans_image(result: DetectionResult, img: np.ndarray, min_frac: float = 0.4
     H, W = img.shape[:2]
     rl, cl = result.lattice.row_lines, result.lattice.col_lines
     return min((rl[-1] - rl[0]) / H, (cl[-1] - cl[0]) / W) >= min_frac
+
+
+def detect_with_square(
+    img: np.ndarray,
+    square: tuple[float, float, float, float],
+    *,
+    delta_e_threshold: float = DEFAULT_DELTA_E,
+) -> DetectionResult:
+    """Detect the grid again, told the size of one square: `square` = (x0, y0, x1, y1),
+    two opposite corners the person marked, in `img`'s pixels.
+
+    For a grid detection got wrong (half or twice the squares' size, or no grid at all),
+    this finds it with the size known roughly: the periodic fit only, its pitch searched
+    near the square's (periodic.fit_periodic_near). The gridlines decide the exact pitch
+    and where the lines fall; the grid's extent is found as detection finds it, from the
+    run of lines nearest the square. Refusals are detection's (NO_GRIDLINES,
+    LOW_RESOLUTION, ROTATED).
+    """
+    if img.ndim != 3 or img.shape[2] < 3:
+        raise DetectionError("TOO_SMALL", "Expected an RGB image.")
+    if min(img.shape[0], img.shape[1]) < 16:
+        raise DetectionError("TOO_SMALL", "Image is too small to contain a grid.")
+    x0, y0, x1, y1 = (float(v) for v in square)
+    square = (min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
+    fit, warns = _fit_periodic(img, square=square)
+    return _finish(img, fit, delta_e_threshold, warns)[0]
 
 
 def detect_pattern(

@@ -445,6 +445,9 @@ into a pattern as a picture, §5a.)
   too, and arrow keys on a focused edge.)
 - Crop tool that re-runs `detect_pattern(crop=...)` — the manual escape hatch. (Web: no
   tool to switch on; a box drawn on the image off the handles is a crop.)
+- (Web only.) **Mark one square**: one square marked corner to corner tells detection the
+  squares' size, for a grid read at twice or half of it, or not at all
+  (`pipeline.detect_with_square`, `kind.read_marked`; areas/import.md#mark-square).
 - **Color similarity slider** (ΔE 2–15) with live palette preview: swatches, cell counts, merge/split controls.
   (Web: no slider. Colours closer than ΔE 15 are always merged, so a chart comes out with
   as few yarns as it really has. A colour left over can be removed right there, or deleted
