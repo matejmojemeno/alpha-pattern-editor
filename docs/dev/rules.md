@@ -19,6 +19,12 @@ break without noticing.
   inside its stage instead. A stage holding words (`.stage--message`) keeps the size
   from an invisible stand-in, so it grows rather than clips. `e2e/corrections.spec.ts`
   measures both at three widths.
+- <a id="aspect-ratio-percent"></a>**Inside a box sized by `aspect-ratio` and capped by `max-height`, never size a child
+  with `height: 100%`.** WebKit (Safari, and every browser on an iPhone) resolves the
+  percentage against the uncapped aspect-ratio height; Chromium against the capped one.
+  Pin the child with `position: absolute; inset: 0`, or measure the box itself. A tall
+  phone screenshot had its pattern drawn taller than the stage, bottom rows cut off, on
+  iPhones only. `e2e/import-phone.spec.ts` runs in WebKit too, and catches it.
 - <a id="import-grid-container"></a>**On a wide screen the import grid is a size container** (`container-type: size` on
   `.confirm__grid`), and the stage width (`--stage-w`, from `cqw`/`cqh` and the numeric
   `--source-aspect`) is applied to the *columns*, never to the grid's own

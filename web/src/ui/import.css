@@ -716,10 +716,13 @@
 
 /* --- pattern -------------------------------------------------------------------------- */
 
-/* The whole stage; the canvas is sized to fit it (controls.cellSize) and centred. */
+/* The whole stage; the canvas is sized to fit it (controls.cellSize) and centred. Pinned
+   to the stage's edges, not height: 100%: WebKit (every iPhone browser) resolves that
+   against the stage's aspect-ratio height before max-height caps it, so a tall image
+   measured taller than its stage and the pattern's bottom rows were cut off. */
 .pattern {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;

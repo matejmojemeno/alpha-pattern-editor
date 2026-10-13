@@ -11,8 +11,8 @@ npm test            # Vitest: golden fixtures, storage, UI components (jsdom), i
 npm run typecheck   # strict type check of src/, tests/, scripts/ and e2e/
 npm run lint
 npm run build       # production build in dist/
-npx playwright install chromium   # once
-npm run test:e2e    # Playwright in real Chromium, against the production build
+npx playwright install chromium webkit   # once
+npm run test:e2e    # Playwright in real Chromium (phone specs in WebKit too), against the production build
 npm run gen:alpha   # rewrite ../fixtures/alpha/from-ts/ after changing src/storage
 npm run docs:media  # the user guide's screenshots, into ../docs/guide/media/ (only those that changed)
 DOCS_TOUR=1 npm run docs:media   # also re-record tour.gif and tour.mp4 (needs ffmpeg)
