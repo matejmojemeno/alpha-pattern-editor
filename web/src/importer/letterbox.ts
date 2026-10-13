@@ -7,7 +7,7 @@
  * imageWidth × imageHeight). Detection may have run on a shrunk copy, but the bridge
  * speaks in the image's own pixels both ways, so nothing here needs to know.
  */
-import type { Crop, Square } from '../detect/protocol.ts'
+import type { Crop } from '../detect/protocol.ts'
 
 export interface Rect {
   x: number
@@ -43,29 +43,6 @@ export function toImage(p: Point, fit: Rect, imageWidth: number, imageHeight: nu
 /** Where an image pixel coordinate lands in the box (the inverse of toImage). */
 export function toBox(p: Point, fit: Rect, imageWidth: number, imageHeight: number): Point {
   return { x: fit.x + (p.x / imageWidth) * fit.width, y: fit.y + (p.y / imageHeight) * fit.height }
-}
-
-/** The point in the image under a point in the box, in fractions of a pixel (toImage
- *  rounds down to whole ones), clamped to the image's edges. */
-export function toImageExact(p: Point, fit: Rect, imageWidth: number, imageHeight: number): Point {
-  if (fit.width <= 0 || fit.height <= 0) return { x: 0, y: 0 }
-  const fx = Math.min(Math.max((p.x - fit.x) / fit.width, 0), 1)
-  const fy = Math.min(Math.max((p.y - fit.y) / fit.height, 0), 1)
-  return { x: fx * imageWidth, y: fy * imageHeight }
-}
-
-/** A marked square smaller than this, in image pixels, on either side is a slip: the
- *  smallest square detection reads is 6 (bridge.mark_square searches from about 4). */
-export const MIN_SQUARE = 3
-
-/** The square a drag from one corner `a` to the opposite one `b` (box coordinates) marks,
- *  in image pixels and not rounded, or null if it's too small to mean one. */
-export function squareFromDrag(a: Point, b: Point, fit: Rect, imageWidth: number, imageHeight: number): Square | null {
-  const p = toImageExact(a, fit, imageWidth, imageHeight)
-  const q = toImageExact(b, fit, imageWidth, imageHeight)
-  const square: Square = [Math.min(p.x, q.x), Math.min(p.y, q.y), Math.max(p.x, q.x), Math.max(p.y, q.y)]
-  if (square[2] - square[0] < MIN_SQUARE || square[3] - square[1] < MIN_SQUARE) return null
-  return square
 }
 
 /** A drag smaller than this, on screen or in the image, is a slip, not a crop

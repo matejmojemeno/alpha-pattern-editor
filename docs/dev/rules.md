@@ -90,7 +90,8 @@ break without noticing.
   under half the others' strength "unsupported", which is exactly the faint line between
   two heavy ones: used to double, it put back the mistake being corrected. So doubling
   asks only that the in-between positions be below the profile's mean, inside squares.
-  A mark more than about 30% too small can still miss; the loupe is there for that.
+  A mark more than about 30% too small can still miss; "Mark one square" opens zoomed
+  in for that.
 - <a id="failure-not-picture"></a>**A detection failure is not a picture, and a detected grid is not a chart.** Most
   photos fail as LOW_RESOLUTION, as real charts with small squares do; pictures can fit a
   nonsense grid. `kind.read_image` judges from what the grid looks like, and `test_kind.py`

@@ -13,16 +13,13 @@
  *   release it's mapped through the letterboxed fit into image pixels (letterbox.ts) and
  *   handed to `onCrop`, which finds the grid again inside it. This replaces the desktop's
  *   Crop mode. The page doesn't scroll under a finger on the image.
- * - While `marking` ("Mark one square"), a drag marks one square instead, corner to
- *   corner, handed to `onMark` in image pixels; the handles step aside. A loupe shows the
- *   image under the pointer four times bigger, with the square drawn in, so its corners
- *   can be put on the lines even where a square is a few pixels on screen: a mouse
- *   shows it before pressing too, to place the first corner.
+ * - `caption` is a line over the foot of the image: why a square marked ("Mark one
+ *   square", MarkSquare.tsx) found no grid.
  */
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type RefObject } from 'react'
+import { useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react'
 
-import type { Crop, Square } from '../../detect/protocol.ts'
-import { cropFromDrag, fitRect, squareFromDrag, toBox, toImageExact, type Point, type Rect } from '../../importer/letterbox.ts'
+import type { Crop } from '../../detect/protocol.ts'
+import { cropFromDrag, fitRect, toBox, type Point, type Rect } from '../../importer/letterbox.ts'
 import {
   CORNERS,
   EDGES,
@@ -48,34 +45,25 @@ export interface SourceViewProps {
   canCrop: boolean
   /** Whether the outline's edges can be moved. */
   canResize: boolean
-  /** "Mark one square": a drag marks a square instead of drawing a box. */
-  marking?: boolean
   onCrop: (crop: Crop) => void
   onResize: (grid: Grid) => void
-  onMark?: (square: Square) => void
-  /** A line over the foot of the image: what to do while marking, or why a mark failed. */
+  /** A line over the foot of the image, or null. */
   caption?: string | null
 }
 
-/** What a pointer is doing: drawing a box, marking a square, or moving a handle from
- *  where the grid was. */
-type Drag =
-  | { kind: 'box'; from: Point; to: Point }
-  | { kind: 'mark'; from: Point; to: Point }
-  | { kind: 'handle'; handle: Handle; start: Grid }
+/** What a pointer is doing: drawing a box, or moving a handle from where the grid was. */
+type Drag = { kind: 'box'; from: Point; to: Point } | { kind: 'handle'; handle: Handle; start: Grid }
 
 /** The arrow key that moves each edge outward, taking in a row or column. */
 const OUTWARD: Record<Edge, string> = { top: 'ArrowUp', right: 'ArrowRight', bottom: 'ArrowDown', left: 'ArrowLeft' }
 const EDGE_NAME: Record<Edge, string> = { top: 'Top', right: 'Right', bottom: 'Bottom', left: 'Left' }
 const INWARD: Record<Edge, string> = { top: 'ArrowDown', right: 'ArrowLeft', bottom: 'ArrowUp', left: 'ArrowRight' }
 
-export function SourceView({ file, width, height, grid, canCrop, canResize, marking = false, onCrop, onResize, onMark, caption = null }: SourceViewProps) {
+export function SourceView({ file, width, height, grid, canCrop, canResize, onCrop, onResize, caption = null }: SourceViewProps) {
   const img = useBlobImage(file)
   const [box, size] = useElementSize<HTMLDivElement>()
   const fit = fitRect(size.width, size.height, width, height)
   const [drag, setDrag] = useState<Drag | null>(null)
-  /** Where a mouse is over the image while marking, before it's pressed. */
-  const [hover, setHover] = useState<Point | null>(null)
   const pointer = useRef<number | null>(null)
   /** The grid last handed to onResize in this drag, so each change is sent once. */
   const sent = useRef<Grid | null>(null)
@@ -101,10 +89,9 @@ export function SourceView({ file, width, height, grid, canCrop, canResize, mark
   const usable = (e: PointerEvent) => pointer.current === null && !(e.pointerType === 'mouse' && e.button !== 0)
 
   const onBoxDown = (e: PointerEvent<HTMLDivElement>) => {
-    if (!(marking || canCrop) || !usable(e)) return
+    if (!canCrop || !usable(e)) return
     const { at } = locate(e)
-    setHover(null)
-    begin(e, { kind: marking ? 'mark' : 'box', from: at, to: at })
+    begin(e, { kind: 'box', from: at, to: at })
   }
   const onHandleDown = (handle: Handle) => (e: PointerEvent<HTMLDivElement>) => {
     if (!grid || !canResize || !usable(e)) return
@@ -113,13 +100,9 @@ export function SourceView({ file, width, height, grid, canCrop, canResize, mark
   }
 
   const onPointerMove = (e: PointerEvent) => {
-    if (marking && pointer.current === null && e.pointerType === 'mouse') {
-      setHover(locate(e).at)
-      return
-    }
     if (e.pointerId !== pointer.current || !drag) return
     const { at, fit: now } = locate(e)
-    if (drag.kind === 'box' || drag.kind === 'mark') {
+    if (drag.kind === 'box') {
       setDrag({ ...drag, to: at })
       return
     }
@@ -134,13 +117,8 @@ export function SourceView({ file, width, height, grid, canCrop, canResize, mark
     if (e.pointerId !== pointer.current || !drag) return
     pointer.current = null
     setDrag(null)
-    if (drag.kind === 'handle') return
+    if (drag.kind !== 'box') return
     const { at, fit: now } = locate(e)
-    if (drag.kind === 'mark') {
-      const square = squareFromDrag(drag.from, at, now, width, height)
-      if (square) onMark?.(square)
-      return
-    }
     const crop = cropFromDrag(drag.from, at, now, width, height)
     if (crop) onCrop(crop)
   }
@@ -158,7 +136,7 @@ export function SourceView({ file, width, height, grid, canCrop, canResize, mark
     if (!sameGrid(next, grid)) onResize(next)
   }
 
-  const band = (drag?.kind === 'box' || drag?.kind === 'mark') && {
+  const band = drag?.kind === 'box' && {
     left: Math.min(drag.from.x, drag.to.x),
     top: Math.min(drag.from.y, drag.to.y),
     width: Math.abs(drag.to.x - drag.from.x),
@@ -172,8 +150,7 @@ export function SourceView({ file, width, height, grid, canCrop, canResize, mark
       ref={box}
       className="source stage"
       style={{ aspectRatio: `${width} / ${height}` }}
-      data-crop={canCrop || marking || undefined}
-      data-marking={marking || undefined}
+      data-crop={canCrop || undefined}
       data-dragging={drag?.kind}
       // A handle's events bubble here too, captured or not.
       onPointerDown={onBoxDown}
@@ -181,11 +158,10 @@ export function SourceView({ file, width, height, grid, canCrop, canResize, mark
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
       onLostPointerCapture={onPointerCancel}
-      onPointerLeave={() => setHover(null)}
     >
       <img ref={img} alt="The image being imported" className="source__image" style={placed} draggable={false} />
       {shown && <Overlay grid={grid} width={width} height={height} style={placed} />}
-      {shown && canResize && !marking && (
+      {shown && canResize && (
         <>
           {EDGES.map((edge) => {
             const vertical = edge === 'top' || edge === 'bottom'
@@ -232,100 +208,9 @@ export function SourceView({ file, width, height, grid, canCrop, canResize, mark
           {caption}
         </p>
       )}
-      {band && <div className={`source__band${drag?.kind === 'mark' ? ' source__band--mark' : ''}`} style={band} aria-hidden="true" />}
-      {marking && fit.width > 0 && (drag?.kind === 'mark' || hover) && (
-        <Loupe
-          img={img}
-          at={drag?.kind === 'mark' ? drag.to : hover!}
-          from={drag?.kind === 'mark' ? drag.from : null}
-          fit={fit}
-          width={width}
-          height={height}
-          box={size}
-        />
-      )}
+      {band && <div className="source__band" style={band} aria-hidden="true" />}
     </div>
   )
-}
-
-/** The loupe's size on screen, in CSS pixels, and how much bigger it shows the image than
- *  the stage does. */
-const LOUPE = 128
-const LOUPE_ZOOM = 4
-/** How far the loupe sits from the pointer, so a finger doesn't cover it. */
-const LOUPE_GAP = 28
-
-/**
- * The image under the pointer, LOUPE_ZOOM times as big as the stage shows it, with the
- * square being marked (from `from` to `at`) and a cross at the pointer. It sits above
- * the pointer, or below it near the stage's top, and never takes the pointer's events.
- */
-function Loupe({
-  img,
-  at,
-  from,
-  fit,
-  width,
-  height,
-  box,
-}: {
-  img: RefObject<HTMLImageElement | null>
-  at: Point
-  from: Point | null
-  fit: Rect
-  width: number
-  height: number
-  box: { width: number; height: number }
-}) {
-  const canvas = useRef<HTMLCanvasElement>(null)
-  useEffect(() => {
-    const c = canvas.current
-    const source = img.current
-    const ctx = c?.getContext('2d')
-    if (!c || !ctx || !source) return
-    const dpr = window.devicePixelRatio || 1
-    c.width = Math.round(LOUPE * dpr)
-    c.height = Math.round(LOUPE * dpr)
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    // Image pixels across the loupe, and the image point at its centre.
-    const span = LOUPE / (LOUPE_ZOOM * (fit.width / width))
-    const centre = toImageExact(at, fit, width, height)
-    const left = centre.x - span / 2
-    const top = centre.y - span / 2
-    const toLoupe = (p: Point) => ({ x: ((p.x - left) / span) * LOUPE, y: ((p.y - top) / span) * LOUPE })
-    const style = getComputedStyle(c)
-    ctx.fillStyle = style.getPropertyValue('--letterbox').trim() || '#1e1e1e'
-    ctx.fillRect(0, 0, LOUPE, LOUPE)
-    ctx.imageSmoothingEnabled = false
-    if (source.complete && source.naturalWidth > 0) ctx.drawImage(source, left, top, span, span, 0, 0, LOUPE, LOUPE)
-    if (from) {
-      const a = toLoupe(toImageExact(from, fit, width, height))
-      const b = toLoupe(centre)
-      ctx.strokeStyle = style.getPropertyValue('--accent').trim() || '#f0a800'
-      ctx.lineWidth = 2
-      ctx.strokeRect(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y))
-    }
-    // The cross: dark under light, so it shows on any colour.
-    const mid = LOUPE / 2
-    for (const [colour, w] of [['rgb(0 0 0 / 0.7)', 3], ['#fff', 1]] as const) {
-      ctx.strokeStyle = colour
-      ctx.lineWidth = w
-      ctx.beginPath()
-      ctx.moveTo(mid - 10, mid)
-      ctx.lineTo(mid + 10, mid)
-      ctx.moveTo(mid, mid - 10)
-      ctx.lineTo(mid, mid + 10)
-      ctx.stroke()
-    }
-  })
-  const above = at.y - LOUPE_GAP - LOUPE
-  const style: CSSProperties = {
-    left: Math.min(Math.max(0, at.x - LOUPE / 2), Math.max(0, box.width - LOUPE)),
-    top: above >= 0 ? above : at.y + LOUPE_GAP,
-    width: LOUPE,
-    height: LOUPE,
-  }
-  return <canvas ref={canvas} className="source__loupe" style={style} aria-hidden="true" data-testid="loupe" />
 }
 
 /** A handle's hit area, centred on its edge or corner (--hit wide, set in import.css). */

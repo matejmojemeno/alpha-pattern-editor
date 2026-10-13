@@ -8,10 +8,11 @@
  * - a box drawn on the image (a crop) detects again (`DetectSession.redetect`), under
  *   the client's watchdog, and so does "Reset to detected grid", which detects the whole
  *   image again: the desktop's Re-detect, undoing a box and a moved outline alike;
- * - "Mark one square" (a chart's) detects again told the size of one square, marked
- *   corner to corner on the image (`DetectSession.markSquare`), for a grid read at the
- *   wrong size or not found at all. If no grid of about that size is there, the grid
- *   shown stays, with a note saying so; "Reset to detected grid" undoes a mark.
+ * - "Mark one square" (a chart's) detects again told the size of one square, put on the
+ *   image zoomed in a window of its own (MarkSquare.tsx; `DetectSession.markSquare`), for
+ *   a grid read at the wrong size or not found at all. If no grid of about that size is
+ *   there, the grid shown stays, with a note saying so; "Reset to detected grid" undoes a
+ *   mark.
  * While an answer is on its way the last good preview stays up, dimmed after ~200 ms.
  *
  * It is for getting the grid right and nothing else: the colour list shows what was found
@@ -89,6 +90,7 @@ import { emptyProgress } from '../../model/types.ts'
 import { DropOverlay, ImportButton, Notices, TopBar } from '../components.tsx'
 import { useDelayedFlag, useDocumentTitle, useFileDrop, useMediaQuery, usePastedImage } from '../hooks.ts'
 import { Palette } from '../import/Palette.tsx'
+import { MarkSquare } from '../import/MarkSquare.tsx'
 import { PatternView } from '../import/PatternView.tsx'
 import { SizeField } from '../import/SizeField.tsx'
 import { SourceView } from '../import/SourceView.tsx'
@@ -189,7 +191,7 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
    *  only part of it is used, what "Use the whole picture" undoes. */
   const [adjusted, setAdjusted] = useState(false)
   const dim = useDelayedFlag(updating > 0 || redetecting, DIM_AFTER_MS)
-  /** "Mark one square" is on: a drag on the image marks a square. */
+  /** "Mark one square"'s window is open. */
   const [marking, setMarking] = useState(false)
   /** Why the last square marked found no grid, until the next mark or detection. */
   const [markNote, setMarkNote] = useState<string | null>(null)
@@ -229,7 +231,7 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
     setMarking(false)
     setMarkNote(null)
     // Setters never change; listed because the React Compiler infers them here.
-  }, [setPointed, setPinned])
+  }, [setPointed, setPinned, setMarking, setMarkNote])
 
   const onFiles = useCallback(
     (files: File[]) => {
@@ -416,16 +418,6 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
     })
   }
 
-  // Escape puts "Mark one square" away.
-  useEffect(() => {
-    if (!marking) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMarking(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [marking])
-
   // --- saving ---------------------------------------------------------------------------
 
   const save = async (e: FormEvent) => {
@@ -557,11 +549,9 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
                 grid={grid}
                 canCrop={canDetect && !pixels}
                 canResize={hasGrid && !busy && !pixels}
-                marking={marking && canMark}
                 onCrop={(crop) => redetect(crop)}
                 onResize={onResize}
-                onMark={markSquare}
-                caption={marking && canMark ? 'Drag from one corner of a square to the opposite corner.' : markNote}
+                caption={markNote}
               />
             ) : (
               <Stage>
@@ -575,18 +565,17 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
               {intent === 'chart' && (
                 <button
                   type="button"
-                  className="button confirm__mark"
-                  aria-pressed={marking && canMark}
+                  className="button"
                   disabled={!canMark}
                   onClick={() => {
-                    setMarking((m) => !m)
+                    setMarking(true)
                     setMarkNote(null)
                   }}
                 >
                   Mark one square
                 </button>
               )}
-              {!grid && canDetect && !marking && !markNote && (
+              {!grid && canDetect && !markNote && (
                 <p className="confirm__note confirm__hint">Drag a box around just the squares, then let go.</p>
               )}
             </div>
@@ -654,6 +643,9 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
           </section>
         </div>
       </div>
+      {marking && canMark && size && (
+        <MarkSquare file={image.file} width={size.width} height={size.height} grid={grid} onMark={markSquare} onCancel={() => setMarking(false)} />
+      )}
       <DropOverlay show={drop.over} text={screen.drop} />
     </main>
   )
@@ -661,7 +653,7 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
 
 /** What a square marked that found no grid says, by detection's refusal. */
 const MARK_FAILED: Record<DetectionErrorCode, string> = {
-  NO_GRIDLINES: 'No grid of squares that size there. Mark one square again, corner to corner, on its lines.',
+  NO_GRIDLINES: 'No grid of squares that size there. Mark one square again, with the box’s corners on its lines.',
   LOW_RESOLUTION: 'Squares that small are too small to read: each needs about 6 pixels.',
   ROTATED: 'The chart looks tilted. Straighten the image and import it again.',
   TOO_SMALL: 'This image is too small to contain a chart.',

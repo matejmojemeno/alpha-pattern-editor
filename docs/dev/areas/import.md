@@ -391,7 +391,7 @@ Newest last, as they were built.
 
 - <a id="mark-square"></a>**Mark one square** (`core/detect/periodic.fit_periodic_near`,
   `pipeline.detect_with_square`, `kind.read_marked`, `bridge.mark_square`,
-  `ui/import/SourceView.tsx`'s mark mode and loupe, `ui/screens/Import.tsx`):
+  `ui/import/MarkSquare.tsx`, `importer/markSquare.ts`, `ui/screens/Import.tsx`):
   - **Why:** the outline's handles move in whole squares at the size detection found,
     and a box detects again from scratch, so a grid read at the wrong size had no fix
     on the import screen. A chart with a heavy line every other gridline is the classic
@@ -399,14 +399,30 @@ Newest last, as they were built.
     24 columns read as 12, 22 as 11, 18 as 9), and the app reads one of them as
     239 × 223 pixel art.
   - **What:** "Mark one square", beside "Reset to detected grid" on "Import a chart"
-    (not Photo to pattern), when a chart was read or failed to be. Pressed, a drag on the
-    image marks one square corner to corner (fractions of a pixel kept,
-    `letterbox.squareFromDrag`; under 3 image px a side is a slip) and the handles step
-    aside; a loupe shows the image 4× bigger than the stage under the pointer, with the
-    square drawn in (a mouse sees it before pressing). On release `bridge.mark_square`
-    detects again under the watchdog and resets rows, cols and extent, mode chart; a
-    mark that finds no grid keeps the grid shown and says so over the foot of the
-    image. "Reset to detected grid" undoes it; Escape or the button again stops.
+    (not Photo to pattern), when a chart was read or failed to be. Pressed, it opens a
+    window (a `Modal`, the whole window less 1 rem, less 0.5 rem on a phone) with the image
+    alone, no grid over it (the grid read may be the wrong one), and a box on the middle
+    square of the grid read (a twentieth of the shorter side with none). The view starts
+    zoomed so that box is 72 CSS px across (`START_BOX`), from the whole image up to 40
+    screen px per image px. Drag the image to pan; wheel, pinch (`gestures.TwoFingers`) or
+    − / + to zoom, Fit for the whole image. Drag the box to move it, a corner to resize
+    it (at least 3 image px a side, never inside out), or tap to bring it there; arrows
+    move it a pixel, Shift+arrows resize it. "Use this square" hands it, fractions of a
+    pixel kept, to `bridge.mark_square`, which detects again under the watchdog and resets
+    rows, cols and extent, mode chart; a mark that finds no grid keeps the grid shown and
+    says so over the foot of the image. "Reset to detected grid" undoes it; Cancel or
+    Escape closes the window.
+  - **Why a window, not a drag on the stage:** the first version (in this PR's parent)
+    marked by dragging corner to corner on the stage, with a 4× loupe under the pointer.
+    The owner found the loupe cumbersome, and on a phone or tablet the stage is small, a
+    finger hides what it marks, and there's no hover to place the first corner. Zoomed,
+    a square is big enough to see and grab, and a box that is moved and resized can be
+    put right before it's used, rather than marked in one stroke.
+  - **Drawing:** the image is drawn on a canvas, only the part in view
+    (`drawImage` from a source rectangle), with smoothing off from 2 screen px per image
+    px so the lines stay sharp: an `<img>` 40× a 4000 px photo would be 160,000 px wide.
+    The box's line straddles the square's edge. A corner's hit area is 2.5 rem but only
+    12 px of it is inside the box, so a box 72 px across leaves its middle free to grab.
   - **How the size is found:** the mark only says roughly how big a square is: on a
     scaled-down stage a 7 px square is 3–4 screen px, and a pixel off over 100 squares
     drifts by several. Each axis's comb score (detection's matched filter) is searched
@@ -428,7 +444,7 @@ Newest last, as they were built.
       charts score contrast 5.8+, coverage 0.87+; photos contrast ≤ 1.16, or smiley.png
       43 with coverage 0.07).
     - Fitting the lattice takes ~0.07 s; the rest is the palette, as for detection.
-  - **What it can't do:** a mark more than ~30% too small can miss (the loupe is the
+  - **What it can't do:** a mark more than ~30% too small can miss (zooming in is the
     answer); two charts side by side on one lattice are found together whichever is
     marked (the outline separates them); rotated or perspective photos are
     still refused (`ROTATED`); squares under 6 px are still `LOW_RESOLUTION`
@@ -436,12 +452,16 @@ Newest last, as they were built.
   - Parity: `digest.marked_digest` marks every grid's middle square a pixel or so off,
     122/122 bit-identical. `scripts/desktop_import.py` takes `square=x0,y0,x1,y1`;
     `e2e/corrections.spec.ts` marks a square on the heavy-line chart (rendered from
-    `test_mark_square._heavy_every_other`) and checks the saved pattern cell for cell,
-    and checks a mark on a photo leaves its grid and says so.
+    `test_mark_square._heavy_every_other`) with a mouse (Fit, a click, the wheel, two
+    corners dragged) and on a phone with real touches through the DevTools protocol (a
+    tap, a pinch, a one-finger pan, two corners dragged), and checks the saved pattern cell
+    for cell both times; it checks a mark on a photo leaves its grid and says so, and that
+    the window fills a phone's screen. `e2e/overflow.spec.ts` sweeps the window too.
+    `tests/importer/markSquare.test.ts` covers the geometry.
   - **Layout:** on a wide screen a tall image's column can be too narrow for both buttons
     on one row, so the row wraps and `--col-chrome` keeps room for two rows on "Import a
-    chart"; the stage is `isolation: isolate`, so the loupe, the caption and the size tag
-    stay under the sticky save bar.
+    chart"; the stage is `isolation: isolate`, so the caption and the size tag stay under
+    the sticky save bar.
 
 ## During the port
 
