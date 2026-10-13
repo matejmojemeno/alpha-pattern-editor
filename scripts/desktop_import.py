@@ -20,6 +20,10 @@ controls make it, then preview → pattern_from_preview. A correction is one of:
     redetect                  the Re-detect button (_run_detection with no crop)
     extent=x0,y0,x1,y1        the grid's outline moved, in image pixels (set_extent); the
                               web app only, which sends rows and cols with it
+    square=x0,y0,x1,y1        "Mark one square" (the web app only): one square's corners,
+                              in image pixels, as bridge.mark_square takes them
+                              (kind.read_marked); no grid of about that size found, the
+                              grid stays as it was
     remove=#rrggbb            a colour removed from the list (the web app only): after the
                               other corrections, in order, the entry nearest #rrggbb within
                               half the merge threshold is deleted as Design's Delete does
@@ -46,6 +50,7 @@ from alphareader.core.confirm import ConfirmState, Extent, pattern_from_preview 
 from alphareader.core.detect import detect_pattern  # noqa: E402
 from alphareader.core.detect.names import simple_names  # noqa: E402
 from alphareader.core.detect.palette import DEFAULT_DELTA_E, hex_to_rgb, srgb_to_lab  # noqa: E402
+from alphareader.core.kind import read_marked  # noqa: E402
 from alphareader.core.model import DetectionError  # noqa: E402
 
 
@@ -76,7 +81,14 @@ def detect(path: str, *corrections: str) -> dict:
     delta_e = DEFAULT_DELTA_E
     removals = []
     try:
-        state = _run_detection(img, delta_e)
+        try:
+            state = _run_detection(img, delta_e)
+        except DetectionError:
+            # The web app keeps going: a square can be marked on an image with no grid
+            # found (or one read as pixel art, which detect_pattern refuses).
+            if not any(c.startswith("square=") for c in corrections):
+                raise
+            state = None
         for c in corrections:
             op, _, arg = c.partition("=")
             if op == "remove":
@@ -96,10 +108,19 @@ def detect(path: str, *corrections: str) -> dict:
                 state.set_extent(Extent(x0, y0, x1, y1))
             elif op == "redetect":
                 state = _run_detection(img, delta_e)
+            elif op == "square":
+                square = tuple(float(v) for v in arg.split(","))
+                try:
+                    result = read_marked(img, square, delta_e_threshold=delta_e).result
+                except DetectionError:
+                    continue
+                state = ConfirmState.from_detection(img, result, delta_e=delta_e)
             else:
                 raise SystemExit(f"unknown correction {c!r}")
     except DetectionError as e:
         return {"ok": False, "code": e.code}
+    if state is None:
+        return {"ok": False, "code": "NO_GRIDLINES"}
     p = pattern_from_preview(state.preview(), "x")
     before = len(p.palette)
     for hex_str in removals:

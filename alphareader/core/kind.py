@@ -28,6 +28,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from .detect import detect_pattern
+from .detect.pipeline import detect_with_square
 from .detect import periodic
 from .detect.lattice import line_coverage
 from .detect.palette import DEFAULT_DELTA_E
@@ -201,6 +202,26 @@ def read_chart(img: np.ndarray, *, delta_e_threshold: float = DEFAULT_DELTA_E,
                        f"read as a chart on request ({reading.reason})", photo_like=True)
     error = reading.error or DetectionError("NO_GRIDLINES", "Couldn't find gridlines.")
     return Reading("chart", True, None, error, f"no grid ({reading.reason})")
+
+
+def read_marked(img: np.ndarray, square: tuple[float, float, float, float], *,
+                delta_e_threshold: float = DEFAULT_DELTA_E) -> Reading:
+    """Read `img` as a chart, with one of its squares marked by the person: (x0, y0, x1,
+    y1), two opposite corners (pipeline.detect_with_square). Always a chart, `sure` as
+    `read_chart` judges it; raises detection's refusal when no grid near that size is
+    there, so the caller can keep the grid it had.
+
+    A lattice is fitted to whatever the image has near that size, so on a photo a mark
+    finds one too (a 16 × 3 across a lake): what's found must have a chart's lines, the
+    contrast and coverage `read_image` asks of one (marked charts: contrast 5.8+,
+    coverage 0.87+; marks on test_images/pictures: contrast 1.16 or less, or coverage
+    0.07). Not its span or its squares' shape: a person may mark a chart that fills
+    little of the image."""
+    result = detect_with_square(img, square, delta_e_threshold=delta_e_threshold)
+    _, _, unsure, contrast, coverage = _grid_signals(img, result)
+    if contrast < _MIN_CONTRAST or coverage < _MIN_COVERAGE:
+        raise DetectionError("NO_GRIDLINES", "Couldn't find gridlines that match that square.")
+    return Reading("chart", unsure <= _SURE_UNSURE, result, None, "a square marked")
 
 
 def _chart_or_picture(img: np.ndarray, region: np.ndarray, delta_e_threshold: float,
