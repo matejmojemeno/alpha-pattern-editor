@@ -35,7 +35,7 @@ interface PyResult {
   destroy(): void
 }
 type Bridge = Record<
-  'open_session' | 'redetect' | 'set_params' | 'preview' | 'commit' | 'close_session',
+  'open_session' | 'redetect' | 'mark_square' | 'set_params' | 'preview' | 'commit' | 'close_session',
   PyFn
 >
 
@@ -191,6 +191,10 @@ async function handle(req: Request): Promise<Outcome<Answers[Request['type']]>> 
             ...(req.crop ? { crop: toPy(req.crop) } : {}),
           }),
         ) as never
+      case 'square':
+        stall(req.delayMs)
+        if (req.fillMemory) fillMemory(py)
+        return plain(b.mark_square(req.session, toPy(req.square))) as never
       case 'update': {
         const { rows, cols, extent, width, height, keepShape, colours, detail, cellAspect, outlines } = req.params
         const kwargs: Record<string, unknown> = {}

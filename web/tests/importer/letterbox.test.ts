@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { cropFromDrag, fitRect, toBox, toImage } from '../../src/importer/letterbox.ts'
+import { cropFromDrag, fitRect, squareFromDrag, toBox, toImage, toImageExact } from '../../src/importer/letterbox.ts'
 
 describe('fitRect', () => {
   it('fits a wide image to the width, centred vertically', () => {
@@ -74,5 +74,37 @@ describe('cropFromDrag', () => {
   it('clamps a drag that strays into the letterbox', () => {
     const tall = fitRect(400, 300, 1000, 1500) // { x: 100, y: 0, width: 200, height: 300 }
     expect(cropFromDrag({ x: 20, y: -5 }, { x: 390, y: 150 }, tall, 1000, 1500)).toEqual([0, 0, 1000, 750])
+  })
+})
+
+describe('squareFromDrag', () => {
+  const fit = fitRect(400, 400, 800, 400) // { x: 0, y: 100, width: 400, height: 200 }: 2 image px per screen px
+  /** Equal to a millionth of a pixel. */
+  const near = (got: number[] | null, want: number[]) => {
+    expect(got).not.toBeNull()
+    got!.forEach((v, i) => expect(v).toBeCloseTo(want[i]!, 6))
+  }
+
+  it('keeps fractions of a pixel: a mark is a few pixels, and a rounded one would be off by a lot', () => {
+    const p = toImageExact({ x: 100.6, y: 150.3 }, fit, 800, 400)
+    near([p.x, p.y], [201.2, 100.6])
+    near(squareFromDrag({ x: 100.25, y: 150 }, { x: 104.75, y: 154.5 }, fit, 800, 400), [200.5, 100, 209.5, 109])
+  })
+
+  it('is the same square whichever corner the drag starts from', () => {
+    const a = { x: 100, y: 150 }
+    const b = { x: 106, y: 155 }
+    expect(squareFromDrag(b, a, fit, 800, 400)).toEqual(squareFromDrag(a, b, fit, 800, 400))
+    near(squareFromDrag({ x: a.x, y: b.y }, { x: b.x, y: a.y }, fit, 800, 400), [200, 100, 212, 110])
+  })
+
+  it('ignores a slip: under 3 image pixels on either side', () => {
+    expect(squareFromDrag({ x: 100, y: 150 }, { x: 101, y: 160 }, fit, 800, 400)).toBeNull() // 2 px wide
+    expect(squareFromDrag({ x: 100, y: 150 }, { x: 110, y: 151 }, fit, 800, 400)).toBeNull() // 2 px tall
+    near(squareFromDrag({ x: 100, y: 150 }, { x: 102, y: 152 }, fit, 800, 400), [200, 100, 204, 104])
+  })
+
+  it('clamps a corner dragged into the letterbox to the image', () => {
+    near(squareFromDrag({ x: 395, y: 290 }, { x: 420, y: 330 }, fit, 800, 400), [790, 380, 800, 400])
   })
 })

@@ -3,8 +3,8 @@
  * worker. Each test makes corrections, saves, exports, and checks the saved pattern cell
  * for cell against the desktop code making the same corrections
  * (scripts/desktop_import.py via desktop.ts). Also: the grid's outline dragged over the
- * rows and columns a detection left out, the phone layout with every control
- * used, the watchdog, with detection made slow by a test hook, and running out of memory,
+ * rows and columns a detection left out, "Mark one square" putting right a chart read
+ * at the wrong size, the phone layout with every control used, the watchdog, with detection made slow by a test hook, and running out of memory,
  * with the worker's memory filled by another.
  *
  * Needs the repo's Python (.venv, or $PYTHON) with numpy and Pillow for the reference.
@@ -14,11 +14,11 @@ import { resolve } from 'node:path'
 
 import { expect, test, type Page, type TestInfo } from '@playwright/test'
 
-import type { Crop } from '../src/detect/protocol.ts'
-import { cropFromDrag, fitRect } from '../src/importer/letterbox.ts'
+import type { Crop, Square } from '../src/detect/protocol.ts'
+import { cropFromDrag, fitRect, squareFromDrag } from '../src/importer/letterbox.ts'
 import { readAlpha } from '../src/storage/alpha.ts'
 import { encodePngRgba } from '../src/storage/thumbnail.ts'
-import { desktopDetect, ROOT, type Correction } from './desktop.ts'
+import { desktopDetect, renderHeavyEveryOther, ROOT, type Correction } from './desktop.ts'
 import { DETECT_TIMEOUT, exportFromLibrary, importImage, saveAs } from './importing.ts'
 
 const CATS = resolve(ROOT, 'test_images/cats.png') // 100 × 45, 3 colours; 1199 × 540 px
@@ -151,6 +151,63 @@ test('dragging the outline takes in the rows and columns a detection left out, a
   const whole = desktopDetect(CATS)
   const pairs = new Set(want.cells.map((k, i) => `${k}:${whole.cells[i]}`))
   expect(pairs.size).toBe(new Set(whole.cells).size)
+})
+
+/**
+ * With "Mark one square" on, drag from one corner of a square to the other, given in
+ * image pixels. Checks the loupe is up while the pointer is down. Returns the square that
+ * asks for, worked out independently through the same letterbox mapping.
+ */
+async function markSquare(page: Page, { width, height }: { width: number; height: number }, [x0, y0, x1, y1]: Square): Promise<Square> {
+  const source = page.locator('.source')
+  await source.scrollIntoViewIfNeeded()
+  const box = (await source.boundingBox())!
+  const fit = fitRect(box.width, box.height, width, height)
+  const at = (x: number, y: number) => ({ x: box.x + fit.x + (x / width) * fit.width, y: box.y + fit.y + (y / height) * fit.height })
+  const [a, b] = [at(x0, y0), at(x1, y1)]
+  await page.mouse.move(a.x, a.y)
+  await page.mouse.down()
+  await page.mouse.move(b.x, b.y, { steps: 4 })
+  await expect(page.getByTestId('loupe')).toBeVisible()
+  await page.mouse.up()
+  await expect(page.getByTestId('loupe')).toHaveCount(0)
+  const want = squareFromDrag({ x: a.x - box.x, y: a.y - box.y }, { x: b.x - box.x, y: b.y - box.y }, fit, width, height)
+  expect(want).not.toBeNull()
+  return want!
+}
+
+test('"Mark one square" puts right a chart read at the wrong size, and matches the desktop', async ({ page }, testInfo) => {
+  const file = testInfo.outputPath('heavy-every-other.png')
+  const chart = renderHeavyEveryOther(file)
+  await importImage(page, file)
+  // A heavy line on every other gridline: read as pixel art, not as its 24 × 26 squares.
+  await expect(stats(page)).not.toHaveText(`${chart.cols} columns × ${chart.rows} rows`, { timeout: DETECT_TIMEOUT })
+  const mark = page.getByRole('button', { name: 'Mark one square' })
+  const reset = page.getByRole('button', { name: 'Reset to detected grid' })
+  await expect(reset).toBeDisabled()
+  await mark.click()
+  await expect(mark).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText('Drag from one corner of a square to the opposite corner.')).toBeVisible()
+  await expect(page.getByTestId('edge-top')).toHaveCount(0) // the handles step aside
+  const { margin: o, pitch: p } = chart
+  const square = await markSquare(page, pngSize(file), [o + 3 * p + 0.6, o + 2 * p - 0.4, o + 4 * p - 0.5, o + 3 * p + 0.7])
+  await expect(mark).toHaveAttribute('aria-pressed', 'false')
+  await showing(page, chart.cols, chart.rows)
+  await expect(reset).toBeEnabled()
+  await expectDesktop(page, testInfo, 'Marked', file, [`square=${square.join(',')}`])
+})
+
+test('a square marked where no chart is says so, and keeps what was there', async ({ page }) => {
+  // A photo: read as a chart all the same (a grid across the lake), but a square marked
+  // on it finds no chart's lines (kind.read_marked).
+  await importImage(page, resolve(ROOT, 'test_images/pictures/lake-mountains.jpg'))
+  await expect(page.locator('.confirm__outcome')).toHaveAttribute('aria-busy', 'false')
+  const before = await stats(page).textContent()
+  await page.getByRole('button', { name: 'Mark one square' }).click()
+  await markSquare(page, { width: 960, height: 640 }, [300, 200, 312, 212])
+  await expect(page.getByRole('status').filter({ hasText: 'No grid of squares that size there.' })).toBeVisible({ timeout: DETECT_TIMEOUT })
+  await expect(stats(page)).toHaveText(before!)
+  await expect(page.getByRole('button', { name: 'Reset to detected grid' })).toBeDisabled()
 })
 
 test('a colour pointed at is shown on the pattern; the list is for checking, with no ×', async ({ page }) => {
