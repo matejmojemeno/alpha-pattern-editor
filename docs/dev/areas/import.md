@@ -55,7 +55,10 @@ Newest last, as they were built.
     width, the *source image's* shape, at most min(70vh, 720px) tall (on a wide screen,
     fitted to the window instead: "The import screen fits the window" below). The image fills
     its stage; the pattern is fitted into its own, centred, with square whole-pixel
-    cells, and the stage's background shows round it. Loading and failure messages sit
+    cells, and the stage's background shows round it. On iPhones a tall image (a phone
+    screenshot) used to have the pattern's bottom rows cut off: WebKit measured the
+    pattern's box at the uncapped height ([rule](../rules.md#aspect-ratio-percent));
+    `e2e/import-phone.spec.ts` checks it in Chromium and WebKit. Loading and failure messages sit
     on a stage-sized box that grows rather than clips. The size ("76 columns × 24 rows") is a
     caption under the pattern's stage.
   - **Grid:** image, pattern and a 280 px colour sidebar from 1100 px; the sidebar drops
