@@ -80,8 +80,8 @@ about 6 columns, with row numbers beside it can come out a column short: this fi
 ## The squares came out the wrong size
 
 If the pattern has about half, or twice, the rows and columns your chart has, the app read
-the squares at the wrong size. Press **Mark one square** and drag across one square of the
-chart ([details](import.md#fix-squares-read-at-the-wrong-size)).
+the squares at the wrong size. Press **Mark one square**, put the box on one square of the
+chart, and press **Use this square** ([details](import.md#fix-squares-read-at-the-wrong-size)).
 
 ## One colour came out as two
 
