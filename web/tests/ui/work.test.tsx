@@ -261,7 +261,7 @@ describe('keyboard', () => {
     expect(rowLabel()).toMatch(/^Row 1 /)
 
     await user.keyboard('{Escape}')
-    const option = screen.getByLabelText('Show only the rows near yours')
+    const option = screen.getByLabelText('Focus mode')
     fireEvent.keyDown(option, { key: 'ArrowRight' })
     expect(work.completeCurrentRow).not.toHaveBeenCalled()
 
@@ -527,7 +527,7 @@ describe('options', () => {
   it('focus mode hides the next-row preview', async () => {
     const { settings } = await openWork('basic.alpha')
     expect(screen.getByText(/^Next, row 2/)).toBeTruthy()
-    await userEvent.click(screen.getByLabelText('Show only the rows near yours'))
+    await userEvent.click(screen.getByLabelText('Focus mode'))
     expect(settings.get().focusMode).toBe(true)
     expect(screen.queryByText(/^Next, row/)).toBeNull()
   })
