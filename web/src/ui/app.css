@@ -1163,6 +1163,12 @@ code {
   letter-spacing: 0.04em;
 }
 
+/* Filet crochet: the foundation chain and the edge stitch, above the chips. */
+.work__filet {
+  margin: 0 0 0.6rem;
+  font-size: var(--text-sm);
+}
+
 .work__next {
   margin: 0.6rem 0 0;
   font-size: var(--text-sm);
@@ -1339,6 +1345,15 @@ code {
 }
 
 /* A colour to carry inside this segment's stitches: a line of its own under the count. */
+/* Filet crochet: the stitches a chip's squares take, under them. */
+.chip__stitches {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--muted);
+}
+
 .chip__carry {
   display: flex;
   align-items: center;

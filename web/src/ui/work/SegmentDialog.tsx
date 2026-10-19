@@ -22,6 +22,8 @@ import { Swatch } from './Chips.tsx'
 
 export function SegmentDialog({
   entry,
+  name = entry.name,
+  note,
   count,
   unit = 'stitch',
   units = 'stitches',
@@ -31,6 +33,10 @@ export function SegmentDialog({
   onCancel,
 }: {
   entry: PaletteEntry
+  /** The heading, if not the colour's name: "Blocks" or "Spaces" in filet crochet. */
+  name?: string
+  /** Said after the count, e.g. the stitches filet squares take: "9 dc". */
+  note?: string
   count: number
   /** What the craft calls a cell, and its cells: "stitch", "stitches" (craft/crafts.ts). */
   unit?: string
@@ -60,9 +66,10 @@ export function SegmentDialog({
         <p className="segment__head">
           <Swatch hex={entry.hex} className="swatch swatch--lg" />
           <span className="segment__name">
-            <strong>{entry.name}</strong>
+            <strong>{name}</strong>
             <span className="muted">
               {count} {count === 1 ? unit : units}
+              {note && ` · ${note}`}
             </span>
           </span>
         </p>

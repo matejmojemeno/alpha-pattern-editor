@@ -14,11 +14,15 @@
  * empty until the segment is done; ticking one marks every segment before it done too, as
  * the dialog does, and unticking a done one takes your place back to its start. Not in
  * chips.py, whose chips had only the one button.
+ *
+ * In filet crochet (craft/filet.ts) a chip names squares, not a colour: "3 blocks" or
+ * "2 spaces", with the stitches they take under it ("9 dc"). The swatch keeps the colour.
  */
 import type { ReactNode } from 'react'
 
 import { DoneIcon, NotDoneIcon } from '../icons.tsx'
 
+import { squareOf, squaresText, stitchesText } from '../../craft/filet.ts'
 import type { RunCarry } from '../../logic/carry.ts'
 import type { Pattern, Run } from '../../model/types.ts'
 import { carryNote, chipState, entryFor, passName, swatchBorder } from './segments.ts'
@@ -39,6 +43,7 @@ export function Chips({
   carries,
   onChip,
   onTick,
+  filet,
 }: {
   pattern: Pattern
   runs: readonly Run[]
@@ -52,6 +57,8 @@ export function Chips({
   /** The tick: mark segment `index` done (`done` true), or take your place back to its
    *  start (false). */
   onTick: (index: number, done: boolean) => void
+  /** Filet crochet: the palette index worked as spaces (craft/filet.ts `spaceIndex`). */
+  filet?: { spaces: number | null }
 }) {
   return (
     <ol className="chips" aria-label="Colours in this row">
@@ -60,18 +67,22 @@ export function Chips({
         const state = chipState(i, cursor)
         const partly = state === 'current' && stitches > 0 && stitches < run.count
         const notes = (carries?.[i] ?? []).map((c) => ({ c, entry: entryFor(pattern, c.palette_index) }))
+        const square = filet ? squareOf(run.palette_index, filet.spaces) : null
+        const what = square ? squaresText(square, run.count) : `${run.count} ${entry.name}`
+        const how = square ? stitchesText(square, run.count) : ''
         const status = state === 'done' ? 'done' : partly ? `${stitches} of ${run.count} done` : state === 'current' ? 'next' : ''
         return (
           <li key={i} className={`chip chip--${state}`} aria-current={state === 'current' ? 'step' : undefined}>
             <button
               type="button"
               className="chip__open"
-              aria-label={`${run.count} ${entry.name}${notes.map(({ c, entry: e }) => `, ${carryNote(e.name, c, passName(pattern))}`).join('')}${status ? `, ${status}` : ''}. Record progress`}
+              aria-label={`${what}${how ? `, ${how}` : ''}${notes.map(({ c, entry: e }) => `, ${carryNote(e.name, c, passName(pattern))}`).join('')}${status ? `, ${status}` : ''}. Record progress`}
               onClick={() => onChip(i)}
             >
               <Swatch hex={entry.hex} />
               <span className="chip__text">
-                {run.count} {entry.name}
+                {what}
+                {how && <span className="chip__stitches">{how}</span>}
                 {notes.map(({ c, entry: e }) => (
                   <span key={c.palette_index} className="chip__carry">
                     <Swatch hex={e.hex} className="swatch swatch--carry" />
@@ -89,7 +100,7 @@ export function Chips({
               type="button"
               className="chip__tick"
               aria-pressed={state === 'done'}
-              aria-label={`${run.count} ${entry.name} done`}
+              aria-label={`${what} done`}
               onClick={() => onTick(i, state !== 'done')}
             >
               {state === 'done' ? <DoneIcon /> : <NotDoneIcon />}

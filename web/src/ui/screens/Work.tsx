@@ -28,6 +28,7 @@ import {
 } from '../../logic/work.ts'
 import { reorder, repairProgress } from '../../logic/progress.ts'
 import { countOf, craftOf, withCraft, type CraftId } from '../../craft/crafts.ts'
+import { formatFiletRow, foundationChain, spaceIndex, squareOf, stitchesText, STITCHES_PER_SQUARE } from '../../craft/filet.ts'
 import type { Direction, Pattern, Project } from '../../model/types.ts'
 import { exportChartPng } from '../../render/chartPng.ts'
 import { placeThrough, type RowPlace } from '../../render/layout.ts'
@@ -135,6 +136,8 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
 
   const { pattern: p, progress: pr } = project
   const craft = craftOf(p)
+  // Filet crochet reads the lightest colour as spaces, every other as blocks (craft/filet.ts).
+  const filet = useMemo(() => (craft.id === 'filet' ? { spaces: spaceIndex(p) } : undefined), [craft.id, p])
   const done = isComplete(p, pr)
   const cur = done ? null : rowIndex(p, pr.current_row_id)
   const runs = useMemo(() => (cur === null ? [] : encodeRow(p, cur)), [p, cur])
@@ -300,6 +303,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
   }, [pr, shown])
 
   const openRun = segment === null ? undefined : runs[segment]
+  const openSquare = openRun && filet ? squareOf(openRun.palette_index, filet.spaces) : null
   const arrow = cur !== null && rowDirection(p, cur) === 'LTR' ? '→' : '←'
 
   return (
@@ -394,6 +398,13 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
           aria-hidden={!shown || undefined}
         >
           <h2 className="work__label">This row</h2>
+          {filet && !done && cur !== null && (
+            <p className="work__filet muted">
+              {position === 0 &&
+                `Foundation chain: ${STITCHES_PER_SQUARE} × ${p.cols} + 1 = ${foundationChain(p.cols)}, plus your turning chain. `}
+              Start the row with 1 dc at the edge (a turning chain can count as it).
+            </p>
+          )}
           {done ? (
             <p className="muted">Every row is done.</p>
           ) : (
@@ -405,13 +416,14 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
               carries={runCarries}
               onChip={setSegment}
               onTick={tick}
+              filet={filet}
             />
           )}
           {!settings.focusMode && !done && cur !== null && (
             <p className="work__next muted">
               {nextRow === null
                 ? 'This is the last row.'
-                : `Next, row ${workingNumber(p, nextRow)}: ${formatRowText(p, nextRow)}`}
+                : `Next, row ${workingNumber(p, nextRow)}: ${filet ? formatFiletRow(p, encodeRow(p, nextRow)) : formatRowText(p, nextRow)}`}
             </p>
           )}
         </section>
@@ -448,6 +460,8 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
       {openRun && segment !== null && (
         <SegmentDialog
           entry={entryFor(p, openRun.palette_index)}
+          name={openSquare === 'block' ? 'Blocks' : openSquare === 'space' ? 'Spaces' : undefined}
+          note={openSquare ? stitchesText(openSquare, openRun.count) || undefined : undefined}
           count={openRun.count}
           unit={craft.unit}
           units={craft.units}

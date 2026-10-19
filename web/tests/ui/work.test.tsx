@@ -3,6 +3,7 @@ import { fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { formatFiletRow, spaceIndex, squareOf, squaresText, stitchesText } from '../../src/craft/filet.ts'
 import { carriesByRun, carryPlan, carryReach } from '../../src/logic/carry.ts'
 import * as work from '../../src/logic/work.ts'
 import { encodeRow, formatRowText, rowDirection, workingNumber } from '../../src/logic/readout.ts'
@@ -418,6 +419,57 @@ describe('options', () => {
     await userEvent.selectOptions(craft, 'bead-loom')
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'All the same way' }).checked).toBe(true)
     expect(document.querySelector('.work__stitches')!.textContent).toBe(`0 / ${p.rows * p.cols} beads`)
+  })
+
+  it('filet crochet: blocks and spaces, the stitches each takes, and the foundation chain on row 1', async () => {
+    const { project } = await openWork('basic.alpha')
+    const p = project.pattern
+    await userEvent.selectOptions(screen.getByLabelText('Craft'), 'filet')
+    expect(document.querySelector('.work__stitches')!.textContent).toBe(`0 / ${p.rows * p.cols} squares`)
+    expect(screen.queryByLabelText('Show where to carry yarn')).toBeNull()
+
+    const spaces = spaceIndex(p)
+    const chipTexts = (r: number) =>
+      encodeRow(p, r).map((run) => {
+        const sq = squareOf(run.palette_index, spaces)
+        return squaresText(sq, run.count) + stitchesText(sq, run.count)
+      })
+    // bottom-up: row 1 is the last image row.
+    const seq = work.workSequence(p)
+    expect(chips().map((c) => c.querySelector('.chip__text')!.textContent)).toEqual(chipTexts(seq[0]!))
+    expect(document.querySelector('.work__filet')!.textContent).toContain(
+      `Foundation chain: 3 × ${p.cols} + 1 = ${3 * p.cols + 1}, plus your turning chain.`,
+    )
+    expect(screen.getByText(`Next, row 2: ${formatFiletRow(p, encodeRow(p, seq[1]!))}`)).toBeTruthy()
+
+    // On to the first row with both blocks and spaces.
+    const k = seq.findIndex((r) => {
+      const runs = encodeRow(p, r)
+      return runs.some((run) => run.palette_index === spaces) && runs.some((run) => run.palette_index !== spaces)
+    })
+    expect(k).toBeGreaterThan(0)
+    for (let i = 0; i < k; i++) await userEvent.click(screen.getByRole('button', { name: /Row complete/ }))
+    const runs = encodeRow(p, seq[k]!)
+    const texts = chips().map((c) => c.querySelector('.chip__text')!.textContent)
+    expect(texts).toEqual(chipTexts(seq[k]!))
+    expect(texts.some((t) => /^\d+ spaces?(ch 2, dc|\(ch 2, dc\) × \d+)$/.test(t!))).toBe(true)
+    expect(texts.some((t) => /^\d+ blocks?\d+ dc$/.test(t!))).toBe(true)
+    // Past row 1, the edge stitch is still said, the foundation chain isn't.
+    const later = document.querySelector('.work__filet')!.textContent
+    expect(later).not.toContain('Foundation chain')
+    expect(later).toContain('1 dc at the edge')
+
+    // Record progress names the squares and their stitches.
+    const block = runs.findIndex((run) => run.palette_index !== spaces)
+    const n = runs[block]!.count
+    await userEvent.click(openChip(block))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('Blocks')).toBeTruthy()
+    expect(dialog.textContent).toContain(`${n} square${n === 1 ? '' : 's'} · ${3 * n} dc`)
+    expect(within(dialog).getByLabelText('Squares done')).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await userEvent.click(openChip(runs.findIndex((run) => run.palette_index === spaces)))
+    expect(within(screen.getByRole('dialog')).getByText('Spaces')).toBeTruthy()
   })
 
   it('numbers the stitches unless turned off in Options, app-wide', async () => {
