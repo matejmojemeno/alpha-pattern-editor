@@ -66,7 +66,7 @@ Newest last, as they were built.
   no scroll mode (it always fit), so nothing to keep in step.
 - <a id="crafts"></a>**Crafts** (`web/src/craft/crafts.ts`, §15; Work stage, **Options**).
   - **Craft** (tapestry crochet, intarsia crochet, stranded knitting, intarsia knitting,
-    alpha friendship bracelet, bead loom) is saved on the pattern as `craft`.
+    alpha friendship bracelet, bead loom, filet crochet) is saved on the pattern as `craft`.
   - Picking one sets the reading order its source gives. Each convention is cited in
     [`craft/README.md`](../../../web/src/craft/README.md).
   - It also sets the unit in the stitch count and the **Record progress** dialog
@@ -86,6 +86,19 @@ Newest last, as they were built.
   - Before this, starting rows from the other side kept the cursor's segment index on a row
     that now read the other way. It then pointed at a different stitch than the maker
     had reached.
+  - <a id="filet"></a>**Filet crochet** (`craft/filet.ts`) is the one craft that changes
+    what the chips say, not just the unit ("squares"):
+    - The pattern's lightest colour (CIELAB L*, the first of equals) is the spaces, every
+      other colour blocks. Nothing new is stored: recolour in Design to change which.
+    - A chip reads "3 blocks" or "2 spaces", with the stitches under it ("9 dc",
+      "(ch 2, dc) × 2"). **Record progress** heads it **Blocks** or **Spaces**, with
+      "3 squares · 9 dc". **Next, row N** is said in squares too.
+    - Above the chips: start the row with 1 dc at the edge, and on row 1 the foundation
+      chain (3 × squares + 1, plus your turning chain). Design's stats line adds
+      "foundation chain N", as it adds strings for a bracelet.
+    - The readout and progress are the same colour runs as every craft, so switching to
+      filet and back keeps your place; two block colours side by side stay two chips.
+    - The chart still shows the colours; it doesn't draw mesh.
   - Not in the Python: `craft` is stored there (`model.py`, `io.py`, sent by
     `bridge.commit`), but nothing reads it.
   - The other crafts considered, and what each would take, are in

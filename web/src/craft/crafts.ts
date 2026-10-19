@@ -9,7 +9,7 @@
  */
 import type { Pattern } from '../model/types.ts'
 
-export type CraftId = 'tapestry' | 'intarsia-crochet' | 'stranded-knit' | 'intarsia-knit' | 'bracelet' | 'bead-loom'
+export type CraftId = 'tapestry' | 'intarsia-crochet' | 'stranded-knit' | 'intarsia-knit' | 'bracelet' | 'bead-loom' | 'filet'
 
 /** The pattern's reading order, as far as a craft's source sets it. */
 export type CraftOrder = Partial<Pick<Pattern, 'start_direction' | 'alternate_direction' | 'bottom_up'>>
@@ -17,7 +17,7 @@ export type CraftOrder = Partial<Pick<Pattern, 'start_direction' | 'alternate_di
 export interface Craft {
   readonly id: CraftId
   readonly label: string
-  /** One cell, and many: "stitch"/"stitches", "knot"/"knots", "bead"/"beads". */
+  /** One cell, and many: "stitch"/"stitches", "knot"/"knots", "bead"/"beads", "square"/"squares". */
   readonly unit: string
   readonly units: string
   /** The reading order picking the craft sets. */
@@ -62,6 +62,9 @@ export const CRAFTS: readonly Craft[] = [
     carries: false,
     inRounds: false,
   },
+  // Read like any crochet graph. A square is 3 stitches (craft/filet.ts), so it's counted
+  // in squares; the chips say blocks and spaces, and the stitches each takes.
+  { id: 'filet', label: 'Filet crochet', unit: 'square', units: 'squares', order: CROCHET_FLAT, carries: false, inRounds: true },
 ]
 
 export const DEFAULT_CRAFT: CraftId = 'tapestry'
