@@ -23,7 +23,7 @@ is built** (the Work stage's **Craft** option, §15). The rest is the plan.
 | Intarsia crochet and intarsia knitting | same readout; no carry hints (a bobbin per area) | built |
 | Alpha friendship bracelets | from the top, row 1 left to right, rows turn; "knots" | built |
 | Bead loom | rows don't turn; "beads" | built; the first row isn't set, as sources disagree |
-| Filet crochet | a two-colour chart of blocks and spaces | left out: only the word would change, and the stitches per square vary |
+| Filet crochet | "squares"; the lightest colour is spaces, the rest blocks; chips give the stitches (3 dc a block, ch 2 + dc a space) and row 1 the foundation chain | built (`craft/filet.ts`); the turning chain isn't set, as sources disagree |
 
 How it's built:
 - The pattern stores `craft` (`Pattern.craft`, in `pattern.json`, left out for tapestry

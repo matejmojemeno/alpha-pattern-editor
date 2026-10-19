@@ -8,6 +8,10 @@ line per change, under the release it's in.
 
 ### Added
 
+- **Filet crochet** under **Craft** in the Work stage's **Options**: the lightest colour is
+  the spaces and the others are blocks. Each step says how many squares and the stitches
+  they take (**3 blocks**, **9 dc**), and row 1 gives the foundation chain.
+
 - A user guide, [`docs/guide/`](docs/guide/index.md): one page for each screen, how to do
   things in it, and what to do about the messages the app shows.
 - **Help** on the home screen opens the guide, and a **?** at the top of each screen opens

@@ -50,11 +50,22 @@ Open **Options** and pick what you're making under **Craft**:
 | **Intarsia knitting** | the bottom row, from the right | back and forth |
 | **Alpha friendship bracelet** | the top row, from the left | back and forth |
 | **Bead loom** | as the pattern already has it | all the same way |
+| **Filet crochet** | the bottom row, from the right | back and forth |
 
 Picking a craft sets which row is row 1 and which way the rows run, as charts for that
 craft are read. The stitch count and **Record progress** say "knots" for a bracelet and
 "beads" on a loom. **Show where to carry yarn** is there for tapestry crochet only. The
 craft is saved with the pattern.
+
+In **Filet crochet** the pattern's lightest colour is the open squares (spaces), and
+every other colour is filled squares (blocks). To change which, recolour it in Design.
+- The count is in squares.
+- Each chip says what to make and the stitches it takes, such as **3 blocks** with
+  **9 dc** under it, or **2 spaces** with **(ch 2, dc) × 2**.
+- Above them is a reminder to start each row with 1 dc at the edge. On row 1 it also
+  gives the foundation chain: 3 for each square plus 1, then add the turning chain your
+  pattern uses.
+- In Design, the line under the chart gives the same foundation chain.
 
 ## Which row is row 1, and which way it runs
 
