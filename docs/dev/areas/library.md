@@ -121,7 +121,8 @@ Newest last, as they were built.
     dialog is shorter.
   - Settings: one short line per switch where its name can't say enough, shared with the
     Work stage's Options (`ui/chartOptions.ts` has `hint` only; `help` is gone). **Focus
-    mode** is **Show only the rows near yours** (the key is still `focusMode`), and
+    mode** keeps its name (PR #68 renamed it; the owner had already chosen it, so it
+    came back) with the line "Shows only the rows around the current one.", and
     **Enlarge the current row** needs no line. The heading says "Work chart, for every
     pattern", so the closing paragraph went; About is "Version 1.0.0 (build …) · What's
     new".

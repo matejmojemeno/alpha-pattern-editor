@@ -122,7 +122,7 @@ test('Export PNG draws the chart with numbers and carried yarn when on, and neve
   await expect(page.locator('.work__row')).toContainText('Row 3 of 5')
   await page.locator('.chip__open').first().click()
   await page.getByRole('dialog', { name: 'Record progress' }).getByRole('button', { name: 'Mark as done' }).click()
-  await setSwitch(page, 'Show only the rows near yours', true)
+  await setSwitch(page, 'Focus mode', true)
   await setSwitch(page, 'Enlarge the current row', true)
   expect((await exportPng(page)).bytes.equals(plain.bytes)).toBe(true)
 

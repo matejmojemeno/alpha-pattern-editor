@@ -29,5 +29,5 @@ export const CHART_OPTIONS: readonly { key: ChartSwitch; label: string; hint?: s
     hint: 'For tapestry crochet: which colour to work over, and for how many stitches.',
   },
   { key: 'emphasiseRows', label: 'Enlarge the current row' },
-  { key: 'focusMode', label: 'Show only the rows near yours' },
+  { key: 'focusMode', label: 'Focus mode', hint: 'Shows only the rows around the current one.' },
 ]

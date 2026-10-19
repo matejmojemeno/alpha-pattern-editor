@@ -261,3 +261,6 @@ break without noticing.
   belong in the guide (`docs/guide/`), which every screen links to with its **?**. Before
   adding a sentence, try a clearer name; keep text that warns (data loss, a lost row of
   progress), reports what just happened, or explains an error.
+  A name the owner has chosen stays, even in a copy pass: **Focus mode** was renamed
+  twice ("Hide the rest of the chart", then "Show only the rows near yours" in PR #68)
+  after the owner had picked it, and came back both times. Ask before renaming one.

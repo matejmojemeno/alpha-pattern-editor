@@ -18,7 +18,7 @@ describe('Settings screen', () => {
       ['Show the colours in this row', true],
       ['Show where to carry yarn', false],
       ['Enlarge the current row', true],
-      ['Show only the rows near yours', false],
+      ['Focus mode', false],
     ])
     expect(screen.queryByText(/contrast/i)).toBeNull()
   })
@@ -45,7 +45,7 @@ describe('Settings screen', () => {
     const storage = memoryStorage()
     const settings = createSettingsStore(() => storage)
     await renderApp('#/settings', { settings })
-    await userEvent.click(screen.getByRole('switch', { name: 'Show only the rows near yours' }))
+    await userEvent.click(screen.getByRole('switch', { name: 'Focus mode' }))
     await userEvent.click(screen.getByRole('switch', { name: 'Show where to carry yarn' }))
     await userEvent.click(screen.getByRole('switch', { name: 'Number the stitches' }))
     await userEvent.click(screen.getByRole('switch', { name: 'Enlarge the current row' }))

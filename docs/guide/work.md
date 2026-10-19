@@ -34,7 +34,7 @@ you [choose another craft](#choose-your-craft).
 - **How you work this pattern:** your craft, the corner you start in, and whether rows go
   back and forth or in the round. These are saved with the pattern.
 - **Chart, for every pattern:** stitch numbers, where to carry yarn, an enlarged current
-  row, and **Show only the rows near yours**. The same switches are in
+  row, and **Focus mode**. The same switches are in
   [Settings](settings.md).
 - Last, under a line: **Rename…**, **Edit in Design**, **Export PNG** and **Help**.
 
@@ -205,7 +205,7 @@ the stitch numbers, and where to carry yarn. It has the row numbers in working o
 down the side and the column numbers along the top.
 
 It doesn't show your progress: no outline on the current row, no greyed-out finished
-rows, and no enlarged rows, and **Show only the rows near yours** doesn't hide any of the chart. It's drawn
+rows, and no enlarged rows, and **Focus mode** doesn't hide any of the chart. It's drawn
 on a white background even when your device is in dark mode. A very large pattern is
 drawn with smaller squares, so the file isn't too big for the browser to save.
 
