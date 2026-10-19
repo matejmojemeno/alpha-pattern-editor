@@ -43,11 +43,19 @@ export interface DesktopProject extends DesktopPattern {
  *   it sends rows and cols with it)
  * - `remove=#rrggbb`: a colour removed from the list (the web app only), applied after
  *   the rest, in order, as Design's Delete (edit.delete_palette_entry_nearest)
+ * - `square=x0,y0,x1,y1`: "Mark one square" (the web app only), corners in image pixels
  *
  * desktop_import.py also takes `de=X`, the desktop's colour-detail slider. The web app
  * has no colour setting, so it isn't offered here.
  */
-export type Correction = `rows=${number}` | `cols=${number}` | `crop=${string}` | `extent=${string}` | `remove=${string}` | 'redetect'
+export type Correction =
+  | `rows=${number}`
+  | `cols=${number}`
+  | `crop=${string}`
+  | `extent=${string}`
+  | `remove=${string}`
+  | `square=${string}`
+  | 'redetect'
 
 let checked = false
 
@@ -89,3 +97,19 @@ export const desktopLoad = (file: string) => run(['load', file]) as DesktopProje
 /** Whether `png` is exactly what the desktop's Export PNG makes of the `.alpha` file. */
 export const desktopPngMatches = (alpha: string, png: string) =>
   run(['png', alpha, png]) as { same: boolean; desktop: number[]; exported: number[] }
+
+/** The chart test_mark_square.py's `_heavy_every_other` draws (a heavy line on every other
+ *  gridline: detection reads its squares at twice their size), saved as a PNG at `out`. */
+export function renderHeavyEveryOther(out: string): { rows: number; cols: number; pitch: number; margin: number } {
+  checkPython()
+  const code = [
+    'import json, sys',
+    `sys.path.insert(0, ${JSON.stringify(ROOT)})`,
+    'from PIL import Image',
+    'from alphareader.tests.test_mark_square import _heavy_every_other',
+    'img, spec = _heavy_every_other()',
+    'Image.fromarray(img).save(sys.argv[1])',
+    'print(json.dumps({"rows": spec.rows, "cols": spec.cols, "pitch": spec.pitch, "margin": spec.margin}))',
+  ].join('\n')
+  return JSON.parse(execFileSync(PYTHON, ['-c', code, out], { encoding: 'utf-8' })) as ReturnType<typeof renderHeavyEveryOther>
+}

@@ -14,7 +14,7 @@
  * - An OUT_OF_MEMORY or fatal answer terminates the worker, as the watchdog does:
  *   WebAssembly memory never shrinks once grown, and a fatal error leaves Pyodide unusable,
  *   so only a fresh worker recovers.
- * - Detection (`open`, `redetect`) runs under a watchdog. A photo no fitter reads cleanly
+ * - Detection (`open`, `redetect`, `square`) runs under a watchdog. A photo no fitter reads cleanly
  *   can keep Python busy for a long time, and Pyodide can't be interrupted without
  *   SharedArrayBuffer, so past the budget the worker is simply terminated: everything
  *   outstanding answers TIMEOUT, and the next `detector()` starts a fresh worker.
@@ -33,6 +33,7 @@ import type {
   Preview,
   Request,
   RequestType,
+  Square,
   WorkerMessage,
 } from './protocol.ts'
 
@@ -275,8 +276,9 @@ export class DetectSession {
   }
 
   /** Send a request whose answer replaces the preview; drop it if a newer one was sent. */
-  private async view(body: BodyOf<'update' | 'preview' | 'redetect'>): Promise<Outcome<Preview>> {
-    const { id, answer } = this.client.send(body, [], { watched: body.type === 'redetect' })
+  private async view(body: BodyOf<'update' | 'preview' | 'redetect' | 'square'>): Promise<Outcome<Preview>> {
+    const watched = body.type === 'redetect' || body.type === 'square'
+    const { id, answer } = this.client.send(body, [], { watched })
     this.newestView = id
     const result = await answer
     if (id !== this.newestView) return failure('STALE', 'A newer preview was requested.')
@@ -332,6 +334,16 @@ export class DetectSession {
       session: this.id,
       ...(crop ? { crop } : {}),
     })
+  }
+
+  /** Detect again, told the size of one square the person marked (image pixels). Any
+   *  pending update is dropped, as for `redetect`. When no grid of about that size is
+   *  found, the worker keeps the grid it had: the failure says so, and `latest` stays. */
+  markSquare(square: Square): Promise<Outcome<Preview>> {
+    const dropped = this.pending
+    this.pending = null
+    dropped?.resolve(failure('STALE', 'Superseded by a new detection.'))
+    return this.view({ type: 'square', session: this.id, square })
   }
 
   commit(name: string): Promise<Outcome<Answers['commit']>> {

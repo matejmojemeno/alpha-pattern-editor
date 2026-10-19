@@ -51,6 +51,28 @@ describe('coalescing a drag', () => {
     void session.redetect()
     expect(worker.of('redetect')[1]).not.toHaveProperty('crop')
   })
+
+  it('a marked square drops a change still waiting to be sent, and is sent as marked', async () => {
+    const { session, worker } = await opened()
+    void session.update({ rows: 5 })
+    const waiting = session.update({ cols: 9 })
+    void session.markSquare([10.5, 20.25, 19.75, 29])
+    expect(await waiting).toMatchObject({ ok: false, code: 'STALE' })
+    expect(worker.of('square')[0]).toMatchObject({ session: 7, square: [10.5, 20.25, 19.75, 29] })
+  })
+
+  it('a marked square that finds no grid keeps the preview there was', async () => {
+    const { session, worker } = await opened()
+    const before = session.latest
+    const marking = session.markSquare([0, 0, 5, 5])
+    worker.reply(worker.of('square')[0]!.id, { ok: false, code: 'NO_GRIDLINES', message: 'none', session: 7 })
+    expect(await marking).toMatchObject({ ok: false, code: 'NO_GRIDLINES' })
+    expect(session.latest).toBe(before)
+    const again = session.markSquare([0, 0, 9, 9])
+    worker.reply(worker.of('square')[1]!.id, makePreview(7, 6, 8))
+    expect(await again).toMatchObject({ ok: true, rows: 6, cols: 8 })
+    expect(session.latest?.cols).toBe(8)
+  })
 })
 
 describe('the watchdog', () => {
@@ -106,6 +128,18 @@ describe('the watchdog', () => {
     await vi.advanceTimersByTimeAsync(1000)
     expect(worker.terminated).toBe(true)
     expect(await redetecting).toMatchObject({ code: 'TIMEOUT' })
+  })
+
+  it('watches a marked square, as it does a redetect', async () => {
+    vi.useFakeTimers()
+    const { worker, client } = slowClient()
+    const opening = client.open(image())
+    worker.reply(worker.of('open')[0]!.id, makePreview(3))
+    const { session } = await opening
+    const marking = session!.markSquare([10, 10, 20, 20])
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(worker.terminated).toBe(true)
+    expect(await marking).toMatchObject({ code: 'TIMEOUT' })
   })
 
   it('takes its budget, a detection delay and filling memory from the test hook', () => {

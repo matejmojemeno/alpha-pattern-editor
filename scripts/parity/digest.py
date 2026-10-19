@@ -18,6 +18,7 @@ import numpy as np
 
 from alphareader.core.convert import convert_picture
 from alphareader.core.detect import detect_pattern
+from alphareader.core.detect.pipeline import detect_with_square
 from alphareader.core.kind import read_image
 from alphareader.core.model import DetectionError
 
@@ -48,7 +49,25 @@ def digest(path: str) -> dict:
         "y0": round(float(r.lattice.y0), 9),
         "conf_mean": round(float(r.confidence.mean()), 9),
         "ms": ms,
+        "marked": marked_digest(img, r),
     }
+
+
+def marked_digest(img: np.ndarray, r) -> dict:
+    """The grid found again from one square marked a pixel or so off its corners, near the
+    middle of the detected grid (pipeline.detect_with_square)."""
+    cl, rl = r.lattice.col_lines, r.lattice.row_lines
+    i, j = (len(cl) - 1) // 2, (len(rl) - 1) // 2
+    square = (float(cl[i]) + 1.3, float(rl[j]) - 0.7, float(cl[i + 1]) - 1.1, float(rl[j + 1]) + 0.9)
+    try:
+        m = detect_with_square(img, square)
+    except DetectionError as e:
+        return {"ok": False, "code": e.code}
+    return {"ok": True, "rows": int(m.rows), "cols": int(m.cols),
+            "cells_sha": hashlib.sha256(m.cells.astype(np.uint16).tobytes()).hexdigest(),
+            "pitch_x": round(float(m.lattice.pitch_x), 9),
+            "pitch_y": round(float(m.lattice.pitch_y), 9),
+            "x0": round(float(m.lattice.x0), 9), "y0": round(float(m.lattice.y0), 9)}
 
 
 def picture_digest(path: str) -> dict:

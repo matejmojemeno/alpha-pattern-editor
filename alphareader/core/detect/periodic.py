@@ -39,6 +39,8 @@ _SEARCH_FLOOR = 3.0         # search this fine, so an under-resolved chart is id
 _SMOOTH = 3                 # profile smoothing, in px; must stay under half of MIN_PITCH
 _EVIDENCE_THR = 12.0        # per-pixel edge magnitude counted as gridline evidence
 _SUPPORT_FRAC = 0.15        # outer line needs at least this share of the median line height
+_NEAR = 1.4                 # a marked square's size is searched within this factor either way
+_REFIT = 1.05               # ... and a lattice found there refitted within this factor
 
 
 def edge_maps(img: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -192,8 +194,12 @@ def _fit_lattice(centers: np.ndarray, pitch: float) -> tuple[float, float] | Non
     resid = centers[None, :] - phases[:, None]
     resid -= np.round(resid / pitch) * pitch
     best_phase = float(phases[np.argmax((np.abs(resid) < _CONFORM * pitch).sum(axis=1))])
+    return _refit_lattice(centers, best_phase, pitch)
 
-    x0, p = best_phase, pitch
+
+def _refit_lattice(centers: np.ndarray, x0: float, p: float) -> tuple[float, float] | None:
+    """Least-squares refit of (x0, pitch) to the peaks that conform to the lattice, from a
+    starting lattice; the second half of `_fit_lattice`."""
     for _ in range(10):
         k = np.round((centers - x0) / p)
         good = np.abs(centers - (x0 + k * p)) < _CONFORM * p
@@ -264,21 +270,30 @@ def _extra_lines_supported(w: np.ndarray, fine: "PeriodicFit", coarse: "Periodic
     evidence, and on a spurious subdivision they carry cell-interior evidence (negative,
     since the profile is mean-subtracted).
     """
+    means = _shared_and_extra(w, fine, coarse)
+    if means is None:
+        return False
+    shared_mean, extra_mean = means
+    return extra_mean > 0 and extra_mean >= 0.5 * shared_mean
+
+
+def _shared_and_extra(w: np.ndarray, fine: "PeriodicFit", coarse: "PeriodicFit"
+                      ) -> tuple[float, float] | None:
+    """The mean profile at the finer lattice's positions the coarse one shares, and at
+    the ones it adds; None if there are too few of either to tell."""
     n = w.size
     k0 = int(np.ceil(-fine.x0 / fine.pitch))
     k1 = int(np.floor((n - 1 - fine.x0) / fine.pitch))
     if k1 - k0 + 1 < 4:
-        return False
+        return None
     pos = fine.x0 + np.arange(k0, k1 + 1) * fine.pitch
     # Split by proximity to the coarse lattice.
     off = np.abs(((pos - coarse.x0) / coarse.pitch + 0.5) % 1.0 - 0.5) * coarse.pitch
     shared = off < 0.25 * fine.pitch
     if shared.sum() < 2 or (~shared).sum() < 2:
-        return False
+        return None
     vals = _sample(w, pos)
-    shared_mean = float(vals[shared].mean())
-    extra_mean = float(vals[~shared].mean())
-    return extra_mean > 0 and extra_mean >= 0.5 * shared_mean
+    return float(vals[shared].mean()), float(vals[~shared].mean())
 
 
 @dataclass
@@ -349,6 +364,139 @@ def fit_periodic_axis(prof: np.ndarray, dim: int, min_pitch: float = MIN_PITCH) 
     return best
 
 
+def _comb_scores(w: np.ndarray, phases: np.ndarray, pitch: float) -> np.ndarray:
+    """`_comb_score` for many phases (each in [0, pitch)) of one pitch at once."""
+    n = w.size
+    pos = phases[:, None] + np.arange(int(np.floor((n - 1) / pitch)) + 1)[None, :] * pitch
+    inside = pos <= n - 1
+    count = inside.sum(axis=1)
+    p = np.minimum(pos, n - 1.001)
+    i = p.astype(int)
+    frac = p - i
+    val = (w[i] * (1 - frac) + w[np.minimum(i + 1, n - 1)] * frac) * inside
+    out = np.full(phases.size, -np.inf)
+    ok = count >= 4
+    out[ok] = val.sum(axis=1)[ok] / np.sqrt(count[ok])
+    return out
+
+
+def _best_lattice(w: np.ndarray, pitches: np.ndarray, phase_steps: int,
+                  around: tuple[float, float] | None = None) -> tuple[float, float, float]:
+    """The (score, x0, pitch) with the best comb score over `pitches` and `phase_steps`
+    phases of each: every phase in [0, pitch), or with `around` = (x0, half_width) only
+    those within half_width of x0 (taken modulo the pitch)."""
+    best = (-np.inf, 0.0, float(pitches[0]))
+    for p in pitches:
+        p = float(p)
+        if around is None:
+            phases = np.arange(phase_steps) * (p / phase_steps)
+        else:
+            x0, half = around
+            phases = np.mod(x0 + np.linspace(-half, half, phase_steps), p)
+        scores = _comb_scores(w, phases, p)
+        j = int(np.argmax(scores))
+        if scores[j] > best[0]:
+            best = (float(scores[j]), float(phases[j]), p)
+    return best
+
+
+def fit_periodic_near(prof: np.ndarray, guess: tuple[float, float],
+                      min_pitch: float = MIN_PITCH) -> PeriodicFit:
+    """Recover (phase, pitch) for one axis when the person has marked one square, between
+    `guess` = (smallest, largest) pixels across: the lattice that best explains the
+    profile, with its pitch searched near the guess.
+
+    A square marked on a scaled-down image is a pixel or two off, which over a hundred
+    squares would drift by several, so the mark only says roughly how big a square is;
+    the gridlines say exactly. The phase is free: any line in the image may anchor it.
+
+    - The comb score is searched within a factor of `_NEAR` of the guess, coarse to fine
+      (0.4% steps, then 0.02%). The caller passes both of the square's sides as the
+      guess: a chart's squares are close to square, and a mark on a tiny one is often off
+      by a third on one side.
+    - That lattice is refitted to the profile's peaks by least squares, from where it is
+      and as `fit_periodic_axis` fits its own candidates near it (within `_REFIT`), and
+      the one it would score best is kept, so a grid detection got right comes back
+      exactly as it found it.
+    - A mark a third too small can still let half the true pitch in: if the lines that
+      lattice adds between those of twice its pitch fall where the profile is below its
+      mean (inside squares, not on any line), twice it is taken. Not detection's octave
+      test (`_extra_lines_supported`), which also calls lines under half the strength of
+      the others unsupported: on a chart with a heavy line every other one, that is the
+      very mistake the person is correcting.
+
+    Raises NO_GRIDLINES when nothing periodic near that size is there.
+    """
+    sm = _smooth(prof)
+    w = _normalized(sm)
+    lo = max(_SEARCH_FLOOR, min(guess) / _NEAR)
+    hi = max(guess) * _NEAR
+    none = DetectionError("NO_GRIDLINES", "Couldn't find gridlines that match that square.")
+    if not hi > lo:
+        raise none
+    steps = int(np.ceil(np.log(hi / lo) / np.log(1.004))) + 1
+    score, x0, pitch = _best_lattice(w, lo * (hi / lo) ** np.linspace(0, 1, steps), 32)
+    if not np.isfinite(score):
+        raise none
+    score, x0, pitch = _best_lattice(w, pitch * np.linspace(0.996, 1.004, 41), 17,
+                                     around=(x0, pitch / 32))
+    if score <= 0:
+        raise none
+
+    def fits(seeds: list[float], start: tuple[float, float]) -> list[PeriodicFit]:
+        """Each seed pitch fitted to the peaks as `fit_periodic_axis` fits its candidates,
+        and `start` refitted from where it is; scored as it scores them. Only fits within
+        `_REFIT` of `start`'s pitch are kept."""
+        near_lo, near_hi = start[1] / _REFIT, start[1] * _REFIT
+        out = []
+        cache: dict[int, np.ndarray] = {}
+
+        def peaks_for(p: float) -> np.ndarray:
+            spacing = max(2, int(round(0.6 * p)))
+            if spacing not in cache:
+                cache[spacing] = _profile_peaks(sm, p)
+            return cache[spacing]
+
+        tries = [(peaks_for(c), _fit_lattice(peaks_for(c), c)) for c in seeds]
+        pk = peaks_for(start[1])
+        tries.append((pk, _refit_lattice(pk, *start) if pk.size >= 3 else None))
+        for peaks, fit in tries:
+            if fit is None or not near_lo <= fit[1] <= near_hi:
+                continue
+            a, p = fit
+            out.append(PeriodicFit(x0=a, pitch=p, peaks=peaks,
+                                   score=_comb_score(w, a, p) * _peak_agreement(peaks, a, p, w.size)))
+        return out
+
+    def best_near(x0: float, pitch: float) -> PeriodicFit:
+        """The best lattice near `pitch` by detection's score: detection's own candidates
+        near it (so a grid it got right comes back as it found it), and this one,
+        refitted; this one as it is if nothing fits the peaks."""
+        seeds = [c for c in _dedupe(sorted(set(_candidate_pitches(w, _SEARCH_FLOOR, (w.size + 1) / 4.0))
+                                           | set(_candidate_pitches(w, lo, hi))))
+                 if pitch / _REFIT <= c <= pitch * _REFIT]
+        found = fits(seeds + [pitch], (x0, pitch))
+        if not found:
+            return PeriodicFit(x0=x0, pitch=pitch, peaks=_profile_peaks(sm, pitch),
+                               score=_comb_score(w, x0, pitch))
+        return max(found, key=lambda f: f.score)
+
+    best = best_near(x0, pitch)
+    if 2 * best.pitch <= _NEAR * hi:
+        coarse = max((PeriodicFit(x0=best.x0 + j * best.pitch, pitch=2 * best.pitch,
+                                  score=_comb_score(w, best.x0 + j * best.pitch, 2 * best.pitch),
+                                  peaks=best.peaks) for j in (0, 1)),
+                     key=lambda f: f.score)
+        means = _shared_and_extra(w, best, coarse)
+        if coarse.score > 0 and means is not None and means[1] <= 0:
+            best = best_near(coarse.x0, coarse.pitch)
+    if best.pitch < min_pitch:
+        raise DetectionError(
+            "LOW_RESOLUTION",
+            "Image resolution too low — need at least ~6 pixels per square.")
+    return best
+
+
 def _drop_stranded_ends(run: np.ndarray) -> np.ndarray:
     """Drop a handful of lines stranded beyond a gap of dead positions at either end.
 
@@ -375,7 +523,8 @@ def _drop_stranded_ends(run: np.ndarray) -> np.ndarray:
     return run
 
 
-def extent_from_peaks(fit: PeriodicFit, prof: np.ndarray, max_gap: int = 4) -> tuple[int, int]:
+def extent_from_peaks(fit: PeriodicFit, prof: np.ndarray, max_gap: int = 4,
+                      near: float | None = None) -> tuple[int, int]:
     """Lattice index range spanned by the grid, from the peaks that fit the lattice.
 
     Deliberately *not* a per-line coverage test against the 2D image: inside a large block
@@ -386,6 +535,9 @@ def extent_from_peaks(fit: PeriodicFit, prof: np.ndarray, max_gap: int = 4) -> t
     Peaks from margins, captions and edge numbering are aperiodic, so they fail the
     lattice-conformance test and cannot extend the grid; a run is only broken by more than
     `max_gap` consecutive unsupported lines.
+
+    The longest run is the grid, or with `near` (a position on the profile: where a square
+    was marked) the run nearest it, so a second chart beside the first can be chosen.
     """
     k = np.round((fit.peaks - fit.x0) / fit.pitch)
     resid = np.abs(fit.peaks - (fit.x0 + k * fit.pitch))
@@ -394,7 +546,13 @@ def extent_from_peaks(fit: PeriodicFit, prof: np.ndarray, max_gap: int = 4) -> t
         raise DetectionError("NO_GRIDLINES", "Couldn't find a regular grid in this image.")
 
     splits = np.flatnonzero(np.diff(k) > max_gap + 1) + 1
-    run = max(np.split(k, splits), key=lambda r: int(r[-1]) - int(r[0]))
+    runs = np.split(k, splits)
+    if near is None:
+        run = max(runs, key=lambda r: int(r[-1]) - int(r[0]))
+    else:
+        at = (near - fit.x0) / fit.pitch
+        run = min(runs, key=lambda r: (max(0.0, float(r[0]) - at, at - float(r[-1])),
+                                       -(int(r[-1]) - int(r[0]))))
     run = _drop_stranded_ends(run)
     k_min, k_max = int(run[0]), int(run[-1])
 
