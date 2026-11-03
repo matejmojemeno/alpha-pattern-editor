@@ -7,6 +7,8 @@
  */
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 
+import { MADE_PHOTO_ACCEPT, madePhotoErrorText, prepareMadePhoto } from '../../app/madePhoto.ts'
+
 import { useRepo } from '../../app/context.ts'
 import { preloadDetection } from '../../app/detection.ts'
 import { downloadBlob } from '../../app/download.ts'
@@ -26,6 +28,7 @@ import {
 import { MoreIcon, RenameIcon } from '../icons.tsx'
 import { againName } from '../names.ts'
 import { useDocumentTitle, useFileDrop, usePastedImage, useProjects } from '../hooks.ts'
+import { MadePhotoDialog } from '../MadePhoto.tsx'
 import { DESIGN_FROM_SCRATCH, NewPatternDialog } from '../NewPattern.tsx'
 import { openImageImport, useAlphaImport, type Notice } from '../useAlphaImport.ts'
 import { StorageUnavailable } from './Landing.tsx'
@@ -58,6 +61,28 @@ export function Library() {
   })
   usePastedImage(openPasted)
   const [creating, setCreating] = useState(false)
+  // A photo of what was made: the card it's for, while the picker is open, and the card
+  // whose photo is shown.
+  const photoInput = useRef<HTMLInputElement>(null)
+  const photoFor = useRef<ProjectSummary | null>(null)
+  const [showingPhoto, setShowingPhoto] = useState<ProjectSummary | null>(null)
+
+  const choosePhoto = (s: ProjectSummary) => {
+    photoFor.current = s
+    photoInput.current?.click()
+  }
+  const onPhoto = async (file: File | undefined) => {
+    const s = photoFor.current
+    photoFor.current = null
+    if (!repo || !s || !file) return
+    try {
+      await repo.setMadePhoto(s.id, await prepareMadePhoto(file))
+      setNotices([])
+      setActionNotice({ tone: 'ok', text: `Added a photo of “${s.name}”.` })
+    } catch (e) {
+      setActionNotice({ tone: 'error', text: madePhotoErrorText(e) })
+    }
+  }
 
   const onRename = async (s: ProjectSummary, name: string) => {
     if (!repo) return
@@ -154,6 +179,8 @@ export function Library() {
                     onDelete={() => setDeleting(s)}
                     onRename={(name) => onRename(s, name)}
                     onMakeAgain={() => void onMakeAgain(s)}
+                    onAddPhoto={() => choosePhoto(s)}
+                    onShowPhoto={() => setShowingPhoto(s)}
                   />
                 ))}
               </ul>
@@ -184,6 +211,21 @@ export function Library() {
       )}
       {question && <ReplaceDialog question={question} />}
       {creating && repo && <NewPatternDialog repo={repo} onCancel={() => setCreating(false)} />}
+      {showingPhoto && repo && (
+        <MadePhotoDialog repo={repo} id={showingPhoto.id} name={showingPhoto.name} onClose={() => setShowingPhoto(null)} />
+      )}
+      <input
+        ref={photoInput}
+        type="file"
+        accept={MADE_PHOTO_ACCEPT}
+        hidden
+        aria-label="Choose a photo of what you made"
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          e.target.value = '' // so choosing the same file again still fires
+          void onPhoto(file)
+        }}
+      />
     </main>
   )
 }
@@ -197,14 +239,25 @@ type MenuItem = { label: string; danger?: boolean } & ({ href: string } | { onSe
  * usually still being made), Continue for one in progress, and Make again for a finished
  * one (a copy with no progress, so the finished one stays). The way to the other stage,
  * Export and Delete are on the menu.
+ *
+ * A finished one also offers Add photo…, for a photo of what was made, which then
+ * becomes its thumbnail. A card with a photo has Photo instead (to see, replace or
+ * remove it), in any section: going back to working a pattern keeps its photo.
  */
 function cardActions(
   s: ProjectSummary,
-  on: { onExport: () => void; onDelete: () => void; onMakeAgain: () => void },
+  on: { onExport: () => void; onDelete: () => void; onMakeAgain: () => void; onAddPhoto: () => void; onShowPhoto: () => void },
 ): { primary: MenuItem; menu: MenuItem[] } {
   const design = href(paths.design(s.id))
   const work = href(paths.work(s.id))
+  const photo: MenuItem[] =
+    s.made_photo
+      ? [{ label: 'Photo', onSelect: on.onShowPhoto }]
+      : s.work_status === 'finished'
+        ? [{ label: 'Add photo…', onSelect: on.onAddPhoto }]
+        : []
   const rest: MenuItem[] = [
+    ...photo,
     { label: 'Export', onSelect: on.onExport },
     { label: 'Delete', onSelect: on.onDelete, danger: true },
   ]
@@ -227,12 +280,16 @@ function ProjectCard({
   onDelete,
   onRename,
   onMakeAgain,
+  onAddPhoto,
+  onShowPhoto,
 }: {
   summary: ProjectSummary
   onExport: () => void
   onDelete: () => void
   onRename: (name: string) => Promise<void>
   onMakeAgain: () => void
+  onAddPhoto: () => void
+  onShowPhoto: () => void
 }) {
   const [renaming, setRenaming] = useState(false)
   const nameButton = useRef<HTMLButtonElement>(null)
@@ -251,7 +308,7 @@ function ProjectCard({
       navigate(paths.open(s.id))
     }
   }
-  const { primary, menu } = cardActions(s, { onExport, onDelete, onMakeAgain })
+  const { primary, menu } = cardActions(s, { onExport, onDelete, onMakeAgain, onAddPhoto, onShowPhoto })
   const primaryLabel = `${primary.label} “${s.name}”`
   return (
     <li className="card">
