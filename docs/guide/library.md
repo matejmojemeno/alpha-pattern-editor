@@ -17,7 +17,7 @@ the rest:
 |---|---|---|---|
 | **In progress** | You've worked some of it, even part of one row. | **Continue**: back to your place in the Work stage. | **Edit in Design**, **Export**, **Delete** |
 | **Not started** | Nothing worked yet. | **Design**: opens it in the Design stage. | **Start working**, **Export**, **Delete** |
-| **Finished** | Every row is done. | **Make again**: see below. | **Edit in Design**, **Export**, **Delete** |
+| **Finished** | Every row is done. | **Make again**: see below. | **Edit in Design**, **Add photo…**, **Export**, **Delete** |
 
 ## Open a project
 
@@ -30,6 +30,20 @@ otherwise where you last had it, Design or Work.
 (2)"), with no rows done, and opens it in the Work stage. The finished one stays in
 **Finished** as it was. The copy keeps the chart, its colours and how you work it. If
 you'd rather not keep it, delete it.
+
+## Add a photo of what you made
+
+When you've finished a project, you can keep a photo of it with the pattern: choose
+**Add photo…** on **⋯** on its card, and pick the photo. It becomes the picture on the
+card, so the **Finished** group shows what you've made. You can also add it from the Work
+stage, with **Add a photo of what you made…** once every row is done.
+
+To see it large, choose **Photo** on **⋯**. From there **Replace…** picks another one and
+**Remove** takes it off the pattern (it asks first).
+
+The photo is kept smaller than the original, at most 2048 pixels on its long side, and
+without the details your camera adds to it, such as where it was taken. It's saved in the
+pattern, so **Export** includes it; **Make again** doesn't copy it.
 
 ## Rename a project
 
@@ -50,8 +64,8 @@ be undone, so export anything you might want again before you delete it.
 ## What a .alpha file is
 
 A `.alpha` file is one whole project in one file: the pattern, its colours and their
-names, your progress in the Work stage, and the chart image you imported, if there was
-one. It's the only way to keep a copy of a project outside your browser.
+names, your progress in the Work stage, the chart image you imported, if there was
+one, and the photo of what you made, if you added one. It's the only way to keep a copy of a project outside your browser.
 
 ## Back up your projects
 

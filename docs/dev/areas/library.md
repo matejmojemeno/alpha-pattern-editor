@@ -129,6 +129,32 @@ Newest last, as they were built.
   - New pattern dialog: no "N stitches, N strings needed" note; it speaks only when a
     size is out of range.
 
+- <a id="made-photo"></a>**A photo of what you made** (`ui/MadePhoto.tsx`,
+  `app/madePhoto.ts`; stored as `made.jpg`, see [storage](storage.md#made-photo)): asked
+  for by the owner, "so that you can display what you have created".
+  - **Where it's added:** **Add photo…** on a finished card's ⋯ opens the file picker
+    straight away, and the Work stage, once every row is done, has **Add a photo of what
+    you made…** under "Every row is done.". It's offered on finished projects only, as
+    asked; a card that has one keeps it in every section, since going back to work on a
+    pattern shouldn't lose it.
+  - **What it changes:** the photo becomes the card's thumbnail (`object-fit: cover`, as
+    in a gallery, where a chart or source image is shown whole). On ⋯, **Add photo…**
+    becomes **Photo**, a dialog with the photo large (up to 65% of the window's height),
+    **Replace…**, **Remove** and **Close**. Remove asks in place ("Remove this photo from
+    the pattern?", **Keep it** / **Remove**, focus on Keep it) rather than with a second
+    dialog over the first; in Work it asks with the usual confirm dialog. It asks because
+    the photo may be the only copy.
+  - **What's kept:** at most 2048 px on its long edge, upright, as a JPEG at quality 0.85,
+    with no EXIF (no location): a 12 MP phone photo becomes a few hundred KB
+    ([rule](../rules.md#made-photo)). **Make again** doesn't copy it. **Export** includes
+    it, so it's backed up with the pattern.
+  - Tested: `tests/storage/made-photo.test.ts`, `tests/ui/made-photo.test.tsx`,
+    `e2e/made-photo.spec.ts` (a 3000 × 2000 EXIF-rotated photo with a GPS position, in
+    real Chromium), and the overflow sweep's "a finished pattern and the photo of what was
+    made". Playwright's WebKit can't store any project (it refuses Blobs in IndexedDB in
+    its throwaway contexts, on `main` too), so the WebKit check covers only the decoding:
+    upright, 1365 × 2048.
+
 ## During the port
 
 What each phase of the port built here, newest first. The plan each phase followed is in

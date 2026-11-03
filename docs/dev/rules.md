@@ -276,3 +276,15 @@ break without noticing.
   A name the owner has chosen stays, even in a copy pass: **Focus mode** was renamed
   twice ("Hide the rest of the chart", then "Show only the rows near yours" in PR #68)
   after the owner had picked it, and came back both times. Ask before renaming one.
+- <a id="made-photo"></a>**A photo of what was made is always re-encoded before it's stored**
+  (`app/madePhoto.ts`), however small it already is: decoded with its EXIF orientation
+  applied, shrunk to 2048 px on its long edge, and saved as a JPEG from a canvas. Only the
+  pixels survive, so the photo's EXIF data goes, including **where it was taken**.
+  `made.jpg` travels in every exported `.alpha` file, which people share, so never store
+  the file as it was chosen. `e2e/made-photo.spec.ts` checks the exported bytes have no
+  EXIF.
+- <a id="serial-writes"></a>**Writes to one project go one after another** (`ProjectRepo.serial`). A save reads
+  the stored archive to keep the images it isn't given (`source.png`, `made.jpg`), so two
+  writes at once, such as the Work stage's autosave and adding a photo, could each write
+  back the other's old version and lose the photo. Any new repository method that writes
+  goes through `serial`, and calls `write`, never `save`, inside it, or it waits on itself.

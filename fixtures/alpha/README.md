@@ -47,6 +47,10 @@ suite also checks that saving them again produces **byte-identical** `meta.json`
   read them back as floats), awkward strings, 0xFFFF cells and a craft
   (`"stranded-knit"`).
 - `built-empty`: a 0×0 pattern.
+- `built-made-photo`: `built-edge` with a `made.jpg` (the photo of the finished piece,
+  which only the web app writes; the bytes stand in for a JPEG). The Python must still
+  open it, ignoring the entry. Its record has `made_photo_sha256`, which no other record
+  has.
 - `newer-format`: a TS-written archive with `format_version: 999`.
 
 ## Regenerating

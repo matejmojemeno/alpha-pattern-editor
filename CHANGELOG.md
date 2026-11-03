@@ -8,6 +8,12 @@ line per change, under the release it's in.
 
 ### Added
 
+- **A photo of what you made**: on a finished project, **Add photo…** on **⋯** in the
+  Library (or **Add a photo of what you made…** in the Work stage) keeps a photo with the
+  pattern, and it becomes the picture on its card. **Photo** on **⋯** shows it large, to
+  replace or remove. It's saved smaller and without the camera's details, such as where
+  it was taken, and **Export** includes it.
+
 - **Filet crochet** under **Craft** in the Work stage's **Options**: the lightest colour is
   the spaces and the others are blocks. Each step says how many squares and the stitches
   they take (**3 blocks**, **9 dc**), and row 1 gives the foundation chain.
