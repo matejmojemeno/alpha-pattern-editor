@@ -39,7 +39,7 @@ async function summarize(
 ): Promise<db.ProjectSummary> {
   const { pattern, progress } = contents.project
   if (!thumbnail) {
-    const t = await makeThumbnail(pattern, contents.sourcePng, downscale)
+    const t = await makeThumbnail(pattern, contents.sourcePng, downscale, contents.madePhoto)
     thumbnail = { thumbnail: t.blob, thumbnail_kind: t.kind }
   }
   return {
@@ -52,6 +52,7 @@ async function summarize(
     updated_at: pattern.updated_at,
     thumbnail: thumbnail.thumbnail,
     thumbnail_kind: thumbnail.thumbnail_kind,
+    made_photo: contents.madePhoto !== null,
   }
 }
 
@@ -67,6 +68,8 @@ export class ProjectRepo {
   private readonly clock: Clock
   private readonly opts: RepoOptions
   private readonly listeners = new Set<() => void>()
+  /** The last write queued for each project id (see `serial`). */
+  private readonly writing = new Map<string, Promise<unknown>>()
 
   constructor(database: db.AlphaDatabase, clock: Clock = () => Date.now() / 1000, opts: RepoOptions = {}) {
     this.db = database
@@ -148,47 +151,94 @@ export class ProjectRepo {
   }
 
   /**
-   * Save a project, stamping a fresh updated_at like io.save_project, and return the
-   * saved copy (the argument is not modified). `sourcePng`: bytes to store, null to
-   * drop the image, or omitted to keep whatever the stored archive already has.
+   * Run the writes to one project one after another. Each write reads the stored archive
+   * to keep the images it isn't given, so two at once (the Work stage's autosave and
+   * adding a photo of the finished piece) could each keep the other's old version.
    */
-  async save(project: Project, opts: { sourcePng?: Uint8Array | null } = {}): Promise<Project> {
-    let sourcePng = opts.sourcePng
-    // A kept photo keeps its thumbnail: re-decoding the photo on every save would be
+  private serial<T>(id: string, write: () => Promise<T>): Promise<T> {
+    const run = (this.writing.get(id) ?? Promise.resolve()).then(write, write)
+    const settled = run.catch(() => undefined)
+    this.writing.set(id, settled)
+    void settled.then(() => {
+      if (this.writing.get(id) === settled) this.writing.delete(id)
+    })
+    return run
+  }
+
+  /**
+   * Save a project, stamping a fresh updated_at like io.save_project, and return the
+   * saved copy (the argument is not modified). `sourcePng` and `madePhoto`: bytes to
+   * store, null to drop the image, or omitted to keep whatever the stored archive
+   * already has.
+   */
+  save(project: Project, opts: { sourcePng?: Uint8Array | null; madePhoto?: Uint8Array | null } = {}): Promise<Project> {
+    return this.serial(project.pattern.id, () => this.write(project, opts))
+  }
+
+  private async write(
+    project: Project,
+    opts: { sourcePng?: Uint8Array | null; madePhoto?: Uint8Array | null },
+  ): Promise<Project> {
+    let { sourcePng, madePhoto } = opts
+    // Kept images keep their thumbnail: re-decoding a photo on every save would be
     // wasted work. A cells thumbnail is cheap, and the cells may have changed.
     let thumbnail: db.ProjectSummary | undefined
-    if (sourcePng === undefined) {
+    if (sourcePng === undefined || madePhoto === undefined) {
       const existing = await db.getArchive(this.db, project.pattern.id)
-      sourcePng = existing ? readAlpha(await bytesOf(existing)).sourcePng : null
-      const summary = await db.getSummary(this.db, project.pattern.id)
-      if (sourcePng && summary?.thumbnail_kind === 'photo') thumbnail = summary
+      const stored = existing ? readAlpha(await bytesOf(existing)) : null
+      if (sourcePng === undefined) sourcePng = stored?.sourcePng ?? null
+      if (madePhoto === undefined) madePhoto = stored?.madePhoto ?? null
+      if (opts.sourcePng === undefined && opts.madePhoto === undefined) {
+        const summary = await db.getSummary(this.db, project.pattern.id)
+        if (summary && summary.thumbnail_kind !== 'cells' && (sourcePng || madePhoto)) thumbnail = summary
+      }
     }
-    const { bytes, project: saved } = writeAlpha(project, { sourcePng, now: this.clock() })
+    const { bytes, project: saved } = writeAlpha(project, { sourcePng, madePhoto, now: this.clock() })
     await db.putProject(
       this.db,
       new Blob([bytes as Uint8Array<ArrayBuffer>], { type: ALPHA_MIME }),
-      await summarize({ project: saved, sourcePng }, this.opts.downscale, thumbnail),
+      await summarize({ project: saved, sourcePng, madePhoto }, this.opts.downscale, thumbnail),
     )
     this.stored()
     return saved
   }
 
-  /** Rename a stored project, keeping everything else about it (progress, stage, source
-   *  image). Returns the saved copy. */
-  async rename(id: string, name: string): Promise<Project> {
-    const { project } = await this.open(id)
-    return this.save({ ...project, pattern: { ...project.pattern, name } })
+  /** Rename a stored project, keeping everything else about it (progress, stage,
+   *  images). Returns the saved copy. */
+  rename(id: string, name: string): Promise<Project> {
+    return this.serial(id, async () => {
+      const { project } = await this.open(id)
+      return this.write({ ...project, pattern: { ...project.pattern, name } }, {})
+    })
+  }
+
+  /** The stored photo of what was made from this project (made.jpg), or null. */
+  async madePhoto(id: string): Promise<Uint8Array | null> {
+    return (await this.open(id)).madePhoto
+  }
+
+  /**
+   * Store a photo of the finished piece (an encoded JPEG; see app/madePhoto.ts), or
+   * remove it with null. Everything else about the project is kept as it is stored. The
+   * Library's thumbnail becomes the photo, or goes back to what it was without one.
+   */
+  setMadePhoto(id: string, photo: Uint8Array | null): Promise<Project> {
+    return this.serial(id, async () => {
+      const { project } = await this.open(id)
+      return this.write(project, { madePhoto: photo })
+    })
   }
 
   /**
    * A copy of a stored project, for making it again: a new id and `name`, no progress,
    * in the Work stage, with the same chart, settings and source image. Row ids are kept:
-   * they only need to be unique within a pattern. The original is left as it was.
+   * they only need to be unique within a pattern. The original is left as it was, and
+   * keeps its photo of the finished piece: the copy hasn't been made yet, so has none.
    */
   async copy(id: string, name: string): Promise<Project> {
     const { project, sourcePng } = await this.open(id)
     const pattern = { ...project.pattern, id: newId(), name, created_at: this.clock() }
-    return this.save({ pattern, progress: emptyProgress(), stage: 'work' }, { sourcePng })
+    return this.save({ pattern, progress: emptyProgress(), stage: 'work' }, { sourcePng, madePhoto: null })
   }
 
   /**

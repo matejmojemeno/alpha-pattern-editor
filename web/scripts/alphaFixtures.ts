@@ -49,6 +49,7 @@ export type ExpectedRecord =
         started_at: number | null
       }
       source_png_sha256: string | null
+      made_photo_sha256?: string
     }
 
 export interface ExpectedFile {
@@ -68,7 +69,7 @@ export function readArchives(dir: string): Record<string, Uint8Array<ArrayBuffer
 }
 
 /** A loaded project in the expected.json shape. */
-export function record({ project, sourcePng }: AlphaContents) {
+export function record({ project, sourcePng, madePhoto }: AlphaContents) {
   const { pattern: p, progress: pr, stage } = project
   return {
     stage,
@@ -95,6 +96,9 @@ export function record({ project, sourcePng }: AlphaContents) {
       started_at: pr.started_at,
     },
     source_png_sha256: sourcePng ? createHash('sha256').update(sourcePng).digest('hex') : null,
+    // Only the web app writes made.jpg, so only an archive that has one says so: the
+    // desktop's expected.json, written by the Python, has no such key.
+    ...(madePhoto ? { made_photo_sha256: createHash('sha256').update(madePhoto).digest('hex') } : {}),
   }
 }
 
@@ -182,14 +186,22 @@ export function buildFromTs(): { archives: Record<string, Uint8Array>; expected:
     })
     const rt = `roundtrip-${name}`
     archives[rt] = out
-    files[rt] = { roundtrip_of: name, ...record({ project, sourcePng: loaded.sourcePng }) }
+    files[rt] = { roundtrip_of: name, ...record({ project, sourcePng: loaded.sourcePng, madePhoto: null }) }
   }
 
   for (const [name, project] of Object.entries(builtProjects())) {
     const { bytes, project: saved } = writeAlpha(project, { now: project.pattern.updated_at })
     archives[name] = bytes
-    files[name] = record({ project: saved, sourcePng: null })
+    files[name] = record({ project: saved, sourcePng: null, madePhoto: null })
   }
+
+  // A photo of the finished piece (made.jpg), which only the web app writes: the Python
+  // reference must still open the archive, ignoring it. The bytes stand in for a JPEG;
+  // nothing in the Python decodes them.
+  const madePhoto = Uint8Array.from([0xff, 0xd8, ...strToU8('stand-in for a photo of the finished piece'), 0xff, 0xd9])
+  const made = writeAlpha(builtProjects()['built-edge.alpha']!, { madePhoto, now: 1_700_000_000 })
+  archives['built-made-photo.alpha'] = made.bytes
+  files['built-made-photo.alpha'] = record({ project: made.project, sourcePng: null, madePhoto })
 
   // A TS-written archive claiming a format from the future: both sides must refuse it.
   const { bytes: base } = writeAlpha(builtProjects()['built-edge.alpha']!, { now: 1_700_000_000 })

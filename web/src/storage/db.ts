@@ -30,9 +30,14 @@ export interface ProjectSummary {
   updated_at: number
   /** Preview image, at most THUMB_MAX_EDGE px on its long edge (see thumbnail.ts). */
   thumbnail: Blob
-  /** 'photo': from source.png. 'cells': the pattern itself, one pixel per cell, to be
-   *  scaled up without smoothing. */
+  /** 'made': from made.jpg, the photo of the finished piece. 'photo': from source.png.
+   *  'cells': the pattern itself, one pixel per cell, to be scaled up without smoothing. */
   thumbnail_kind: ThumbnailKind
+  /** Whether the archive has a photo of the finished piece (made.jpg). Added after v2
+   *  without a version bump or a rebuild: no archive had one before it, so a summary
+   *  lacking it means false. Kept apart from `thumbnail_kind`, which falls back to the
+   *  source or the cells when the photo can't be downscaled. */
+  made_photo?: boolean
 }
 
 export interface AlphaDB extends DBSchema {
