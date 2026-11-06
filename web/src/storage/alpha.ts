@@ -8,6 +8,8 @@
  *   progress.json  Work-stage progress
  *   cells.npy      uint16 (rows, cols) palette indices
  *   source.png     optional: the original imported image
+ *   made.jpg       optional, web only: a photo of the finished piece (Library). The
+ *                  desktop never wrote it and alphareader.core.io ignores it.
  *
  * The desktop re-encodes source.png from pixels on every save. The browser has the PNG
  * bytes already, so they are passed through untouched.
@@ -37,7 +39,12 @@ export interface AlphaContents {
   project: Project
   /** Raw source.png bytes, or null when the archive has none. */
   sourcePng: Uint8Array | null
+  /** Raw made.jpg bytes (a photo of what was made from the pattern), or null. */
+  madePhoto: Uint8Array | null
 }
+
+/** The archive entry holding the photo of the finished piece. */
+export const MADE_PHOTO_ENTRY = 'made.jpg'
 
 /** Keys io.py writes as Python floats (time.time() stamps). */
 const FLOAT_KEYS = new Set(['created_at', 'updated_at', 'started_at'])
@@ -87,7 +94,7 @@ function progressToJson(pr: Progress): Required<ProgressJson> {
  */
 export function writeAlpha(
   project: Project,
-  opts: { sourcePng?: Uint8Array | null; now?: number } = {},
+  opts: { sourcePng?: Uint8Array | null; madePhoto?: Uint8Array | null; now?: number } = {},
 ): { bytes: Uint8Array; project: Project } {
   const now = opts.now ?? Date.now() / 1000
   const pattern: Pattern = { ...project.pattern, updated_at: now }
@@ -104,6 +111,7 @@ export function writeAlpha(
     'cells.npy': writeNpyU16({ rows: pattern.rows, cols: pattern.cols, data: pattern.cells }),
   }
   if (opts.sourcePng) files['source.png'] = [opts.sourcePng, { level: 0 }] // already compressed
+  if (opts.madePhoto) files[MADE_PHOTO_ENTRY] = [opts.madePhoto, { level: 0 }] // a JPEG, already compressed
   // ZIP_DEFLATED, as the desktop writes.
   return { bytes: zipSync(files, { level: 6, mtime }), project: saved }
 }
@@ -211,7 +219,11 @@ export function readAlpha(bytes: Uint8Array): AlphaContents {
   }
 
   const stage: Stage = get(meta, 'stage', 'design' as Stage)
-  return { project: { pattern, progress, stage }, sourcePng: files['source.png'] ?? null }
+  return {
+    project: { pattern, progress, stage },
+    sourcePng: files['source.png'] ?? null,
+    madePhoto: files[MADE_PHOTO_ENTRY] ?? null,
+  }
 }
 
 // --- helpers for the Library ---------------------------------------------------------

@@ -516,7 +516,7 @@ def row_direction(p: Pattern, r: int) -> Literal['LTR','RTL']:
 
 ### File format
 
-A project is a `.alpha` file: a **zip archive** containing `pattern.json`, `progress.json`, `source.png`, and `cells.npy`. Inspectable, portable, trivially versioned via a `format_version` key. Reject unknown major versions on load.
+A project is a `.alpha` file: a **zip archive** containing `pattern.json`, `progress.json`, `source.png`, and `cells.npy`, and (web only) `made.jpg`, a photo of the finished piece. Inspectable, portable, trivially versioned via a `format_version` key. Reject unknown major versions on load.
 
 Project library lives in the platform app-data directory, indexed by a small SQLite table (id, name, path, thumbnail, progress %, last opened) — or just a directory scan for v1.
 

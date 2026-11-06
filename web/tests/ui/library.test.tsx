@@ -251,7 +251,8 @@ describe('Library', () => {
       await repo.save({ ...project, progress: { ...project.progress, completed_row_ids: new Set(project.pattern.row_ids) } })
     })
     await waitFor(() => expect(within(card('with-source')).getByRole('button', { name: 'Make again “with-source”' })).toBeTruthy())
-    expect(itemNames(await menuOf('with-source'))).toEqual(['Edit in Design', 'Export', 'Delete'])
+    // …and a photo of what you made (tests/ui/made-photo.test.tsx).
+    expect(itemNames(await menuOf('with-source'))).toEqual(['Edit in Design', 'Add photo…', 'Export', 'Delete'])
 
     // Every card: exactly one main button and ⋯ in its row.
     for (const c of cards()) expect(c.querySelector('.card__actions')!.children).toHaveLength(2)

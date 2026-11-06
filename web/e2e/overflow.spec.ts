@@ -16,6 +16,7 @@ import { importImage, importPhoto } from './importing.ts'
 
 const ROOT = resolve(import.meta.dirname, '../..')
 const BASIC = resolve(ROOT, 'fixtures/alpha/desktop/basic.alpha')
+const PHOTO = resolve(ROOT, 'fixtures/photos/made-exif.jpg')
 const WIDTHS = [320, 360, 390, 414, 480, 530, 600, 700, 768, 820, 900, 1024, 1100, 1280, 1440, 1600]
 const LONG = 'My grandmother’s hippopotamus blanket with pink glasses, second try'
 
@@ -118,6 +119,39 @@ test('the app screens and their dialogs', async ({ page }) => {
   await page.locator('.chip__open').first().click()
   await expect(page.getByRole('dialog', { name: 'Record progress' })).toBeVisible()
   found.push(...(await leaks(page, 'Record progress')))
+
+  expect(found).toEqual([])
+})
+
+test('a finished pattern and the photo of what was made', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  const found: string[] = []
+  await page.goto('/#/library')
+  await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(BASIC)
+  const card = page.getByRole('listitem')
+  await card.getByRole('button', { name: /^Rename/ }).click()
+  await card.getByRole('textbox').fill(LONG)
+  await card.getByRole('textbox').press('Enter')
+  await card.getByRole('button', { name: /^More for/ }).click()
+  await card.getByRole('menuitem', { name: 'Start working' }).click()
+  const complete = page.getByRole('button', { name: 'Row complete →' })
+  while (await complete.isEnabled()) await complete.click()
+  await expect(page.getByRole('button', { name: 'Add a photo of what you made…' })).toBeVisible()
+  found.push(...(await leaks(page, 'Work, every row done')))
+  await page.getByLabel('Choose a photo of what you made').setInputFiles(PHOTO)
+  await expect(page.getByRole('img', { name: /^What you made/ })).toBeVisible()
+  found.push(...(await leaks(page, 'Work, every row done, with the photo')))
+
+  await page.goto('/#/library')
+  await expect(page.locator('.thumb--made img')).toBeVisible()
+  found.push(...(await leaks(page, 'Library, a card with its photo')))
+  await card.getByRole('button', { name: /^More for/ }).click()
+  await card.getByRole('menuitem', { name: 'Photo' }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByRole('img')).toBeVisible()
+  found.push(...(await leaks(page, 'Photo dialog')))
+  await dialog.getByRole('button', { name: 'Remove' }).click()
+  found.push(...(await leaks(page, 'Photo dialog, asking to remove')))
 
   expect(found).toEqual([])
 })

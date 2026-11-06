@@ -87,7 +87,9 @@ marked done stay done.
 ## Finish a row, or go back
 
 - **Row complete →** marks the row done and moves to the next one. When every row is
-  done, the screen says **Finished! 🎉**.
+  done, the screen says **Finished! 🎉**, and offers **Add a photo of what you made…**,
+  which then shows on the pattern's card in the Library (see
+  [Add a photo of what you made](library.md#add-a-photo-of-what-you-made)).
 - **← Previous row** goes back to the row before, and marks it not done again.
 
 With a keyboard: `Space`, `Enter`, `→` or `↓` complete a row; `←` or `↑` go back one.

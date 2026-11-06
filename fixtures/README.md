@@ -173,3 +173,12 @@ the Lab conversion; `alphareader/tests/test_names_fixture.py` fails if it is sta
 and tour show (`web/e2e/docs-media.spec.ts`): an original design made for this repo, so
 the docs never show a chart whose rights are in question. `demo/README.md` says how each
 was made and how to replace them; `scripts/gen_demo_pattern.py` writes `demo.alpha`.
+
+## `photos/`
+
+`photos/made-exif.jpg` stands in for a phone photo of a finished piece:
+3000 × 2000 as stored, red on the left and blue on the right, with EXIF orientation 6
+("rotate 90° clockwise"), a made-up camera model and a made-up GPS position.
+`web/e2e/made-photo.spec.ts` checks that the web app keeps it upright, shrunk to
+1365 × 2048 and without its EXIF. Written by `scripts/gen_made_photo_fixture.py`
+(Pillow); every value in it is invented for the test.

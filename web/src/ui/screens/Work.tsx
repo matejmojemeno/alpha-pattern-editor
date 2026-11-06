@@ -36,6 +36,7 @@ import { progressPct } from '../../storage/alpha.ts'
 import type { ProjectRepo } from '../../storage/repo.ts'
 import { ConfirmDialog, HelpLink, ProgressBar, RenameForm } from '../components.tsx'
 import { useDocumentTitle } from '../hooks.ts'
+import { MadePhotoPanel } from '../MadePhoto.tsx'
 import { ProjectGate } from '../ProjectGate.tsx'
 import { PanelIcon } from '../icons.tsx'
 import { ChartView } from '../work/ChartView.tsx'
@@ -406,7 +407,10 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
             </p>
           )}
           {done ? (
-            <p className="muted">Every row is done.</p>
+            <>
+              <p className="muted">Every row is done.</p>
+              <MadePhotoPanel repo={repo} id={p.id} name={p.name} />
+            </>
           ) : (
             <Chips
               pattern={p}

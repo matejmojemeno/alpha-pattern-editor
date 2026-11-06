@@ -2,6 +2,8 @@
  * Library thumbnails, made once at save/import time and kept in the summaries store, so
  * listing the Library never loads a full-size photo.
  *
+ *   made   the photo of the finished piece (made.jpg), downscaled the same way. When a
+ *          project has one, it's what the Library shows: it's what was made.
  *   photo  the project's source.png, downscaled to at most THUMB_MAX_EDGE on its long
  *          edge. A source already that small is kept byte-for-byte.
  *   cells  the pattern's own cells, one pixel per cell (skipped cells transparent). The
@@ -17,7 +19,7 @@ import { SKIP_INDEX, type Pattern } from '../model/types.ts'
 
 export const THUMB_MAX_EDGE = 480
 
-export type ThumbnailKind = 'photo' | 'cells'
+export type ThumbnailKind = 'made' | 'photo' | 'cells'
 
 export interface Thumbnail {
   blob: Blob
@@ -122,15 +124,24 @@ export function cellsThumbnailPng(p: Pick<Pattern, 'cols' | 'rows' | 'cells' | '
 const png = (bytes: Uint8Array) => new Blob([bytes as Uint8Array<ArrayBuffer>], { type: 'image/png' })
 
 /**
- * The thumbnail for a project: its photo when it has one we can use, else its cells.
- * Never stores a full-size photo: if a large source can't be downscaled (no canvas, or
- * an image the browser can't decode), the cells are used instead.
+ * The thumbnail for a project: the photo of what was made when it has one, else its
+ * source photo when it has one we can use, else its cells. Never stores a full-size
+ * photo: if one can't be downscaled (no canvas, or an image the browser can't decode),
+ * the next kind is used instead.
  */
 export async function makeThumbnail(
   pattern: Pick<Pattern, 'cols' | 'rows' | 'cells' | 'palette'>,
   sourcePng: Uint8Array | null,
   downscale: Downscaler = canvasDownscale,
+  madePhoto: Uint8Array | null = null,
 ): Promise<Thumbnail> {
+  if (madePhoto) {
+    try {
+      return { blob: await downscale(madePhoto, THUMB_MAX_EDGE), kind: 'made' }
+    } catch {
+      // Fall through to the source photo or the cells.
+    }
+  }
   if (sourcePng) {
     const size = pngSize(sourcePng)
     if (size && Math.max(size.width, size.height) <= THUMB_MAX_EDGE) return { blob: png(sourcePng), kind: 'photo' }
