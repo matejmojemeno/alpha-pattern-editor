@@ -403,7 +403,7 @@ Dense, tool-oriented, desktop layout.
 - Left: tool palette (paint, fill, rect, eyedropper, row/column fill).
 - Right: color palette with swatches, counts, names; structural panel (borders, insert/delete row/column, mirror, rotate, trim).
 - Center: zoomable canvas with rulers, gridlines, optional row/column numbers.
-- Bottom: dimensions, stitch count and colours; for a friendship bracelet, the strings it needs (`cols + 1`); for filet crochet, the foundation chain (`3 × cols + 1`).
+- Bottom: dimensions, stitch count and colours; for a friendship bracelet, the strings it needs (`cols + 1`); for filet crochet, the foundation chain (`3 × cols + 1`, or `2 × cols + 1` in ch 1, dc).
 - Full undo/redo. No progress display anywhere.
 
 ### 6.3 Work stage
@@ -659,9 +659,16 @@ before. An id a build doesn't know reads as tapestry crochet and is kept unchang
 - Readout, progress and editing ignore it: they read the three order fields, as before.
 - Filet crochet (`craft/filet.ts`) reads the palette's lightest colour (CIELAB L*) as
   spaces and every other as blocks. The Work stage's chips and **Next, row** name blocks
-  and spaces with their stitches (block 3 dc, space ch 2 + dc), and row 1 gives the
-  foundation chain, `3 × cols + 1` plus the turning chain. Only the words change: runs
-  and progress are the colour runs above.
+  and spaces with their stitches, and row 1 gives the foundation chain plus the turning
+  chain. Only the words change: runs and progress are the colour runs above.
+- **Filet stitches** in the Work stage's Options picks the mesh, saved on the pattern as
+  `filet_mesh` and left out of `pattern.json` for the default:
+
+  | Mesh | Block | Space | Foundation chain |
+  |---|---|---|---|
+  | `ch2-dc` (default) | 3 dc | ch 2, dc | `3 × cols + 1` |
+  | `ch1-dc` | 2 dc | ch 1, dc | `2 × cols + 1` |
+  | `ch2-tr` | 3 tr | ch 2, tr | `3 × cols + 1` |
 
 Which crafts fit the Work stage and why, and what could come next, is in
 [`crafts.md`](crafts.md).

@@ -60,11 +60,21 @@ craft is saved with the pattern.
 In **Filet crochet** the pattern's lightest colour is the open squares (spaces), and
 every other colour is filled squares (blocks). To change which, recolour it in Design.
 - The count is in squares.
+- Pick how you make your squares in **Options**, under **Filet stitches**. The choice is
+  saved with the pattern, and changing it never changes your progress.
+
+  | Filet stitches | A block | A space | Foundation chain |
+  |---|---|---|---|
+  | **ch 2, dc** | 3 dc | ch 2, dc | 3 for each square, plus 1 |
+  | **ch 1, dc** | 2 dc | ch 1, dc | 2 for each square, plus 1 |
+  | **ch 2, tr** | 3 tr | ch 2, tr | 3 for each square, plus 1 |
+
+  These are US terms: **tr** is a treble, which UK patterns call a double treble, and
+  **dc** is what they call a treble.
 - Each chip says what to make and the stitches it takes, such as **3 blocks** with
   **9 dc** under it, or **2 spaces** with **(ch 2, dc) × 2**.
-- Above them is a reminder to start each row with 1 dc at the edge. On row 1 it also
-  gives the foundation chain: 3 for each square plus 1, then add the turning chain your
-  pattern uses.
+- Above them is a reminder to start each row with 1 stitch at the edge. On row 1 it also
+  gives the foundation chain; add the turning chain your pattern uses.
 - In Design, the line under the chart gives the same foundation chain.
 
 ## Which row is row 1, and which way it runs
