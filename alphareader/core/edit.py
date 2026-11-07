@@ -35,7 +35,7 @@ def _clone(p: Pattern, *, cells: np.ndarray | None = None,
         id=p.id, name=p.name, created_at=p.created_at, updated_at=time.time(),
         cols=cols, rows=rows, row_ids=row_ids, cells=cells, palette=palette,
         start_direction=p.start_direction, alternate_direction=p.alternate_direction,
-        bottom_up=p.bottom_up,
+        bottom_up=p.bottom_up, craft=p.craft, filet_mesh=p.filet_mesh,
     )
     _recount(new.palette, new.cells)
     return new

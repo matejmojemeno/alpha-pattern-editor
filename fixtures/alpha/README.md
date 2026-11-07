@@ -33,6 +33,9 @@ back from it: cells, palette, row_ids, direction flags, progress, stage and a sh
 - `craft`: a craft chosen (`"bracelet"`), so `pattern.json` has a `"craft"` key; every
   other file has none, as tapestry crochet is left out, and reads back as `"tapestry"`.
 - `craft-unknown`: a craft this build doesn't know, which must be kept as it is.
+- `filet-mesh`: a filet mesh chosen (`"ch1-dc"`), so `pattern.json` has a `"filet_mesh"`
+  key; every other file has none, and reads back as `"ch2-dc"`.
+- `filet-mesh-unknown`: a mesh this build doesn't know, which must be kept as it is.
 - `newer-format`: `format_version: 999`. Both sides must refuse it.
 
 `expected.json` marks each file `pristine` if it came straight out of `save_project`.

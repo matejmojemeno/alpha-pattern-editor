@@ -54,6 +54,7 @@
     "cols": 7,
     "craft": "tapestry",
     "created_at": 1758600000.125,
+    "filet_mesh": "ch2-dc",
     "id": "f17aaabc20bfe045075927934fed52d2",
     "name": "basic",
     "palette": [
@@ -128,6 +129,7 @@
     "cols": 4,
     "craft": "c2c-someday",
     "created_at": 1758600000.125,
+    "filet_mesh": "ch2-dc",
     "id": "ab06e2d71f6d9b26507d0ca5f1262b43",
     "name": "craft-unknown",
     "palette": [
@@ -207,6 +209,7 @@
     "cols": 6,
     "craft": "bracelet",
     "created_at": 1758600000.125,
+    "filet_mesh": "ch2-dc",
     "id": "23ca2c6b139fb6ff9654c1b197a4db3a",
     "name": "craft",
     "palette": [
@@ -240,6 +243,141 @@
     ],
     "rows": 4,
     "start_direction": "LTR",
+    "updated_at": 1758700000.123456
+   },
+   "pristine": true,
+   "progress": {
+    "completed_row_ids": [],
+    "current_row_id": null,
+    "current_run_index": 0,
+    "current_run_stitches": 0,
+    "started_at": null
+   },
+   "source_png_sha256": null,
+   "stage": "design"
+  },
+  "filet-mesh-unknown.alpha": {
+   "pattern": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      1,
+      1,
+      0,
+      1
+     ],
+     [
+      0,
+      1,
+      0,
+      1
+     ],
+     [
+      0,
+      0,
+      0,
+      1
+     ]
+    ],
+    "cols": 4,
+    "craft": "filet",
+    "created_at": 1758600000.125,
+    "filet_mesh": "ch3-someday",
+    "id": "86e2618eaa3b8afa2b510343ec29ad51",
+    "name": "filet-mesh-unknown",
+    "palette": [
+     {
+      "count": 6,
+      "dmc": "B5200",
+      "hex": "#ffffff",
+      "id": "c0",
+      "name": "White"
+     },
+     {
+      "count": 6,
+      "dmc": "433",
+      "hex": "#6b3e26",
+      "id": "c1",
+      "name": "Brown"
+     }
+    ],
+    "row_ids": [
+     "e9580f8f1290e879ffc7fc1c7f83aa95",
+     "70c0b79bd8089cddd4d21d4a6ea9efa9",
+     "affb75092e28d898d9d44b147743f241"
+    ],
+    "rows": 3,
+    "start_direction": "RTL",
+    "updated_at": 1758700000.123456
+   },
+   "pristine": true,
+   "progress": {
+    "completed_row_ids": [],
+    "current_row_id": null,
+    "current_run_index": 0,
+    "current_run_stitches": 0,
+    "started_at": null
+   },
+   "source_png_sha256": null,
+   "stage": "design"
+  },
+  "filet-mesh.alpha": {
+   "pattern": {
+    "alternate_direction": true,
+    "bottom_up": true,
+    "cells": [
+     [
+      0,
+      0,
+      1,
+      1,
+      1
+     ],
+     [
+      0,
+      1,
+      1,
+      1,
+      0
+     ],
+     [
+      0,
+      0,
+      0,
+      1,
+      1
+     ]
+    ],
+    "cols": 5,
+    "craft": "filet",
+    "created_at": 1758600000.125,
+    "filet_mesh": "ch1-dc",
+    "id": "8570cba92e3cf5fb69245e9c7efdd861",
+    "name": "filet-mesh",
+    "palette": [
+     {
+      "count": 7,
+      "dmc": "B5200",
+      "hex": "#ffffff",
+      "id": "c0",
+      "name": "White"
+     },
+     {
+      "count": 8,
+      "dmc": "433",
+      "hex": "#6b3e26",
+      "id": "c1",
+      "name": "Brown"
+     }
+    ],
+    "row_ids": [
+     "ce53d44f6ca8560cb895e89da99fe3d9",
+     "433e3d1191ef5eb315c4e35eaf65b989",
+     "e91240ac7be336a42e872bf53deddb21"
+    ],
+    "rows": 3,
+    "start_direction": "RTL",
     "updated_at": 1758700000.123456
    },
    "pristine": true,
@@ -18502,6 +18640,7 @@
     "cols": 150,
     "craft": "tapestry",
     "created_at": 1758600000.125,
+    "filet_mesh": "ch2-dc",
     "id": "afacdb0a401ccdf6b48551bbc00e8a74",
     "name": "large",
     "palette": [
@@ -18705,6 +18844,7 @@
     "cols": 4,
     "craft": "tapestry",
     "created_at": 1758600000.125,
+    "filet_mesh": "ch2-dc",
     "id": "6ad5211669354011346d0400ea42bf6a",
     "name": "legacy-pattern",
     "palette": [
@@ -18784,6 +18924,7 @@
     "cols": 5,
     "craft": "tapestry",
     "created_at": 1758600000.125,
+    "filet_mesh": "ch2-dc",
     "id": "2fd51d0f0dfb4be02ccf073fa5de4cef",
     "name": "old-progress",
     "palette": [
@@ -18937,6 +19078,7 @@
     "cols": 10,
     "craft": "tapestry",
     "created_at": 1758600000.125,
+    "filet_mesh": "ch2-dc",
     "id": "da8565e3660292084214a2cdd3349226",
     "name": "partial-row",
     "palette": [
@@ -19032,6 +19174,7 @@
     "cols": 6,
     "craft": "tapestry",
     "created_at": 1758600000.125,
+    "filet_mesh": "ch2-dc",
     "id": "840809e60e0987c87dced572e006a249",
     "name": "skip-cells",
     "palette": [
@@ -19095,6 +19238,7 @@
     "cols": 3,
     "craft": "tapestry",
     "created_at": 1758600000.125,
+    "filet_mesh": "ch2-dc",
     "id": "8ab3b19e134f01fbaf94b8e15f3df090",
     "name": "Žlutý kůň 🐴 \"quoted\"\ttab\\slash",
     "palette": [
@@ -19209,6 +19353,7 @@
     "cols": 8,
     "craft": "tapestry",
     "created_at": 1758600000.125,
+    "filet_mesh": "ch2-dc",
     "id": "b9b9ba3f4de1a2037c977ca2b363871c",
     "name": "with-source",
     "palette": [

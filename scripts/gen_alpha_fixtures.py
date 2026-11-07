@@ -183,6 +183,14 @@ def build(out: str) -> dict:
     save("craft-unknown.alpha",
          _pattern("craft-unknown", rng.integers(0, 2, size=(3, 4)), 2, craft="c2c-someday"))
 
+    # A filet mesh chosen (§15): the only files with "filet_mesh" in pattern.json. Every
+    # other file has none, as the default is left out, and reads back as "ch2-dc".
+    save("filet-mesh.alpha", _pattern("filet-mesh", rng.integers(0, 2, size=(3, 5)), 2,
+                                      craft="filet", filet_mesh="ch1-dc"))
+    save("filet-mesh-unknown.alpha",
+         _pattern("filet-mesh-unknown", rng.integers(0, 2, size=(3, 4)), 2, craft="filet",
+                  filet_mesh="ch3-someday"))
+
     # A newer desktop build's file: both sides must refuse it.
     save("newer-format.alpha", _pattern("newer-format", [[0, 1]], 2),
          post=_edit_json("meta.json", lambda d: d.update(format_version=999)))
@@ -211,7 +219,7 @@ def _expected(path: str) -> dict:
                          "count": e.count} for e in p.palette],
             "start_direction": p.start_direction,
             "alternate_direction": p.alternate_direction, "bottom_up": p.bottom_up,
-            "craft": p.craft,
+            "craft": p.craft, "filet_mesh": p.filet_mesh,
         },
         "progress": {
             "completed_row_ids": sorted(pr.completed_row_ids),

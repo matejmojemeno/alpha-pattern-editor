@@ -24,6 +24,13 @@ def test_functions_are_pure():
     assert q is not p
 
 
+def test_edits_keep_the_craft_and_the_filet_mesh():
+    p = _pattern([[0, 1], [1, 0]])
+    p.craft, p.filet_mesh = "filet", "ch1-dc"
+    for q in (edit.set_cell(p, 0, 0, 1), edit.insert_row(p, 1), edit.add_border(p, top=1)):
+        assert (q.craft, q.filet_mesh) == ("filet", "ch1-dc")
+
+
 def test_set_cell_updates_counts():
     p = _pattern([[0, 0], [0, 0]])
     q = edit.set_cell(p, 0, 0, 1)
