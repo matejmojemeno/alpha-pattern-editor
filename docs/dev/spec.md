@@ -403,7 +403,7 @@ Dense, tool-oriented, desktop layout.
 - Left: tool palette (paint, fill, rect, eyedropper, row/column fill).
 - Right: color palette with swatches, counts, names; structural panel (borders, insert/delete row/column, mirror, rotate, trim).
 - Center: zoomable canvas with rulers, gridlines, optional row/column numbers.
-- Bottom: dimensions, stitch count and colours; for a friendship bracelet, the strings it needs (`cols + 1`); for filet crochet, the foundation chain (`3 × cols + 1`, or `2 × cols + 1` in ch 1, dc).
+- Bottom: dimensions, stitch count and colours; for a friendship bracelet, the strings it needs (`cols + 1`); for filet crochet, the foundation chain (see §15).
 - Full undo/redo. No progress display anywhere.
 
 ### 6.3 Work stage
@@ -659,16 +659,20 @@ before. An id a build doesn't know reads as tapestry crochet and is kept unchang
 - Readout, progress and editing ignore it: they read the three order fields, as before.
 - Filet crochet (`craft/filet.ts`) reads the palette's lightest colour (CIELAB L*) as
   spaces and every other as blocks. The Work stage's chips and **Next, row** name blocks
-  and spaces with their stitches, and row 1 gives the foundation chain plus the turning
-  chain. Only the words change: runs and progress are the colour runs above.
+  and spaces with their stitches. Row 1 gives the foundation chain and where its first
+  stitch goes; every other row, the turning chain. Only the words change: runs and progress
+  are the colour runs above.
 - **Filet stitches** in the Work stage's Options picks the mesh, saved on the pattern as
   `filet_mesh` and left out of `pattern.json` for the default:
 
-  | Mesh | Block | Space | Foundation chain |
-  |---|---|---|---|
-  | `ch2-dc` (default) | 3 dc | ch 2, dc | `3 × cols + 1` |
-  | `ch1-dc` | 2 dc | ch 1, dc | `2 × cols + 1` |
-  | `ch2-tr` | 3 tr | ch 2, tr | `3 × cols + 1` |
+  | Mesh | Block | Space | Turning chain | Foundation chain, first block | first space |
+  |---|---|---|---|---|---|
+  | `ch2-dc` (default) | 3 dc | ch 2, dc | ch 3 | `3 × cols + 3`, dc in the 4th | `3 × cols + 5`, dc in the 8th |
+  | `ch1-dc` | 2 dc | ch 1, dc | ch 3 | `2 × cols + 3`, dc in the 4th | `2 × cols + 4`, dc in the 6th |
+  | `ch2-tr` | 3 tr | ch 2, tr | ch 4 | `3 × cols + 4`, tr in the 5th | `3 × cols + 6`, tr in the 9th |
+
+  The first square is row 1's first, in the order it's worked; cells skipped at its start
+  are passed over.
 
 Which crafts fit the Work stage and why, and what could come next, is in
 [`crafts.md`](crafts.md).

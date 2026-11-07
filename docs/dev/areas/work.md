@@ -99,9 +99,15 @@ Newest last, as they were built.
       "(ch 2, dc) × 2"; in ch 1, dc "6 dc", "(ch 1, dc) × 2"). **Record progress** heads it
       **Blocks** or **Spaces**, with "3 squares · 9 dc". **Next, row N** is said in squares
       too.
-    - Above the chips: start the row with 1 dc (or tr) at the edge, and on row 1 the
-      foundation chain (3 × squares + 1, or 2 × in ch 1, dc, plus your turning chain).
-      Design's stats line adds "foundation chain N", as it adds strings for a bracelet.
+    - Above the chips, on row 1, the foundation chain in full: "Chain 66: 3 × 20 for the
+      squares, 4 for the turning chain (it counts as the first tr) and 2 for the first
+      space. Then tr in the 9th chain from the hook." It counts a square's stitches for each
+      square, the turning chain (ch 3 for dc, ch 4 for tr), and a first space's top when
+      row 1, as it's worked, starts with a space (`firstSquare`). On every other row:
+      "Turn and ch 3: it counts as the first dc." Design's stats line adds
+      "foundation chain N", as it adds strings for a bracelet. Before this PR it said
+      "3 × squares + 1, plus your turning chain", which comes out one chain long for a
+      first block and one short for a first space whatever turning chain is added.
     - The readout and progress are the same colour runs as every craft, so switching to
       filet and back keeps your place; two block colours side by side stay two chips.
     - The chart still shows the colours; it doesn't draw mesh.

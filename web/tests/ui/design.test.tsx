@@ -8,6 +8,7 @@ import { fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
+import { foundation } from '../../src/craft/filet.ts'
 import { completeCurrentRow, ensureStarted } from '../../src/logic/work.ts'
 import { readAlpha } from '../../src/storage/alpha.ts'
 import { fixture, freshRepo, renderApp, screen } from './helpers.tsx'
@@ -59,7 +60,7 @@ describe('Design stage', () => {
     expect(document.querySelector('.design__stats')!.textContent).toMatch(new RegExp(`·\\s+${p.cols + 1} strings$`))
   })
 
-  it('gives the foundation chain for filet crochet only: 3 a square, plus 1', async () => {
+  it('gives the foundation chain for filet crochet only', async () => {
     const repo = await freshRepo()
     const { project } = readAlpha(fixture('basic.alpha'))
     const p = project.pattern
@@ -67,18 +68,22 @@ describe('Design stage', () => {
     await renderApp(`#/design/${p.id}`, { repo })
     await screen.findByRole('heading', { level: 1, name: p.name }, { timeout: 3000 })
     const stats = document.querySelector('.design__stats')!.textContent
-    expect(stats).toMatch(new RegExp(`·\\s+foundation chain ${3 * p.cols + 1}$`))
+    const chains = foundation({ ...p, craft: 'filet' }).chains
+    expect([3 * p.cols + 3, 3 * p.cols + 5]).toContain(chains)
+    expect(stats).toMatch(new RegExp(`·\\s+foundation chain ${chains}$`))
     expect(stats).not.toMatch(/strings/)
   })
 
-  it('counts the foundation chain in the filet stitches chosen: 2 a square in ch 1, dc', async () => {
+  it('counts the foundation chain in the filet stitches chosen', async () => {
     const repo = await freshRepo()
     const { project } = readAlpha(fixture('basic.alpha'))
     const p = project.pattern
     await repo.save({ ...project, pattern: { ...p, craft: 'filet', filet_mesh: 'ch1-dc' }, stage: 'design' })
     await renderApp(`#/design/${p.id}`, { repo })
     await screen.findByRole('heading', { level: 1, name: p.name }, { timeout: 3000 })
-    expect(document.querySelector('.design__stats')!.textContent).toMatch(new RegExp(`·\\s+foundation chain ${2 * p.cols + 1}$`))
+    const chains = foundation({ ...p, craft: 'filet', filet_mesh: 'ch1-dc' }).chains
+    expect([2 * p.cols + 3, 2 * p.cols + 4]).toContain(chains)
+    expect(document.querySelector('.design__stats')!.textContent).toMatch(new RegExp(`·\\s+foundation chain ${chains}$`))
   })
 
   it('adds, recolours, renames and deletes colours from their menus, each one undo step, and saves them', async () => {

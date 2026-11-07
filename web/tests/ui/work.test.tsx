@@ -3,7 +3,7 @@ import { fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { formatFiletRow, meshOf, spaceIndex, squareOf, squaresText, stitchesText } from '../../src/craft/filet.ts'
+import { formatFiletRow, foundationText, meshOf, spaceIndex, squareOf, squaresText, stitchesText } from '../../src/craft/filet.ts'
 import { carriesByRun, carryPlan, carryReach } from '../../src/logic/carry.ts'
 import * as work from '../../src/logic/work.ts'
 import { encodeRow, formatRowText, rowDirection, workingNumber } from '../../src/logic/readout.ts'
@@ -437,9 +437,11 @@ describe('options', () => {
     // bottom-up: row 1 is the last image row.
     const seq = work.workSequence(p)
     expect(chips().map((c) => c.querySelector('.chip__text')!.textContent)).toEqual(chipTexts(seq[0]!))
-    expect(document.querySelector('.work__filet')!.textContent).toContain(
-      `Foundation chain: 3 × ${p.cols} + 1 = ${3 * p.cols + 1}, plus your turning chain.`,
-    )
+    // Row 1 is worked into the foundation chain: its first square decides the count.
+    const first = squareOf(encodeRow(p, seq[0]!)[0]!.palette_index, spaces)
+    const chains = 3 * p.cols + 3 + (first === 'space' ? 2 : 0)
+    expect(document.querySelector('.work__filet')!.textContent).toBe(foundationText({ ...p, craft: 'filet' }))
+    expect(document.querySelector('.work__filet')!.textContent).toMatch(new RegExp(`^Chain ${chains}: 3 × ${p.cols} for the squares`))
     expect(screen.getByText(`Next, row 2: ${formatFiletRow(p, encodeRow(p, seq[1]!))}`)).toBeTruthy()
 
     // On to the first row with both blocks and spaces.
@@ -454,10 +456,8 @@ describe('options', () => {
     expect(texts).toEqual(chipTexts(seq[k]!))
     expect(texts.some((t) => /^\d+ spaces?(ch 2, dc|\(ch 2, dc\) × \d+)$/.test(t!))).toBe(true)
     expect(texts.some((t) => /^\d+ blocks?\d+ dc$/.test(t!))).toBe(true)
-    // Past row 1, the edge stitch is still said, the foundation chain isn't.
-    const later = document.querySelector('.work__filet')!.textContent
-    expect(later).not.toContain('Foundation chain')
-    expect(later).toContain('1 dc at the edge')
+    // Past row 1, each row starts with a turning chain.
+    expect(document.querySelector('.work__filet')!.textContent).toBe('Turn and ch 3: it counts as the first dc.')
 
     // Record progress names the squares and their stitches.
     const block = runs.findIndex((run) => run.palette_index !== spaces)
@@ -506,7 +506,7 @@ describe('options', () => {
     await userEvent.click(mesh('ch 2, tr'))
     expect(said(block)).toBe(`${3 * runs[block]!.count} tr`)
     expect(said(space)).toBe(spaceWords('ch 2, tr', runs[space]!.count))
-    expect(document.querySelector('.work__filet')!.textContent).toContain('1 tr at the edge')
+    expect(document.querySelector('.work__filet')!.textContent).toBe('Turn and ch 4: it counts as the first tr.')
 
     // Saved with the pattern, and kept through another craft and back.
     await waitFor(async () => expect((await repo.open(p.id)).project.pattern.filet_mesh).toBe('ch2-tr'))
@@ -521,9 +521,9 @@ describe('options', () => {
     const { cols } = project.pattern
     await userEvent.selectOptions(screen.getByLabelText('Craft'), 'filet')
     await userEvent.click(screen.getByRole('radio', { name: 'ch 1, dc' }))
-    expect(document.querySelector('.work__filet')!.textContent).toContain(`Foundation chain: 2 × ${cols} + 1 = ${2 * cols + 1}, plus your turning chain.`)
+    expect(document.querySelector('.work__filet')!.textContent).toMatch(new RegExp(`^Chain ${2 * cols + 3}|^Chain ${2 * cols + 4}: 2 × ${cols}`))
     await userEvent.click(screen.getByRole('radio', { name: 'ch 2, tr' }))
-    expect(document.querySelector('.work__filet')!.textContent).toContain(`Foundation chain: 3 × ${cols} + 1 = ${3 * cols + 1}, plus your turning chain.`)
+    expect(document.querySelector('.work__filet')!.textContent).toMatch(new RegExp(`^Chain ${3 * cols + 4}|^Chain ${3 * cols + 6}: 3 × ${cols}`))
   })
 
   it('numbers the stitches unless turned off in Options, app-wide', async () => {

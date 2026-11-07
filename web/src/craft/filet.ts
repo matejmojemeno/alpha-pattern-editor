@@ -7,6 +7,8 @@
  * the readout and progress stay the colour runs every craft uses (logic/readout.ts).
  */
 import { hexToLab } from '../logic/lab.ts'
+import { encodeRow } from '../logic/readout.ts'
+import { workSequence } from '../logic/work.ts'
 import { PATTERN_DEFAULTS, SKIP_INDEX, type Pattern } from '../model/types.ts'
 
 /** The stitches squares are worked in. */
@@ -76,9 +78,64 @@ export function stitchesText(square: Square, n: number, mesh: Mesh): string {
   return ''
 }
 
-/** The foundation chain for `cols` squares, before the turning chain: a square's width
- *  each, plus 1. */
-export const foundationChain = (cols: number, mesh: Mesh): number => mesh.width * cols + 1
+/** A turning chain's length for each stitch. It counts as the row's first stitch, the one
+ *  at its edge. */
+export const TURNING_CHAIN: Readonly<Record<Mesh['stitch'], number>> = { dc: 3, tr: 4 }
+
+/** "Turn and ch 3: it counts as the first dc.", for every row after the first. */
+export const turnText = (mesh: Mesh): string =>
+  `Turn and ch ${TURNING_CHAIN[mesh.stitch]}: it counts as the first ${mesh.stitch}.`
+
+/** Row 1's first square, as it's worked; cells skipped at its start are passed over. */
+export function firstSquare(p: Pattern): 'block' | 'space' {
+  const row = workSequence(p)[0]
+  if (row === undefined) return 'block'
+  const spaces = spaceIndex(p)
+  const run = encodeRow(p, row).find((r) => r.palette_index !== SKIP_INDEX)
+  return run !== undefined && squareOf(run.palette_index, spaces) === 'space' ? 'space' : 'block'
+}
+
+/** The chain row 1 is worked into, and where its first stitch goes. */
+export interface Foundation {
+  /** Every chain to make: `squares + turning + space`. */
+  readonly chains: number
+  /** A square's width for each square. */
+  readonly squares: number
+  /** The turning chain, which is row 1's first stitch. */
+  readonly turning: number
+  /** When row 1 starts with a space, the chains across its top; else 0. */
+  readonly space: number
+  /** The chain, counted from the hook, that row 1's first worked stitch goes in. */
+  readonly hook: number
+}
+
+/** The foundation chain for `p`, from its mesh and row 1's first square. A space's top
+ *  chains are made with the foundation, then as many chains are skipped below it. */
+export function foundation(p: Pattern): Foundation {
+  const mesh = meshOf(p)
+  const turning = TURNING_CHAIN[mesh.stitch]
+  const space = firstSquare(p) === 'space' ? mesh.width - 1 : 0
+  const squares = mesh.width * p.cols
+  return { chains: squares + turning + space, squares, turning, space, hook: turning + 2 * space + 1 }
+}
+
+/** 1st, 2nd, 3rd, 4th… */
+function ordinal(n: number): string {
+  const tens = n % 100
+  const suffix = tens >= 11 && tens <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')
+  return `${n}${suffix}`
+}
+
+/** Row 1's start, said in full so another turning chain or edge can be worked out from it:
+ *  "Chain 66: 3 × 20 for the squares, 4 for the turning chain (it counts as the first tr)
+ *  and 2 for the first space. Then tr in the 9th chain from the hook." */
+export function foundationText(p: Pattern): string {
+  const mesh = meshOf(p)
+  const f = foundation(p)
+  const turning = `${f.turning} for the turning chain (it counts as the first ${mesh.stitch})`
+  const parts = f.space ? `${turning} and ${f.space} for the first space` : `and ${turning}`
+  return `Chain ${f.chains}: ${mesh.width} × ${p.cols} for the squares, ${parts}. Then ${mesh.stitch} in the ${ordinal(f.hook)} chain from the hook.`
+}
 
 /** A row's runs (logic/readout.ts `encodeRow`) as squares: "3 spaces, 2 blocks, 1 space". */
 export function formatFiletRow(p: Pattern, runs: readonly { palette_index: number; count: number }[]): string {

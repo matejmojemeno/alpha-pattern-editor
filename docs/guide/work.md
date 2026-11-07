@@ -63,18 +63,25 @@ every other colour is filled squares (blocks). To change which, recolour it in D
 - Pick how you make your squares in **Options**, under **Filet stitches**. The choice is
   saved with the pattern, and changing it never changes your progress.
 
-  | Filet stitches | A block | A space | Foundation chain |
+  | Filet stitches | A block | A space | Turning chain |
   |---|---|---|---|
-  | **ch 2, dc** | 3 dc | ch 2, dc | 3 for each square, plus 1 |
-  | **ch 1, dc** | 2 dc | ch 1, dc | 2 for each square, plus 1 |
-  | **ch 2, tr** | 3 tr | ch 2, tr | 3 for each square, plus 1 |
+  | **ch 2, dc** | 3 dc | ch 2, dc | ch 3 |
+  | **ch 1, dc** | 2 dc | ch 1, dc | ch 3 |
+  | **ch 2, tr** | 3 tr | ch 2, tr | ch 4 |
 
   These are US terms: **tr** is a treble, which UK patterns call a double treble, and
   **dc** is what they call a treble.
 - Each chip says what to make and the stitches it takes, such as **3 blocks** with
   **9 dc** under it, or **2 spaces** with **(ch 2, dc) × 2**.
-- Above them is a reminder to start each row with 1 stitch at the edge. On row 1 it also
-  gives the foundation chain; add the turning chain your pattern uses.
+- On row 1, above the chips, is the chain to start with, and what it's made of. For
+  example: **Chain 66: 3 × 20 for the squares, 4 for the turning chain (it counts as the
+  first tr) and 2 for the first space. Then tr in the 9th chain from the hook.** The first
+  space's 2 is there only when row 1 starts with a space.
+- On every other row it says the turning chain: **Turn and ch 3: it counts as the first
+  dc.** If row 1 starts with a space, that space's ch 2 comes after it, as the chip says.
+- If you start rows another way, change that part of the count. With a shorter turning
+  chain, take off the difference. With a chainless first stitch, or a row of foundation
+  stitches instead of a chain, leave the turning chain out.
 - In Design, the line under the chart gives the same foundation chain.
 
 ## Which row is row 1, and which way it runs

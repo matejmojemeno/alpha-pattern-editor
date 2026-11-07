@@ -1,6 +1,6 @@
 /**
- * Filet stitches in real Chromium: the mesh picked in Options changes what the chips and
- * the foundation chain say, and is still there after a reload.
+ * Filet stitches in real Chromium: the mesh picked in Options changes what the chips, the
+ * foundation chain and the turning chain say, and is still there after a reload.
  */
 import { writeFileSync } from 'node:fs'
 
@@ -34,20 +34,26 @@ test('the stitches picked in Options are said, and kept after a reload', async (
   const reminder = page.locator('.work__filet')
   // Row 1 runs right to left: the 4 blocks come first.
   await expect(chips).toHaveText(['12 dc', '(ch 2, dc) × 2'])
-  await expect(reminder).toContainText('Foundation chain: 3 × 6 + 1 = 19')
+  await expect(reminder).toHaveText(
+    'Chain 21: 3 × 6 for the squares, and 3 for the turning chain (it counts as the first dc). Then dc in the 4th chain from the hook.',
+  )
 
   await page.getByText('Options', { exact: true }).click()
   await page.getByRole('radio', { name: 'ch 1, dc' }).click()
   await expect(chips).toHaveText(['8 dc', '(ch 1, dc) × 2'])
-  await expect(reminder).toContainText('Foundation chain: 2 × 6 + 1 = 13')
+  await expect(reminder).toContainText('Chain 15: 2 × 6 for the squares')
 
   await page.getByRole('radio', { name: 'ch 2, tr' }).click()
   await expect(chips).toHaveText(['12 tr', '(ch 2, tr) × 2'])
-  await expect(reminder).toContainText('1 tr at the edge')
+  await expect(reminder).toContainText('Chain 22: 3 × 6 for the squares, and 4 for the turning chain (it counts as the first tr). Then tr in the 5th chain from the hook.')
+  await page.getByText('Options', { exact: true }).click()
+  await page.getByRole('button', { name: /Row complete/ }).click()
+  await expect(reminder).toHaveText('Turn and ch 4: it counts as the first tr.')
   await expect(page.getByText('Saved', { exact: true })).toBeVisible()
 
+  // Row 2 runs left to right: its spaces come first.
   await page.reload()
-  await expect(chips).toHaveText(['12 tr', '(ch 2, tr) × 2'])
+  await expect(chips).toHaveText(['(ch 2, tr) × 2', '12 tr'])
   await page.getByText('Options', { exact: true }).click()
   await expect(page.getByRole('radio', { name: 'ch 2, tr' })).toBeChecked()
 })

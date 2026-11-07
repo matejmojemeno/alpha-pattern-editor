@@ -28,7 +28,7 @@ import {
 } from '../../logic/work.ts'
 import { reorder, repairProgress } from '../../logic/progress.ts'
 import { countOf, craftOf, withCraft, type CraftId } from '../../craft/crafts.ts'
-import { formatFiletRow, foundationChain, meshOf, spaceIndex, squareOf, stitchesText } from '../../craft/filet.ts'
+import { formatFiletRow, foundationText, meshOf, spaceIndex, squareOf, stitchesText, turnText } from '../../craft/filet.ts'
 import type { Direction, Pattern, Project } from '../../model/types.ts'
 import { exportChartPng } from '../../render/chartPng.ts'
 import { placeThrough, type RowPlace } from '../../render/layout.ts'
@@ -405,9 +405,8 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
           <h2 className="work__label">This row</h2>
           {filet && !done && cur !== null && (
             <p className="work__filet muted">
-              {position === 0 &&
-                `Foundation chain: ${filet.mesh.width} × ${p.cols} + 1 = ${foundationChain(p.cols, filet.mesh)}, plus your turning chain. `}
-              Start the row with 1 {filet.mesh.stitch} at the edge (a turning chain can count as it).
+              {/* Row 1 starts on the foundation chain, every other row with a turning chain. */}
+              {position === 0 ? foundationText(p) : turnText(filet.mesh)}
             </p>
           )}
           {done ? (
