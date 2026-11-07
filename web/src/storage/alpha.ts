@@ -72,6 +72,7 @@ function patternToJson(p: Pattern): PatternJson {
     // Left out for tapestry crochet, as io.py does, so a pattern that never chose a
     // craft saves byte for byte as before crafts existed.
     ...(p.craft === PATTERN_DEFAULTS.craft ? {} : { craft: p.craft }),
+    ...(p.filet_mesh === PATTERN_DEFAULTS.filet_mesh ? {} : { filet_mesh: p.filet_mesh }),
   }
 }
 
@@ -206,6 +207,7 @@ export function readAlpha(bytes: Uint8Array): AlphaContents {
     alternate_direction: get(pj, 'alternate_direction', true),
     bottom_up: get(pj, 'bottom_up', true),
     craft: get(pj, 'craft', PATTERN_DEFAULTS.craft),
+    filet_mesh: get(pj, 'filet_mesh', PATTERN_DEFAULTS.filet_mesh),
   }
 
   const prj = json<ProgressJson>(files, 'progress.json')

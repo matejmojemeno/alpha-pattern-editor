@@ -71,6 +71,16 @@ describe('Design stage', () => {
     expect(stats).not.toMatch(/strings/)
   })
 
+  it('counts the foundation chain in the filet stitches chosen: 2 a square in ch 1, dc', async () => {
+    const repo = await freshRepo()
+    const { project } = readAlpha(fixture('basic.alpha'))
+    const p = project.pattern
+    await repo.save({ ...project, pattern: { ...p, craft: 'filet', filet_mesh: 'ch1-dc' }, stage: 'design' })
+    await renderApp(`#/design/${p.id}`, { repo })
+    await screen.findByRole('heading', { level: 1, name: p.name }, { timeout: 3000 })
+    expect(document.querySelector('.design__stats')!.textContent).toMatch(new RegExp(`·\\s+foundation chain ${2 * p.cols + 1}$`))
+  })
+
   it('adds, recolours, renames and deletes colours from their menus, each one undo step, and saves them', async () => {
     const { repo, project } = await openDesign('basic.alpha')
     const user = userEvent.setup()

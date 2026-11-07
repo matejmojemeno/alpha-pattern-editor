@@ -28,7 +28,7 @@ import {
 } from '../../logic/work.ts'
 import { reorder, repairProgress } from '../../logic/progress.ts'
 import { countOf, craftOf, withCraft, type CraftId } from '../../craft/crafts.ts'
-import { formatFiletRow, foundationChain, spaceIndex, squareOf, stitchesText, STITCHES_PER_SQUARE } from '../../craft/filet.ts'
+import { formatFiletRow, foundationChain, meshOf, spaceIndex, squareOf, stitchesText } from '../../craft/filet.ts'
 import type { Direction, Pattern, Project } from '../../model/types.ts'
 import { exportChartPng } from '../../render/chartPng.ts'
 import { placeThrough, type RowPlace } from '../../render/layout.ts'
@@ -137,8 +137,9 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
 
   const { pattern: p, progress: pr } = project
   const craft = craftOf(p)
-  // Filet crochet reads the lightest colour as spaces, every other as blocks (craft/filet.ts).
-  const filet = useMemo(() => (craft.id === 'filet' ? { spaces: spaceIndex(p) } : undefined), [craft.id, p])
+  // Filet crochet reads the lightest colour as spaces, every other as blocks, in the
+  // pattern's mesh (craft/filet.ts).
+  const filet = useMemo(() => (craft.id === 'filet' ? { spaces: spaceIndex(p), mesh: meshOf(p) } : undefined), [craft.id, p])
   const done = isComplete(p, pr)
   const cur = done ? null : rowIndex(p, pr.current_row_id)
   const runs = useMemo(() => (cur === null ? [] : encodeRow(p, cur)), [p, cur])
@@ -237,6 +238,8 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
   const setCorner = (bottomUp: boolean, start: Direction) =>
     reread((q) => ({ ...q, bottom_up: bottomUp, start_direction: start }))
   const setSameWay = (same: boolean) => reread((q) => ({ ...q, alternate_direction: !same }))
+  // Only the words change: a square is still one cell, so progress stays as it is.
+  const setMesh = (id: string) => change((y) => ({ ...y, pattern: { ...y.pattern, filet_mesh: id } }))
 
   // Back to Design (§6.4), a deliberate action in the Options menu. The project is saved
   // as a Design-stage one first, as the desktop did, so it reopens there.
@@ -354,6 +357,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
             onCraft={setCraft}
             onCorner={setCorner}
             onSameWay={setSameWay}
+            onMesh={setMesh}
             onRename={() => {
               options.current?.removeAttribute('open')
               setRenaming(true)
@@ -402,8 +406,8 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
           {filet && !done && cur !== null && (
             <p className="work__filet muted">
               {position === 0 &&
-                `Foundation chain: ${STITCHES_PER_SQUARE} × ${p.cols} + 1 = ${foundationChain(p.cols)}, plus your turning chain. `}
-              Start the row with 1 dc at the edge (a turning chain can count as it).
+                `Foundation chain: ${filet.mesh.width} × ${p.cols} + 1 = ${foundationChain(p.cols, filet.mesh)}, plus your turning chain. `}
+              Start the row with 1 {filet.mesh.stitch} at the edge (a turning chain can count as it).
             </p>
           )}
           {done ? (
@@ -465,7 +469,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
         <SegmentDialog
           entry={entryFor(p, openRun.palette_index)}
           name={openSquare === 'block' ? 'Blocks' : openSquare === 'space' ? 'Spaces' : undefined}
-          note={openSquare ? stitchesText(openSquare, openRun.count) || undefined : undefined}
+          note={openSquare && filet ? stitchesText(openSquare, openRun.count, filet.mesh) || undefined : undefined}
           count={openRun.count}
           unit={craft.unit}
           units={craft.units}

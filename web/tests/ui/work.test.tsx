@@ -3,7 +3,7 @@ import { fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { formatFiletRow, spaceIndex, squareOf, squaresText, stitchesText } from '../../src/craft/filet.ts'
+import { formatFiletRow, meshOf, spaceIndex, squareOf, squaresText, stitchesText } from '../../src/craft/filet.ts'
 import { carriesByRun, carryPlan, carryReach } from '../../src/logic/carry.ts'
 import * as work from '../../src/logic/work.ts'
 import { encodeRow, formatRowText, rowDirection, workingNumber } from '../../src/logic/readout.ts'
@@ -432,7 +432,7 @@ describe('options', () => {
     const chipTexts = (r: number) =>
       encodeRow(p, r).map((run) => {
         const sq = squareOf(run.palette_index, spaces)
-        return squaresText(sq, run.count) + stitchesText(sq, run.count)
+        return squaresText(sq, run.count) + stitchesText(sq, run.count, meshOf(p))
       })
     // bottom-up: row 1 is the last image row.
     const seq = work.workSequence(p)
@@ -470,6 +470,60 @@ describe('options', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     await userEvent.click(openChip(runs.findIndex((run) => run.palette_index === spaces)))
     expect(within(screen.getByRole('dialog')).getByText('Spaces')).toBeTruthy()
+  })
+
+  it('filet crochet: the stitches can be picked, change only the words, and are saved', async () => {
+    const { repo, project } = await openWork('basic.alpha')
+    const p = project.pattern
+    const mesh = (name: string) => screen.getByRole<HTMLInputElement>('radio', { name })
+
+    // Only filet crochet has the choice.
+    expect(screen.queryByRole('group', { name: 'Filet stitches' })).toBeNull()
+    await userEvent.selectOptions(screen.getByLabelText('Craft'), 'filet')
+    expect(mesh('ch 2, dc').checked).toBe(true)
+
+    // Some way into the pattern, on a row with both blocks and spaces.
+    const spaces = spaceIndex(p)
+    const seq = work.workSequence(p)
+    const k = seq.findIndex((r) => new Set(encodeRow(p, r).map((run) => run.palette_index === spaces)).size === 2)
+    for (let i = 0; i < k; i++) await userEvent.click(screen.getByRole('button', { name: /Row complete/ }))
+    const runs = encodeRow(p, seq[k]!)
+    const counter = document.querySelector('.work__stitches')!.textContent
+    const block = runs.findIndex((run) => run.palette_index !== spaces)
+    const space = runs.findIndex((run) => run.palette_index === spaces)
+    const said = (i: number) => chips()[i]!.querySelector('.chip__stitches')!.textContent
+    const spaceWords = (one: string, n: number) => (n === 1 ? one : `(${one}) × ${n}`)
+
+    await userEvent.click(mesh('ch 1, dc'))
+    expect(mesh('ch 1, dc').checked).toBe(true)
+    expect(said(block)).toBe(`${2 * runs[block]!.count} dc`)
+    expect(said(space)).toBe(spaceWords('ch 1, dc', runs[space]!.count))
+    expect(document.querySelector('.work__stitches')!.textContent).toBe(counter)
+    await userEvent.click(openChip(block))
+    expect(screen.getByRole('dialog').textContent).toContain(`· ${2 * runs[block]!.count} dc`)
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    await userEvent.click(mesh('ch 2, tr'))
+    expect(said(block)).toBe(`${3 * runs[block]!.count} tr`)
+    expect(said(space)).toBe(spaceWords('ch 2, tr', runs[space]!.count))
+    expect(document.querySelector('.work__filet')!.textContent).toContain('1 tr at the edge')
+
+    // Saved with the pattern, and kept through another craft and back.
+    await waitFor(async () => expect((await repo.open(p.id)).project.pattern.filet_mesh).toBe('ch2-tr'))
+    await userEvent.selectOptions(screen.getByLabelText('Craft'), 'intarsia-crochet')
+    expect(screen.queryByRole('group', { name: 'Filet stitches' })).toBeNull()
+    await userEvent.selectOptions(screen.getByLabelText('Craft'), 'filet')
+    expect(mesh('ch 2, tr').checked).toBe(true)
+  })
+
+  it('filet crochet: row 1 counts the foundation chain in the stitches chosen', async () => {
+    const { project } = await openWork('basic.alpha')
+    const { cols } = project.pattern
+    await userEvent.selectOptions(screen.getByLabelText('Craft'), 'filet')
+    await userEvent.click(screen.getByRole('radio', { name: 'ch 1, dc' }))
+    expect(document.querySelector('.work__filet')!.textContent).toContain(`Foundation chain: 2 × ${cols} + 1 = ${2 * cols + 1}, plus your turning chain.`)
+    await userEvent.click(screen.getByRole('radio', { name: 'ch 2, tr' }))
+    expect(document.querySelector('.work__filet')!.textContent).toContain(`Foundation chain: 3 × ${cols} + 1 = ${3 * cols + 1}, plus your turning chain.`)
   })
 
   it('numbers the stitches unless turned off in Options, app-wide', async () => {

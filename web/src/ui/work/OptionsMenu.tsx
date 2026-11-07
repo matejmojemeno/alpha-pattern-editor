@@ -1,8 +1,8 @@
 /**
  * The Work stage's Options menu, in three groups:
  *
- * - **How you work this pattern**: the craft, the corner the first stitch is in, and whether
- *   rows go back and forth or in the round. These are saved with the pattern. Each choice
+ * - **How you work this pattern**: the craft (and for filet crochet, its stitches), the corner
+ *   the first stitch is in, and whether rows go back and forth or in the round. These are saved with the pattern. Each choice
  *   with two or more named sides is a set of radio buttons, so the side not chosen is in
  *   view too: a checkbox such as "Start rows from the right" left you to work out what
  *   unticked meant. The corner and the rows say the reading order between them, so there
@@ -15,6 +15,7 @@ import { useId, type ReactNode } from 'react'
 
 import { helpUrl } from '../../app/help.ts'
 import { CRAFTS, isCraftId, type Craft, type CraftId } from '../../craft/crafts.ts'
+import { meshOf, MESHES, spaceText } from '../../craft/filet.ts'
 import type { Direction, Pattern } from '../../model/types.ts'
 import type { Settings } from '../../settings/store.ts'
 import { CHART_OPTIONS } from '../chartOptions.ts'
@@ -36,6 +37,8 @@ export interface OptionsMenuProps {
   /** Start in another corner: which row is row 1, and which way it runs. */
   onCorner: (bottomUp: boolean, start: Direction) => void
   onSameWay: (same: boolean) => void
+  /** Filet crochet: work it in another mesh (craft/filet.ts). */
+  onMesh: (id: string) => void
   onRename: () => void
   /** Save the chart as a picture (render/chartPng.ts). */
   onExportPng: () => void
@@ -58,6 +61,19 @@ export function OptionsMenu(props: OptionsMenuProps) {
             ))}
           </select>
         </label>
+        {craft.id === 'filet' && (
+          <fieldset className="options__choice">
+            <legend>Filet stitches</legend>
+            <div className="choice choice--three">
+              {MESHES.map((m) => (
+                <label key={m.id} className="choice__option">
+                  <input type="radio" name={`${id}-mesh`} checked={meshOf(p) === m} onChange={() => props.onMesh(m.id)} />
+                  {spaceText(m)}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
         <fieldset className="options__choice">
           <legend>First stitch</legend>
           <div className="choice choice--corners">

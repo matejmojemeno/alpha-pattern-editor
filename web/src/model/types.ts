@@ -41,6 +41,9 @@ export interface Pattern {
   /** What it's made in: an id from craft/crafts.ts (§15). Any string, so that a newer
    *  build's craft is kept as it is; `craftOf` reads an unknown one as tapestry. */
   readonly craft: string
+  /** The stitches filet crochet is worked in: a mesh id from craft/filet.ts (§15). Any
+   *  string, like `craft`; `meshOf` reads an unknown one as the default. */
+  readonly filet_mesh: string
 }
 
 /** Dataclass defaults for a *new* Pattern. Loading a file uses different ones for
@@ -50,7 +53,8 @@ export const PATTERN_DEFAULTS = {
   alternate_direction: true,
   bottom_up: true,
   craft: 'tapestry',
-} as const satisfies Pick<Pattern, 'start_direction' | 'alternate_direction' | 'bottom_up' | 'craft'>
+  filet_mesh: 'ch2-dc',
+} as const satisfies Pick<Pattern, 'start_direction' | 'alternate_direction' | 'bottom_up' | 'craft' | 'filet_mesh'>
 
 export interface Progress {
   readonly completed_row_ids: ReadonlySet<string>

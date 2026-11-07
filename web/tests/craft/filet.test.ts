@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { craftOf, withCraft } from '../../src/craft/crafts.ts'
-import { formatFiletRow, foundationChain, spaceIndex, squareOf, squaresText, stitchesText } from '../../src/craft/filet.ts'
+import { formatFiletRow, foundationChain, meshOf, MESHES, spaceIndex, spaceText, squareOf, squaresText, stitchesText } from '../../src/craft/filet.ts'
 import { newPattern } from '../../src/logic/edit.ts'
 import { encodeRow } from '../../src/logic/readout.ts'
 import { SKIP_INDEX, type Pattern } from '../../src/model/types.ts'
@@ -13,6 +13,11 @@ function pattern(hexes: string[], rows: string[]): Pattern {
   const cells = Uint16Array.from(rows.join(''), (ch) => (ch === '.' ? SKIP_INDEX : Number(ch)))
   return { ...base, palette, cells }
 }
+
+const mesh = (filet_mesh: string) => meshOf({ filet_mesh })
+const CH2_DC = mesh('ch2-dc')
+const CH1_DC = mesh('ch1-dc')
+const CH2_TR = mesh('ch2-tr')
 
 describe('filet crochet', () => {
   it('is read like a crochet graph and counted in squares', () => {
@@ -43,17 +48,42 @@ describe('filet crochet', () => {
       '2 spaces',
     ])
     // A block is 3 dc; a space is ch 2, skip 2, dc.
-    expect(stitchesText('block', 1)).toBe('3 dc')
-    expect(stitchesText('block', 4)).toBe('12 dc')
-    expect(stitchesText('space', 1)).toBe('ch 2, dc')
-    expect(stitchesText('space', 3)).toBe('(ch 2, dc) × 3')
-    expect(stitchesText('skip', 2)).toBe('')
+    expect(stitchesText('block', 1, CH2_DC)).toBe('3 dc')
+    expect(stitchesText('block', 4, CH2_DC)).toBe('12 dc')
+    expect(stitchesText('space', 1, CH2_DC)).toBe('ch 2, dc')
+    expect(stitchesText('space', 3, CH2_DC)).toBe('(ch 2, dc) × 3')
+    expect(stitchesText('skip', 2, CH2_DC)).toBe('')
   })
 
-  it('chains 3 a square plus 1', () => {
-    expect(foundationChain(1)).toBe(4)
-    expect(foundationChain(5)).toBe(16)
-    expect(foundationChain(20)).toBe(61)
+  it('works a narrower square in ch 1, dc: a block is 2 dc', () => {
+    expect(stitchesText('block', 1, CH1_DC)).toBe('2 dc')
+    expect(stitchesText('block', 4, CH1_DC)).toBe('8 dc')
+    expect(stitchesText('space', 1, CH1_DC)).toBe('ch 1, dc')
+    expect(stitchesText('space', 3, CH1_DC)).toBe('(ch 1, dc) × 3')
+    expect(stitchesText('skip', 2, CH1_DC)).toBe('')
+  })
+
+  it('swaps every dc for a tr in ch 2, tr: a block is 3 tr', () => {
+    expect(stitchesText('block', 1, CH2_TR)).toBe('3 tr')
+    expect(stitchesText('block', 4, CH2_TR)).toBe('12 tr')
+    expect(stitchesText('space', 1, CH2_TR)).toBe('ch 2, tr')
+    expect(stitchesText('space', 3, CH2_TR)).toBe('(ch 2, tr) × 3')
+  })
+
+  it('chains a square\'s width each, plus 1', () => {
+    expect(foundationChain(1, CH2_DC)).toBe(4)
+    expect(foundationChain(5, CH2_DC)).toBe(16)
+    expect(foundationChain(20, CH2_DC)).toBe(61)
+    expect(foundationChain(5, CH2_TR)).toBe(16)
+    expect(foundationChain(1, CH1_DC)).toBe(3)
+    expect(foundationChain(5, CH1_DC)).toBe(11)
+    expect(foundationChain(20, CH1_DC)).toBe(41)
+  })
+
+  it('offers the three meshes, by name, and reads an unknown one as ch 2, dc', () => {
+    expect(MESHES.map(spaceText)).toEqual(['ch 2, dc', 'ch 1, dc', 'ch 2, tr'])
+    expect(newPattern(3, 2, '#ffffff', { now: 1 }).filet_mesh).toBe('ch2-dc')
+    expect(mesh('from-a-newer-build')).toBe(CH2_DC)
   })
 
   it('reads a row in working order as squares', () => {
