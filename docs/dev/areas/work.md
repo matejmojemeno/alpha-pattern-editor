@@ -297,11 +297,16 @@ Newest last, as they were built.
 - <a id="row-tab"></a>**The way a row is worked is on the chart, beside the row**
   (`drawChart` in `render/chart.ts`). The arrow used to follow "Row 7 of 30" in the status
   line, well away from the row it described. Now the current row's number sits in a small
-  accent-coloured tab in the row-number margin, joined to the row's outline, with a line
-  arrow beside the number. The header keeps the direction for screen readers.
-  - In the margin because nothing else is there: it never scrolls (so the tab stays by
-    the row at any zoom), it can't cover a stitch, and taps there do nothing. `AXIS_LEFT`
+  accent-coloured tab in the row-number margin, joined to the row's outline, and a line
+  arrow marks the side the row starts from, pointing into the row: in that same tab for
+  a row worked left to right, in a tab of its own right of the grid otherwise. The header
+  keeps the direction for screen readers.
+  - In the margins because nothing else is there: they never scroll (so the tabs stay by
+    the row at any zoom), they can't cover a stitch, and taps there do nothing. `AXIS_LEFT`
     stays 34 px, since Design shares it.
+  - The right-hand tab needs `WORK_END_GUTTER` (12 px), on top of `PAD`, taken from the
+    Work chart's width only (`endGutter` in `layout.ts`; Design and PNG exports have
+    none). A zoomed chart is clipped at the gutter and taps there find no stitch.
   - A tab, not a bare arrow: amber on the page is too faint for a 9 px arrow glanced at
     while working; black on amber isn't, in light or dark.
   - The tab is the row's height, from 16 to 24 px. It stays on the grid at the first and
