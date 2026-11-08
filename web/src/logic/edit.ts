@@ -570,6 +570,7 @@ export function newPattern(
     alternate_direction: true,
     bottom_up: true,
     craft: 'tapestry',
+    filet_mesh: 'ch2-dc',
   }
 }
 
@@ -579,7 +580,7 @@ export function samePattern(a: Pattern, b: Pattern): boolean {
   if (a === b) return true
   if (a.cols !== b.cols || a.rows !== b.rows || a.name !== b.name) return false
   if (a.start_direction !== b.start_direction || a.alternate_direction !== b.alternate_direction) return false
-  if (a.bottom_up !== b.bottom_up || a.craft !== b.craft) return false
+  if (a.bottom_up !== b.bottom_up || a.craft !== b.craft || a.filet_mesh !== b.filet_mesh) return false
   if (a.row_ids.length !== b.row_ids.length || a.row_ids.some((id, i) => id !== b.row_ids[i])) return false
   if (a.palette.length !== b.palette.length) return false
   for (let i = 0; i < a.palette.length; i++) {

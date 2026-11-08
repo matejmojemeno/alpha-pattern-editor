@@ -39,6 +39,7 @@ describe('samePattern', () => {
   it('sees an edit that changed nothing as the same', () => {
     expect(samePattern(p, floodFill(p, 0, 0, 0))).toBe(true)
     expect(samePattern(p, setCell(p, 1, 1, 0))).toBe(true)
+    expect(samePattern(p, { ...p, filet_mesh: 'ch1-dc' })).toBe(false)
   })
   it('sees any change to cells, palette or rows', () => {
     const q = addPaletteEntry(p, '#000000')

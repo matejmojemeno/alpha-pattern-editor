@@ -29,6 +29,7 @@ export interface PatternJson {
   alternate_direction?: boolean // missing reads as true
   bottom_up?: boolean // missing reads as true
   craft?: string // missing reads as 'tapestry'; written only when it isn't
+  filet_mesh?: string // missing reads as 'ch2-dc'; written only when it isn't
 }
 
 /** progress.json. Every field may be missing; older files lack current_run_stitches. */

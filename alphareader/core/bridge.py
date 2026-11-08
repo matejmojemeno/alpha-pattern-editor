@@ -546,6 +546,7 @@ def commit(session: int, name: str) -> dict:
             "alternate_direction": bool(p.alternate_direction),
             "bottom_up": bool(p.bottom_up),
             "craft": p.craft,
+            "filet_mesh": p.filet_mesh,
         },
     }
 

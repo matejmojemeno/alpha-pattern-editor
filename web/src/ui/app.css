@@ -1014,6 +1014,10 @@ code {
   background: var(--border);
 }
 
+.choice--three {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
 .choice__option {
   position: relative;
   display: flex;

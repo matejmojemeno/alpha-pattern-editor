@@ -25,6 +25,8 @@ FORMAT_VERSION = 1
 
 # pattern.json has no "craft" for tapestry crochet (§15).
 DEFAULT_CRAFT = "tapestry"
+# Nor any "filet_mesh" for the mesh every file made before the choice existed uses.
+DEFAULT_FILET_MESH = "ch2-dc"
 
 # Project root = two levels up from this file (…/alpha-pattern-editor).
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -61,6 +63,7 @@ def _pattern_to_json(p: Pattern) -> dict:
         # Left out for tapestry crochet, the default, so a pattern that never chose a
         # craft is written byte for byte as before crafts existed.
         **({} if p.craft == DEFAULT_CRAFT else {"craft": p.craft}),
+        **({} if p.filet_mesh == DEFAULT_FILET_MESH else {"filet_mesh": p.filet_mesh}),
     }
 
 
@@ -76,6 +79,7 @@ def _pattern_from_json(d: dict, cells: np.ndarray) -> Pattern:
         alternate_direction=d.get("alternate_direction", True),
         bottom_up=d.get("bottom_up", True),
         craft=d.get("craft", DEFAULT_CRAFT),
+        filet_mesh=d.get("filet_mesh", DEFAULT_FILET_MESH),
     )
 
 

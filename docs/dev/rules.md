@@ -183,9 +183,10 @@ break without noticing.
   and every pattern that never picks one, byte for byte the same; the pristine desktop
   fixtures check it. `Pattern.craft` is a plain string, and `craftOf` reads an id it
   doesn't know as tapestry crochet without changing it, so a newer build's craft survives
-  a trip through an older one. A new field that the bridge sends must be added to
-  `bridge.commit` too: it lists every field by hand, and `test_bridge.py` checks it sends
-  all of them.
+  a trip through an older one. `filet_mesh` works the same way, with `"ch2-dc"` left out.
+  A new field that the bridge sends must be added to `bridge.commit` too: it lists every
+  field by hand, and `test_bridge.py` checks it sends all of them. `edit.py`'s `_clone`
+  lists them by hand as well, and drops any it doesn't name.
 - <a id="debug-layers"></a>**`DebugLayers` never crosses the worker boundary.** It holds full-resolution masks,
   megabytes per message.
 - <a id="nd-py"></a>**Don't "simplify" `_nd.py`.** `find_peaks` applies `distance` *before* `prominence`,

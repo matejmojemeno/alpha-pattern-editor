@@ -50,6 +50,7 @@ function wideProject(cols = COLS, name = 'Wide scarf'): Project {
     alternate_direction: true,
     bottom_up: true,
     craft: 'tapestry',
+    filet_mesh: 'ch2-dc',
   }
   return { pattern, progress: emptyProgress(), stage: 'work' }
 }

@@ -115,6 +115,10 @@ test('the app screens and their dialogs', async ({ page }) => {
   found.push(...(await leaks(page, 'Work')))
   await page.getByText('Options', { exact: true }).click()
   found.push(...(await leaks(page, 'Work Options')))
+  // Filet crochet adds its stitches to the menu, and longer words to the chips.
+  await page.getByLabel('Craft').selectOption('filet')
+  await expect(page.getByRole('radio', { name: 'ch 2, tr' })).toBeAttached()
+  found.push(...(await leaks(page, 'Work Options, filet crochet')))
   await page.keyboard.press('Escape')
   await page.locator('.chip__open').first().click()
   await expect(page.getByRole('dialog', { name: 'Record progress' })).toBeVisible()

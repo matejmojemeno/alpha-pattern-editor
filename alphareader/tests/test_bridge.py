@@ -156,6 +156,7 @@ def test_the_result_is_what_the_desktop_commits():
     # Every field a Pattern has, so the web app gets a whole one (craft included).
     assert set(web) == {f.name for f in dataclasses.fields(Pattern)}
     assert web["craft"] == "tapestry"
+    assert web["filet_mesh"] == "ch2-dc"
 
 
 def test_alpha_is_dropped_not_composited():

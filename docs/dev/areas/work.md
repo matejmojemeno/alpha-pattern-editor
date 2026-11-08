@@ -89,18 +89,30 @@ Newest last, as they were built.
   - <a id="filet"></a>**Filet crochet** (`craft/filet.ts`) is the one craft that changes
     what the chips say, not just the unit ("squares"):
     - The pattern's lightest colour (CIELAB L*, the first of equals) is the spaces, every
-      other colour blocks. Nothing new is stored: recolour in Design to change which.
+      other colour blocks. That isn't stored: recolour in Design to change which.
+    - **Filet stitches** in Options, shown for this craft only, picks the mesh: **ch 2, dc**
+      (the default), **ch 1, dc** or **ch 2, tr**. It's saved as `filet_mesh`, left out of
+      `pattern.json` for the default, and an id this build doesn't know is kept and reads
+      as the default, as `craft` does. It stays on the pattern through other crafts.
+      A square is still one cell, so picking one changes the words, never progress.
     - A chip reads "3 blocks" or "2 spaces", with the stitches under it ("9 dc",
-      "(ch 2, dc) × 2"). **Record progress** heads it **Blocks** or **Spaces**, with
-      "3 squares · 9 dc". **Next, row N** is said in squares too.
-    - Above the chips: start the row with 1 dc at the edge, and on row 1 the foundation
-      chain (3 × squares + 1, plus your turning chain). Design's stats line adds
-      "foundation chain N", as it adds strings for a bracelet.
+      "(ch 2, dc) × 2"; in ch 1, dc "6 dc", "(ch 1, dc) × 2"). **Record progress** heads it
+      **Blocks** or **Spaces**, with "3 squares · 9 dc". **Next, row N** is said in squares
+      too.
+    - Above the chips, on row 1, the foundation chain in full: "Chain 66: 3 × 20 for the
+      squares, 4 for the turning chain (it counts as the first tr) and 2 for the first
+      space. Then tr in the 9th chain from the hook." It counts a square's stitches for each
+      square, the turning chain (ch 3 for dc, ch 4 for tr), and a first space's top when
+      row 1, as it's worked, starts with a space (`firstSquare`). On every other row:
+      "Turn and ch 3: it counts as the first dc." Design's stats line adds
+      "foundation chain N", as it adds strings for a bracelet. Before this PR it said
+      "3 × squares + 1, plus your turning chain", which comes out one chain long for a
+      first block and one short for a first space whatever turning chain is added.
     - The readout and progress are the same colour runs as every craft, so switching to
       filet and back keeps your place; two block colours side by side stay two chips.
     - The chart still shows the colours; it doesn't draw mesh.
-  - Not in the Python: `craft` is stored there (`model.py`, `io.py`, sent by
-    `bridge.commit`), but nothing reads it.
+  - Not in the Python: `craft` and `filet_mesh` are stored there (`model.py`, `io.py`, sent
+    by `bridge.commit`, kept through `edit.py`), but nothing reads them.
   - The other crafts considered, and what each would take, are in
     [`crafts.md`](../crafts.md).
 - <a id="full-width"></a>**The window's whole width**: the Work screen was capped at 90rem

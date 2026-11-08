@@ -60,6 +60,7 @@ function toPattern(r: PatternRecord): Pattern {
     alternate_direction: r.alternate_direction,
     bottom_up: r.bottom_up,
     craft: 'tapestry',
+    filet_mesh: 'ch2-dc',
   }
 }
 

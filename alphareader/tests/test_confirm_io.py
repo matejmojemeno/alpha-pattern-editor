@@ -190,6 +190,24 @@ def test_tapestry_craft_is_left_out_of_the_file(tmp_path):
     assert io.load_project(path).pattern.craft == "tapestry"
 
 
+def test_filet_mesh_persists_and_the_default_is_left_out(tmp_path):
+    """The mesh every older file uses isn't written, so those files save as they did."""
+    import json, zipfile
+    img, pattern = _sample_project()
+    assert pattern.filet_mesh == "ch2-dc"
+    path = str(tmp_path / "d.alpha")
+    io.save_project(Project(pattern=pattern), path, source_img=img)
+    with zipfile.ZipFile(path) as z:
+        assert "filet_mesh" not in json.loads(z.read("pattern.json"))
+    assert io.load_project(path).pattern.filet_mesh == "ch2-dc"
+
+    # Another mesh is kept, and so is one from a newer build.
+    for mesh in ("ch1-dc", "some-future-mesh"):
+        pattern.filet_mesh = mesh
+        io.save_project(Project(pattern=pattern), path, source_img=img)
+        assert io.load_project(path).pattern.filet_mesh == mesh
+
+
 def test_unknown_craft_is_kept(tmp_path):
     """A craft from a newer build survives a load and save here, unchanged."""
     img, pattern = _sample_project()

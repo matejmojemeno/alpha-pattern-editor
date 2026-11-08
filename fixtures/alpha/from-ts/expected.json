@@ -63,7 +63,8 @@
     "start_direction": "RTL",
     "alternate_direction": true,
     "bottom_up": false,
-    "craft": "stranded-knit"
+    "craft": "stranded-knit",
+    "filet_mesh": "ch2-tr"
    },
    "progress": {
     "completed_row_ids": [
@@ -92,7 +93,8 @@
     "start_direction": "LTR",
     "alternate_direction": false,
     "bottom_up": true,
-    "craft": "tapestry"
+    "craft": "tapestry",
+    "filet_mesh": "ch2-dc"
    },
    "progress": {
     "completed_row_ids": [],
@@ -166,7 +168,8 @@
     "start_direction": "RTL",
     "alternate_direction": true,
     "bottom_up": false,
-    "craft": "stranded-knit"
+    "craft": "stranded-knit",
+    "filet_mesh": "ch2-tr"
    },
    "progress": {
     "completed_row_ids": [
@@ -274,7 +277,8 @@
     "start_direction": "RTL",
     "alternate_direction": true,
     "bottom_up": true,
-    "craft": "tapestry"
+    "craft": "tapestry",
+    "filet_mesh": "ch2-dc"
    },
    "progress": {
     "completed_row_ids": [],
@@ -339,7 +343,8 @@
     "start_direction": "RTL",
     "alternate_direction": true,
     "bottom_up": true,
-    "craft": "c2c-someday"
+    "craft": "c2c-someday",
+    "filet_mesh": "ch2-dc"
    },
    "progress": {
     "completed_row_ids": [],
@@ -426,7 +431,143 @@
     "start_direction": "LTR",
     "alternate_direction": true,
     "bottom_up": false,
-    "craft": "bracelet"
+    "craft": "bracelet",
+    "filet_mesh": "ch2-dc"
+   },
+   "progress": {
+    "completed_row_ids": [],
+    "current_row_id": null,
+    "current_run_index": 0,
+    "current_run_stitches": 0,
+    "started_at": null
+   },
+   "source_png_sha256": null
+  },
+  "roundtrip-filet-mesh-unknown.alpha": {
+   "roundtrip_of": "filet-mesh-unknown.alpha",
+   "stage": "design",
+   "pattern": {
+    "id": "86e2618eaa3b8afa2b510343ec29ad51",
+    "name": "filet-mesh-unknown",
+    "created_at": 1758600000.125,
+    "updated_at": 1758700000.123456,
+    "rows": 3,
+    "cols": 4,
+    "row_ids": [
+     "e9580f8f1290e879ffc7fc1c7f83aa95",
+     "70c0b79bd8089cddd4d21d4a6ea9efa9",
+     "affb75092e28d898d9d44b147743f241"
+    ],
+    "cells": [
+     [
+      1,
+      1,
+      0,
+      1
+     ],
+     [
+      0,
+      1,
+      0,
+      1
+     ],
+     [
+      0,
+      0,
+      0,
+      1
+     ]
+    ],
+    "palette": [
+     {
+      "id": "c0",
+      "hex": "#ffffff",
+      "name": "White",
+      "dmc": "B5200",
+      "count": 6
+     },
+     {
+      "id": "c1",
+      "hex": "#6b3e26",
+      "name": "Brown",
+      "dmc": "433",
+      "count": 6
+     }
+    ],
+    "start_direction": "RTL",
+    "alternate_direction": true,
+    "bottom_up": true,
+    "craft": "filet",
+    "filet_mesh": "ch3-someday"
+   },
+   "progress": {
+    "completed_row_ids": [],
+    "current_row_id": null,
+    "current_run_index": 0,
+    "current_run_stitches": 0,
+    "started_at": null
+   },
+   "source_png_sha256": null
+  },
+  "roundtrip-filet-mesh.alpha": {
+   "roundtrip_of": "filet-mesh.alpha",
+   "stage": "design",
+   "pattern": {
+    "id": "8570cba92e3cf5fb69245e9c7efdd861",
+    "name": "filet-mesh",
+    "created_at": 1758600000.125,
+    "updated_at": 1758700000.123456,
+    "rows": 3,
+    "cols": 5,
+    "row_ids": [
+     "ce53d44f6ca8560cb895e89da99fe3d9",
+     "433e3d1191ef5eb315c4e35eaf65b989",
+     "e91240ac7be336a42e872bf53deddb21"
+    ],
+    "cells": [
+     [
+      0,
+      0,
+      1,
+      1,
+      1
+     ],
+     [
+      0,
+      1,
+      1,
+      1,
+      0
+     ],
+     [
+      0,
+      0,
+      0,
+      1,
+      1
+     ]
+    ],
+    "palette": [
+     {
+      "id": "c0",
+      "hex": "#ffffff",
+      "name": "White",
+      "dmc": "B5200",
+      "count": 7
+     },
+     {
+      "id": "c1",
+      "hex": "#6b3e26",
+      "name": "Brown",
+      "dmc": "433",
+      "count": 8
+     }
+    ],
+    "start_direction": "RTL",
+    "alternate_direction": true,
+    "bottom_up": true,
+    "craft": "filet",
+    "filet_mesh": "ch1-dc"
    },
    "progress": {
     "completed_row_ids": [],
@@ -18851,7 +18992,8 @@
     "start_direction": "RTL",
     "alternate_direction": true,
     "bottom_up": true,
-    "craft": "tapestry"
+    "craft": "tapestry",
+    "filet_mesh": "ch2-dc"
    },
    "progress": {
     "completed_row_ids": [],
@@ -18916,7 +19058,8 @@
     "start_direction": "LTR",
     "alternate_direction": true,
     "bottom_up": true,
-    "craft": "tapestry"
+    "craft": "tapestry",
+    "filet_mesh": "ch2-dc"
    },
    "progress": {
     "completed_row_ids": [],
@@ -18999,7 +19142,8 @@
     "start_direction": "RTL",
     "alternate_direction": true,
     "bottom_up": true,
-    "craft": "tapestry"
+    "craft": "tapestry",
+    "filet_mesh": "ch2-dc"
    },
    "progress": {
     "completed_row_ids": [
@@ -19156,7 +19300,8 @@
     "start_direction": "LTR",
     "alternate_direction": false,
     "bottom_up": false,
-    "craft": "tapestry"
+    "craft": "tapestry",
+    "filet_mesh": "ch2-dc"
    },
    "progress": {
     "completed_row_ids": [
@@ -19240,7 +19385,8 @@
     "start_direction": "RTL",
     "alternate_direction": true,
     "bottom_up": true,
-    "craft": "tapestry"
+    "craft": "tapestry",
+    "filet_mesh": "ch2-dc"
    },
    "progress": {
     "completed_row_ids": [],
@@ -19309,7 +19455,8 @@
     "start_direction": "RTL",
     "alternate_direction": true,
     "bottom_up": true,
-    "craft": "tapestry"
+    "craft": "tapestry",
+    "filet_mesh": "ch2-dc"
    },
    "progress": {
     "completed_row_ids": [],
@@ -19433,7 +19580,8 @@
     "start_direction": "RTL",
     "alternate_direction": true,
     "bottom_up": true,
-    "craft": "tapestry"
+    "craft": "tapestry",
+    "filet_mesh": "ch2-dc"
    },
    "progress": {
     "completed_row_ids": [

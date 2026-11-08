@@ -31,6 +31,7 @@ function project(overrides: Partial<Project['pattern']> = {}): Project {
       alternate_direction: true,
       bottom_up: true,
       craft: 'tapestry',
+      filet_mesh: 'ch2-dc',
       ...overrides,
     },
     progress: {
@@ -133,6 +134,20 @@ describe('writeAlpha / readAlpha', () => {
       const { bytes } = writeAlpha(project({ craft }))
       expect(strFromU8(unzipSync(bytes)['pattern.json']!)).toMatch(new RegExp(`"bottom_up": true, "craft": "${craft}"}$`))
       expect(readAlpha(bytes).project.pattern.craft).toBe(craft)
+    }
+  })
+
+  it('leaves the default filet mesh out of pattern.json, and reads none as it', () => {
+    const { bytes } = writeAlpha(project())
+    expect(strFromU8(unzipSync(bytes)['pattern.json']!)).not.toContain('filet_mesh')
+    expect(readAlpha(bytes).project.pattern.filet_mesh).toBe('ch2-dc')
+  })
+
+  it('writes any other filet mesh after the craft, and keeps one it does not know', () => {
+    for (const filet_mesh of ['ch1-dc', 'from-a-newer-build']) {
+      const { bytes } = writeAlpha(project({ craft: 'filet', filet_mesh }))
+      expect(strFromU8(unzipSync(bytes)['pattern.json']!)).toMatch(new RegExp(`"craft": "filet", "filet_mesh": "${filet_mesh}"}$`))
+      expect(readAlpha(bytes).project.pattern.filet_mesh).toBe(filet_mesh)
     }
   })
 

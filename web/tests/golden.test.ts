@@ -87,6 +87,7 @@ function toPattern(rec: Golden['cases'][number]['pattern']): Pattern {
     alternate_direction: rec.alternate_direction,
     bottom_up: rec.bottom_up,
     craft: 'tapestry',
+    filet_mesh: 'ch2-dc',
   }
 }
 

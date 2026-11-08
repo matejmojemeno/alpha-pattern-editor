@@ -93,7 +93,7 @@ import {
 import { carryProgress, losesProgress, progressLoss, type ProgressLoss } from '../../logic/progress.ts'
 import { formatStats, workingNumber } from '../../logic/readout.ts'
 import { craftOf } from '../../craft/crafts.ts'
-import { foundationChain } from '../../craft/filet.ts'
+import { foundation } from '../../craft/filet.ts'
 import type { Pattern, Project } from '../../model/types.ts'
 import { fitCell, zoomStep, type Overlay } from '../../render/design.ts'
 import { exportPng } from '../../render/png.ts'
@@ -1057,8 +1057,8 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
           {formatStats(p.cols, p.rows, p.palette.length)}
           {/* A friendship bracelet is knotted on cols + 1 strings; no other craft needs it. */}
           {craftOf(p).id === 'bracelet' && `   ·   ${p.cols + 1} strings`}
-          {/* Filet crochet: 3 chain a square, plus 1 (craft/filet.ts). */}
-          {craftOf(p).id === 'filet' && `   ·   foundation chain ${foundationChain(p.cols)}`}
+          {/* Filet crochet: the chain row 1 is worked into (craft/filet.ts). */}
+          {craftOf(p).id === 'filet' && `   ·   foundation chain ${foundation(p).chains}`}
         </span>
         <span className="design__message" role="status" aria-live="polite">
           {message}

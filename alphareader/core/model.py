@@ -38,6 +38,9 @@ class Pattern:
     # app reads it, for the Work stage's words and hints; readout and progress ignore it.
     # An id this code doesn't know is kept as it is, so a newer build's craft survives.
     craft: str = "tapestry"
+    # The stitches filet crochet is worked in, as a mesh id from web/src/craft/filet.ts
+    # (§15). Like craft, only the web app reads it, and an unknown id is kept as it is.
+    filet_mesh: str = "ch2-dc"
 
 
 @dataclass

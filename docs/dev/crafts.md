@@ -23,11 +23,11 @@ is built** (the Work stage's **Craft** option, §15). The rest is the plan.
 | Intarsia crochet and intarsia knitting | same readout; no carry hints (a bobbin per area) | built |
 | Alpha friendship bracelets | from the top, row 1 left to right, rows turn; "knots" | built |
 | Bead loom | rows don't turn; "beads" | built; the first row isn't set, as sources disagree |
-| Filet crochet | "squares"; the lightest colour is spaces, the rest blocks; chips give the stitches (3 dc a block, ch 2 + dc a space) and row 1 the foundation chain | built (`craft/filet.ts`); the turning chain isn't set, as sources disagree |
+| Filet crochet | "squares"; the lightest colour is spaces, the rest blocks; chips give the stitches and row 1 the foundation chain, in the mesh picked (ch 2, dc; ch 1, dc; ch 2, tr) | built (`craft/filet.ts`); row 1's chain counts the usual turning chain (ch 3 for dc, ch 4 for tr) and says its parts, for makers who start rows another way |
 
 How it's built:
 - The pattern stores `craft` (`Pattern.craft`, in `pattern.json`, left out for tapestry
-  crochet).
+  crochet), and filet crochet's mesh (`Pattern.filet_mesh`, left out for ch 2, dc).
 - `web/src/craft/crafts.ts` gives each craft its reading order, unit and hints.
 - Every convention is sourced in [`web/src/craft/README.md`](../../web/src/craft/README.md).
 - The Work stage's area note says what the screen does:
