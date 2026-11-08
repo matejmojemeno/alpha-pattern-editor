@@ -104,16 +104,16 @@ test('a chart about as tall as wide gets the room the chips leave, and sits in t
   await expect(page.getByRole('region', { name: 'This row' })).toBeVisible()
   expect(m.label.height).toBeLessThanOrEqual(1)
   // Sized by its height, the grid is narrower than the view: it's in the middle of it.
-  const grid = m.gridWidth - 34 - 6
+  const grid = m.gridWidth - 34 - 6 - 12
   expect(m.inset).toBeGreaterThan(10)
-  expect(Math.abs(m.inset - (m.view - 34 - 6 - grid) / 2)).toBeLessThanOrEqual(0.5)
+  expect(Math.abs(m.inset - (m.view - 34 - 6 - 12 - grid) / 2)).toBeLessThanOrEqual(0.5)
 })
 
 test('a wide chart takes only the height it draws, and the chips get the rest', async ({ page }, testInfo) => {
   await open(page, testInfo.outputPath('wide.alpha'), project(20, 40))
   const m = await measure(page)
   // Sized by the width: as big as the width allows, across the whole width.
-  expect(m.cell).toBe(Math.floor((m.view - 34 - 6) / 40))
+  expect(m.cell).toBe(Math.floor((m.view - 34 - 6 - 12) / 40))
   // No taller than it draws, but for the two taller rows above row 1 that aren't there
   // (the cells are sized as if they were, so they keep their size up the chart).
   expect(m.chart.height - m.drawn).toBeGreaterThanOrEqual(-0.5)
@@ -121,7 +121,8 @@ test('a wide chart takes only the height it draws, and the chips get the rest', 
   // The chips take the rest.
   expect(m.chips.top - m.chart.bottom).toBeLessThan(16)
   expect(m.bar - m.chips.bottom).toBeLessThan(16)
-  expect(m.inset).toBe(0)
+  // All but the part of a pixel per column that whole-pixel cells can't use.
+  expect(m.inset * 2).toBeLessThan(40)
 })
 
 test('on a row of many segments the current chip stays in full view', async ({ page }, testInfo) => {

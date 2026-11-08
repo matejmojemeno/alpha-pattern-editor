@@ -294,6 +294,25 @@ Newest last, as they were built.
     the inset centres the grid only when it's narrower than the view; and taps find the
     right stitch with and without one. On the old code the phone spec gets 4 px stitches
     where it asks for 7.
+- <a id="row-tab"></a>**The way a row is worked is on the chart, beside the row**
+  (`drawChart` in `render/chart.ts`). The arrow used to follow "Row 7 of 30" in the status
+  line, well away from the row it described. Now the current row's number sits in a small
+  accent-coloured tab in the row-number margin, joined to the row's outline, and a line
+  arrow marks the side the row starts from, pointing into the row: in that same tab for
+  a row worked left to right, in a tab of its own right of the grid otherwise. The header
+  keeps the direction for screen readers.
+  - In the margins because nothing else is there: they never scroll (so the tabs stay by
+    the row at any zoom), they can't cover a stitch, and taps there do nothing. `AXIS_LEFT`
+    stays 34 px, since Design shares it.
+  - The right-hand tab needs `WORK_END_GUTTER` (12 px), on top of `PAD`, taken from the
+    Work chart's width only (`endGutter` in `layout.ts`; Design and PNG exports have
+    none). A zoomed chart is clipped at the gutter and taps there find no stitch.
+  - A tab, not a bare arrow: amber on the page is too faint for a 9 px arrow glanced at
+    while working; black on amber isn't, in light or dark.
+  - The tab is the row's height, from 16 to 24 px. It stays on the grid at the first and
+    last rows, and hides any neighbouring row number it would overlap. The number starts
+    from 11 px, larger than the axis numbers on small-celled charts, and three digits
+    shrink to fit beside the arrow (8 px at the least).
 - <a id="row-colours-switch"></a>**Hide "This row"** (`showRowColours` in `settings/store.ts`;
   the panel button `.work__panel` in the Work header, `ui/screens/Work.tsx`;
   `.work__body--chart` in `ui/app.css`; **on** by default, app-wide). The owner works wide

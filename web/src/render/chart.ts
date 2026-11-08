@@ -7,7 +7,8 @@
  * the visible canvas with smoothing off, and draws the few things that depend on
  * progress and scroll position over it: gridlines, the stitch numbers and the strands to
  * carry (each when asked for), the done-wash and strike line (over done rows and the part
- * of the current row already worked), the current-row outline and the axis numbers.
+ * of the current row already worked), the current-row outline, the axis numbers and the
+ * tabs beside the current row: its number, and an arrow on the side the row starts from.
  * Nothing fills cells one at a time per frame, which is what keeps an 88×194 chart
  * scrolling smoothly on a phone.
  *
@@ -349,6 +350,37 @@ function drawNumbers(ctx: CanvasRenderingContext2D, d: DrawInput, from: number, 
   }
 }
 
+/** The tab beside the current row: as tall as the row, within these, so short rows still
+ *  get a tab that can be read and tall ones don't get a slab. */
+export const ROW_TAB_MIN = 16
+export const ROW_TAB_MAX = 24
+/** The smallest size the tab's row number starts from, in CSS px. */
+const ROW_TAB_FONT = 11
+/** Where the arrow goes in the left tab, from the canvas's left: [start, start + width]. */
+const ROW_ARROW_X = 3.5
+const ROW_ARROW_W = 9
+/** How wide the right-hand tab is: the arrow alone, inside WORK_END_GUTTER + PAD. */
+const ROW_END_TAB_W = 16
+/** How wide the row number can be, between the arrow and the number's right edge. */
+const ROW_TAB_TEXT = AXIS_LEFT - 4 - (ROW_ARROW_X + ROW_ARROW_W + 2)
+
+/** The way the current row is worked, as a line arrow from `left`, centred on `y`. */
+function drawRowArrow(ctx: CanvasRenderingContext2D, left: number, y: number, rtl: boolean): void {
+  const right = left + ROW_ARROW_W
+  const tip = rtl ? left : right
+  const back = rtl ? left + 4 : right - 4
+  ctx.lineWidth = 1.75
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  ctx.beginPath()
+  ctx.moveTo(rtl ? right : left, y)
+  ctx.lineTo(tip, y)
+  ctx.moveTo(back, y - 3.5)
+  ctx.lineTo(tip, y)
+  ctx.lineTo(back, y + 3.5)
+  ctx.stroke()
+}
+
 /** Snap a CSS length to whole device pixels. */
 const px = (v: number, dpr: number) => Math.round(v * dpr) / dpr
 
@@ -376,7 +408,7 @@ export function drawChart(ctx: CanvasRenderingContext2D, d: DrawInput): void {
   ctx.save()
   ctx.beginPath()
   // A little past the grid's top-left, for a current-row outline drawn outside the row.
-  ctx.rect(AXIS_LEFT - 3, AXIS_TOP - 3, areaW + 3, areaH + 3)
+  ctx.rect(AXIS_LEFT - 3, AXIS_TOP - 3, (l.endGutter > 0 ? l.viewWidth + 3 : areaW) + 3, areaH + 3)
   ctx.clip()
 
   ctx.imageSmoothingEnabled = false
@@ -435,7 +467,10 @@ export function drawChart(ctx: CanvasRenderingContext2D, d: DrawInput): void {
   ctx.font = `${fs}px ${colors.fontFamily}`
 
   // Row numbers, in working order, in the left margin. The current row's is always shown,
-  // in the text colour, and a neighbour's that would overlap it is dropped.
+  // in a tab (the margins never scroll and taps there do nothing, so the tabs cover no
+  // stitch and stay by the row however far it's zoomed), and a neighbour's that the tab
+  // would overlap is dropped. The arrow goes on the side the row starts from, pointing
+  // into it: here for a row worked left to right, on the right otherwise, below.
   ctx.save()
   ctx.beginPath()
   ctx.rect(0, AXIS_TOP, AXIS_LEFT, areaH)
@@ -444,21 +479,69 @@ export function drawChart(ctx: CanvasRenderingContext2D, d: DrawInput): void {
   ctx.textBaseline = 'middle'
   const mid = (i: number) => oy + l.offsets[i]! + l.heights[i]! / 2
   const curMid = cur >= from && cur < to ? mid(cur) : null
+  const tabH = curMid === null ? 0 : Math.max(ROW_TAB_MIN, Math.min(ROW_TAB_MAX, l.heights[cur]!))
+  // Kept on the grid, so on a short first or last row the margin doesn't cut it off.
+  const tabTop = curMid === null ? 0 : Math.max(oy, Math.min(oy + l.gridHeight - tabH, curMid - tabH / 2))
+  const tabMid = tabTop + tabH / 2
+  const rtl = curMid !== null && rowDirection(d.pattern, first + cur) === 'RTL'
+  let ink = '#000000'
+  try {
+    ink = contrastOn(colors.accent)
+  } catch {
+    // an accent that isn't a hex colour: black reads on most
+  }
   ctx.fillStyle = colors.axis
   for (let i = from; i < to; i++) {
     if (i === cur) continue
     const num = workingNumber(d.pattern, first + i)
     if (!showAxisNumber(num, l.rows)) continue
-    if (curMid !== null && Math.abs(mid(i) - curMid) < fs) continue
+    if (curMid !== null && Math.abs(mid(i) - tabMid) < (tabH + fs) / 2) continue
     ctx.fillText(String(num), AXIS_LEFT - 4, mid(i))
   }
   if (curMid !== null) {
-    ctx.fillStyle = colors.text
-    ctx.font = `600 ${fs}px ${colors.fontFamily}`
-    ctx.fillText(String(workingNumber(d.pattern, first + cur)), AXIS_LEFT - 4, curMid)
+    ctx.fillStyle = colors.accent
+    ctx.beginPath()
+    ctx.moveTo(AXIS_LEFT, tabTop)
+    ctx.arcTo(1, tabTop, 1, tabMid, 4)
+    ctx.arcTo(1, tabTop + tabH, AXIS_LEFT, tabTop + tabH, 4)
+    ctx.lineTo(AXIS_LEFT, tabTop + tabH)
+    ctx.closePath()
+    ctx.fill()
+
+    ctx.fillStyle = ink
+    ctx.strokeStyle = ink
+    if (!rtl) drawRowArrow(ctx, ROW_ARROW_X, tabMid, false)
+    // The tab has room for a readable number even where the axis numbers are tiny. Three
+    // digits don't fit beside the arrow at that size: smaller, never under it.
+    const label = String(workingNumber(d.pattern, first + cur))
+    const size = Math.max(fs, ROW_TAB_FONT)
+    ctx.font = `600 ${size}px ${colors.fontFamily}`
+    const wide = ctx.measureText(label).width
+    if (wide > ROW_TAB_TEXT) ctx.font = `600 ${Math.max(8, Math.floor((size * ROW_TAB_TEXT) / wide))}px ${colors.fontFamily}`
+    ctx.fillText(label, AXIS_LEFT - 4, tabMid)
     ctx.font = `${fs}px ${colors.fontFamily}`
   }
   ctx.restore()
+
+  if (curMid !== null && rtl) {
+    // Against the grid, or the edge of the view while the chart runs on past it.
+    const edge = AXIS_LEFT + Math.min(gw - sx, l.viewWidth)
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(edge - 1, AXIS_TOP, ROW_END_TAB_W + 2, areaH)
+    ctx.clip()
+    ctx.fillStyle = colors.accent
+    ctx.beginPath()
+    ctx.moveTo(edge, tabTop)
+    ctx.arcTo(edge + ROW_END_TAB_W, tabTop, edge + ROW_END_TAB_W, tabMid, 4)
+    ctx.arcTo(edge + ROW_END_TAB_W, tabTop + tabH, edge, tabTop + tabH, 4)
+    ctx.lineTo(edge, tabTop + tabH)
+    ctx.closePath()
+    ctx.fill()
+    ctx.strokeStyle = ink
+    drawRowArrow(ctx, edge + (ROW_END_TAB_W - ROW_ARROW_W) / 2, tabMid, true)
+    ctx.restore()
+  }
 
   // Column numbers along the top, centred over their column.
   ctx.save()

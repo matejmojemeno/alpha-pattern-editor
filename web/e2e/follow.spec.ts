@@ -14,7 +14,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 import { encodeRow } from '../src/logic/readout.ts'
 import { emptyProgress, type Pattern, type Project } from '../src/model/types.ts'
-import { AXIS_LEFT, PAD } from '../src/render/layout.ts'
+import { AXIS_LEFT, PAD, WORK_END_GUTTER } from '../src/render/layout.ts'
 import { writeAlpha } from '../src/storage/alpha.ts'
 
 test.use({ viewport: { width: 400, height: 860 }, hasTouch: true, isMobile: true })
@@ -96,8 +96,8 @@ async function expectPlaceInView(page: Page, n: number, runIndex: number, stitch
   const col = n % 2 === 1 ? position : pattern.cols - 1 - position
   const s = await settledScroll(page)
   // The scroller holds the grid plus its margins; what's left of its width shows the grid.
-  const cell = (s.scrollWidth - AXIS_LEFT - PAD) / pattern.cols
-  const view = s.width - AXIS_LEFT - PAD
+  const cell = (s.scrollWidth - AXIS_LEFT - PAD - WORK_END_GUTTER) / pattern.cols
+  const view = s.width - AXIS_LEFT - PAD - WORK_END_GUTTER
   const x = col * cell
   expect(x, `row ${n}, segment ${runIndex} + ${stitches}: col ${col}`).toBeGreaterThanOrEqual(s.left - 0.5)
   expect(x + cell,`row ${n}, segment ${runIndex} + ${stitches}: col ${col}`).toBeLessThanOrEqual(s.left + view + 0.5)
@@ -123,7 +123,7 @@ test('the chart follows your place across a wide chart', async ({ page }, testIn
   await page.goto('/#/library')
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(file)
   await page.getByRole('listitem').filter({ hasText: p.name }).getByRole('link', { name: /^Open / }).click()
-  await expect(rowLabel(page)).toHaveText(`Row 1 of ${ROWS} →`)
+  await expect(rowLabel(page)).toHaveText(`Row 1 of ${ROWS}, left to right`)
 
   // Genuinely wide: the chart scrolls across by more than a screen.
   let s = await settledScroll(page)
@@ -146,7 +146,7 @@ test('the chart follows your place across a wide chart', async ({ page }, testIn
 
   // 2. Completing the last segment starts row 2, right to left: at the right edge.
   await completeSegment(page, runs1.length - 1)
-  await expect(rowLabel(page)).toHaveText(`Row 2 of ${ROWS} ←`)
+  await expect(rowLabel(page)).toHaveText(`Row 2 of ${ROWS}, right to left`)
   s = await expectPlaceInView(page, 2, 0, 0)
   expect(s.left).toBe(s.max)
 
@@ -170,17 +170,17 @@ test('the chart follows your place across a wide chart', async ({ page }, testIn
 
   // 5. Keyboard: → starts row 3 at the left edge; ← goes back to row 2, at the right edge.
   await page.keyboard.press('ArrowRight')
-  await expect(rowLabel(page)).toHaveText(`Row 3 of ${ROWS} →`)
+  await expect(rowLabel(page)).toHaveText(`Row 3 of ${ROWS}, left to right`)
   s = await expectPlaceInView(page, 3, 0, 0)
   expect(s.left).toBe(0)
   await page.keyboard.press('ArrowLeft')
-  await expect(rowLabel(page)).toHaveText(`Row 2 of ${ROWS} ←`)
+  await expect(rowLabel(page)).toHaveText(`Row 2 of ${ROWS}, right to left`)
   s = await expectPlaceInView(page, 2, 0, 0)
   expect(s.left).toBe(s.max)
 
   // 6. Row complete, from the button: row 3 again, from the left.
   await page.getByRole('button', { name: 'Row complete →' }).tap()
-  await expect(rowLabel(page)).toHaveText(`Row 3 of ${ROWS} →`)
+  await expect(rowLabel(page)).toHaveText(`Row 3 of ${ROWS}, left to right`)
   s = await expectPlaceInView(page, 3, 0, 0)
   expect(s.left).toBe(0)
 })
@@ -195,7 +195,7 @@ test('zoomed in, saving part way through a segment moves the chart on to the sti
   await page.goto('/#/library')
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(file)
   await page.getByRole('listitem').filter({ hasText: 'Zoomed scarf' }).getByRole('link', { name: /^Open / }).click()
-  await expect(rowLabel(page)).toHaveText(`Row 1 of ${ROWS} →`)
+  await expect(rowLabel(page)).toHaveText(`Row 1 of ${ROWS}, left to right`)
   expect((await settledScroll(page)).max).toBe(0)
 
   // Ctrl + wheel, as a trackpad's pinch arrives: about 4.5×, about the middle of the chart.
@@ -219,7 +219,7 @@ test('zoomed in, saving part way through a segment moves the chart on to the sti
   }
   const a = await save(2)
   const b = await save(4)
-  const cell = (b.scrollWidth - AXIS_LEFT - PAD) / scarf.pattern.cols
+  const cell = (b.scrollWidth - AXIS_LEFT - PAD - WORK_END_GUTTER) / scarf.pattern.cols
   expect(b.left - a.left).toBeCloseTo(2 * cell, 0)
 })
 
@@ -231,7 +231,7 @@ test('a wide chart that fits on screen is shown whole, never scrolled', async ({
   await page.goto('/#/library')
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(file)
   await page.getByRole('listitem').filter({ hasText: 'Narrow scarf' }).getByRole('link', { name: /^Open / }).click()
-  await expect(rowLabel(page)).toHaveText(`Row 1 of ${ROWS} →`)
+  await expect(rowLabel(page)).toHaveText(`Row 1 of ${ROWS}, left to right`)
   const fits = () =>
     scroller(page).evaluate((el) => ({ x: el.scrollWidth - el.clientWidth, y: el.scrollHeight - el.clientHeight }))
   expect(await fits()).toEqual({ x: 0, y: 0 })
@@ -250,7 +250,7 @@ test('a chart that fits across never scrolls sideways', async ({ page }) => {
   // Saved by the desktop in the Design stage, with no progress: the card opens Design.
   await page.getByRole('listitem').first().getByRole('link', { name: /^Open / }).click()
   await page.getByRole('button', { name: 'Start working →' }).click()
-  await expect(rowLabel(page)).toHaveText('Row 1 of 5 ←')
+  await expect(rowLabel(page)).toHaveText('Row 1 of 5, right to left')
   for (const key of ['ArrowRight', 'ArrowRight', 'ArrowLeft']) {
     await page.keyboard.press(key)
     const s = await settledScroll(page)

@@ -7,15 +7,18 @@ Your place is saved as you go; there's no Save button. It follows tapestry croch
 you [choose another craft](#choose-your-craft).
 
 <p>
-  <img src="media/work.png" alt="The Work screen: Row 7 of 30 with an arrow pointing left, the current row as colour chips (1 Red, 8 Blue, 2 Beige, 10 White…), the chart with the current row outlined and finished rows greyed, and a Row complete button" width="600">
+  <img src="media/work.png" alt="The Work screen: Row 7 of 30, the current row as colour chips (1 Red, 8 Blue, 2 Beige, 10 White…), the chart with the current row outlined, its number in a tab on the left, an arrow pointing left in a tab on the right where the row starts, and finished rows greyed, and a Row complete button" width="600">
   <img src="media/work-phone.png" alt="The Work screen on a phone" width="190">
 </p>
 
 ## Read the screen
 
-- **Row 7 of 30 ←** is the row you're on, and the arrow is the way you work it: ← right
-  to left, → left to right. Beside it, how many stitches you've done out of the whole
-  pattern, and a bar with the percentage (on a phone, the bar alone).
+- **Row 7 of 30** is the row you're on. Beside it, how many stitches you've done out of
+  the whole pattern, and a bar with the percentage (on a phone, the bar alone).
+- The **orange tabs** beside the current row on the chart show its number, on the left,
+  and an arrow on the side you start the row from, pointing the way you work it: → at the
+  left of the row, ← at the right. They stay beside the row when you zoom in or scroll
+  across.
 - **This row** lists the row's colours in the order you work them: "1 Red", then "8 Blue",
   and so on. The colour you're on is outlined. On a phone it's right under the chart,
   without the heading, and the chart takes all the room it can use: the list gets the

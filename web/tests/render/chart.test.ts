@@ -6,6 +6,8 @@ import {
   DONE_WASH,
   GRID_COLOR,
   NUMBER_MIN_FONT,
+  ROW_TAB_MAX,
+  ROW_TAB_MIN,
   bands,
   carryStrip,
   carryThickness,
@@ -18,7 +20,7 @@ import {
   stitchNumbers,
   type CellImage,
 } from '../../src/render/chart.ts'
-import { AXIS_LEFT, AXIS_TOP, computeLayout, type RowPlace } from '../../src/render/layout.ts'
+import { AXIS_LEFT, AXIS_TOP, WORK_END_GUTTER, computeLayout, type RowPlace } from '../../src/render/layout.ts'
 import { SKIP_INDEX, type Pattern } from '../../src/model/types.ts'
 
 function pattern(rows: number, cols: number, cells?: number[]): Pattern {
@@ -128,6 +130,10 @@ function recorder() {
   return { ctx, calls }
 }
 
+/** Stitch numbers are in black or white over the grid; the row tab's number, also black, isn't. */
+const isStitchNumber = (c: { op: string; args: unknown[]; fillStyle: unknown }) =>
+  c.op === 'fillText' && (c.fillStyle === '#000000' || c.fillStyle === '#ffffff') && (c.args[1] as number) >= AXIS_LEFT
+
 const colors = { background: '#fff', text: '#111', axis: '#777', accent: '#f0a800', fontFamily: 'sans-serif' }
 
 describe('drawChart', () => {
@@ -189,6 +195,110 @@ describe('drawChart', () => {
     expect(texts.slice(0, 10)).toEqual(['10', '9', '8', '7', '6', '5', '4', '3', '2', '1'])
     // Column numbers 1..10 along the top.
     expect(texts.slice(-10)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'])
+  })
+
+  describe('the tab beside the current row', () => {
+    /** Draws 10 × 10 rows with `current` as the image row being worked. Bottom up from the
+     *  right: image row 9 is worked right to left, image row 8 left to right. */
+    function tab(current: number | null, opts: { rows?: number; cols?: number; width?: number; height?: number; digitWidth?: number; zoom?: number; scrollX?: number } = {}) {
+      const rows = opts.rows ?? 10
+      const cols = opts.cols ?? 10
+      const width = opts.width ?? 240
+      const height = opts.height ?? 228
+      const layout = computeLayout({ rows, cols, current, emphasise: false, focus: false, width, height, zoom: opts.zoom, endGutter: WORK_END_GUTTER })
+      const { ctx, calls } = recorder()
+      ctx.measureText = (s: string) => ({ width: s.length * (opts.digitWidth ?? 7) }) as TextMetrics
+      drawChart(ctx, { layout, image: {} as CellImage, pattern: pattern(rows, cols), completed: new Set(), scrollX: opts.scrollX ?? 0, scrollY: 0, width, height, dpr: 1, colors })
+      const fills = calls.findIndex((k, i) => k.op === 'fill' && k.fillStyle === colors.accent && calls[i - 1]?.op === 'closePath')
+      const stroke = calls.findIndex((k) => k.op === 'stroke')
+      const label = calls.find((k) => k.op === 'fillText' && k.fillStyle === '#000000' && (k.args[1] as number) === AXIS_LEFT - 4)
+      const arrowFill = calls.slice(0, stroke).findLastIndex((k) => k.op === 'fill')
+      return { layout, calls, fills, stroke, label, path: calls.slice(arrowFill + 1, stroke) }
+    }
+    /** Where the arrow's shaft starts and ends: the first moveTo, then the lineTo after it. */
+    const shaft = (t: ReturnType<typeof tab>) => {
+      const from = t.path.findIndex((k) => k.op === 'moveTo')
+      return [t.path[from]!.args[0] as number, t.path[from + 1]!.args[0] as number]
+    }
+
+    it('puts the arrow on the side the row starts from, pointing into the row', () => {
+      // Working row 2, left to right: in the left margin.
+      const ltr = shaft(tab(8))
+      expect(Math.max(...ltr)).toBeLessThanOrEqual(AXIS_LEFT)
+      // Working row 1, right to left: past the grid's right-hand edge.
+      const t = tab(9)
+      expect(Math.min(...shaft(t))).toBeGreaterThanOrEqual(AXIS_LEFT + t.layout.gridWidth)
+    })
+
+    it('keeps the right-hand arrow at the edge of the view on a zoomed chart, with no stitch under it', () => {
+      const t = tab(0, { rows: 1, zoom: 4, scrollX: 40 }) // one row, right to left
+      expect(t.layout.gridWidth - 40).toBeGreaterThan(t.layout.viewWidth)
+      const [from, to] = shaft(t)
+      expect(Math.min(from!, to!)).toBeGreaterThanOrEqual(AXIS_LEFT + t.layout.viewWidth)
+      expect(Math.max(from!, to!)).toBeLessThanOrEqual(240)
+      // The first clip is the grid's: it ends at the view, 3 px over for the row's outline.
+      const clip = t.calls.find((k) => k.op === 'rect')!
+      expect((clip.args[0] as number) + (clip.args[2] as number)).toBe(AXIS_LEFT + t.layout.viewWidth + 3)
+    })
+
+    it('points the way the row is worked, and turns with the rows', () => {
+      const [a0, a1] = shaft(tab(9))
+      expect(a1).toBeLessThan(a0!) // right to left
+      const [b0, b1] = shaft(tab(8))
+      expect(b1).toBeGreaterThan(b0!) // left to right
+    })
+
+    it('stays in the margin, covering no stitch', () => {
+      const t = tab(4) // working row 6, left to right
+      const xs = t.calls.slice(t.fills - 5, t.stroke).flatMap((k) => (k.op === 'moveTo' || k.op === 'lineTo' ? [k.args[0] as number] : []))
+      expect(xs.length).toBeGreaterThan(0)
+      expect(Math.max(...xs)).toBeLessThanOrEqual(AXIS_LEFT)
+    })
+
+    it('holds the number in black on the amber, right-aligned with the other row numbers', () => {
+      const t = tab(5)
+      expect(t.fills).toBeGreaterThanOrEqual(0)
+      expect(t.label!.args[0]).toBe('5')
+      expect(t.calls[t.stroke]!.strokeStyle).toBe('#000000')
+    })
+
+    it('shrinks a number too wide to sit beside the arrow, and leaves one that fits alone', () => {
+      // 20 px cells make 10 px axis numbers, but the tab's starts from 11; there are 15.5 px
+      // between the arrow and its edge.
+      expect(tab(5, { digitWidth: 7 }).label!.font).toMatch(/^600 11px/)
+      const two = tab(50, { rows: 120, height: 3000, digitWidth: 8 })
+      expect(two.label!.args[0]).toBe('70')
+      expect(two.label!.font).toMatch(/^600 10px/)
+      const three = tab(5, { rows: 120, height: 3000, digitWidth: 8 })
+      expect(three.label!.args[0]).toBe('115')
+      expect(three.label!.font).toMatch(/^600 8px/) // never under the axis numbers' smallest
+    })
+
+    it('is as tall as the row within limits, and stays on the grid on the first and last row', () => {
+      const tall = tab(5, { width: 640, height: 628 })
+      const short = tab(0, { rows: 100, cols: 100, height: 328 })
+      const top = (t: ReturnType<typeof tab>) => t.calls.slice(0, t.fills).filter((k) => k.op === 'moveTo').at(-1)!.args[1] as number
+      expect(tall.layout.heights[5]).toBeGreaterThan(ROW_TAB_MAX)
+      expect(short.layout.heights[0]).toBeLessThan(ROW_TAB_MIN)
+      expect(top(tall)).toBeCloseTo(AXIS_TOP + tall.layout.offsets[5]! + (tall.layout.heights[5]! - ROW_TAB_MAX) / 2)
+      // A 3 px row at the very top: the tab starts at the grid, not above it.
+      expect(top(short)).toBe(AXIS_TOP)
+    })
+
+    it('drops the neighbouring row numbers the tab would cover', () => {
+      // 3 px rows: every 5th is numbered, and 5 and 10 are within the tab around row 8.
+      const t = tab(92, { rows: 100, cols: 100, height: 328 })
+      const numbers = t.calls.filter((k) => k.op === 'fillText' && k.args[1] === AXIS_LEFT - 4).map((k) => k.args[0])
+      expect(numbers).toContain('8')
+      expect(numbers).not.toContain('5')
+      expect(numbers).not.toContain('10')
+    })
+
+    it('is not drawn on a finished pattern, which has no current row', () => {
+      const t = tab(null)
+      expect(t.fills).toBe(-1)
+      expect(t.stroke).toBe(-1)
+    })
   })
 
   it('draws each carried strand along the middle of its stitches, stacked by colour, under the done wash', () => {
@@ -254,7 +364,7 @@ describe('drawChart', () => {
       return calls
     }
     const ink = (calls: ReturnType<typeof draw>) =>
-      calls.filter((c) => c.op === 'fillText' && (c.fillStyle === '#000000' || c.fillStyle === '#ffffff')).map((c) => [c.args[0], c.fillStyle])
+      calls.filter(isStitchNumber).map((c) => [c.args[0], c.fillStyle])
     expect(ink(draw(false))).toEqual([])
     const calls = draw(true)
     // Image row 0 is worked second, left to right; row 1 first, right to left.
@@ -269,7 +379,7 @@ describe('drawChart', () => {
       ['1', '#000000'],
     ])
     const wash = calls.findIndex((c) => c.op === 'fillRect' && c.fillStyle === DONE_WASH)
-    const lastNumber = calls.findLastIndex((c) => c.op === 'fillText' && (c.fillStyle === '#000000' || c.fillStyle === '#ffffff'))
+    const lastNumber = calls.findLastIndex(isStitchNumber)
     expect(lastNumber).toBeLessThan(wash)
   })
 
@@ -308,7 +418,7 @@ describe('drawChart', () => {
     const { ctx, calls } = recorder()
     drawChart(ctx, { ...d, image: {} as CellImage, completed: new Set(), scrollX: 0, scrollY: 0, width: 160, height: 400, dpr: 1, colors })
     const rowOf = (y: number) => [0, 1].find((i) => Math.abs(AXIS_TOP + layout.offsets[i]! + h / 2 - y) < 0.01)
-    const stitchText = calls.filter((c) => c.op === 'fillText' && (c.fillStyle === '#000000' || c.fillStyle === '#ffffff'))
+    const stitchText = calls.filter(isStitchNumber)
     expect(stitchText.filter((c) => rowOf(c.args[2] as number) === 0)).toHaveLength(0)
     expect(stitchText.filter((c) => rowOf(c.args[2] as number) === 1)).toHaveLength(cols)
   })
@@ -372,7 +482,7 @@ describe('drawChart', () => {
     expect(numberFont(layout.cell, Math.max(...layout.heights), 1)).toBe(0)
     const { ctx, calls } = recorder()
     drawChart(ctx, { layout, image: {} as CellImage, pattern: p, completed: new Set(), numbers: true, scrollX: 0, scrollY: 0, width: 600, height: 400, dpr: 1, colors })
-    expect(calls.filter((c) => c.op === 'fillText' && (c.fillStyle === '#000000' || c.fillStyle === '#ffffff'))).toHaveLength(0)
+    expect(calls.filter(isStitchNumber)).toHaveLength(0)
   })
 
   it('draws strands as thin lines, 2 or 3 px, never a band across the stitches', () => {
