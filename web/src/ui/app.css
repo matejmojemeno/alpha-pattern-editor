@@ -1145,10 +1145,6 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
-.work__arrow {
-  color: var(--accent);
-}
-
 .work__stitches {
   font-size: 1.231rem; /* 16 px */
   font-weight: 600;

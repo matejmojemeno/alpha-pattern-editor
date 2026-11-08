@@ -55,7 +55,7 @@ describe('Work stage', () => {
     const { project } = await openWork('basic.alpha')
     const p = project.pattern
     // basic: bottom-up, row 1 starts from the right.
-    expect(rowLabel()).toBe(`Row 1 of ${p.rows} ←`)
+    expect(rowLabel()).toBe(`Row 1 of ${p.rows}, right to left`)
     expect(screen.getByText(`0 / ${p.rows * p.cols} stitches`)).toBeTruthy()
     expect(screen.getByText('0% done')).toBeTruthy()
     expect(screen.getByRole('link', { name: /Library/ }).getAttribute('href')).toBe('#/library')
@@ -337,7 +337,7 @@ describe('options', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Change it' }))
     expect(box.checked).toBe(true)
     // The same row, now read from the other side, from its start...
-    expect(rowLabel()).toBe(before!.replace('→', '←'))
+    expect(rowLabel()).toBe(before!.replace('left to right', 'right to left'))
     const flipped = encodeRow({ ...p, start_direction: 'RTL' }, r)
     const names = chips().map((c) => c.querySelector('.chip__text')!.textContent)
     expect(names).toEqual(flipped.map((run) => `${run.count} ${p.palette[run.palette_index]!.name}`))
@@ -403,7 +403,7 @@ describe('options', () => {
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Back and forth' }).checked).toBe(true)
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'All the same way' }).checked).toBe(false)
     const top = { ...p, bottom_up: false, start_direction: 'LTR' as const }
-    expect(rowLabel()).toBe('Row 1 of 5 →')
+    expect(rowLabel()).toBe('Row 1 of 5, left to right')
     const names = chips().map((c) => c.querySelector('.chip__text')!.textContent)
     expect(names).toEqual(encodeRow(top, 0).map((run) => `${run.count} ${p.palette[run.palette_index]!.name}`))
     await userEvent.click(openChip(0))

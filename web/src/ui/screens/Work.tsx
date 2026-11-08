@@ -308,7 +308,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
 
   const openRun = segment === null ? undefined : runs[segment]
   const openSquare = openRun && filet ? squareOf(openRun.palette_index, filet.spaces) : null
-  const arrow = cur !== null && rowDirection(p, cur) === 'LTR' ? '→' : '←'
+  const direction = cur !== null && rowDirection(p, cur) === 'LTR' ? 'left to right' : 'right to left'
 
   return (
     <main className="screen work">
@@ -377,10 +377,9 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
             'No rows'
           ) : (
             <>
-              Row {workingNumber(p, cur)} of {p.rows}{' '}
-              <span className="work__arrow" aria-label={arrow === '→' ? 'left to right' : 'right to left'}>
-                {arrow}
-              </span>
+              Row {workingNumber(p, cur)} of {p.rows}
+              {/* The arrow is on the chart, beside the row (render/chart.ts). */}
+              <span className="visually-hidden">, {direction}</span>
             </>
           )}
         </p>

@@ -49,7 +49,7 @@ test('import, reload, open, export, delete, re-import', async ({ page }, testInf
   await page.goto(`/#/work/${basic.id}`)
   await expect(page.getByRole('heading', { level: 1, name: basic.name })).toBeVisible()
   const row = page.locator('.work__row')
-  await expect(row).toHaveText(new RegExp(`^Row 1 of ${basic.rows} [←→]$`))
+  await expect(row).toHaveText(new RegExp(`^Row 1 of ${basic.rows}, (left to right|right to left)$`))
   const chipsBefore = await page.getByRole('list', { name: 'Colours in this row' }).textContent()
 
   // The deep link to the project survives a reload too.

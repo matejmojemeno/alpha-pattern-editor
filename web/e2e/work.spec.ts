@@ -49,13 +49,13 @@ test('work through rows, reload, export and re-import', async ({ page }, testInf
 
   // 1. Import basic.alpha and open it.
   await importAndOpen(page, BASIC, basic.name)
-  await expect(rowLabel(page)).toHaveText('Row 1 of 5 ←')
+  await expect(rowLabel(page)).toHaveText('Row 1 of 5, right to left')
 
   // 2. Complete three rows: two by keyboard...
   await page.keyboard.press('ArrowRight')
-  await expect(rowLabel(page)).toHaveText('Row 2 of 5 →')
+  await expect(rowLabel(page)).toHaveText('Row 2 of 5, left to right')
   await page.keyboard.press('Space')
-  await expect(rowLabel(page)).toHaveText('Row 3 of 5 ←')
+  await expect(rowLabel(page)).toHaveText('Row 3 of 5, right to left')
 
   // ...and one by tapping each chip and marking its segment complete.
   await expect(chips(page)).toHaveCount(4)
@@ -66,7 +66,7 @@ test('work through rows, reload, export and re-import', async ({ page }, testInf
     await expect(dialog).toBeHidden()
     if (i < 3) await expect(chips(page).nth(i)).toHaveClass(/chip--done/)
   }
-  await expect(rowLabel(page)).toHaveText('Row 4 of 5 →')
+  await expect(rowLabel(page)).toHaveText('Row 4 of 5, left to right')
 
   // 3. Partial stitches: 1 of the "2 White" segment (the third) in row 4.
   await openChip(page, 2).click()
@@ -90,7 +90,7 @@ test('work through rows, reload, export and re-import', async ({ page }, testInf
 
   // 4. A real reload: exactly the same progress.
   await page.reload()
-  await expect(rowLabel(page)).toHaveText('Row 4 of 5 →')
+  await expect(rowLabel(page)).toHaveText('Row 4 of 5, left to right')
   expect(await progressOnScreen(page)).toEqual(before)
 
   // 5. Export from the Library. The file holds the same progress...
@@ -116,7 +116,7 @@ test('work through rows, reload, export and re-import', async ({ page }, testInf
   await expect(page.getByText('No projects yet.')).toBeVisible()
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(exported)
   await card.getByRole('link', { name: /^Open / }).click()
-  await expect(rowLabel(page)).toHaveText('Row 4 of 5 →')
+  await expect(rowLabel(page)).toHaveText('Row 4 of 5, left to right')
   expect(await progressOnScreen(page)).toEqual(before)
 
   // The Work stage never loads Pyodide.

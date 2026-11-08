@@ -69,7 +69,7 @@ async function open(page: Page, file: string) {
   await page.goto('/#/library')
   await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(file)
   await page.getByRole('listitem').filter({ hasText: p.name }).getByRole('link', { name: /^Open / }).click()
-  await expect(rowLabel(page)).toHaveText(`Row 1 of ${ROWS} →`)
+  await expect(rowLabel(page)).toHaveText(`Row 1 of ${ROWS}, left to right`)
 }
 
 /** `el`'s scrollTop once it has stopped moving (ten still frames). */
@@ -126,14 +126,14 @@ test('the chips follow your place, and a new row starts at the top of the list',
 
   // The last tick finishes the row: row 2, and the list back at the top.
   await tick(page, runs.length - 1).click()
-  await expect(rowLabel(page)).toHaveText(`Row 2 of ${ROWS} ←`)
+  await expect(rowLabel(page)).toHaveText(`Row 2 of ${ROWS}, right to left`)
   expect((await settled(box(page))).top).toBe(0)
 
   // Scrolled down by hand, then the row finished with Row complete: back to the top.
   await box(page).evaluate((b) => b.scrollTo({ top: b.scrollHeight }))
   expect((await settled(box(page))).top).toBeGreaterThan(100)
   await page.getByRole('button', { name: 'Row complete →' }).click()
-  await expect(rowLabel(page)).toHaveText(`Row 3 of ${ROWS} →`)
+  await expect(rowLabel(page)).toHaveText(`Row 3 of ${ROWS}, left to right`)
   expect((await settled(box(page))).top).toBe(0)
   await expect(chips(page).first()).toBeInViewport()
 
@@ -233,7 +233,7 @@ test('a tap on a stitch of the current row marks it and the stitches before it d
   await page.touchscreen.tap(axis.x - AXIS_LEFT / 2, axis.y)
   await page.waitForTimeout(400)
   await expect(stitchCount(page)).toHaveText(`6 / ${total} stitches`)
-  await expect(rowLabel(page)).toHaveText(`Row 1 of ${ROWS} →`)
+  await expect(rowLabel(page)).toHaveText(`Row 1 of ${ROWS}, left to right`)
 
   // A tap further back in the row moves your place back to it.
   await tapAt(imageRow(1), 2)
@@ -261,7 +261,7 @@ test('a tap on a stitch of the current row marks it and the stitches before it d
   // rightmost column.
   await still()
   await tapAt(imageRow(1), COLS - 1)
-  await expect(rowLabel(page)).toHaveText(`Row 2 of ${ROWS} ←`)
+  await expect(rowLabel(page)).toHaveText(`Row 2 of ${ROWS}, right to left`)
   await expect(stitchCount(page)).toHaveText(`${COLS} / ${total} stitches`)
   await still()
   await tapAt(imageRow(2), COLS - 1)
