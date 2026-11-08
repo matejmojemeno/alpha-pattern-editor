@@ -294,6 +294,20 @@ Newest last, as they were built.
     the inset centres the grid only when it's narrower than the view; and taps find the
     right stitch with and without one. On the old code the phone spec gets 4 px stitches
     where it asks for 7.
+- <a id="row-tab"></a>**The way a row is worked is on the chart, beside the row**
+  (`drawChart` in `render/chart.ts`). The arrow used to follow "Row 7 of 30" in the status
+  line, well away from the row it described. Now the current row's number sits in a small
+  accent-coloured tab in the row-number margin, joined to the row's outline, with a line
+  arrow beside the number. The header keeps the direction for screen readers.
+  - In the margin because nothing else is there: it never scrolls (so the tab stays by
+    the row at any zoom), it can't cover a stitch, and taps there do nothing. `AXIS_LEFT`
+    stays 34 px, since Design shares it.
+  - A tab, not a bare arrow: amber on the page is too faint for a 9 px arrow glanced at
+    while working; black on amber isn't, in light or dark.
+  - The tab is the row's height, from 16 to 24 px. It stays on the grid at the first and
+    last rows, and hides any neighbouring row number it would overlap. The number starts
+    from 11 px, larger than the axis numbers on small-celled charts, and three digits
+    shrink to fit beside the arrow (8 px at the least).
 - <a id="row-colours-switch"></a>**Hide "This row"** (`showRowColours` in `settings/store.ts`;
   the panel button `.work__panel` in the Work header, `ui/screens/Work.tsx`;
   `.work__body--chart` in `ui/app.css`; **on** by default, app-wide). The owner works wide
