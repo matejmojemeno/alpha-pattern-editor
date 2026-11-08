@@ -20,7 +20,7 @@ import {
   stitchNumbers,
   type CellImage,
 } from '../../src/render/chart.ts'
-import { AXIS_LEFT, AXIS_TOP, computeLayout, type RowPlace } from '../../src/render/layout.ts'
+import { AXIS_LEFT, AXIS_TOP, WORK_END_GUTTER, computeLayout, type RowPlace } from '../../src/render/layout.ts'
 import { SKIP_INDEX, type Pattern } from '../../src/model/types.ts'
 
 function pattern(rows: number, cols: number, cells?: number[]): Pattern {
@@ -200,25 +200,46 @@ describe('drawChart', () => {
   describe('the tab beside the current row', () => {
     /** Draws 10 × 10 rows with `current` as the image row being worked. Bottom up from the
      *  right: image row 9 is worked right to left, image row 8 left to right. */
-    function tab(current: number | null, opts: { rows?: number; cols?: number; width?: number; height?: number; digitWidth?: number } = {}) {
+    function tab(current: number | null, opts: { rows?: number; cols?: number; width?: number; height?: number; digitWidth?: number; zoom?: number; scrollX?: number } = {}) {
       const rows = opts.rows ?? 10
       const cols = opts.cols ?? 10
       const width = opts.width ?? 240
       const height = opts.height ?? 228
-      const layout = computeLayout({ rows, cols, current, emphasise: false, focus: false, width, height })
+      const layout = computeLayout({ rows, cols, current, emphasise: false, focus: false, width, height, zoom: opts.zoom, endGutter: WORK_END_GUTTER })
       const { ctx, calls } = recorder()
       ctx.measureText = (s: string) => ({ width: s.length * (opts.digitWidth ?? 7) }) as TextMetrics
-      drawChart(ctx, { layout, image: {} as CellImage, pattern: pattern(rows, cols), completed: new Set(), scrollX: 0, scrollY: 0, width, height, dpr: 1, colors })
+      drawChart(ctx, { layout, image: {} as CellImage, pattern: pattern(rows, cols), completed: new Set(), scrollX: opts.scrollX ?? 0, scrollY: 0, width, height, dpr: 1, colors })
       const fills = calls.findIndex((k, i) => k.op === 'fill' && k.fillStyle === colors.accent && calls[i - 1]?.op === 'closePath')
       const stroke = calls.findIndex((k) => k.op === 'stroke')
       const label = calls.find((k) => k.op === 'fillText' && k.fillStyle === '#000000' && (k.args[1] as number) === AXIS_LEFT - 4)
-      return { layout, calls, fills, stroke, label, path: calls.slice(fills + 1, stroke) }
+      const arrowFill = calls.slice(0, stroke).findLastIndex((k) => k.op === 'fill')
+      return { layout, calls, fills, stroke, label, path: calls.slice(arrowFill + 1, stroke) }
     }
     /** Where the arrow's shaft starts and ends: the first moveTo, then the lineTo after it. */
     const shaft = (t: ReturnType<typeof tab>) => {
       const from = t.path.findIndex((k) => k.op === 'moveTo')
       return [t.path[from]!.args[0] as number, t.path[from + 1]!.args[0] as number]
     }
+
+    it('puts the arrow on the side the row starts from, pointing into the row', () => {
+      // Working row 2, left to right: in the left margin.
+      const ltr = shaft(tab(8))
+      expect(Math.max(...ltr)).toBeLessThanOrEqual(AXIS_LEFT)
+      // Working row 1, right to left: past the grid's right-hand edge.
+      const t = tab(9)
+      expect(Math.min(...shaft(t))).toBeGreaterThanOrEqual(AXIS_LEFT + t.layout.gridWidth)
+    })
+
+    it('keeps the right-hand arrow at the edge of the view on a zoomed chart, with no stitch under it', () => {
+      const t = tab(0, { rows: 1, zoom: 4, scrollX: 40 }) // one row, right to left
+      expect(t.layout.gridWidth - 40).toBeGreaterThan(t.layout.viewWidth)
+      const [from, to] = shaft(t)
+      expect(Math.min(from!, to!)).toBeGreaterThanOrEqual(AXIS_LEFT + t.layout.viewWidth)
+      expect(Math.max(from!, to!)).toBeLessThanOrEqual(240)
+      // The first clip is the grid's: it ends at the view, 3 px over for the row's outline.
+      const clip = t.calls.find((k) => k.op === 'rect')!
+      expect((clip.args[0] as number) + (clip.args[2] as number)).toBe(AXIS_LEFT + t.layout.viewWidth + 3)
+    })
 
     it('points the way the row is worked, and turns with the rows', () => {
       const [a0, a1] = shaft(tab(9))
@@ -228,7 +249,7 @@ describe('drawChart', () => {
     })
 
     it('stays in the margin, covering no stitch', () => {
-      const t = tab(5)
+      const t = tab(4) // working row 6, left to right
       const xs = t.calls.slice(t.fills - 5, t.stroke).flatMap((k) => (k.op === 'moveTo' || k.op === 'lineTo' ? [k.args[0] as number] : []))
       expect(xs.length).toBeGreaterThan(0)
       expect(Math.max(...xs)).toBeLessThanOrEqual(AXIS_LEFT)

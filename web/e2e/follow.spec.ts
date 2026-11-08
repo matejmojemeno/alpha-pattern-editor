@@ -14,7 +14,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 import { encodeRow } from '../src/logic/readout.ts'
 import { emptyProgress, type Pattern, type Project } from '../src/model/types.ts'
-import { AXIS_LEFT, PAD } from '../src/render/layout.ts'
+import { AXIS_LEFT, PAD, WORK_END_GUTTER } from '../src/render/layout.ts'
 import { writeAlpha } from '../src/storage/alpha.ts'
 
 test.use({ viewport: { width: 400, height: 860 }, hasTouch: true, isMobile: true })
@@ -96,8 +96,8 @@ async function expectPlaceInView(page: Page, n: number, runIndex: number, stitch
   const col = n % 2 === 1 ? position : pattern.cols - 1 - position
   const s = await settledScroll(page)
   // The scroller holds the grid plus its margins; what's left of its width shows the grid.
-  const cell = (s.scrollWidth - AXIS_LEFT - PAD) / pattern.cols
-  const view = s.width - AXIS_LEFT - PAD
+  const cell = (s.scrollWidth - AXIS_LEFT - PAD - WORK_END_GUTTER) / pattern.cols
+  const view = s.width - AXIS_LEFT - PAD - WORK_END_GUTTER
   const x = col * cell
   expect(x, `row ${n}, segment ${runIndex} + ${stitches}: col ${col}`).toBeGreaterThanOrEqual(s.left - 0.5)
   expect(x + cell,`row ${n}, segment ${runIndex} + ${stitches}: col ${col}`).toBeLessThanOrEqual(s.left + view + 0.5)
@@ -219,7 +219,7 @@ test('zoomed in, saving part way through a segment moves the chart on to the sti
   }
   const a = await save(2)
   const b = await save(4)
-  const cell = (b.scrollWidth - AXIS_LEFT - PAD) / scarf.pattern.cols
+  const cell = (b.scrollWidth - AXIS_LEFT - PAD - WORK_END_GUTTER) / scarf.pattern.cols
   expect(b.left - a.left).toBeCloseTo(2 * cell, 0)
 })
 

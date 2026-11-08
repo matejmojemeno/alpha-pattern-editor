@@ -11,7 +11,7 @@ import { writeFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 
 import { emptyProgress, type Pattern, type Project } from '../src/model/types.ts'
-import { AXIS_LEFT, PAD } from '../src/render/layout.ts'
+import { AXIS_LEFT, PAD, WORK_END_GUTTER } from '../src/render/layout.ts'
 import { writeAlpha } from '../src/storage/alpha.ts'
 
 // Playwright hides scrollbars in headless Chromium, and a Mac may overlay them; a styled
@@ -147,7 +147,7 @@ for (const [label, cols, rows, axis] of [
     if (axis === 'vertical') expect(m.scrollWidth, 'scroll width').toBeLessThanOrEqual(m.clientWidth)
     else expect(m.scrollHeight, 'scroll height').toBeLessThanOrEqual(m.clientHeight)
 
-    const cell = (m.scrollWidth - AXIS_LEFT - PAD) / cols
+    const cell = (m.scrollWidth - AXIS_LEFT - PAD - WORK_END_GUTTER) / cols
     const box = (await scroller(page).boundingBox())!
     const edges = await visibleEdges(page, { x: box.x, y: box.y, width: m.clientWidth, height: m.clientHeight })
     // Gridlines and the chart's outline are drawn over a cell's edges; allow for them.

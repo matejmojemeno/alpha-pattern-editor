@@ -44,6 +44,7 @@ import {
   AXIS_LEFT,
   AXIS_TOP,
   PAD,
+  WORK_END_GUTTER,
   MAX_ZOOM,
   cellAt,
   computeLayout,
@@ -136,7 +137,7 @@ export function ChartView({
   const image = useMemo(() => buildCellImage({ cells, palette, rows, cols }), [cells, palette, rows, cols])
 
   const input = useMemo<LayoutInput>(
-    () => ({ rows: pattern.rows, cols: pattern.cols, current, width: size.width, height: size.height, emphasise, focus, dpr }),
+    () => ({ rows: pattern.rows, cols: pattern.cols, current, width: size.width, height: size.height, emphasise, focus, dpr, endGutter: WORK_END_GUTTER }),
     [pattern.rows, pattern.cols, current, size.width, size.height, emphasise, focus, dpr],
   )
   const layout = useMemo(() => computeLayout({ ...input, zoom }), [input, zoom])
@@ -160,7 +161,7 @@ export function ChartView({
     () =>
       size.width === 0
         ? null
-        : fitHeight({ rows: pattern.rows, cols: pattern.cols, current, width: size.width, emphasise, focus, dpr }),
+        : fitHeight({ rows: pattern.rows, cols: pattern.cols, current, width: size.width, emphasise, focus, dpr, endGutter: WORK_END_GUTTER }),
     [pattern.rows, pattern.cols, current, size.width, emphasise, focus, dpr],
   )
 
@@ -431,7 +432,7 @@ export function ChartView({
       >
         <div
           style={{
-            width: AXIS_LEFT + layout.gridWidth + PAD,
+            width: AXIS_LEFT + layout.gridWidth + PAD + layout.endGutter,
             height: AXIS_TOP + layout.gridHeight + PAD,
           }}
         />

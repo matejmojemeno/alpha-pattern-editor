@@ -27,6 +27,7 @@ import {
   type ChartLayout,
   type LayoutInput,
   type RowPlace,
+  WORK_END_GUTTER,
 } from '../../src/render/layout.ts'
 import { encodeRow } from '../../src/logic/readout.ts'
 import type { Direction, Pattern } from '../../src/model/types.ts'
@@ -672,5 +673,31 @@ describe('a chart narrower than its view', () => {
     expect(layout({ rows: 10, cols: 40, ...area(400, 400) }).inset).toBe(0)
     expect(layout({ rows: 300, cols: 40, ...area(400, 400) }).inset).toBe(0)
     expect(layout({ rows: 45, cols: 38, zoom: 3, ...area(321, 345) }).inset).toBe(0)
+  })
+})
+
+describe('the end gutter (the Work chart’s right-hand arrow)', () => {
+  const input = { rows: 10, cols: 20, current: 5, emphasise: false, focus: false, width: 300, height: 400 }
+
+  it('takes its width from the view, and the cells follow', () => {
+    const plain = computeLayout(input)
+    const kept = computeLayout({ ...input, endGutter: WORK_END_GUTTER })
+    expect(kept.viewWidth).toBe(plain.viewWidth - WORK_END_GUTTER)
+    expect(kept.cell).toBeLessThan(plain.cell)
+    expect(plain.endGutter).toBe(0)
+  })
+
+  it('is never tappable, even where a zoomed chart runs on under it', () => {
+    const l = computeLayout({ ...input, zoom: 4, endGutter: WORK_END_GUTTER })
+    expect(l.maxScrollX).toBeGreaterThan(0)
+    const y = AXIS_TOP + 1
+    expect(cellAt(l, AXIS_LEFT + l.viewWidth - 1, y, 0, 0)).not.toBeNull()
+    expect(cellAt(l, AXIS_LEFT + l.viewWidth, y, 0, 0)).toBeNull()
+  })
+
+  it('counts in the height the chart asks for, so the cells it was sized for are the ones drawn', () => {
+    const { height: _, ...rest } = input
+    const narrower = fitHeight({ ...rest, endGutter: WORK_END_GUTTER })
+    expect(narrower).toBeLessThan(fitHeight(rest))
   })
 })

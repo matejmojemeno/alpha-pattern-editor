@@ -26,6 +26,9 @@ export const AXIS_LEFT = 34
 export const AXIS_TOP = 22
 /** Space kept clear on the right and bottom of the grid. */
 export const PAD = 6
+/** Extra room the Work chart keeps right of the grid, with PAD, for the arrow of a row
+ *  that starts on the right (chart.ts). The Design stage and exported PNGs have none. */
+export const WORK_END_GUTTER = 12
 /** Rows either side of the current one that count as "around" it. */
 export const NEAR_RADIUS = 2
 /** How much taller an emphasised row is than the rest. */
@@ -102,6 +105,8 @@ export interface LayoutInput {
    *  row keeps its own height (emphasis and focus mode work as ever) and the chart
    *  scrolls wherever it no longer fits. */
   readonly zoom?: number
+  /** Extra room kept clear right of the grid (WORK_END_GUTTER), or none. */
+  readonly endGutter?: number
 }
 
 export interface ChartLayout {
@@ -130,6 +135,8 @@ export interface ChartLayout {
   /** How far the grid (with its row numbers) is moved right to sit in the middle of the
    *  view, when it's narrower than the view: a chart sized by its height. 0 otherwise. */
   readonly inset: number
+  /** LayoutInput.endGutter: stitches never show in it, however far the chart scrolls. */
+  readonly endGutter: number
 }
 
 /**
@@ -152,7 +159,8 @@ export function computeLayout(input: LayoutInput): ChartLayout {
   const { rows, cols, current, emphasise, focus } = input
   const dpr = input.dpr && input.dpr > 0 ? input.dpr : 1
   const cur = current !== null && current >= 0 && current < rows ? current : null
-  const viewWidth = Math.max(0, input.width - AXIS_LEFT - PAD)
+  const endGutter = input.endGutter ?? 0
+  const viewWidth = Math.max(0, input.width - AXIS_LEFT - PAD - endGutter)
   const viewHeight = Math.max(0, input.height - AXIS_TOP - PAD)
   const range = visibleRows(rows, cur, focus)
   const near = emphasise ? nearRows(rows, cur) : { start: 0, end: 0 }
@@ -193,6 +201,7 @@ export function computeLayout(input: LayoutInput): ChartLayout {
     maxScrollX: Math.max(0, gridWidth - viewWidth),
     maxScrollY: Math.max(0, gridHeight - viewHeight),
     inset: gridWidth < viewWidth ? snap((viewWidth - gridWidth) / 2, dpr) : 0,
+    endGutter,
   }
 }
 
@@ -286,6 +295,8 @@ export function cellAt(
   scrollY: number,
 ): { row: number; col: number } | null {
   if (x < AXIS_LEFT + layout.inset || y < AXIS_TOP || layout.cell <= 0) return null
+  // A zoomed chart runs on under the gutter, where it isn't drawn.
+  if (layout.endGutter > 0 && x >= AXIS_LEFT + layout.inset + layout.viewWidth) return null
   const gx = x - AXIS_LEFT - layout.inset + scrollX
   const gy = y - AXIS_TOP + scrollY
   if (gx >= layout.gridWidth || gy >= layout.gridHeight) return null
