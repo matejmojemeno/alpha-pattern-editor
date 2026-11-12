@@ -13,7 +13,7 @@ Messages about what you just did appear at the bottom right. Every change is sav
 make it; the top bar says **Saving…**, then **Saved**.
 
 Design is made for a computer or a tablet. On a tablet, the tools are a toolbar over the
-chart, and **Colours** and **Structure** open as panels. On a phone, the screen says
+chart, and **Colours**, **Structure** and **Image** open as panels. On a phone, the screen says
 **Editing needs a bigger screen** and offers **Start working →** instead.
 
 ## Start from a blank grid
@@ -52,6 +52,30 @@ a Mac) and scroll over the chart to zoom where you point, or pinch on a touch sc
 
 The numbers along the chart are the row and column numbers. Rows are numbered in the
 order you'll work them: row 1 is the bottom row.
+
+## Trace an image
+
+To draw a pattern from a picture by hand, lay the picture over the chart and paint the
+stitches over it, as on tracing paper. Under **Image to trace** (the **Image** button on a
+tablet), press **Add an image to trace** and choose a picture, or drop an image file onto
+the chart. It fits itself to the pattern.
+
+- **Show** chooses how you see it. **Behind**, to start with, shows it through every stitch
+  that is still the background colour, while the stitches you paint stay solid, so you
+  can see what's left to do. **On top** lies it over every stitch, to check what you've
+  painted against it. **Off** hides it; `T` turns it off and on again.
+- **Opacity** makes it fainter or stronger.
+- **Move** lets you place it: drag the image on the chart to move it, or drag one of its
+  corners to make it bigger or smaller (it keeps its shape). The arrow keys move it one
+  stitch at a time, ten with `Shift`. Press **Done**, `Escape` or `Enter`, or choose a tool,
+  to paint again. **Fit** puts it back over the whole pattern.
+- **Replace…** chooses another picture, and **Remove** takes it away.
+
+The image is saved with the pattern, so it's there next time, and in the file you
+export. It is only a guide: it never changes your stitches, isn't part of the exported
+PNG or the Work stage, and moving or hiding it isn't something **Undo** undoes. To turn a
+picture into a pattern automatically instead, use
+[Photo to pattern](import.md#photo-to-pattern).
 
 ## Add and delete rows and columns
 

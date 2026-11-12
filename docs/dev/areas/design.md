@@ -219,6 +219,50 @@ Newest last, as they were built.
   Cancel, Merge, message, focus, undo) and `e2e/overflow.spec.ts` (the open menu at
   every width).
 
+- <a id="image-to-trace"></a>**An image to trace** (`ui/design/TracePanel.tsx`, `design/trace.ts`,
+  `design/traceImage.ts`, `render/design.ts` `drawTrace`; stored as
+  [`trace.json` and `trace.png`/`.jpg`](storage.md#trace)): a picture laid see-through on
+  the chart, to paint a pattern over it by hand, as on tracing paper. An "Image to trace"
+  section under Zoom (an **Image** drawer on a tablet).
+  - **Adding:** one dashed tile, "Add an image to trace", which takes a click or a dropped
+    file; a file dropped anywhere on the chart does the same (an accent outline says "Drop
+    to trace this image" while one is dragged over). It is fitted to the pattern: as large
+    as fits, centred, never stretched. Replace keeps the Show and Opacity chosen.
+  - **Show: Off, Behind, On top** (one segmented control; `T` turns it off and on).
+    **Behind**, the default, fills the grid with the background colour (`backgroundIndex`,
+    the edge majority, as Select's background), draws the image over that, and then the
+    cells with the background ones left out (`under` in `TraceDraw`, a second pixel-per-cell
+    image the canvas builds). So painted cells stay solid and the picture shows only where
+    nothing is painted yet. **On top** draws it over every cell, to check painting against
+    it. Both were tried on a dark photo (a fox in a forest) at 50%: on top, the orange
+    painted cells turned brown and were hard to tell from the photo; behind, they stayed
+    the orange they are. That is why behind is the default. Gridlines are drawn over the
+    image either way, so the cells stay readable.
+  - **Opacity** 10–90% (50% to start): at 100% painting on top would be blind.
+  - **Move** (a toggle, "Done" when on; canvas mode `trace`): a drag anywhere moves the
+    image, and a drag from one of its corner handles resizes it, the opposite corner
+    staying put and the shape kept (`resizeTrace`, which follows whichever direction the
+    pointer went further). A pill over the chart says "Drag the image, or a corner to
+    resize it." with **Fit to pattern** and **Done**. While placing, the part of the image
+    past the grid shows at 40% of its strength, with an accent outline and white handles;
+    otherwise the image is clipped to the grid. The arrow keys move it a cell (ten with
+    Shift); `Escape`, `Enter`, Done or choosing a tool ends it. Two fingers still pan and
+    zoom, and put the image back where the first finger found it. Placing never paints.
+  - Where it lies is in **cells** from the grid's top-left corner, so it stays over the same
+    cells at any zoom. It doesn't follow structural edits (a border added on the left
+    leaves it where it was over the grid); **Fit** puts it back.
+  - **Not part of the pattern** ([rule](../rules.md#trace-not-pattern)): never an undo step,
+    not in Export PNG, not in the Work stage. Each change is saved by the Design autosave
+    with the project (a drag once the pointer lets go, not at each move).
+  - Enlarged at least 2× on screen, its pixels are drawn square (smoothing off), so pixel
+    art traced at its own size stays crisp; otherwise smoothed.
+  - Web only: the desktop never had it.
+  - Tested: `tests/design/trace.test.ts` (fit, resize from each corner, handles),
+    `tests/storage/trace.test.ts`, `e2e/trace.spec.ts` (the canvas's pixels behind and on
+    top, `T`, opacity, moving and resizing by mouse, nothing painted by placing, a reload,
+    the exported file opened by the Python reference, a drop, Remove, the tablet drawer)
+    and `e2e/overflow.spec.ts` (with an image, and while placing it).
+
 ## During the port
 
 What each phase of the port built here, newest first. The plan each phase followed is in
