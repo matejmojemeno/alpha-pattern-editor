@@ -54,6 +54,9 @@ suite also checks that saving them again produces **byte-identical** `meta.json`
   which only the web app writes; the bytes stand in for a JPEG). The Python must still
   open it, ignoring the entry. Its record has `made_photo_sha256`, which no other record
   has.
+- `built-trace`: `built-edge` with the Design stage's image to trace (`trace.json` and
+  `trace.png`, which only the web app writes; the bytes stand in for a PNG). The Python
+  must still open it, ignoring both. Its record has `trace`, which no other record has.
 - `newer-format`: a TS-written archive with `format_version: 999`.
 
 ## Regenerating
