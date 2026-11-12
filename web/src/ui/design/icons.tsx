@@ -8,6 +8,9 @@
  */
 import {
   BetweenHorizontalStart,
+  ImagePlus,
+  Move,
+  Scan,
   BetweenVerticalStart,
   PaintBucket,
   Pencil,
@@ -89,3 +92,8 @@ export function TurnIcon({ turn }: { turn: Turn }) {
 
 /** Deleting a colour. (× is for closing things; a colour isn't closed, it's deleted.) */
 export const DeleteIcon = (props: LucideProps) => <Trash2 {...ICON} {...props} />
+
+/** The image to trace: adding one, placing it, and fitting it to the pattern. */
+export const AddImageIcon = (props: LucideProps) => <ImagePlus {...ICON} {...props} />
+export const PlaceIcon = (props: LucideProps) => <Move {...ICON} {...props} />
+export const FitIcon = (props: LucideProps) => <Scan {...ICON} {...props} />

@@ -11,9 +11,14 @@
  * cells in this tab (`clipboard`), so they can be pasted into another pattern. Saving is automatic, as in the Work stage (app/autosave.ts),
  * and stamps the project as in the Design stage.
  *
+ * An image can lie see-through over the chart, to trace (ui/design/TracePanel.tsx,
+ * design/trace.ts). It's saved with the project (trace.json and the image, in the
+ * `.alpha` archive) by the same autosave, but it isn't part of the pattern: placing it,
+ * showing it or removing it is never an undo step.
+ *
  * Loaded lazily (App.tsx): nothing here is needed to follow a pattern on a phone.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 
 import '../design.css'
 
@@ -90,6 +95,8 @@ import {
   scale,
   trimUniformEdges,
 } from '../../logic/edit.ts'
+import { DEFAULT_BEHIND, DEFAULT_OPACITY, clampOpacity, fitTrace, moveTrace, type Placement, type TraceShow } from '../../design/trace.ts'
+import { decodeTraceImage, draggingFiles, droppedImage, prepareTraceImage, traceErrorText } from '../../design/traceImage.ts'
 import { carryProgress, losesProgress, progressLoss, type ProgressLoss } from '../../logic/progress.ts'
 import { formatStats, workingNumber } from '../../logic/readout.ts'
 import { craftOf } from '../../craft/crafts.ts'
@@ -97,19 +104,23 @@ import { foundation } from '../../craft/filet.ts'
 import type { Pattern, Project } from '../../model/types.ts'
 import { fitCell, zoomStep, type Overlay } from '../../render/design.ts'
 import { exportPng } from '../../render/png.ts'
+import type { TraceImage } from '../../storage/alpha.ts'
 import type { ProjectRepo } from '../../storage/repo.ts'
 import { ConfirmDialog, HelpLink } from '../components.tsx'
 import { ColoursPanel } from '../design/ColoursPanel.tsx'
 import { DesignCanvas } from '../design/DesignCanvas.tsx'
-import { ToolIcon, TurnIcon } from '../design/icons.tsx'
+import { AddImageIcon, ToolIcon, TurnIcon } from '../design/icons.tsx'
 import { StructurePanel, type TransformAction } from '../design/StructurePanel.tsx'
+import { TracePanel } from '../design/TracePanel.tsx'
 import { Visualize } from '../design/Visualize.tsx'
 import { YarnEstimate } from '../design/YarnEstimate.tsx'
 import { useDocumentTitle, useMediaQuery } from '../hooks.ts'
 import { ProjectGate } from '../ProjectGate.tsx'
 
 export default function Design({ id }: { id: string }) {
-  return <ProjectGate id={id}>{(repo, { project }) => <DesignStage repo={repo} initial={project} />}</ProjectGate>
+  return (
+    <ProjectGate id={id}>{(repo, { project, trace }) => <DesignStage repo={repo} initial={project} initialTrace={trace} />}</ProjectGate>
+  )
 }
 
 /**
@@ -183,9 +194,18 @@ interface AxisMenu {
   y: number
 }
 
-function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
+/** What the autosave writes: the project, and the image to trace as it is now. */
+interface Saved {
+  project: Project
+  trace: TraceImage | null
+}
+
+function DesignStage({ repo, initial, initialTrace }: { repo: ProjectRepo; initial: Project; initialTrace: TraceImage | null }) {
   const [editor, setEditor] = useState<EditorState>(() => initialEditor(initial.pattern))
   const latest = useRef(editor)
+  // The image to trace, as kept with the project (decoded for drawing below).
+  const [trace, setTraceState] = useState<TraceImage | null>(initialTrace)
+  const latestTrace = useRef(trace)
   const [message, setMessage] = useState('')
   const [warning, setWarning] = useState(() => progressWarning(initial.pattern, initial.progress))
   const p = editor.pattern
@@ -193,7 +213,9 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
 
   // --- saving: automatic, as a Design-stage project ---------------------------------------------
   const [status, setStatus] = useState<SaveStatus>('saved')
-  const [saver] = useState(() => new AutoSaver<Project>((x) => repo.save({ ...x, stage: 'design' }), setStatus))
+  const [saver] = useState(
+    () => new AutoSaver<Saved>((x) => repo.save({ ...x.project, stage: 'design' }, { trace: x.trace }), setStatus),
+  )
   // Progress is carried from the pattern this screen opened with, every time: rows that
   // are gone stop counting and a moved cursor goes back to the start of its row, and
   // undoing the edit brings all of it back (logic/progress.ts).
@@ -214,7 +236,18 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       if (next === before) return
       latest.current = next
       setEditor(next)
-      if (next.pattern !== before.pattern) saver.schedule(projectOf(next))
+      if (next.pattern !== before.pattern) saver.schedule({ project: projectOf(next), trace: latestTrace.current })
+    },
+    [saver, projectOf],
+  )
+
+  /** Change the image to trace; with `save`, saved with the project. Placing it saves
+   *  once the pointer lets go, not at every move. */
+  const setTrace = useCallback(
+    (next: TraceImage | null, save = true) => {
+      latestTrace.current = next
+      setTraceState(next)
+      if (save) saver.schedule({ project: projectOf(latest.current), trace: next })
     },
     [saver, projectOf],
   )
@@ -233,7 +266,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
 
   // "Start working →" (§6.4): saved as a Work-stage project, then the Work stage opens.
   const startWorking = () => {
-    const saved = saver.flush().then(() => repo.save({ ...projectOf(latest.current), stage: 'work' }))
+    const saved = saver.flush().then(() => repo.save({ ...projectOf(latest.current), stage: 'work' }, { trace: latestTrace.current }))
     void trackSave(saved).catch(() => {})
     navigate(paths.work(p.id))
   }
@@ -410,6 +443,9 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   const axisMenu = openMenu?.pattern === p ? openMenu : null
   const onAxis = (kind: 'row' | 'col', index: number, at: { x: number; y: number }) => setAxisMenu({ pattern: p, kind, index, ...at })
 
+  /** Choosing a tool ends placing the image to trace (set once that state exists). */
+  const placingOff = useRef(() => {})
+
   // --- Add row and Add column: previewed where the pointer is, added with a click ----------------
   const [addHover, setAddHover] = useState<AddHover | null>(null)
   const onInsertHover = (at: number | null) => {
@@ -426,6 +462,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   }
   const chooseTool = useCallback(
     (tool: Tool) => {
+      placingOff.current()
       update((s) => setTool(s, tool))
       const kind = ADD_TOOLS[tool]
       if (kind) {
@@ -534,7 +571,144 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   // --- the screen: desktop, tablet (a toolbar and drawers), or too small ------------------------
   const compact = useMediaQuery('(max-width: 1099.98px)')
   const tooSmall = useMediaQuery('(max-width: 699.98px)')
-  const [drawer, setDrawer] = useState<'colours' | 'structure' | null>(null)
+  const [drawer, setDrawer] = useState<'colours' | 'structure' | 'trace' | null>(null)
+
+  // --- the image to trace -------------------------------------------------------------------------
+  const [decoded, setDecoded] = useState<{ bytes: Uint8Array; bitmap: ImageBitmap } | null>(null)
+  const [traceBusy, setTraceBusy] = useState(false)
+  const [placing, setPlacing] = useState(false)
+  const traceBytes = trace?.bytes
+  const traceType = trace?.type
+  // Decoded once for each image, not for each move; until it is, nothing is drawn.
+  const bitmap = decoded && decoded.bytes === traceBytes ? decoded.bitmap : null
+  useEffect(() => {
+    if (!traceBytes || !traceType) return
+    let gone = false
+    let made: ImageBitmap | null = null
+    decodeTraceImage(traceBytes, traceType).then(
+      (b) => {
+        if (gone) return b.close()
+        made = b
+        setDecoded({ bytes: traceBytes, bitmap: b })
+      },
+      (e: unknown) => {
+        if (!gone) setMessage(traceErrorText(e))
+      },
+    )
+    return () => {
+      gone = true
+      made?.close()
+    }
+  }, [traceBytes, traceType])
+  const thumbUrl = useMemo(
+    () => (traceBytes && traceType ? URL.createObjectURL(new Blob([traceBytes as Uint8Array<ArrayBuffer>], { type: traceType })) : null),
+    [traceBytes, traceType],
+  )
+  useEffect(
+    () => () => {
+      if (thumbUrl) URL.revokeObjectURL(thumbUrl)
+    },
+    [thumbUrl],
+  )
+
+  const addTrace = async (file: File) => {
+    setTraceBusy(true)
+    try {
+      const img = await prepareTraceImage(file)
+      const before = latestTrace.current
+      const at = latest.current.pattern
+      setTrace({
+        bytes: img.bytes,
+        type: img.type,
+        ...fitTrace(at.cols, at.rows, img),
+        opacity: before?.opacity ?? DEFAULT_OPACITY,
+        shown: true,
+        behind: before?.behind ?? DEFAULT_BEHIND,
+      })
+      setMessage(before ? 'Replaced the image to trace, fitted to the pattern.' : 'Added an image to trace, fitted to the pattern.')
+    } catch (e) {
+      setMessage(traceErrorText(e))
+    } finally {
+      setTraceBusy(false)
+    }
+  }
+  const placeTrace = (to: Placement, done: boolean) => {
+    const t = latestTrace.current
+    if (t) setTrace({ ...t, ...to }, done)
+  }
+  const fitToPattern = () => {
+    const t = latestTrace.current
+    if (!t || !bitmap) return
+    const at = latest.current.pattern
+    setTrace({ ...t, ...fitTrace(at.cols, at.rows, { iw: bitmap.width, ih: bitmap.height }), shown: true })
+    setMessage('Fitted the image to the pattern.')
+  }
+  const showTrace = (shown: boolean) => {
+    const t = latestTrace.current
+    if (!t) return
+    setTrace({ ...t, shown })
+    if (!shown) setPlacing(false)
+  }
+  const traceShow = (how: TraceShow) => {
+    const t = latestTrace.current
+    if (!t) return
+    if (how === 'off') return showTrace(false)
+    setTrace({ ...t, shown: true, behind: how === 'behind' })
+  }
+  const startPlacing = (on: boolean) => {
+    const t = latestTrace.current
+    if (on && t && !t.shown) setTrace({ ...t, shown: true })
+    setPlacing(on)
+    if (on) {
+      setDrawer(null)
+      setMessage('')
+    }
+  }
+  const removeTrace = () => {
+    setTrace(null)
+    setPlacing(false)
+    setMessage('Removed the image to trace.')
+  }
+  /** The keys that work on the image, for the keyboard handler attached once. */
+  const traceKeys = useRef({ showTrace, startPlacing, placeTrace })
+  useEffect(() => {
+    traceKeys.current = { showTrace, startPlacing, placeTrace }
+  })
+  const placingNow = useRef(placing)
+  useEffect(() => {
+    placingNow.current = placing
+    placingOff.current = () => setPlacing(false)
+  }, [placing])
+
+  // A file dragged over the chart: dropped, it becomes the image to trace.
+  const [dropping, setDropping] = useState(false)
+  const dragDepth = useRef(0)
+  const dropHandlers = {
+    onDragEnter: (e: DragEvent) => {
+      if (!draggingFiles(e)) return
+      dragDepth.current += 1
+      setDropping(true)
+    },
+    onDragOver: (e: DragEvent) => {
+      if (!draggingFiles(e)) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'copy'
+    },
+    onDragLeave: (e: DragEvent) => {
+      if (!draggingFiles(e)) return
+      dragDepth.current = Math.max(0, dragDepth.current - 1)
+      if (dragDepth.current === 0) setDropping(false)
+    },
+    onDrop: (e: DragEvent) => {
+      if (!draggingFiles(e)) return
+      e.preventDefault()
+      dragDepth.current = 0
+      setDropping(false)
+      const f = droppedImage(e)
+      if (f) void addTrace(f)
+      else setMessage('Only an image can be traced. Try a PNG or a JPEG.')
+    },
+  }
   /** "Yarn & size" or "Visualize" is open, for the pattern as it is now. */
   const [dialog, setDialog] = useState<'yarn' | 'visualize' | null>(null)
   const hidden = useRef(tooSmall)
@@ -622,6 +796,29 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
         return
       }
       if (e.altKey) return
+      const tk = traceKeys.current
+      if (placingNow.current) {
+        // Placing the image to trace: Esc or Enter is done, the arrows move it a cell
+        // (ten with Shift). Zooming and the T key still work.
+        const step = e.shiftKey ? 10 : 1
+        const by = { ArrowUp: [0, -step], ArrowDown: [0, step], ArrowLeft: [-step, 0], ArrowRight: [step, 0] }[e.key]
+        const t = latestTrace.current
+        if (e.key === 'Escape' || (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement))) {
+          e.preventDefault()
+          tk.startPlacing(false)
+          return
+        }
+        if (by && t) {
+          e.preventDefault()
+          tk.placeTrace(moveTrace(t, by[0]!, by[1]!), true)
+          return
+        }
+      }
+      if (key === 't' && !e.shiftKey && latestTrace.current) {
+        e.preventDefault()
+        tk.showTrace(!latestTrace.current.shown)
+        return
+      }
       if (e.key === 'Escape') {
         update(latest.current.drag ? cancelDrag : deselect)
         return
@@ -699,10 +896,28 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
           ? { highlight: line(adding.kind, adding.at, p) }
           : { outline: line(adding.kind, adding.at, shownPattern) }
         : null
-  const mode = preview ? (preview.outline ? 'move' : 'view') : 'edit'
+  const mode = placing && trace ? 'trace' : preview ? (preview.outline ? 'move' : 'view') : 'edit'
+  const traceBehind = trace?.behind ? backgroundIndex(shownPattern) : null
+  const traceDraw = useMemo(
+    () =>
+      trace && bitmap && (trace.shown || placing)
+        ? {
+            behind: traceBehind,
+            image: bitmap,
+            iw: bitmap.width,
+            ih: bitmap.height,
+            x: trace.x,
+            y: trace.y,
+            width: trace.width,
+            opacity: clampOpacity(trace.opacity),
+            adjusting: placing,
+          }
+        : null,
+    [trace, bitmap, placing, traceBehind],
+  )
   // The selection being dragged out, or the one there is.
   const selection = d?.tool === 'select' ? rectBetween(d.start, d.end) : (editor.selection?.rect ?? null)
-  const withSelection: Overlay | null = overlay ?? (selection && selects(editor.tool) ? { selection } : null)
+  const withSelection: Overlay | null = placing ? null : (overlay ?? (selection && selects(editor.tool) ? { selection } : null))
 
   // The same controls, laid out for the screen: side columns on a desktop; on a tablet a
   // toolbar over the chart, and the colours and the structural panel in drawers.
@@ -854,6 +1069,24 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
     />
   )
 
+  const tracePanel = (
+    <TracePanel
+      image={
+        trace && thumbUrl
+          ? { url: thumbUrl, opacity: clampOpacity(trace.opacity), show: !trace.shown ? 'off' : trace.behind ? 'behind' : 'over' }
+          : null
+      }
+      placing={placing}
+      busy={traceBusy}
+      onFile={(f) => void addTrace(f)}
+      onShow={traceShow}
+      onOpacity={(v) => trace && setTrace({ ...trace, opacity: v })}
+      onPlacing={startPlacing}
+      onFit={fitToPattern}
+      onRemove={removeTrace}
+    />
+  )
+
   // A phone: the Design stage is desktop-first and doesn't fit
   // (docs/dev/history/web-port.md#phase-3). This screen keeps its state (the pattern,
   // undo) meanwhile, so turning a device round and back loses nothing.
@@ -959,7 +1192,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
             <span className="design__toolbar-gap" />
             {zoomControls}
             <span className="design__toolbar-gap" />
-            {(['colours', 'structure'] as const).map((d) => (
+            {(['colours', 'structure', 'trace'] as const).map((d) => (
               <button
                 key={d}
                 type="button"
@@ -972,6 +1205,11 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
                   <>
                     <span className="colour__swatch design__toolbar-swatch" style={{ background: current?.hex }} aria-hidden="true" />
                     Colours
+                  </>
+                ) : d === 'trace' ? (
+                  <>
+                    <AddImageIcon />
+                    Image
                   </>
                 ) : (
                   'Structure'
@@ -991,10 +1229,11 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
             )}
             <h2 className="design__heading">Zoom</h2>
             {zoomControls}
+            {tracePanel}
           </aside>
         )}
 
-        <section className="design__canvas" aria-label="Pattern">
+        <section className="design__canvas" aria-label="Pattern" {...dropHandlers}>
           <DesignCanvas
             pattern={shownPattern}
             cell={cell ?? 16}
@@ -1002,6 +1241,8 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
             mode={mode}
             preview={rectPreview}
             overlay={withSelection}
+            trace={traceDraw}
+            onTrace={placeTrace}
             selection={selects(editor.tool) ? (sel?.rect ?? null) : null}
             roomBelow={compact && selects(editor.tool) ? barHeight : 0}
             onDown={onDown}
@@ -1020,7 +1261,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
             label={
               preview
                 ? `Preview, ${shownPattern.cols} by ${shownPattern.rows}`
-                : `Pattern, ${p.cols} by ${p.rows}${sel && selects(editor.tool) ? `, ${rectCols(sel.rect)} by ${rectRows(sel.rect)} selected` : ''}`
+                : `Pattern, ${p.cols} by ${p.rows}${sel && selects(editor.tool) ? `, ${rectCols(sel.rect)} by ${rectRows(sel.rect)} selected` : ''}${traceDraw ? ', with an image to trace over it' : ''}`
             }
           />
           {compact && selectionTools && (
@@ -1028,20 +1269,41 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
               {selectionTools}
             </div>
           )}
-          {preview && (
+          {preview && !placing && (
             <p className="design__previewing" role="status">
               Previewing: drag the pattern to move it.
             </p>
+          )}
+          {placing && (
+            <div className="design__placing" role="status">
+              <span className="design__placing-text">Drag the image, or a corner to resize it.</span>
+              <button type="button" className="button button--small" onClick={fitToPattern}>
+                Fit to pattern
+              </button>
+              <button type="button" className="button button--small button--primary" onClick={() => startPlacing(false)}>
+                Done
+              </button>
+            </div>
+          )}
+          {dropping && (
+            <div className="design__drop" aria-hidden="true">
+              <AddImageIcon />
+              <span>{trace ? 'Drop to replace the image to trace' : 'Drop to trace this image'}</span>
+            </div>
           )}
         </section>
 
         {compact ? (
           drawer && (
-            <aside id={`design-drawer-${drawer}`} className="design__drawer" aria-label={drawer === 'colours' ? 'Colours' : 'Structure'}>
+            <aside
+              id={`design-drawer-${drawer}`}
+              className="design__drawer"
+              aria-label={drawer === 'colours' ? 'Colours' : drawer === 'trace' ? 'Image to trace' : 'Structure'}
+            >
               <button type="button" className="button button--small design__drawer-close" onClick={() => setDrawer(null)}>
                 Close
               </button>
-              {drawer === 'colours' ? colours : structure}
+              {drawer === 'colours' ? colours : drawer === 'trace' ? tracePanel : structure}
             </aside>
           )
         ) : (

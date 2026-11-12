@@ -24,13 +24,16 @@
  *   where a press picks it up to drag.
  * - A press on a row or column number, in the margins, picks that row or column
  *   (`onAxis`), for inserting or deleting it.
+ * - Placing the image to trace (`mode` "trace"): a drag moves it, and a drag from one
+ *   of its corner handles resizes it, the opposite corner staying put (`onTrace`). Two
+ *   fingers still pan and zoom, and put the image back where the first one found it.
  * - Ctrl/⌘ + wheel zooms about the pointer (a trackpad pinch arrives as this too); a
  *   bare wheel scrolls.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import type { Pattern } from '../../model/types.ts'
-import { buildCellImage, type ChartColors } from '../../render/chart.ts'
+import { buildCellImage, cellPixels, type ChartColors } from '../../render/chart.ts'
 import {
   AXIS_LEFT,
   AXIS_TOP,
@@ -45,8 +48,11 @@ import {
   type Cell,
   type CellRect,
   type Overlay,
+  type TraceDraw,
+  TRACE_HANDLE,
 } from '../../render/design.ts'
 import { ADD_TOOLS, selects, type Tool } from '../../design/editor.ts'
+import { CORNER_CURSOR, handleAt, moveTrace, resizeTrace, type Corner, type Placement } from '../../design/trace.ts'
 import { readColors, useDarkScheme } from '../chartColors.ts'
 import { TwoFingers, type PinchStep } from '../gestures.ts'
 
@@ -69,7 +75,7 @@ const CURSORS: Record<Tool, string> = {
 /** Tools that act on a press: on touch they wait for the finger to lift. */
 const ON_RELEASE: ReadonlySet<Tool> = new Set(['fill', 'eyedropper', 'row', 'col'])
 
-export type CanvasMode = 'edit' | 'move' | 'view'
+export type CanvasMode = 'edit' | 'move' | 'view' | 'trace'
 
 export interface DesignCanvasProps {
   pattern: Pattern
@@ -79,6 +85,12 @@ export interface DesignCanvasProps {
   mode?: CanvasMode
   preview: { a: Cell; b: Cell; hex: string } | null
   overlay?: Overlay | null
+  /** The image to trace; in "trace" mode, the one being placed. `behind`: the palette
+   *  index of the background, to show it behind the cells painted (through the cells of
+   *  that colour); null to show it over every cell. */
+  trace?: (Omit<TraceDraw, 'under'> & { behind: number | null }) | null
+  /** "trace" mode: the image placed here; `done` once the pointer lets go. */
+  onTrace?: (placement: Placement, done: boolean) => void
   /** The Select tool's selection, for the cursor: a press inside it moves it. */
   selection?: CellRect | null
   /** CSS pixels of scrolling room under the chart, for what lies over the bottom of the
@@ -115,7 +127,7 @@ export interface DesignCanvasProps {
 }
 
 export function DesignCanvas(props: DesignCanvasProps) {
-  const { pattern, cell, tool, preview, overlay = null, mode = 'edit' } = props
+  const { pattern, cell, tool, preview, overlay = null, trace = null, mode = 'edit' } = props
   const wrap = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
@@ -155,6 +167,15 @@ export function DesignCanvas(props: DesignCanvasProps) {
 
   const { cells, palette, rows, cols } = pattern
   const image = useMemo(() => buildCellImage({ cells, palette, rows, cols }), [cells, palette, rows, cols])
+  // The image to trace shown behind the paint: the cells with the background left out.
+  const behind = trace?.behind ?? null
+  const under = useMemo(() => {
+    if (behind === null || !palette[behind]) return null
+    const pixels = cellPixels({ cells, palette, rows, cols })
+    for (let i = 0; i < cells.length; i++) if (cells[i] === behind) pixels[i * 4 + 3] = 0
+    const masked = buildCellImage({ cells, palette, rows, cols }, pixels)
+    return masked ? { cells: masked, background: palette[behind].hex } : null
+  }, [behind, cells, palette, rows, cols])
 
   const draw = useRef<() => void>(() => {})
   useLayoutEffect(() => {
@@ -176,6 +197,7 @@ export function DesignCanvas(props: DesignCanvasProps) {
         colors: colors.current,
         preview,
         overlay,
+        trace: trace && { ...trace, under },
       })
     }
   })
@@ -215,7 +237,7 @@ export function DesignCanvas(props: DesignCanvasProps) {
     shownCell.current = cell
   }, [cell])
 
-  useLayoutEffect(() => draw.current(), [image, pattern, cell, size, dpr, preview, overlay, dark])
+  useLayoutEffect(() => draw.current(), [image, pattern, cell, size, dpr, preview, overlay, trace, under, dark])
 
   // --- input ------------------------------------------------------------------------------
   const view = () => {
@@ -245,6 +267,32 @@ export function DesignCanvas(props: DesignCanvasProps) {
     const g = geometry()
     const base = latest.current.base ?? g
     return insertAt(kind, clamp ? Math.max(x, AXIS_LEFT) : x, clamp ? Math.max(y, AXIS_TOP) : y, { ...g, rows: base.rows, cols: base.cols })
+  }
+
+  /** A point in the view, in cells from the grid's top-left corner, unrounded. */
+  const inCells = (e: { clientX: number; clientY: number }) => {
+    const { left, top } = view()
+    const g = geometry()
+    return { x: (e.clientX - left - AXIS_LEFT + g.scrollX) / g.cell, y: (e.clientY - top - AXIS_TOP + g.scrollY) / g.cell }
+  }
+  /** The corner handle under a point, while placing the image to trace. A finger gets
+   *  more room than a mouse. */
+  const traceHandle = (e: { clientX: number; clientY: number; pointerType?: string }): Corner | null => {
+    const t = latest.current.trace
+    if (!t) return null
+    const at = inCells(e)
+    const reach = (TRACE_HANDLE / 2 + (e.pointerType === 'touch' ? 12 : 4)) / shownCell.current
+    return handleAt(t, t, at.x, at.y, reach)
+  }
+  /** Placing the image to trace: the pointer, where it was pressed (in cells), where the
+   *  image was then, and whether it moves the image or resizes it from a corner. */
+  const placing = useRef<{ id: number; from: { x: number; y: number }; start: Placement; corner: Corner | null } | null>(null)
+  const placeTo = (e: { clientX: number; clientY: number }) => {
+    const pl = placing.current
+    const t = latest.current.trace
+    if (!pl || !t) return pl?.start ?? null
+    const at = inCells(e)
+    return pl.corner ? resizeTrace(pl.start, t, pl.corner, at.x, at.y) : moveTrace(pl.start, at.x - pl.from.x, at.y - pl.from.y)
   }
 
   /** The pointer using the tool (or dragging the pattern), and where a drag began. */
@@ -289,6 +337,11 @@ export function DesignCanvas(props: DesignCanvasProps) {
           latest.current.onInsertHover?.(null)
         }
         pinchCell.current = shownCell.current
+        const pl = placing.current
+        if (pl) {
+          placing.current = null
+          latest.current.onTrace?.(pl.start, true)
+        }
         const d = dragging.current
         if (d) {
           dragging.current = null
@@ -301,7 +354,7 @@ export function DesignCanvas(props: DesignCanvasProps) {
       }
       if (fingers.current.pinching) return
     } else if (e.button !== 0) return
-    if (dragging.current !== null || adding.current !== null) return
+    if (dragging.current !== null || adding.current !== null || placing.current !== null) return
 
     const { sc, left, top } = view()
     const x = e.clientX - left
@@ -309,6 +362,16 @@ export function DesignCanvas(props: DesignCanvasProps) {
     // A press on a scrollbar (outside the content box) scrolls; it doesn't paint.
     if (x >= sc.clientWidth || y >= sc.clientHeight) return
     const m = latest.current.mode ?? 'edit'
+    if (m === 'trace') {
+      // Anywhere in the view: the image may lie past the grid, even over the numbers.
+      const t = latest.current.trace
+      if (!t) return
+      e.preventDefault()
+      wrap.current?.focus({ preventScroll: true })
+      e.currentTarget.setPointerCapture?.(e.pointerId)
+      placing.current = { id: e.pointerId, from: inCells(e), start: { x: t.x, y: t.y, width: t.width }, corner: traceHandle(e) }
+      return
+    }
     const hit = locate(e, false)
     const at = insertIndex(e, false)
     if (adds() ? at === null : !hit) {
@@ -343,6 +406,17 @@ export function DesignCanvas(props: DesignCanvasProps) {
       if (step) pinch(step)
       if (fingers.current.pinching) return
     }
+    if (latest.current.mode === 'trace') {
+      const pl = placing.current
+      if (pl?.id === e.pointerId) {
+        const to = placeTo(e)
+        if (to) latest.current.onTrace?.(to, false)
+      } else if (!pl) {
+        const corner = traceHandle(e)
+        e.currentTarget.style.cursor = corner ? CORNER_CURSOR[corner] : 'move'
+      }
+      return
+    }
     const sel = latest.current.selection
     if (!dragging.current && (latest.current.mode ?? 'edit') === 'edit' && selects(latest.current.tool)) {
       const at = locate(e, false)
@@ -364,6 +438,13 @@ export function DesignCanvas(props: DesignCanvasProps) {
 
   const end = (e: React.PointerEvent<HTMLDivElement>, cancelled: boolean) => {
     if (e.pointerType === 'touch') fingers.current.up(e.pointerId)
+    const pl = placing.current
+    if (pl?.id === e.pointerId) {
+      const to = cancelled ? pl.start : placeTo(e)
+      placing.current = null
+      if (to) latest.current.onTrace?.(to, true)
+      return
+    }
     if (adding.current === e.pointerId) {
       adding.current = null
       const at = cancelled ? null : insertIndex(e, true)
@@ -405,7 +486,7 @@ export function DesignCanvas(props: DesignCanvasProps) {
   }, [])
 
   const content = contentSize(pattern.cols, pattern.rows, cell)
-  const cursor = mode === 'move' ? 'grab' : mode === 'view' ? 'default' : CURSORS[tool]
+  const cursor = mode === 'move' ? 'grab' : mode === 'trace' ? 'move' : mode === 'view' ? 'default' : CURSORS[tool]
   // Set here as well as in `style`: hovering the selection sets it directly, and React
   // wouldn't put back a value it thinks is unchanged.
   useLayoutEffect(() => {

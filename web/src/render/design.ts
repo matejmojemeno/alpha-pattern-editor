@@ -145,7 +145,36 @@ export interface DesignDraw {
   /** A rectangle being dragged out, and the colour it will fill with. */
   preview?: { a: Cell; b: Cell; hex: string } | null
   overlay?: Overlay | null
+  /** The image to trace, over the cells and under the gridlines. */
+  trace?: TraceDraw | null
 }
+
+/** The image to trace, as drawn (design/trace.ts has its geometry). */
+export interface TraceDraw {
+  readonly image: CanvasImageSource
+  /** Its size in pixels, for its shape and for when to keep its pixels sharp. */
+  readonly iw: number
+  readonly ih: number
+  /** Where it lies, in cells: its top-left corner and its width. */
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly opacity: number
+  /** Being moved or resized: what lies past the grid shows faintly too, and the image
+   *  is outlined, with a handle at each corner. */
+  readonly adjusting: boolean
+  /** Shown behind the cells painted: the grid is filled with the background colour, the
+   *  image drawn over that, and then the cells with the background ones left out
+   *  (`cells`, a pixel per cell, as `DesignDraw.image`). Without it, the image lies over
+   *  every cell. */
+  readonly under?: { readonly cells: CellImage; readonly background: string } | null
+}
+
+/** A corner handle's size, in CSS pixels. A press this close to a corner resizes. */
+export const TRACE_HANDLE = 12
+/** How strongly the part of an image past the grid shows, against the part over it,
+ *  while it is being placed. */
+export const TRACE_OUTSIDE = 0.4
 
 /** Half-open, in cells: rows [r0, r1) × columns [c0, c1). */
 export interface CellRect {
@@ -231,6 +260,71 @@ function drawOverlay(ctx: CanvasRenderingContext2D, o: Overlay, ox: number, oy: 
 
 const px = (v: number, dpr: number) => Math.round(v * dpr) / dpr
 
+/** Where the image lies on the canvas, in CSS pixels. */
+export function traceBox(t: Pick<TraceDraw, 'iw' | 'ih' | 'x' | 'y' | 'width'>, ox: number, oy: number, cell: number) {
+  const w = t.width * cell
+  return { x: ox + t.x * cell, y: oy + t.y * cell, w, h: (w * t.ih) / t.iw }
+}
+
+/**
+ * The image to trace, see-through over the cells. Over the grid only, so it never
+ * hides what's past the pattern; while being placed, what lies past the grid shows
+ * faintly as well, so the whole image can be lined up. Enlarged at least twice, its
+ * pixels stay square (pixel art traced at its own size stays crisp); otherwise it's
+ * smoothed, as a photo should be.
+ */
+function drawTrace(ctx: CanvasRenderingContext2D, t: TraceDraw, ox: number, oy: number, cell: number, gw: number, gh: number, view: { w: number; h: number }) {
+  const b = traceBox(t, ox, oy, cell)
+  if (b.w <= 0 || b.h <= 0) return
+  ctx.save()
+  ctx.imageSmoothingEnabled = b.w / t.iw < 2
+  ctx.imageSmoothingQuality = 'high'
+  if (t.adjusting) {
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(0, 0, view.w, view.h)
+    ctx.rect(ox, oy, gw, gh)
+    ctx.clip('evenodd')
+    ctx.globalAlpha = t.opacity * TRACE_OUTSIDE
+    ctx.drawImage(t.image, b.x, b.y, b.w, b.h)
+    ctx.restore()
+  }
+  ctx.beginPath()
+  ctx.rect(ox, oy, gw, gh)
+  ctx.clip()
+  ctx.globalAlpha = t.opacity
+  ctx.drawImage(t.image, b.x, b.y, b.w, b.h)
+  ctx.restore()
+}
+
+/** The outline and corner handles of an image being placed, as the selection's are
+ *  drawn: dark over light, so they show on any colour. */
+function drawTraceFrame(ctx: CanvasRenderingContext2D, t: TraceDraw, ox: number, oy: number, cell: number, colors: ChartColors) {
+  const b = traceBox(t, ox, oy, cell)
+  ctx.save()
+  ctx.lineWidth = 2
+  ctx.strokeStyle = SELECTION_LIGHT
+  ctx.strokeRect(b.x, b.y, b.w, b.h)
+  ctx.setLineDash([6, 4])
+  ctx.strokeStyle = colors.accent
+  ctx.strokeRect(b.x, b.y, b.w, b.h)
+  ctx.setLineDash([])
+  const s = TRACE_HANDLE
+  for (const [hx, hy] of [
+    [b.x, b.y],
+    [b.x + b.w, b.y],
+    [b.x, b.y + b.h],
+    [b.x + b.w, b.y + b.h],
+  ] as const) {
+    ctx.fillStyle = SELECTION_LIGHT
+    ctx.fillRect(hx - s / 2, hy - s / 2, s, s)
+    ctx.lineWidth = 2
+    ctx.strokeStyle = colors.accent
+    ctx.strokeRect(hx - s / 2 + 1, hy - s / 2 + 1, s - 2, s - 2)
+  }
+  ctx.restore()
+}
+
 /** The rows and columns in view: [r0, r1) × [c0, c1). */
 export function visibleCells(d: Pick<DesignDraw, 'pattern' | 'cell' | 'scrollX' | 'scrollY' | 'width' | 'height'>) {
   const { rows, cols } = d.pattern
@@ -259,7 +353,19 @@ export function drawDesign(ctx: CanvasRenderingContext2D, d: DesignDraw): void {
   ctx.rect(AXIS_LEFT, AXIS_TOP, d.width - AXIS_LEFT, d.height - AXIS_TOP)
   ctx.clip()
   ctx.imageSmoothingEnabled = false
-  ctx.drawImage(d.image, c0, r0, c1 - c0, r1 - r0, ox + c0 * cell, oy + r0 * cell, (c1 - c0) * cell, (r1 - r0) * cell)
+  const visible = [ox + c0 * cell, oy + r0 * cell, (c1 - c0) * cell, (r1 - r0) * cell] as const
+  const under = d.trace?.under
+  if (d.trace && under) {
+    // Behind the paint: the background colour, the image over it, then the cells painted.
+    ctx.fillStyle = under.background
+    ctx.fillRect(...visible)
+    drawTrace(ctx, d.trace, ox, oy, cell, p.cols * cell, p.rows * cell, { w: d.width, h: d.height })
+    ctx.imageSmoothingEnabled = false
+    ctx.drawImage(under.cells, c0, r0, c1 - c0, r1 - r0, ...visible)
+  } else {
+    ctx.drawImage(d.image, c0, r0, c1 - c0, r1 - r0, ...visible)
+    if (d.trace) drawTrace(ctx, d.trace, ox, oy, cell, p.cols * cell, p.rows * cell, { w: d.width, h: d.height })
+  }
 
   if (cell >= MIN_GRID_CELL) {
     // Thin filled rects on device-pixel boundaries, as on the Work chart.
@@ -291,6 +397,7 @@ export function drawDesign(ctx: CanvasRenderingContext2D, d: DesignDraw): void {
     ctx.setLineDash([])
   }
   if (d.overlay) drawOverlay(ctx, d.overlay, ox, oy, cell, colors)
+  if (d.trace?.adjusting) drawTraceFrame(ctx, d.trace, ox, oy, cell, colors)
   ctx.restore()
 
   // --- axis numbers ------------------------------------------------------------------------------
