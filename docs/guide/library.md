@@ -65,7 +65,7 @@ be undone, so export anything you might want again before you delete it.
 
 A `.alpha` file is one whole project in one file: the pattern, its colours and their
 names, your progress in the Work stage, the chart image you imported, if there was
-one, and the photo of what you made, if you added one. It's the only way to keep a copy of a project outside your browser.
+one, the image you traced in Design, if you added one, and the photo of what you made, if you added one. It's the only way to keep a copy of a project outside your browser.
 
 ## Back up your projects
 

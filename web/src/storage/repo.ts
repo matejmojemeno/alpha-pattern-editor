@@ -8,7 +8,7 @@
 import { workStatus } from '../app/stages.ts'
 import { newId } from '../logic/edit.ts'
 import { emptyProgress, type Project } from '../model/types.ts'
-import { alphaFileName, progressPct, readAlpha, writeAlpha, type AlphaContents } from './alpha.ts'
+import { alphaFileName, progressPct, readAlpha, writeAlpha, type AlphaContents, type TraceImage } from './alpha.ts'
 import * as db from './db.ts'
 import { makeThumbnail, type Downscaler } from './thumbnail.ts'
 
@@ -54,6 +54,14 @@ async function summarize(
     thumbnail_kind: thumbnail.thumbnail_kind,
     made_photo: contents.madePhoto !== null,
   }
+}
+
+/** What a save stores beside the project: bytes (or the image to trace) to store, null to
+ *  drop it, or left out to keep what the stored archive has. */
+export interface SaveImages {
+  sourcePng?: Uint8Array | null
+  madePhoto?: Uint8Array | null
+  trace?: TraceImage | null
 }
 
 export class ProjectNotFoundError extends Error {
@@ -167,37 +175,35 @@ export class ProjectRepo {
 
   /**
    * Save a project, stamping a fresh updated_at like io.save_project, and return the
-   * saved copy (the argument is not modified). `sourcePng` and `madePhoto`: bytes to
-   * store, null to drop the image, or omitted to keep whatever the stored archive
+   * saved copy (the argument is not modified). `sourcePng`, `madePhoto` and `trace`:
+   * what to store, null to drop it, or omitted to keep whatever the stored archive
    * already has.
    */
-  save(project: Project, opts: { sourcePng?: Uint8Array | null; madePhoto?: Uint8Array | null } = {}): Promise<Project> {
+  save(project: Project, opts: SaveImages = {}): Promise<Project> {
     return this.serial(project.pattern.id, () => this.write(project, opts))
   }
 
-  private async write(
-    project: Project,
-    opts: { sourcePng?: Uint8Array | null; madePhoto?: Uint8Array | null },
-  ): Promise<Project> {
-    let { sourcePng, madePhoto } = opts
+  private async write(project: Project, opts: SaveImages): Promise<Project> {
+    let { sourcePng, madePhoto, trace } = opts
     // Kept images keep their thumbnail: re-decoding a photo on every save would be
     // wasted work. A cells thumbnail is cheap, and the cells may have changed.
     let thumbnail: db.ProjectSummary | undefined
-    if (sourcePng === undefined || madePhoto === undefined) {
+    if (sourcePng === undefined || madePhoto === undefined || trace === undefined) {
       const existing = await db.getArchive(this.db, project.pattern.id)
       const stored = existing ? readAlpha(await bytesOf(existing)) : null
       if (sourcePng === undefined) sourcePng = stored?.sourcePng ?? null
       if (madePhoto === undefined) madePhoto = stored?.madePhoto ?? null
+      if (trace === undefined) trace = stored?.trace ?? null
       if (opts.sourcePng === undefined && opts.madePhoto === undefined) {
         const summary = await db.getSummary(this.db, project.pattern.id)
         if (summary && summary.thumbnail_kind !== 'cells' && (sourcePng || madePhoto)) thumbnail = summary
       }
     }
-    const { bytes, project: saved } = writeAlpha(project, { sourcePng, madePhoto, now: this.clock() })
+    const { bytes, project: saved } = writeAlpha(project, { sourcePng, madePhoto, trace, now: this.clock() })
     await db.putProject(
       this.db,
       new Blob([bytes as Uint8Array<ArrayBuffer>], { type: ALPHA_MIME }),
-      await summarize({ project: saved, sourcePng, madePhoto }, this.opts.downscale, thumbnail),
+      await summarize({ project: saved, sourcePng, madePhoto, trace }, this.opts.downscale, thumbnail),
     )
     this.stored()
     return saved
@@ -210,6 +216,11 @@ export class ProjectRepo {
       const { project } = await this.open(id)
       return this.write({ ...project, pattern: { ...project.pattern, name } }, {})
     })
+  }
+
+  /** The stored image to trace over this project's Design chart, or null. */
+  async trace(id: string): Promise<TraceImage | null> {
+    return (await this.open(id)).trace
   }
 
   /** The stored photo of what was made from this project (made.jpg), or null. */
@@ -231,14 +242,15 @@ export class ProjectRepo {
 
   /**
    * A copy of a stored project, for making it again: a new id and `name`, no progress,
-   * in the Work stage, with the same chart, settings and source image. Row ids are kept:
-   * they only need to be unique within a pattern. The original is left as it was, and
-   * keeps its photo of the finished piece: the copy hasn't been made yet, so has none.
+   * in the Work stage, with the same chart, settings, source image and image to trace.
+   * Row ids are kept: they only need to be unique within a pattern. The original is left
+   * as it was, and keeps its photo of the finished piece: the copy hasn't been made yet,
+   * so has none.
    */
   async copy(id: string, name: string): Promise<Project> {
-    const { project, sourcePng } = await this.open(id)
+    const { project, sourcePng, trace } = await this.open(id)
     const pattern = { ...project.pattern, id: newId(), name, created_at: this.clock() }
-    return this.save({ pattern, progress: emptyProgress(), stage: 'work' }, { sourcePng, madePhoto: null })
+    return this.save({ pattern, progress: emptyProgress(), stage: 'work' }, { sourcePng, madePhoto: null, trace })
   }
 
   /**

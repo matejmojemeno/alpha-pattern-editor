@@ -51,6 +51,7 @@ export type ExpectedRecord =
       }
       source_png_sha256: string | null
       made_photo_sha256?: string
+      trace?: { type: string; x: number; y: number; width: number; opacity: number; shown: boolean; behind: boolean; sha256: string }
     }
 
 export interface ExpectedFile {
@@ -70,7 +71,7 @@ export function readArchives(dir: string): Record<string, Uint8Array<ArrayBuffer
 }
 
 /** A loaded project in the expected.json shape. */
-export function record({ project, sourcePng, madePhoto }: AlphaContents) {
+export function record({ project, sourcePng, madePhoto, trace }: Omit<AlphaContents, 'trace'> & { trace?: AlphaContents['trace'] }) {
   const { pattern: p, progress: pr, stage } = project
   return {
     stage,
@@ -101,6 +102,21 @@ export function record({ project, sourcePng, madePhoto }: AlphaContents) {
     // Only the web app writes made.jpg, so only an archive that has one says so: the
     // desktop's expected.json, written by the Python, has no such key.
     ...(madePhoto ? { made_photo_sha256: createHash('sha256').update(madePhoto).digest('hex') } : {}),
+    // The same for the Design stage's image to trace (trace.json and trace.png/jpg).
+    ...(trace
+      ? {
+          trace: {
+            type: trace.type,
+            x: trace.x,
+            y: trace.y,
+            width: trace.width,
+            opacity: trace.opacity,
+            shown: trace.shown,
+            behind: trace.behind,
+            sha256: createHash('sha256').update(trace.bytes).digest('hex'),
+          },
+        }
+      : {}),
   }
 }
 
@@ -206,6 +222,22 @@ export function buildFromTs(): { archives: Record<string, Uint8Array>; expected:
   const made = writeAlpha(builtProjects()['built-edge.alpha']!, { madePhoto, now: 1_700_000_000 })
   archives['built-made-photo.alpha'] = made.bytes
   files['built-made-photo.alpha'] = record({ project: made.project, sourcePng: null, madePhoto })
+
+  // An image to trace (trace.json and trace.png), which only the web app writes: the
+  // Python must still open the archive, ignoring both. The bytes stand in for a PNG.
+  const trace = {
+    bytes: Uint8Array.from([0x89, 0x50, 0x4e, 0x47, ...strToU8('stand-in for an image to trace')]),
+    type: 'image/png' as const,
+    x: -1.5,
+    y: 2.25,
+    width: 12.5,
+    opacity: 0.4,
+    shown: false,
+    behind: true,
+  }
+  const traced = writeAlpha(builtProjects()['built-edge.alpha']!, { trace, now: 1_700_000_000 })
+  archives['built-trace.alpha'] = traced.bytes
+  files['built-trace.alpha'] = record({ project: traced.project, sourcePng: null, madePhoto: null, trace })
 
   // A TS-written archive claiming a format from the future: both sides must refuse it.
   const { bytes: base } = writeAlpha(builtProjects()['built-edge.alpha']!, { now: 1_700_000_000 })

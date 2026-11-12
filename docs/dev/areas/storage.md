@@ -27,6 +27,24 @@ file the removed desktop app saved must still open. Code:
   - The photo is re-encoded before it's stored, which drops its EXIF data, location
     included ([rule](../rules.md#made-photo)).
 
+- <a id="trace"></a>**The Design stage's image to trace: `trace.json` and `trace.png` or
+  `trace.jpg`** (`storage/alpha.ts`, `TraceImage`; the feature is
+  [design.md](design.md#image-to-trace)). Optional, written only by the web app, and like
+  `made.jpg` needing no `format_version` change: `alphareader.core.io` ignores both entries,
+  which `fixtures/alpha/from-ts/built-trace.alpha` checks.
+  - `trace.json` is `{"file", "x", "y", "width", "opacity", "shown", "behind"}`: the image's
+    entry, where it lies in cells (top-left corner and width; the height follows the
+    image), and how it's shown. The image is stored as it was encoded (no deflate).
+  - **One that can't be read is left out, never an error**: bad JSON, a missing image, an
+    unknown `file`, a width of 0 or a value that isn't a number give `trace: null`, and the
+    project opens. A missing `opacity`, `shown` or `behind` reads as 0.5, true, false.
+  - `ProjectRepo.save` keeps the stored one unless given (`trace`, null removes it), as for
+    the other images; the Design autosave always gives it. **Make again** copies it (it's
+    part of how the pattern is drawn, not of having made it).
+  - Re-encoded before it's stored, as the photo of the finished piece is, so no EXIF
+    travels ([rule](../rules.md#made-photo)): PNG, unless that passes 1 MB (a photo), then
+    JPEG; at most 2048 px on the long edge.
+
 ## During the port
 
 What each phase of the port built here, newest first. The plan each phase followed is in

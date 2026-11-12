@@ -284,6 +284,14 @@ break without noticing.
   `made.jpg` travels in every exported `.alpha` file, which people share, so never store
   the file as it was chosen. `e2e/made-photo.spec.ts` checks the exported bytes have no
   EXIF.
+  The image to trace (`trace.png`/`.jpg`, `design/traceImage.ts`) is re-encoded the same
+  way, for the same reason.
+- <a id="trace-not-pattern"></a>**The image to trace is never part of the pattern.** It lives
+  beside it (`TraceImage`, saved with the project), so placing, showing or removing it is
+  never an undo step (history holds patterns), and it's left out of Export PNG and the Work
+  stage. Undo putting a moved image back, or a PNG with a photo in it, would both surprise.
+  Painting is never done by placing it: in canvas mode `trace` the pointer only moves or
+  resizes the image.
 - <a id="serial-writes"></a>**Writes to one project go one after another** (`ProjectRepo.serial`). A save reads
   the stored archive to keep the images it isn't given (`source.png`, `made.jpg`), so two
   writes at once, such as the Work stage's autosave and adding a photo, could each write

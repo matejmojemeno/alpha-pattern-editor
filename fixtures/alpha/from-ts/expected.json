@@ -184,6 +184,94 @@
    "source_png_sha256": null,
    "made_photo_sha256": "f49aa8bbafd831c9056522a00afbafbba23d33800761dd839383ef9d0f0ebf8d"
   },
+  "built-trace.alpha": {
+   "stage": "work",
+   "pattern": {
+    "id": "ebee78d537de756723519def5fa931ea",
+    "name": "Ünïcödé 🧶  del, \"quotes\", back\\slash\nnewline",
+    "created_at": 1700000000,
+    "updated_at": 1700000000,
+    "rows": 4,
+    "cols": 3,
+    "row_ids": [
+     "668386593867921898fa7102dc29cd26",
+     "e7698d0f62ee4ea50b92e817a8864902",
+     "5d2af1f6ca0d246aac8bfce52cb80516",
+     "dac03d1cbf07b7781242633b20702913"
+    ],
+    "cells": [
+     [
+      0,
+      1,
+      2
+     ],
+     [
+      65535,
+      65535,
+      0
+     ],
+     [
+      2,
+      2,
+      1
+     ],
+     [
+      0,
+      0,
+      65534
+     ]
+    ],
+    "palette": [
+     {
+      "id": "a",
+      "hex": "#000000",
+      "name": "Černá",
+      "dmc": "310",
+      "count": 4
+     },
+     {
+      "id": "b",
+      "hex": "#ff0000",
+      "name": "",
+      "dmc": null,
+      "count": 2
+     },
+     {
+      "id": "c",
+      "hex": "#00ff00",
+      "name": "緑",
+      "dmc": null,
+      "count": 3
+     }
+    ],
+    "start_direction": "RTL",
+    "alternate_direction": true,
+    "bottom_up": false,
+    "craft": "stranded-knit",
+    "filet_mesh": "ch2-tr"
+   },
+   "progress": {
+    "completed_row_ids": [
+     "5d2af1f6ca0d246aac8bfce52cb80516",
+     "668386593867921898fa7102dc29cd26"
+    ],
+    "current_row_id": "e7698d0f62ee4ea50b92e817a8864902",
+    "current_run_index": 1,
+    "current_run_stitches": 1,
+    "started_at": 1700000000
+   },
+   "source_png_sha256": null,
+   "trace": {
+    "type": "image/png",
+    "x": -1.5,
+    "y": 2.25,
+    "width": 12.5,
+    "opacity": 0.4,
+    "shown": false,
+    "behind": true,
+    "sha256": "7816715d9594273e506b9dd2618b41406572abe23c8fdb3e23efef04c29d08dd"
+   }
+  },
   "newer-format.alpha": {
    "rejected": "This project was made by a newer version (format 999); this build understands up to 1."
   },

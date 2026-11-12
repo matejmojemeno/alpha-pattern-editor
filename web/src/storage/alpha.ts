@@ -10,6 +10,9 @@
  *   source.png     optional: the original imported image
  *   made.jpg       optional, web only: a photo of the finished piece (Library). The
  *                  desktop never wrote it and alphareader.core.io ignores it.
+ *   trace.json     optional, web only: the Design stage's image to trace, where it lies
+ *   trace.png      over the chart and how strongly it shows (`TraceImage`), and the
+ *    or .jpg       image itself. alphareader.core.io ignores both too.
  *
  * The desktop re-encodes source.png from pixels on every save. The browser has the PNG
  * bytes already, so they are passed through untouched.
@@ -41,7 +44,38 @@ export interface AlphaContents {
   sourcePng: Uint8Array | null
   /** Raw made.jpg bytes (a photo of what was made from the pattern), or null. */
   madePhoto: Uint8Array | null
+  /** The Design stage's image to trace, or null. */
+  trace: TraceImage | null
 }
+
+/**
+ * An image laid over the Design chart to trace (design/trace.ts). Where it lies is in
+ * cells from the grid's top-left corner, so it stays put over the cells at any zoom;
+ * its height follows the image's own shape.
+ */
+export interface TraceImage {
+  /** The encoded image (design/traceImage.ts re-encodes whatever was chosen). */
+  readonly bytes: Uint8Array
+  readonly type: TraceType
+  /** Its top-left corner, in cells; it may lie off the grid. */
+  readonly x: number
+  readonly y: number
+  /** Its width, in cells. */
+  readonly width: number
+  /** How strongly it shows over the cells, 0 to 1. */
+  readonly opacity: number
+  /** Whether it is shown at all. */
+  readonly shown: boolean
+  /** Shown behind the cells painted, through the cells still the background colour,
+   *  rather than over every cell. */
+  readonly behind: boolean
+}
+
+export type TraceType = 'image/png' | 'image/jpeg'
+
+/** The archive entry saying where the image to trace lies; it names the image's entry. */
+export const TRACE_ENTRY = 'trace.json'
+const TRACE_FILES: Record<TraceType, string> = { 'image/png': 'trace.png', 'image/jpeg': 'trace.jpg' }
 
 /** The archive entry holding the photo of the finished piece. */
 export const MADE_PHOTO_ENTRY = 'made.jpg'
@@ -95,7 +129,7 @@ function progressToJson(pr: Progress): Required<ProgressJson> {
  */
 export function writeAlpha(
   project: Project,
-  opts: { sourcePng?: Uint8Array | null; madePhoto?: Uint8Array | null; now?: number } = {},
+  opts: { sourcePng?: Uint8Array | null; madePhoto?: Uint8Array | null; trace?: TraceImage | null; now?: number } = {},
 ): { bytes: Uint8Array; project: Project } {
   const now = opts.now ?? Date.now() / 1000
   const pattern: Pattern = { ...project.pattern, updated_at: now }
@@ -113,6 +147,14 @@ export function writeAlpha(
   }
   if (opts.sourcePng) files['source.png'] = [opts.sourcePng, { level: 0 }] // already compressed
   if (opts.madePhoto) files[MADE_PHOTO_ENTRY] = [opts.madePhoto, { level: 0 }] // a JPEG, already compressed
+  if (opts.trace) {
+    const t = opts.trace
+    const file = TRACE_FILES[t.type]
+    files[TRACE_ENTRY] = new TextEncoder().encode(
+      JSON.stringify({ file, x: t.x, y: t.y, width: t.width, opacity: t.opacity, shown: t.shown, behind: t.behind }),
+    )
+    files[file] = [t.bytes, { level: 0 }] // a PNG or a JPEG, already compressed
+  }
   // ZIP_DEFLATED, as the desktop writes.
   return { bytes: zipSync(files, { level: 6, mtime }), project: saved }
 }
@@ -225,6 +267,40 @@ export function readAlpha(bytes: Uint8Array): AlphaContents {
     project: { pattern, progress, stage },
     sourcePng: files['source.png'] ?? null,
     madePhoto: files[MADE_PHOTO_ENTRY] ?? null,
+    trace: readTrace(files),
+  }
+}
+
+/**
+ * The image to trace, or null. It is only ever a help to drawing, so one that can't be
+ * read is left out rather than refusing the project: the pattern must still open.
+ */
+function readTrace(files: Record<string, Uint8Array>): TraceImage | null {
+  const raw = files[TRACE_ENTRY]
+  if (raw === undefined) return null
+  let t: Record<string, unknown>
+  try {
+    t = JSON.parse(new TextDecoder().decode(raw)) as Record<string, unknown>
+  } catch {
+    return null
+  }
+  if (typeof t !== 'object' || t === null) return null
+  const type = (Object.keys(TRACE_FILES) as TraceType[]).find((k) => TRACE_FILES[k] === t.file)
+  const bytes = type ? files[TRACE_FILES[type]] : undefined
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+  const x = num(t.x)
+  const y = num(t.y)
+  const width = num(t.width)
+  if (!type || !bytes || x === null || y === null || width === null || width <= 0) return null
+  return {
+    bytes,
+    type,
+    x,
+    y,
+    width,
+    opacity: Math.max(0, Math.min(1, num(t.opacity) ?? 0.5)),
+    shown: t.shown !== false,
+    behind: t.behind === true,
   }
 }
 
