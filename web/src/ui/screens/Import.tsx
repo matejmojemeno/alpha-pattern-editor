@@ -145,7 +145,11 @@ const SCREEN: Record<Intent, { title: string; drop: string }> = {
   },
 }
 
-export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) {
+/**
+ * `into`: opened from a pattern's Design stage ("From another pattern"). Saving goes back
+ * there, with the new pattern open in that panel, and the top bar leads back to it.
+ */
+export default function ImportScreen({ intent = 'chart', into }: { intent?: Intent; into?: string }) {
   const screen = SCREEN[intent]
   useDocumentTitle(screen.title)
   const repoState = useRepo()
@@ -366,7 +370,7 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
   const toPhoto = () => {
     if (!image) return
     handOffImage({ file: image.file, ...(name ? { name } : {}) })
-    navigate(paths.photo)
+    navigate(into ? paths.importInto('photo', into) : paths.photo)
   }
 
   // --- the slow path: detect again ------------------------------------------------------
@@ -436,7 +440,7 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
       // A fresh detection opens in the Design stage (§7.3), to be cleaned up before it is
       // worked. (The desktop opened Work; part 1 of Phase 3 did too.)
       const saved = await repo.save({ pattern, progress: emptyProgress(), stage: 'design' }, { sourcePng: png })
-      navigate(paths.design(saved.pattern.id))
+      navigate(into ? paths.design(into, saved.pattern.id) : paths.design(saved.pattern.id))
     } catch (err) {
       setSaving(false)
       setNotices([{ tone: 'error', text: `Couldn't save the pattern: ${err instanceof Error ? err.message : String(err)}` }])
@@ -489,7 +493,7 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
   if (state.phase === 'choose' || !image) {
     return (
       <main className="screen import" {...drop.handlers}>
-        <TopBar title={screen.title} help={intent === 'picture' ? 'photo' : 'import'} />
+        <TopBar title={screen.title} help={intent === 'picture' ? 'photo' : 'import'} back={into ? { path: paths.design(into), label: 'Design' } : undefined} />
         <Notices notices={notices} />
         <div className="empty import__choose">
           {another('Choose image…', 'button button--primary')}
@@ -523,7 +527,7 @@ export default function ImportScreen({ intent = 'chart' }: { intent?: Intent }) 
 
   return (
     <main className="screen import" {...drop.handlers}>
-      <TopBar title={screen.title} help={intent === 'picture' ? 'photo' : 'import'} />
+      <TopBar title={screen.title} help={intent === 'picture' ? 'photo' : 'import'} back={into ? { path: paths.design(into), label: 'Design' } : undefined} />
       <SaveBar
         name={name}
         onName={setName}

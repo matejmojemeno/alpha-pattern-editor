@@ -15,11 +15,14 @@ export type Route =
   | { name: 'landing' }
   | { name: 'library' }
   | { name: 'settings' }
-  | { name: 'import' }
+  /** `into`: imported from a pattern's Design stage ("From another pattern"), to go back
+   *  to it once saved, with the new pattern open in that panel. */
+  | { name: 'import'; into?: string }
   /** The import screen for a picture to turn into a pattern ("Photo to pattern"). */
-  | { name: 'photo' }
+  | { name: 'photo'; into?: string }
   | { name: 'work'; id: string }
-  | { name: 'design'; id: string }
+  /** `from`: the pattern to open in the "From another pattern" panel. */
+  | { name: 'design'; id: string; from?: string }
   /** A project, in whichever stage it should open in (ui/screens/OpenProject.tsx). */
   | { name: 'open'; id: string }
   | { name: 'notFound' }
@@ -31,24 +34,53 @@ export const paths = {
   importImage: '/import',
   photo: '/photo',
   work: (id: string) => `/work/${encodeURIComponent(id)}`,
-  design: (id: string) => `/design/${encodeURIComponent(id)}`,
+  design: (id: string, from?: string) => `/design/${encodeURIComponent(id)}${from ? `?from=${encodeURIComponent(from)}` : ''}`,
+  /** An import screen that goes back to pattern `into`'s Design stage once saved. */
+  importInto: (kind: 'import' | 'photo', into: string) => `/${kind}?into=${encodeURIComponent(into)}`,
   open: (id: string) => `/open/${encodeURIComponent(id)}`,
 } as const
 
+/** One query value (`?into=…`) after the path, decoded, or undefined. Ids are encoded
+ *  with encodeURIComponent, so a `?` or `&` in one never reaches here unencoded. */
+function queryValue(query: string, key: string): string | undefined {
+  for (const part of query.split('&')) {
+    const eq = part.indexOf('=')
+    if (eq > 0 && part.slice(0, eq) === key && eq + 1 < part.length) {
+      try {
+        return decodeURIComponent(part.slice(eq + 1))
+      } catch {
+        return undefined
+      }
+    }
+  }
+  return undefined
+}
+
 export function parseHash(hash: string): Route {
-  const path = hash.replace(/^#/, '').replace(/(.)\/+$/, '$1') || '/'
+  const full = hash.replace(/^#/, '')
+  const q = full.indexOf('?')
+  const query = q < 0 ? '' : full.slice(q + 1)
+  const path = (q < 0 ? full : full.slice(0, q)).replace(/(.)\/+$/, '$1') || '/'
   if (path === '/') return { name: 'landing' }
   if (path === paths.library) return { name: 'library' }
   if (path === paths.settings) return { name: 'settings' }
-  if (path === paths.importImage) return { name: 'import' }
-  if (path === paths.photo) return { name: 'photo' }
+  if (path === paths.importImage || path === paths.photo) {
+    const into = queryValue(query, 'into')
+    return { name: path === paths.photo ? 'photo' : 'import', ...(into ? { into } : {}) }
+  }
   const project = /^\/(work|design|open)\/([^/]+)$/.exec(path)
   if (project) {
+    let id: string
     try {
-      return { name: project[1] as 'work' | 'design' | 'open', id: decodeURIComponent(project[2]!) }
+      id = decodeURIComponent(project[2]!)
     } catch {
       return { name: 'notFound' }
     }
+    if (project[1] === 'design') {
+      const from = queryValue(query, 'from')
+      return { name: 'design', id, ...(from ? { from } : {}) }
+    }
+    return { name: project[1] as 'work' | 'open', id }
   }
   return { name: 'notFound' }
 }
