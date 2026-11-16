@@ -185,6 +185,47 @@ test('design-colour-menu.png', async ({ page }) => {
   await shootAround(page, 'design-colour-menu.png', [menu, page.locator('#colours-heading'), page.getByRole('list', { name: 'Palette' })])
 })
 
+test('design-from-another-pattern.png', async ({ page }) => {
+  // The demo has a border all round, so its "background" is the border: a Shape click
+  // picks a single spot. The guide shows a Rectangle of everything inside the border,
+  // brought onto a panel in the demo's own sky colour (just inside the border).
+  const sky = demo.palette[demo.cells[1 * demo.cols + 1]!]!.hex
+
+  await openDemo(page)
+  await page.goto('/#/library')
+  await page.getByRole('button', { name: 'Design from scratch…' }).click()
+  const dialog = page.getByRole('dialog', { name: 'New pattern' })
+  await dialog.getByLabel('Name').fill('Sweater front')
+  await dialog.getByLabel('Columns').fill(String(demo.cols + 16))
+  await dialog.getByLabel('Rows').fill(String(demo.rows + 16))
+  await dialog.getByLabel('Colour').fill(sky)
+  await dialog.getByRole('button', { name: 'Create' }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Sweater front' })).toBeVisible()
+  await page.getByRole('button', { name: 'From another pattern' }).click()
+  const panel = page.getByRole('complementary', { name: 'From another pattern' })
+  await panel.getByRole('list', { name: 'Patterns in your Library' }).getByRole('button', { name: new RegExp(demo.name) }).click()
+  await panel.getByRole('button', { name: 'Rectangle' }).click()
+  const source = panel.getByTestId('design-scroller')
+  await expect(source).toBeVisible()
+  await settle(page)
+  const box = (await source.boundingBox())!
+  const cell = Number(await source.getAttribute('data-cell'))
+  const at = (r: number, c: number) => ({ x: box.x + 34 + c * cell + cell / 2, y: box.y + 22 + r * cell + cell / 2 })
+  const a = at(1, 1)
+  const b = at(demo.rows - 2, demo.cols - 2)
+  await page.mouse.move(a.x, a.y)
+  await page.mouse.down()
+  await page.mouse.move(b.x, b.y, { steps: 5 })
+  await page.mouse.up()
+  await expect(panel.getByRole('status')).toHaveText(`Picked ${demo.cols - 2} × ${demo.rows - 2} cells.`)
+  await panel.getByRole('button', { name: 'Use in pattern' }).click()
+  await expect(page.locator('.design__message')).toHaveText(/^Brought in/)
+  await expect(page.locator('.work__saved')).toHaveText('Saved')
+  await blur(page)
+  await settle(page)
+  await shoot(page, 'design-from-another-pattern.png')
+})
+
 test('design-yarn-and-size.png', async ({ page }) => {
   await designDemo(page)
   await page.getByRole('button', { name: 'Yarn & size' }).click()

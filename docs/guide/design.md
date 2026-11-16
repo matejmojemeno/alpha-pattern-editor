@@ -109,6 +109,35 @@ it, and **Put background back** brings back the rest of its rectangle. Click ano
 shape to select that one, or the background to drop the selection. Shapes that touch
 each other, even at a corner, count as one.
 
+## Bring in part of another pattern
+
+To put a motif from one pattern into another, such as a cat from one chart onto a
+sweater panel, open the pattern you're making and choose **From another pattern** at the
+top. A panel opens beside the chart, in place of **Colours** and **Structure** (on a
+tablet, over the chart).
+
+<img src="media/design-from-another-pattern.png" alt="A blank sweater front in Design, with the From another pattern panel showing the Toadstool pattern; the toadstool, picked with Rectangle inside its border, sits selected in the middle of the sweater front" width="800">
+
+1. Choose a pattern from your Library. If it isn't there yet, **Import a chart** or
+   **Photo to pattern** takes you to the import screen. When you save, you come back here
+   with the new pattern open in the panel.
+2. Pick what you want from it: with **Shape**, click a motif to pick it without the
+   background around it, as **Select object** does. With **Rectangle**, drag across the
+   stitches. **All** picks the whole pattern. On a pattern with a border all round, the
+   border counts as the background, so use **Rectangle** inside it.
+3. Choose **Use in pattern**. A copy lands in the middle of your chart, selected and
+   floating, ready to drag into place, mirror or turn. Click outside it to put it down.
+
+The colours come with it. A colour your pattern already has (the same colour code) is
+used, and any other is added under its own name. A shape adds only the colours it shows,
+not the background around it. **Undo** takes the whole thing back in one step. The copy
+also goes on the clipboard, so **Paste** (`Ctrl+V`) brings in another.
+
+What you bring in is a copy: changing the other pattern later doesn't change this one,
+and nothing you do in the panel changes the other pattern. **Change** picks a different
+pattern, and **Close** brings back **Colours** and **Structure**. The panel remembers the
+pattern you chose until you reload the page.
+
 ## Change a colour or its name
 
 Click a colour in the **Colours** list. It becomes the colour you paint with, and a menu

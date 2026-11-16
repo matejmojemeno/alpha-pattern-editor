@@ -98,8 +98,9 @@ files.
   where to carry yarn".
 - `src/design/`: the Design stage's editing state as pure functions: the tools' pointer
   logic, the current colour and the Select tool's selection (`editor.ts`), undo
-  (`history.ts`), blocks of cells and the clipboard (`selection.ts`), and the structural
-  panel's previews and form (`structure.ts`, `structureForm.ts`).
+  (`history.ts`), blocks of cells and the clipboard (`selection.ts`), picking part of
+  another pattern to bring in (`source.ts`, for `ui/design/FromPatternPanel.tsx`), and
+  the structural panel's previews and form (`structure.ts`, `structureForm.ts`).
 - `src/render/`: Canvas 2D drawing and its geometry: the Work chart (`layout.ts`,
   `chart.ts`), the Design canvas (`design.ts`), and Export PNG (`png.ts`), which is
   checked pixel for pixel against the Python reference's export in `../fixtures/png/`.
@@ -145,7 +146,9 @@ files.
 
 Routing uses the URL hash (`#/library`, `#/work/<id>`, `#/design/<id>`): the part after
 `#` never reaches the server, so deep links survive a refresh on any static host with no
-fallback rule. Library cards link to `#/open/<id>`, which replaces itself with the stage
+fallback rule. A query after the path carries where to go next: `#/import?into=<id>`
+goes back to that pattern's Design stage once saved, as `#/design/<id>?from=<new id>`,
+with the new pattern open in "From another pattern". Library cards link to `#/open/<id>`, which replaces itself with the stage
 the project opens in (§6.4: Work if there is progress, otherwise the stage it was last in).
 
 Nothing in `src/logic/` or `src/storage/`, nor anything `src/main.tsx` loads statically,

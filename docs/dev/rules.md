@@ -249,7 +249,9 @@ break without noticing.
   Record progress once shared `.stepper` with Import's colour stepper, and became a pill
   only after an import, which a fresh test never sees. The import screen's note was first
   named `.check`, the app's checkbox label: it took the label's pointer cursor, so the
-  whole box looked clickable. Prefix a class with its screen or
+  whole box looked clickable. Design's "From another pattern" panel was first `.source`,
+  the import screen's image stage: once an import had been opened, the panel's size label
+  was drawn over the pattern's name. Prefix a class with its screen or
   component (`segment__count`, not `stepper`), and test a screen after visiting the
   others when its look matters (`e2e/work-chips.spec.ts`).
 - <a id="nothing-sticks-out"></a>**Nothing may stick out of its box, at any width or text size.**

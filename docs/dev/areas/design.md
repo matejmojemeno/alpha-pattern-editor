@@ -219,6 +219,52 @@ Newest last, as they were built.
   Cancel, Merge, message, focus, undo) and `e2e/overflow.spec.ts` (the open menu at
   every width).
 
+- <a id="from-another-pattern"></a>**From another pattern** (`ui/design/FromPatternPanel.tsx`, `design/source.ts`):
+  the first of two "several patterns" features. The second, a project of several pieces
+  (a sweater's front, back and sleeves), comes next, in the Library.
+  - **The pattern open is always the canvas.** There's no separate "blank canvas" mode or
+    "main pattern": a blank start is **Design from scratch**, and building on a pattern
+    means opening it. Other patterns are only where pieces come from. **No layers:** a
+    pattern stays one grid of cells. Layers would reach saving, counts, Work progress
+    and exact undo, all to make a one-time placement easier, and a floating selection
+    already gives "move it about before it's committed".
+  - **A panel, not a switch to the other pattern.** Before this, the tab's clipboard
+    already carried cells between patterns, but you had to leave the pattern to copy and
+    come back to paste. The panel takes the right column on a desktop, 22rem wide in place
+    of the 17rem colours (`.design--source`). On a tablet it's a drawer over the chart,
+    `min(28rem, 92%)` wide, that closes itself after **Use in pattern** so the piece can
+    be placed. It isn't on phones, which have no Design stage. It lists the Library's
+    other patterns (`repo.list`, re-listed on `repo.subscribe`) and shows the chosen one
+    in a second `DesignCanvas`, read only.
+  - **Picking:** **Shape** is Select object's `objectAt` (`pickShape`), **Rectangle** is a
+    drag (`rectBetween`), and **All** is the whole pattern. The picking state lives in the
+    panel, not in `editor.ts`: the other pattern is never edited, so a press never moves
+    anything there, and nothing is saved.
+  - **Use in pattern is the Select tool's paste** (`clipFor` → `paste`): the clip carries
+    the colours (found by id, then hex, or added) and a shape's see-through mask, and lands
+    floating as one undo step. It's centred on the chart, not placed where it was in the
+    other pattern, and any selection is put down first (a plain Paste goes to the
+    selection). It is also put on the clipboard, so Paste brings another. What comes in is
+    a copy: no link back to the other pattern.
+  - **A shape adds only the colours it shows** (`mapClip`, which plain Paste also uses):
+    before this, a shape's see-through surround (its old background) was added as a
+    colour with 0 stitches. The see-through cells take that colour where this pattern has
+    it, else this pattern's background, which is what they become if the background is
+    put back. `tests/design/source.test.ts` fails on the old `mapClip`.
+  - **Importing from the panel:** **Import a chart** and **Photo to pattern** open
+    `#/import?into=<id>` (`paths.importInto`). The top bar's arrow then reads "Design" and
+    leads back. Saving goes to `#/design/<id>?from=<new id>`, which opens the panel on the
+    new pattern and then replaces the address with the plain one, so a reload doesn't
+    reopen the panel. "Open in Photo to pattern" keeps `into`. `parseHash` reads the query
+    after the path; ids are encoded, so a `?` or `&` in one can't reach it.
+  - **Remembered per tab** (`remembered`), like the clipboard: the panel reopens on the
+    last pattern chosen, in this pattern or the next, but never on the pattern itself.
+  - **The header button wraps the header** between 1100 and about 1270 px: **Start
+    working →** goes to a second line there, as everything after the name already does
+    on a tablet.
+  - Checked in `e2e/from-pattern.spec.ts` (picking, centring, colours, dragging, the
+    clipboard, undo, the source unchanged, remembering, and the import round trip).
+
 ## During the port
 
 What each phase of the port built here, newest first. The plan each phase followed is in
