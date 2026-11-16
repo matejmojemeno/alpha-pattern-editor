@@ -92,13 +92,13 @@ function Screen({ route }: { route: Route }) {
     case 'import':
       return (
         <Suspense fallback={<LoadingScreen />}>
-          <ImportImage intent="chart" />
+          <ImportImage intent="chart" into={route.into} />
         </Suspense>
       )
     case 'photo':
       return (
         <Suspense fallback={<LoadingScreen />}>
-          <ImportImage intent="picture" />
+          <ImportImage intent="picture" into={route.into} />
         </Suspense>
       )
     case 'work':
@@ -106,7 +106,7 @@ function Screen({ route }: { route: Route }) {
     case 'design':
       return (
         <Suspense fallback={<LoadingScreen />}>
-          <Design id={route.id} />
+          <Design id={route.id} from={route.from} />
         </Suspense>
       )
     case 'open':

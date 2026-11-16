@@ -870,6 +870,168 @@
   margin-top: 0;
 }
 
+/* --- From another pattern (ui/design/FromPatternPanel.tsx) ------------------------------------- */
+
+/* On a desktop the panel takes the colours' column, wider, for its chart. */
+.design--source:not(.design--compact) .design__body {
+  grid-template-columns: 11.5rem minmax(0, 1fr) 22rem;
+}
+
+/* The chart in it takes the height left; on a short window the panel scrolls instead,
+   so Use in pattern is never out of reach. */
+.design__side--source,
+.design__drawer--source {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* On a tablet it lies over the chart like the other drawers, but wider. */
+.design__drawer--source {
+  width: min(28rem, 92%);
+}
+
+.from-pattern {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: 0.5rem;
+  min-height: 0;
+}
+
+.from-pattern__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.from-pattern__title {
+  margin: 0;
+}
+
+.from-pattern__picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.from-pattern__imports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.from-pattern__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.from-pattern__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.from-pattern__item:hover {
+  border-color: var(--accent);
+}
+
+.from-pattern__item .thumb {
+  height: 5.5rem;
+}
+
+.from-pattern__item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.from-pattern__item-size {
+  font-size: var(--text-sm);
+}
+
+.from-pattern__view {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: 0.5rem;
+  min-height: 0;
+}
+
+.from-pattern__chosen {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.from-pattern__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.from-pattern__size {
+  flex: none;
+  font-size: var(--text-sm);
+}
+
+.from-pattern__modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+/* The chart takes what height is left, but never less than enough to pick in. */
+.from-pattern__chart {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.from-pattern__note {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+/* Zoom on the left, Use in pattern on the right; on one line while they fit. */
+.from-pattern__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.from-pattern__use {
+  flex: 1 1 auto;
+  max-width: 14rem;
+  margin-left: auto;
+}
+
 .design--compact .design__top {
   gap: 0.35rem 0.5rem;
 }

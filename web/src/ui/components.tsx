@@ -13,11 +13,23 @@ import { formatPct, IMPORT_ACCEPT, type Notice, type ReplaceQuestion } from './u
 
 /** The header of every screen but the landing one: a way home, the screen's title, and
  *  a link to its page of the guide. */
-export function TopBar({ title, help, children }: { title: string; help?: HelpTopic; children?: ReactNode }) {
+/** `back`: where the arrow leads, when it isn't the home screen (an import started from
+ *  the Design stage leads back there). */
+export function TopBar({
+  title,
+  help,
+  back,
+  children,
+}: {
+  title: string
+  help?: HelpTopic
+  back?: { path: string; label: string }
+  children?: ReactNode
+}) {
   return (
     <header className="topbar">
-      <a className="topbar__home" href={href(paths.landing)}>
-        <span aria-hidden="true">←</span> Home
+      <a className="topbar__home" href={href(back?.path ?? paths.landing)}>
+        <span aria-hidden="true">←</span> {back?.label ?? 'Home'}
       </a>
       <h1 tabIndex={-1}>{title}</h1>
       {children && <div className="topbar__actions">{children}</div>}

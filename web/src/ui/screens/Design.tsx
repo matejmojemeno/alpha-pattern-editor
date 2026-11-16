@@ -11,6 +11,9 @@
  * cells in this tab (`clipboard`), so they can be pasted into another pattern. Saving is automatic, as in the Work stage (app/autosave.ts),
  * and stamps the project as in the Design stage.
  *
+ * "From another pattern" (ui/design/FromPatternPanel.tsx) shows another pattern beside
+ * this one, to pick part of it and bring it in: the same paste as the clipboard's.
+ *
  * Loaded lazily (App.tsx): nothing here is needed to follow a pattern on a phone.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
@@ -19,7 +22,7 @@ import '../design.css'
 
 import { AutoSaver, type SaveStatus } from '../../app/autosave.ts'
 import { downloadBlob } from '../../app/download.ts'
-import { href, navigate, paths } from '../../app/router.ts'
+import { href, navigate, paths, redirect } from '../../app/router.ts'
 import { trackSave } from '../../app/saving.ts'
 import { progressWarning } from '../../app/stages.ts'
 import {
@@ -102,14 +105,16 @@ import { ConfirmDialog, HelpLink } from '../components.tsx'
 import { ColoursPanel } from '../design/ColoursPanel.tsx'
 import { DesignCanvas } from '../design/DesignCanvas.tsx'
 import { ToolIcon, TurnIcon } from '../design/icons.tsx'
+import { FromPatternPanel } from '../design/FromPatternPanel.tsx'
 import { StructurePanel, type TransformAction } from '../design/StructurePanel.tsx'
 import { Visualize } from '../design/Visualize.tsx'
 import { YarnEstimate } from '../design/YarnEstimate.tsx'
 import { useDocumentTitle, useMediaQuery } from '../hooks.ts'
 import { ProjectGate } from '../ProjectGate.tsx'
 
-export default function Design({ id }: { id: string }) {
-  return <ProjectGate id={id}>{(repo, { project }) => <DesignStage repo={repo} initial={project} />}</ProjectGate>
+/** `from`: a pattern to open in "From another pattern" (one just imported from there). */
+export default function Design({ id, from }: { id: string; from?: string }) {
+  return <ProjectGate id={id}>{(repo, { project }) => <DesignStage repo={repo} initial={project} from={from} />}</ProjectGate>
 }
 
 /**
@@ -119,6 +124,9 @@ export default function Design({ id }: { id: string }) {
  * brings the colours with it (design/selection.ts `mapClip`).
  */
 let clipboard: Clip | null = null
+const keepClip = (c: Clip) => {
+  clipboard = c
+}
 
 /** The Select tool's turns: what the whole-pattern ones do (the Structure panel), to the selection. */
 const SELECTION_TURNS: readonly { turn: Turn; label: string; name: string; title: string }[] = [
@@ -183,7 +191,7 @@ interface AxisMenu {
   y: number
 }
 
-function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
+function DesignStage({ repo, initial, from }: { repo: ProjectRepo; initial: Project; from?: string }) {
   const [editor, setEditor] = useState<EditorState>(() => initialEditor(initial.pattern))
   const latest = useRef(editor)
   const [message, setMessage] = useState('')
@@ -484,6 +492,21 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
       `Pasted ${c.block.cols} × ${c.block.rows} cells${added ? `, adding ${plural(added, 'colour')}` : ''}. Drag them into place, then click outside.`,
     )
   }
+  /** "From another pattern": a piece of it brought in, as a paste, and kept on the
+   *  clipboard so Paste brings another. It lands in the middle of the chart, not at a
+   *  selection here, so any selection is put down first. */
+  const onUse = (c: Clip, sourceName: string) => {
+    keepClip(c)
+    setClip(c)
+    const before = latest.current.pattern.palette.length
+    update((s) => paste(deselect(s), c))
+    const added = latest.current.pattern.palette.length - before
+    setMessage(
+      `Brought in ${c.block.cols} × ${c.block.rows} cells from “${sourceName}”${added ? `, adding ${plural(added, 'colour')}` : ''}. Drag them into place, then click outside.`,
+    )
+    // On a tablet the panel lies over the chart: out of the way, to place it.
+    if (compactNow.current) setDrawer(null)
+  }
   const onEmpty = () => {
     const bg = latest.current.pattern.palette[backgroundIndex(latest.current.pattern)]
     const floating = !!latest.current.selection?.floating
@@ -534,13 +557,31 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   // --- the screen: desktop, tablet (a toolbar and drawers), or too small ------------------------
   const compact = useMediaQuery('(max-width: 1099.98px)')
   const tooSmall = useMediaQuery('(max-width: 699.98px)')
-  const [drawer, setDrawer] = useState<'colours' | 'structure' | null>(null)
+  const [drawer, setDrawer] = useState<'colours' | 'structure' | 'source' | null>(() => (from ? 'source' : null))
   /** "Yarn & size" or "Visualize" is open, for the pattern as it is now. */
   const [dialog, setDialog] = useState<'yarn' | 'visualize' | null>(null)
   const hidden = useRef(tooSmall)
+  const compactNow = useRef(compact)
   useEffect(() => {
     hidden.current = tooSmall
-  }, [tooSmall])
+    compactNow.current = compact
+  }, [tooSmall, compact])
+  // Opened with a pattern for "From another pattern": once open, the address goes back
+  // to the plain one, so a reload doesn't open the panel again.
+  useEffect(() => {
+    if (from) redirect(paths.design(initial.pattern.id))
+  }, [from, initial.pattern.id])
+  const source = drawer === 'source'
+  const sourcePanel = source && (
+    <FromPatternPanel
+      repo={repo}
+      currentId={p.id}
+      target={{ rows: p.rows, cols: p.cols }}
+      from={from}
+      onUse={onUse}
+      onClose={() => setDrawer(null)}
+    />
+  )
 
   // A border is previewed while its section is open and in view (on a tablet, while the
   // structure drawer is), unless its size is unset or past the limit.
@@ -585,7 +626,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   useEffect(() => {
     shown.current = cell
   }, [cell])
-  const zoom = useCallback((dir: number) => setZoomed(() => zoomStep(shown.current ?? 16, dir)), [])
+  const zoom = useCallback((dir: number) => setZoomed(() => zoomStep(shown.current ?? 16, dir)), [setZoomed])
 
   // --- keyboard -------------------------------------------------------------------------------
   useEffect(() => {
@@ -878,7 +919,7 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
   }
 
   return (
-    <main className={compact ? 'screen design design--compact' : 'screen design'}>
+    <main className={`screen design${compact ? ' design--compact' : ''}${source ? ' design--source' : ''}`}>
       <header className="design__top">
         <a className="topbar__home" href={href(paths.library)}>
           <span aria-hidden="true">←</span> Library
@@ -909,6 +950,15 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
             Redo
           </button>
         </div>
+        <button
+          type="button"
+          className="button button--small"
+          aria-expanded={source}
+          title="Bring in part of another pattern from your Library"
+          onClick={() => setDrawer((x) => (x === 'source' ? null : 'source'))}
+        >
+          From another pattern
+        </button>
         <button
           type="button"
           className="button button--small"
@@ -1036,14 +1086,24 @@ function DesignStage({ repo, initial }: { repo: ProjectRepo; initial: Project })
         </section>
 
         {compact ? (
-          drawer && (
-            <aside id={`design-drawer-${drawer}`} className="design__drawer" aria-label={drawer === 'colours' ? 'Colours' : 'Structure'}>
-              <button type="button" className="button button--small design__drawer-close" onClick={() => setDrawer(null)}>
-                Close
-              </button>
-              {drawer === 'colours' ? colours : structure}
+          source ? (
+            <aside className="design__drawer design__drawer--source" aria-label="From another pattern">
+              {sourcePanel}
             </aside>
+          ) : (
+            drawer && (
+              <aside id={`design-drawer-${drawer}`} className="design__drawer" aria-label={drawer === 'colours' ? 'Colours' : 'Structure'}>
+                <button type="button" className="button button--small design__drawer-close" onClick={() => setDrawer(null)}>
+                  Close
+                </button>
+                {drawer === 'colours' ? colours : structure}
+              </aside>
+            )
           )
+        ) : source ? (
+          <aside className="design__side design__side--source" aria-label="From another pattern">
+            {sourcePanel}
+          </aside>
         ) : (
           <aside className="design__side">
             {colours}

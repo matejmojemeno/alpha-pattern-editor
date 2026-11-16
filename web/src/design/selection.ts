@@ -6,7 +6,7 @@
  * the colours those indices named, so pasting into another pattern finds the same
  * colours there (or adds them) rather than taking whatever sits at the same index.
  */
-import { addPaletteEntry, type Block } from '../logic/edit.ts'
+import { addPaletteEntry, majorBorderIndex, type Block } from '../logic/edit.ts'
 import type { Pattern } from '../model/types.ts'
 import type { CellRect } from '../render/design.ts'
 
@@ -252,23 +252,43 @@ export function clipOf(p: Pattern, block: Block, at: { r0: number; c0: number },
  * colour is found by its id with the same hex (the same pattern, or a copy of it), then
  * by its hex; a colour `p` doesn't have is added under its name, so nothing pasted
  * changes colour. Values that named no colour (skip cells) stay as they are.
+ *
+ * Only the colours of cells that show are added: a shape's see-through cells (`clear`)
+ * are its old pattern's background, and adding that colour would leave it in the palette
+ * with nothing painted in it. Those cells take the colour where `p` has it, or else
+ * `p`'s own background, which is what they show as if the background is put back.
  */
 export function mapClip(p: Pattern, clip: Clip): { pattern: Pattern; block: Block } {
   let pattern = p
-  const used = new Set<number>()
-  for (const v of clip.block.cells) if (v < clip.colours.length) used.add(v)
+  const { cells: from, rows, cols } = clip.block
+  const clear = clip.clear && clip.clear.length === from.length ? clip.clear : null
+  const shown = new Set<number>()
+  for (let k = 0; k < from.length; k++) {
+    const v = from[k]!
+    if (v < clip.colours.length && !clear?.[k]) shown.add(v)
+  }
+  const find = (i: number) => {
+    const { id, hex } = clip.colours[i]!
+    const at = pattern.palette.findIndex((e) => e.id === id && e.hex === hex)
+    return at >= 0 ? at : pattern.palette.findIndex((e) => e.hex === hex)
+  }
   const to = new Map<number, number>()
-  for (const i of [...used].sort((a, b) => a - b)) {
-    const { id, hex, name } = clip.colours[i]!
-    let at = pattern.palette.findIndex((e) => e.id === id && e.hex === hex)
-    if (at < 0) at = pattern.palette.findIndex((e) => e.hex === hex)
+  for (const i of [...shown].sort((a, b) => a - b)) {
+    let at = find(i)
     if (at < 0) {
+      const { hex, name } = clip.colours[i]!
       pattern = addPaletteEntry(pattern, hex, name)
       at = pattern.palette.length - 1
     }
     to.set(i, at)
   }
-  const cells = clip.block.cells.map((v) => to.get(v) ?? v)
-  return { pattern, block: { rows: clip.block.rows, cols: clip.block.cols, cells } }
+  const ground = majorBorderIndex(p) < p.palette.length ? majorBorderIndex(p) : 0
+  const cells = from.map((v, k) => {
+    if (!(v < clip.colours.length)) return v
+    if (!clear?.[k] || to.has(v)) return to.get(v)!
+    const at = find(v)
+    return at >= 0 ? at : ground
+  })
+  return { pattern, block: { rows, cols, cells } }
 }
 

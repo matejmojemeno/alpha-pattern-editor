@@ -20,6 +20,21 @@ describe('parseHash', () => {
     }
   })
 
+  it('reads where an import goes back to, and the pattern Design opens beside', () => {
+    for (const id of ['f17aaabc20bfe045075927934fed52d2', 'a b/c?d#e&f=g', 'ünï']) {
+      expect(parseHash(`#${paths.importInto('import', id)}`)).toEqual({ name: 'import', into: id })
+      expect(parseHash(`#${paths.importInto('photo', id)}`)).toEqual({ name: 'photo', into: id })
+      expect(parseHash(`#${paths.design('x', id)}`)).toEqual({ name: 'design', id: 'x', from: id })
+      expect(parseHash(`#${paths.design(id)}`)).toEqual({ name: 'design', id })
+    }
+    // Without one, or with one that doesn't decode, it is the plain screen.
+    expect(parseHash('#/import')).toEqual({ name: 'import' })
+    expect(parseHash('#/photo/')).toEqual({ name: 'photo' })
+    expect(parseHash('#/import?into=')).toEqual({ name: 'import' })
+    expect(parseHash('#/design/x?from=%E0%A4%A')).toEqual({ name: 'design', id: 'x' })
+    expect(parseHash('#/work/x?from=y')).toEqual({ name: 'work', id: 'x' })
+  })
+
   it('treats anything else as not found', () => {
     for (const h of ['#/work', '#/work/', '#/work/a/b', '#/nope', '#/work/%E0%A4%A']) {
       expect(parseHash(h)).toEqual({ name: 'notFound' })
