@@ -127,6 +127,33 @@ test('the app screens and their dialogs', async ({ page }) => {
   expect(found).toEqual([])
 })
 
+test('Design: From another pattern, its list and the pattern picked from', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  const found: string[] = []
+  await page.goto('/#/library')
+  await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles(BASIC)
+  const card = page.getByRole('listitem')
+  await card.getByRole('button', { name: /^Rename/ }).click()
+  await card.getByRole('textbox').fill(LONG)
+  await card.getByRole('textbox').press('Enter')
+  await expect(card).toContainText(LONG)
+  await page.getByRole('button', { name: 'Design from scratch…' }).click()
+  const dialog = page.getByRole('dialog', { name: 'New pattern' })
+  await dialog.getByLabel('Name').fill(`${LONG} (front)`)
+  await dialog.getByRole('button', { name: 'Create' }).click()
+  await expect(page.locator('main.screen.design')).toBeVisible()
+
+  await page.getByRole('button', { name: 'From another pattern' }).click()
+  const panel = page.getByRole('complementary', { name: 'From another pattern' })
+  await expect(panel.getByRole('button', { name: new RegExp(LONG) })).toBeVisible()
+  found.push(...(await leaks(page, 'From another pattern, the list')))
+  await panel.getByRole('button', { name: new RegExp(LONG) }).click()
+  await expect(panel.getByRole('button', { name: 'Use in pattern' })).toBeVisible()
+  found.push(...(await leaks(page, 'From another pattern, a pattern to pick from')))
+
+  expect(found).toEqual([])
+})
+
 test('a finished pattern and the photo of what was made', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
   const found: string[] = []
