@@ -230,7 +230,7 @@ export function readAlpha(bytes: Uint8Array): AlphaContents {
 
 // --- helpers for the Library ---------------------------------------------------------
 
-function slug(name: string): string {
+export function slug(name: string): string {
   const s = (name || 'pattern')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')

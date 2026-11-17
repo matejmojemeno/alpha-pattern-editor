@@ -10,9 +10,10 @@ import { newId } from '../logic/edit.ts'
 import { emptyProgress, type Project } from '../model/types.ts'
 import { alphaFileName, progressPct, readAlpha, writeAlpha, type AlphaContents } from './alpha.ts'
 import * as db from './db.ts'
+import { groupFileName, writeGroupFile } from './groupFile.ts'
 import { makeThumbnail, type Downscaler } from './thumbnail.ts'
 
-export type { ProjectSummary, WorkStatus } from './db.ts'
+export type { GroupPiece, ProjectGroup, ProjectSummary, WorkStatus } from './db.ts'
 
 /** Seconds since the epoch, like Python's time.time(). */
 export type Clock = () => number
@@ -269,8 +270,168 @@ export class ProjectRepo {
     return db.getSummary(this.db, id)
   }
 
+  /** Delete a pattern. It also leaves the project it was a piece of (db.deleteProject). */
   async delete(id: string): Promise<void> {
     await db.deleteProject(this.db, id)
     this.changed()
+  }
+
+  // --- projects with pieces (groups) ------------------------------------------------------
+  //
+  // A group names patterns that are stored as they always are; nothing here opens or
+  // rewrites an archive. A pattern is a piece of at most one group: putting it in one
+  // takes it out of any other, and a group left with no pieces is removed.
+
+  /** Every project with pieces, in no particular order. */
+  groups(): Promise<db.ProjectGroup[]> {
+    return db.listGroups(this.db)
+  }
+
+  async group(id: string): Promise<db.ProjectGroup | undefined> {
+    return (await this.groups()).find((g) => g.id === id)
+  }
+
+  /** The project a pattern is a piece of, if any. */
+  async groupOf(patternId: string): Promise<db.ProjectGroup | undefined> {
+    return (await this.groups()).find((g) => g.pieces.some((p) => p.id === patternId))
+  }
+
+  /**
+   * Store `group` as given (a new one, or a changed copy of one), taking its pieces out of
+   * every other group, all in one transaction. Pieces that aren't stored patterns, and
+   * repeats, are left out; with none left, the group is removed instead.
+   */
+  private putGroup(group: db.ProjectGroup): Promise<db.ProjectGroup | undefined> {
+    return this.storeGroup(() => group)
+  }
+
+  /**
+   * The one way groups are written. `make` gets every stored group, inside the write
+   * transaction, and returns the group to store (or throws), so two quick edits can't
+   * each write back the other's old version.
+   */
+  private async storeGroup(make: (all: db.ProjectGroup[]) => db.ProjectGroup): Promise<db.ProjectGroup | undefined> {
+    const known = new Set((await this.list()).map((s) => s.id))
+    let kept: db.ProjectGroup | undefined
+    await db.updateGroups(this.db, (all) => {
+      const group = make(all)
+      const seen = new Set<string>()
+      const pieces = group.pieces.filter((p) => known.has(p.id) && !seen.has(p.id) && seen.add(p.id))
+      kept = pieces.length ? { ...group, pieces } : undefined
+      const put: db.ProjectGroup[] = kept ? [kept] : []
+      const remove: string[] = kept ? [] : [group.id]
+      for (const g of all) {
+        if (g.id === group.id || !g.pieces.some((p) => seen.has(p.id))) continue
+        const rest = g.pieces.filter((p) => !seen.has(p.id))
+        if (rest.length) put.push({ ...g, pieces: rest, updated_at: this.clock() })
+        else remove.push(g.id)
+      }
+      return { put, remove }
+    })
+    this.changed()
+    return kept
+  }
+
+  /** Change a stored group with `edit`, stamping updated_at. */
+  private editGroup(id: string, edit: (g: db.ProjectGroup) => db.ProjectGroup): Promise<db.ProjectGroup | undefined> {
+    return this.storeGroup((all) => {
+      const g = all.find((x) => x.id === id)
+      if (!g) throw new GroupNotFoundError(id)
+      return { ...edit(g), updated_at: this.clock() }
+    })
+  }
+
+  /** A new project named `name` with these patterns as its pieces, in this order, each
+   *  labelled with the pattern's name. */
+  async createGroup(name: string, patternIds: readonly string[]): Promise<db.ProjectGroup> {
+    const names = new Map((await this.list()).map((s) => [s.id, s.name]))
+    const now = this.clock()
+    const g = await this.putGroup({
+      id: newId(),
+      name,
+      pieces: patternIds.map((id) => ({ id, label: names.get(id) ?? '' })),
+      created_at: now,
+      updated_at: now,
+    })
+    if (!g) throw new ProjectNotFoundError(patternIds[0] ?? '')
+    return g
+  }
+
+  /** Add patterns to the end of a project, each labelled with its name. One already in
+   *  this project stays where it is. */
+  async addPieces(groupId: string, patternIds: readonly string[]): Promise<db.ProjectGroup | undefined> {
+    const names = new Map((await this.list()).map((s) => [s.id, s.name]))
+    return this.editGroup(groupId, (g) => ({
+      ...g,
+      pieces: [...g.pieces, ...patternIds.filter((id) => !g.pieces.some((p) => p.id === id)).map((id) => ({ id, label: names.get(id) ?? '' }))],
+    }))
+  }
+
+  /** Take a pattern out of its project, keeping the pattern. The last piece out removes
+   *  the project. */
+  removePiece(groupId: string, patternId: string): Promise<db.ProjectGroup | undefined> {
+    return this.editGroup(groupId, (g) => ({ ...g, pieces: g.pieces.filter((p) => p.id !== patternId) }))
+  }
+
+  /** Move a piece to position `to` (clamped) in its project's order. */
+  movePiece(groupId: string, patternId: string, to: number): Promise<db.ProjectGroup | undefined> {
+    return this.editGroup(groupId, (g) => {
+      const piece = g.pieces.find((p) => p.id === patternId)
+      if (!piece) return g
+      const rest = g.pieces.filter((p) => p.id !== patternId)
+      const at = Math.max(0, Math.min(rest.length, to))
+      return { ...g, pieces: [...rest.slice(0, at), piece, ...rest.slice(at)] }
+    })
+  }
+
+  /** What a piece is called in its project; the pattern keeps its own name. */
+  relabelPiece(groupId: string, patternId: string, label: string): Promise<db.ProjectGroup | undefined> {
+    return this.editGroup(groupId, (g) => ({ ...g, pieces: g.pieces.map((p) => (p.id === patternId ? { ...p, label } : p)) }))
+  }
+
+  renameGroup(id: string, name: string): Promise<db.ProjectGroup | undefined> {
+    return this.editGroup(id, (g) => ({ ...g, name }))
+  }
+
+  /** Remove a project, keeping every one of its patterns, which go back to being on
+   *  their own in the Library. */
+  async ungroup(id: string): Promise<void> {
+    await db.updateGroups(this.db, () => ({ remove: [id] }))
+    this.changed()
+  }
+
+  /** The project as one file: a zip of `project.json` and each piece's `.alpha` as
+   *  stored (groupFile.ts). */
+  async exportGroup(id: string): Promise<{ blob: Blob; filename: string }> {
+    const g = await this.group(id)
+    if (!g) throw new GroupNotFoundError(id)
+    const pieces = await Promise.all(
+      g.pieces.map(async (p) => {
+        const { blob, filename } = await this.exportFile(p.id)
+        return { label: p.label, file: filename, bytes: await bytesOf(blob) }
+      }),
+    )
+    const bytes = writeGroupFile({ id: g.id, name: g.name, pieces }, new Date(this.clock() * 1000))
+    return { blob: new Blob([bytes as Uint8Array<ArrayBuffer>], { type: ALPHA_MIME }), filename: groupFileName(g) }
+  }
+
+  /**
+   * After importing a project's file piece by piece (each as an `.alpha`, so each gets
+   * that path's checks and its replace question), store the project itself. The same id
+   * replaces the project as it was, as an `.alpha` with the same id does. `pieces` are
+   * the ids that are now stored, in the file's order, with their labels; a piece that
+   * was refused or kept as it was is still in it, if it's stored.
+   */
+  async importGroup(group: { id: string; name: string; pieces: db.GroupPiece[] }): Promise<db.ProjectGroup | undefined> {
+    const old = await this.group(group.id)
+    const now = this.clock()
+    return this.putGroup({ ...group, created_at: old?.created_at ?? now, updated_at: now })
+  }
+}
+
+export class GroupNotFoundError extends Error {
+  constructor(id: string) {
+    super(`No project with pieces with id ${id}.`)
+    this.name = 'GroupNotFoundError'
   }
 }

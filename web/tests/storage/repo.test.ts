@@ -48,7 +48,7 @@ afterEach(() => repo.close())
 describe('db', () => {
   it('creates both stores and lists summaries newest first', async () => {
     const d = await db.openAlphaDb(`raw-${++seq}`)
-    expect([...d.objectStoreNames].sort()).toEqual(['projects', 'summaries'])
+    expect([...d.objectStoreNames].sort()).toEqual(['groups', 'projects', 'summaries'])
     const s = (id: string, updated_at: number): db.ProjectSummary => ({
       id,
       name: id,
