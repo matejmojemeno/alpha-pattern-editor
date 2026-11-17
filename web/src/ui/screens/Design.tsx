@@ -109,6 +109,10 @@ import { FromPatternPanel } from '../design/FromPatternPanel.tsx'
 import { StructurePanel, type TransformAction } from '../design/StructurePanel.tsx'
 import { Visualize } from '../design/Visualize.tsx'
 import { YarnEstimate } from '../design/YarnEstimate.tsx'
+
+// For a project's yarn in the Library (ui/library/GroupDialogs.tsx), which loads it with
+// this chunk rather than as a chunk of its own.
+export { YarnEstimate }
 import { useDocumentTitle, useMediaQuery } from '../hooks.ts'
 import { ProjectGate } from '../ProjectGate.tsx'
 
@@ -560,6 +564,7 @@ function DesignStage({ repo, initial, from }: { repo: ProjectRepo; initial: Proj
   const [drawer, setDrawer] = useState<'colours' | 'structure' | 'source' | null>(() => (from ? 'source' : null))
   /** "Yarn & size" or "Visualize" is open, for the pattern as it is now. */
   const [dialog, setDialog] = useState<'yarn' | 'visualize' | null>(null)
+  const yarnPieces = useMemo(() => [{ label: p.name, pattern: p }], [p])
   const hidden = useRef(tooSmall)
   const compactNow = useRef(compact)
   useEffect(() => {
@@ -1141,7 +1146,7 @@ function DesignStage({ repo, initial, from }: { repo: ProjectRepo; initial: Proj
         />
       )}
 
-      {dialog === 'yarn' && <YarnEstimate name={p.name} pattern={p} onClose={() => setDialog(null)} />}
+      {dialog === 'yarn' && <YarnEstimate name={p.name} pieces={yarnPieces} onClose={() => setDialog(null)} />}
       {dialog === 'visualize' && <Visualize pattern={p} onClose={() => setDialog(null)} />}
 
       {pending && (

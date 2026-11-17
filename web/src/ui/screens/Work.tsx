@@ -35,7 +35,7 @@ import { placeThrough, type RowPlace } from '../../render/layout.ts'
 import { progressPct } from '../../storage/alpha.ts'
 import type { ProjectRepo } from '../../storage/repo.ts'
 import { ConfirmDialog, HelpLink, ProgressBar, RenameForm } from '../components.tsx'
-import { useDocumentTitle } from '../hooks.ts'
+import { useDocumentTitle, useGroups, useProjects } from '../hooks.ts'
 import { MadePhotoPanel } from '../MadePhoto.tsx'
 import { ProjectGate } from '../ProjectGate.tsx'
 import { PanelIcon } from '../icons.tsx'
@@ -84,6 +84,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
     wasRenaming.current = renaming
   }, [renaming])
   useDocumentTitle(project.pattern.name)
+  const pieces = usePieces(repo, project.pattern.id)
 
   // Saved automatically, ~300 ms after the last change, and at once when the page is
   // hidden or left. Saving from here puts the project in the Work stage, as on the
@@ -313,9 +314,15 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
   return (
     <main className="screen work">
       <header className="work__top">
-        <a className="topbar__home" href={href(paths.library)}>
-          <span aria-hidden="true">←</span> Library
-        </a>
+        {pieces ? (
+          <a className="topbar__home work__project" href={href(paths.project(pieces.group.id))} title={pieces.group.name}>
+            <span aria-hidden="true">←</span> <span className="work__project-name">{pieces.group.name}</span>
+          </a>
+        ) : (
+          <a className="topbar__home" href={href(paths.library)}>
+            <span aria-hidden="true">←</span> Library
+          </a>
+        )}
         <button
           type="button"
           className="work__panel"
@@ -339,10 +346,25 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
           />
         ) : (
           <>
-            <h1 tabIndex={-1} className="work__name">
+            <h1 tabIndex={-1} className={pieces ? 'work__name work__name--piece' : 'work__name'}>
               {p.name}
             </h1>
           </>
+        )}
+        {pieces && !renaming && (
+          <select
+            className="work__piece"
+            aria-label={`Piece of “${pieces.group.name}”`}
+            value={p.id}
+            onChange={(e) => navigate(paths.work(e.target.value))}
+          >
+            {pieces.list.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.label}
+                {x.id === p.id ? '' : ` (${Math.floor(x.pct)}%)`}
+              </option>
+            ))}
+          </select>
         )}
         <SaveIndicator status={status} onRetry={() => void saver.flush()} />
         <details ref={options} className="work__options">
@@ -501,6 +523,26 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
       )}
     </main>
   )
+}
+
+/**
+ * The project with pieces this pattern is a piece of, with every piece's label and
+ * progress for the switcher, or null when it's a pattern on its own. Moving to another
+ * piece leaves this stage, which saves first (trackSave), and the next waits for it.
+ */
+function usePieces(repo: ProjectRepo, id: string) {
+  const groups = useGroups(repo)
+  const projects = useProjects(repo)
+  return useMemo(() => {
+    const group = groups?.find((g) => g.pieces.some((x) => x.id === id))
+    if (!group || !projects) return null
+    const byId = new Map(projects.map((s) => [s.id, s]))
+    const list = group.pieces.flatMap((x) => {
+      const s = byId.get(x.id)
+      return s ? [{ id: x.id, label: x.label || s.name, pct: s.progress_pct }] : []
+    })
+    return list.length > 1 ? { group, list } : null
+  }, [groups, projects, id])
 }
 
 function SaveIndicator({ status, onRetry }: { status: SaveStatus; onRetry: () => void }) {

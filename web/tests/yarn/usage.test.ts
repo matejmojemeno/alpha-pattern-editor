@@ -12,6 +12,7 @@ import {
   formatSize,
   formatWeight,
   metresFrom,
+  mergePalettes,
   metresIn,
   usageText,
   yarnUsage,
@@ -252,5 +253,57 @@ describe('usageText', () => {
     const text = usageText(yarnUsage([entry('A', '#000000', 36)], i), { patternName: 'P', cols: 6, rows: 6, inputs: i, units: 'metric', ballNote: null })
     expect(text).toContain('is counted, one stitch’s width per stitch carried.')
     expect(text).toContain('A (#000000): 36 stitches (and carried inside 12), 2 m, 1 ball\n')
+  })
+})
+
+describe('mergePalettes (a project’s yarn)', () => {
+  it('adds up stitches and carried stitches by hex, ignoring case, in the order first met', () => {
+    const front = [entry('White', '#FFFFFF', 100), entry('', '#000000', 10)]
+    const back = [entry('Red', '#ff0000', 5), entry('Black', '#000000', 20), entry('Snow', '#ffffff', 50)]
+    const { palette, carried } = mergePalettes([
+      { palette: front, carried: [1, 2] },
+      { palette: back, carried: [3, 4, 5] },
+    ])
+    expect(palette.map((e) => [e.hex, e.name, e.count])).toEqual([
+      ['#FFFFFF', 'White', 150], // the first piece's entry and name
+      ['#000000', 'Black', 30], // the first name any piece gave it
+      ['#ff0000', 'Red', 5],
+    ])
+    expect(carried).toEqual([6, 6, 3])
+    expect(front[0]!.count).toBe(100) // the pieces' palettes are untouched
+  })
+
+  it('returns one piece as it is, even with two entries of one hex', () => {
+    const one = [entry('A', '#000000', 1), entry('B', '#000000', 2)]
+    expect(mergePalettes([{ palette: one, carried: [0, 0] }]).palette).toEqual(one)
+  })
+
+  it('a project’s estimate is the sum of its pieces’ per colour', () => {
+    const i = inputs({ swatch: SWATCH, ball: BALL })
+    const a = [entry('W', '#ffffff', 300), entry('K', '#000000', 7)]
+    const b = [entry('K', '#000000', 13)]
+    const merged = yarnUsage(mergePalettes([{ palette: a, carried: [0, 0] }, { palette: b, carried: [0] }]).palette, i)
+    expect(merged.colours.map((c) => c.stitches)).toEqual([300, 20])
+    expect(merged.grams).toBeCloseTo(yarnUsage(a, i).grams! + yarnUsage(b, i).grams!, 9)
+  })
+})
+
+describe('usageText for a project', () => {
+  it('lists every piece with its size in place of one pattern', () => {
+    const i = inputs({ swatch: SWATCH, ball: BALL })
+    const text = usageText(yarnUsage([entry('A', '#000000', 36)], i), {
+      patternName: 'Sweater',
+      cols: 0,
+      rows: 0,
+      inputs: i,
+      units: 'metric',
+      ballNote: null,
+      pieces: [
+        { label: 'Front', cols: 60, rows: 40 },
+        { label: 'Sleeve', cols: 30, rows: 50 },
+      ],
+    })
+    expect(text).toContain('Pieces, 2:\n  Front: 60 columns × 40 rows. Finished size: 60 × 32 cm.\n  Sleeve: 30 columns × 50 rows. Finished size: 30 × 40 cm.\n')
+    expect(text).not.toContain('Pattern:')
   })
 })

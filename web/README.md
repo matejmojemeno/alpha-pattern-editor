@@ -130,7 +130,8 @@ files.
   the yarn estimate's inputs), typed and fail-safe.
 - `src/theme/`: `tokens.css` (the port of `theme.py`) and `contrastOn()`.
 - `src/ui/`: the screens (landing, Library, Settings, Work, and the lazily loaded
-  import screen and Design stage) and shared components. `gestures.ts` is the two-finger
+  import screen and Design stage) and shared components. The Library's dialogs for
+  projects with pieces are in `library/`. `gestures.ts` is the two-finger
   pinch and pan both charts use. `icons.tsx` holds the icons (Lucide) and the logo;
   the Design stage's own are in `design/icons.tsx`, in its chunk.
 - `src/detect/`: the Pyodide boundary. `worker.ts` runs `alphareader/core/bridge.py` in
@@ -144,7 +145,7 @@ files.
   (`picture.ts`; the deciding and converting are `core/kind.py` and `core/convert.py`).
   Its components are in `src/ui/import/`.
 
-Routing uses the URL hash (`#/library`, `#/work/<id>`, `#/design/<id>`): the part after
+Routing uses the URL hash (`#/library`, `#/work/<id>`, `#/design/<id>`, `#/project/<id>`): the part after
 `#` never reaches the server, so deep links survive a refresh on any static host with no
 fallback rule. A query after the path carries where to go next: `#/import?into=<id>`
 goes back to that pattern's Design stage once saved, as `#/design/<id>?from=<new id>`,

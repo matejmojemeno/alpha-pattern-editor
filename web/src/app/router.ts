@@ -25,6 +25,8 @@ export type Route =
   | { name: 'design'; id: string; from?: string }
   /** A project, in whichever stage it should open in (ui/screens/OpenProject.tsx). */
   | { name: 'open'; id: string }
+  /** A project with pieces, in the Library: its pieces as cards. */
+  | { name: 'project'; id: string }
   | { name: 'notFound' }
 
 export const paths = {
@@ -38,6 +40,7 @@ export const paths = {
   /** An import screen that goes back to pattern `into`'s Design stage once saved. */
   importInto: (kind: 'import' | 'photo', into: string) => `/${kind}?into=${encodeURIComponent(into)}`,
   open: (id: string) => `/open/${encodeURIComponent(id)}`,
+  project: (id: string) => `/project/${encodeURIComponent(id)}`,
 } as const
 
 /** One query value (`?into=…`) after the path, decoded, or undefined. Ids are encoded
@@ -68,7 +71,7 @@ export function parseHash(hash: string): Route {
     const into = queryValue(query, 'into')
     return { name: path === paths.photo ? 'photo' : 'import', ...(into ? { into } : {}) }
   }
-  const project = /^\/(work|design|open)\/([^/]+)$/.exec(path)
+  const project = /^\/(work|design|open|project)\/([^/]+)$/.exec(path)
   if (project) {
     let id: string
     try {
@@ -80,7 +83,7 @@ export function parseHash(hash: string): Route {
       const from = queryValue(query, 'from')
       return { name: 'design', id, ...(from ? { from } : {}) }
     }
-    return { name: project[1] as 'work' | 'open', id }
+    return { name: project[1] as 'work' | 'open' | 'project', id }
   }
   return { name: 'notFound' }
 }

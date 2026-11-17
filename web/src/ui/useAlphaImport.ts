@@ -8,12 +8,17 @@
  * refused with a message and changes nothing. A project that is already in the Library
  * is not silently overwritten: the user is told, shown both progress figures, and asked.
  * Re-importing an old backup over a project with more progress would otherwise lose work.
+ *
+ * A project with pieces comes as a `.zip` (storage/groupFile.ts): each piece is imported
+ * as the `.alpha` file it is, with the same checks and the same question, and then the
+ * project is stored around whichever pieces are in the Library.
  */
 import { useCallback, useState } from 'react'
 
 import { handOffImage, type PendingImage } from '../app/pendingImage.ts'
 import { navigate, paths } from '../app/router.ts'
 import { AlphaFormatError, progressPct, readAlpha } from '../storage/alpha.ts'
+import { GroupFileError, isGroupFileName, readGroupFile } from '../storage/groupFile.ts'
 import type { ProjectRepo } from '../storage/repo.ts'
 
 export interface Notice {
@@ -35,7 +40,7 @@ const DETECTABLE_EXT = /\.(png|jpe?g|webp)$/i
 const OTHER_IMAGE = /\.(gif|heic|heif|bmp|tiff?|avif)$/i
 
 /** What the file pickers offer: projects and chart images. */
-export const IMPORT_ACCEPT = '.alpha,.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp'
+export const IMPORT_ACCEPT = '.alpha,.zip,.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp'
 
 export function isChartImage(file: File): boolean {
   return DETECTABLE_TYPES.has(file.type) || DETECTABLE_EXT.test(file.name)
@@ -79,18 +84,10 @@ export function useAlphaImport(
       const out: Notice[] = []
       const imported: string[] = []
       const added: string[] = [] // names of projects that are new to the Library
-      for (const file of list) {
-        if (!/\.alpha$/i.test(file.name)) {
-          out.push({
-            tone: 'error',
-            text: OTHER_IMAGE.test(file.name) || file.type.startsWith('image/')
-              ? `“${file.name}” is an image the importer can't read. Use a PNG, JPEG or WebP image.`
-              : `“${file.name}” isn't a .alpha file or a chart image.`,
-          })
-          continue
-        }
+      /** Import one `.alpha` file's bytes, asking first if it's already in the Library.
+       *  Returns the pattern's id if it's in the Library afterwards (imported or kept). */
+      const importAlpha = async (bytes: Uint8Array, filename: string): Promise<string | null> => {
         try {
-          const bytes = await readBytes(file)
           const { project } = readAlpha(bytes)
           const { name, id } = project.pattern
           const existing = await repo.summary(id)
@@ -106,7 +103,7 @@ export function useAlphaImport(
             setQuestion(null)
             if (!replace) {
               out.push({ tone: 'info', text: `“${name}” is already in your library. Kept the copy you had.` })
-              continue
+              return id
             }
           }
           await repo.importFile(bytes)
@@ -119,9 +116,54 @@ export function useAlphaImport(
           } else {
             added.push(name)
           }
+          return id
+        } catch (e) {
+          out.push({ tone: 'error', text: describeError(filename, e) })
+          return null
+        }
+      }
+      for (const file of list) {
+        if (isGroupFileName(file.name)) {
+          try {
+            const g = readGroupFile(await readBytes(file))
+            const pieces: { id: string; label: string }[] = []
+            const before = added.length
+            for (const piece of g.pieces) {
+              const id = await importAlpha(piece.bytes, `${file.name}: ${piece.file}`)
+              if (id) pieces.push({ id, label: piece.label })
+            }
+            // The pieces are named in the project's own notice, not one by one.
+            const fresh = added.splice(before)
+            const stored = pieces.length ? await repo.importGroup({ id: g.id, name: g.name, pieces }) : undefined
+            if (stored) {
+              const n = stored.pieces.length
+              out.push({
+                tone: 'ok',
+                text: `Imported the project “${g.name}”, ${n} ${n === 1 ? 'piece' : 'pieces'}${fresh.length < n ? ` (${fresh.length} new to your library)` : ''}.`,
+              })
+            }
+          } catch (e) {
+            out.push({ tone: 'error', text: describeError(file.name, e) })
+          }
+          continue
+        }
+        if (!/\.alpha$/i.test(file.name)) {
+          out.push({
+            tone: 'error',
+            text: OTHER_IMAGE.test(file.name) || file.type.startsWith('image/')
+              ? `“${file.name}” is an image the importer can't read. Use a PNG, JPEG or WebP image.`
+              : `“${file.name}” isn't a .alpha file or a chart image.`,
+          })
+          continue
+        }
+        let bytes: Uint8Array
+        try {
+          bytes = await readBytes(file)
         } catch (e) {
           out.push({ tone: 'error', text: describeError(file.name, e) })
+          continue
         }
+        await importAlpha(bytes, file.name)
       }
       if (added.length) {
         out.unshift({
@@ -151,6 +193,11 @@ export function useAlphaImport(
 }
 
 function describeError(filename: string, e: unknown): string {
+  if (e instanceof GroupFileError) {
+    return e.code === 'NEWER_VERSION'
+      ? `“${filename}” was saved by a newer version of Alpha Pattern Editor and can't be opened here.`
+      : `“${filename}” isn't a project from Alpha Pattern Editor. (${e.message})`
+  }
   if (e instanceof AlphaFormatError) {
     return e.code === 'NEWER_VERSION'
       ? `“${filename}” was saved by a newer version of Alpha Pattern Editor and can't be opened here.`

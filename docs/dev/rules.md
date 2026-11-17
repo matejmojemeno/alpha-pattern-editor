@@ -286,6 +286,11 @@ break without noticing.
   `made.jpg` travels in every exported `.alpha` file, which people share, so never store
   the file as it was chosen. `e2e/made-photo.spec.ts` checks the exported bytes have no
   EXIF.
+- <a id="group-writes"></a>**A change to the projects with pieces is made inside the transaction that
+  writes it** (`ProjectRepo.storeGroup`, `db.updateGroups`). Reading a group, then
+  writing it back in a second step, lets two quick edits (a rename and a piece removed)
+  each write back the other's old version, so one is lost. Pass the change as a function
+  of the stored groups.
 - <a id="serial-writes"></a>**Writes to one project go one after another** (`ProjectRepo.serial`). A save reads
   the stored archive to keep the images it isn't given (`source.png`, `made.jpg`), so two
   writes at once, such as the Work stage's autosave and adding a photo, could each write

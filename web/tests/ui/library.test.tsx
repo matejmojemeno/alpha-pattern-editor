@@ -234,14 +234,14 @@ describe('Library', () => {
     // Not started: Design, and Start working on the menu.
     const design = within(card('basic')).getByRole('link', { name: 'Design “basic”' })
     expect(design.getAttribute('href')).toBe(`#/design/${basicId}`)
-    expect(itemNames(await menuOf('basic'))).toEqual(['Start working', 'Export', 'Delete'])
+    expect(itemNames(await menuOf('basic'))).toEqual(['Start working', 'Add to a project…', 'Export', 'Delete'])
     expect(screen.getByRole('menuitem', { name: 'Start working' }).getAttribute('href')).toBe(`#/work/${basicId}`)
     await userEvent.keyboard('{Escape}')
 
     // In progress: Continue, and Edit in Design on the menu.
     const go = within(card('with-source')).getByRole('link', { name: 'Continue “with-source”' })
     expect(go.getAttribute('href')).toBe(`#/work/${sourceId}`)
-    expect(itemNames(await menuOf('with-source'))).toEqual(['Edit in Design', 'Export', 'Delete'])
+    expect(itemNames(await menuOf('with-source'))).toEqual(['Edit in Design', 'Add to a project…', 'Export', 'Delete'])
     expect(screen.getByRole('menuitem', { name: 'Edit in Design' }).getAttribute('href')).toBe(`#/design/${sourceId}`)
     await userEvent.keyboard('{Escape}')
 
@@ -252,7 +252,7 @@ describe('Library', () => {
     })
     await waitFor(() => expect(within(card('with-source')).getByRole('button', { name: 'Make again “with-source”' })).toBeTruthy())
     // …and a photo of what you made (tests/ui/made-photo.test.tsx).
-    expect(itemNames(await menuOf('with-source'))).toEqual(['Edit in Design', 'Add photo…', 'Export', 'Delete'])
+    expect(itemNames(await menuOf('with-source'))).toEqual(['Edit in Design', 'Add photo…', 'Add to a project…', 'Export', 'Delete'])
 
     // Every card: exactly one main button and ⋯ in its row.
     for (const c of cards()) expect(c.querySelector('.card__actions')!.children).toHaveLength(2)
@@ -270,7 +270,7 @@ describe('Library', () => {
     await user.keyboard('{ArrowDown}')
     expect(document.activeElement).toBe(items[1])
     await user.keyboard('{ArrowUp}{ArrowUp}')
-    expect(document.activeElement).toBe(items[2]) // wraps round
+    expect(document.activeElement).toBe(items[items.length - 1]) // wraps round
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('menu')).toBeNull()
     expect(document.activeElement).toBe(more)

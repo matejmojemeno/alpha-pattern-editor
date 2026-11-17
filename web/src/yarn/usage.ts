@@ -151,6 +151,39 @@ export function yarnUsage(palette: readonly PaletteEntry[], inputs: UsageInputs)
   }
 }
 
+/**
+ * Several pieces' colours as one palette, for a project's yarn: colours with the same hex
+ * (ignoring case) are the same yarn, so their stitches and carried stitches add up. Each
+ * merged colour keeps the first piece's entry (its id and dmc), and the first name any
+ * piece gave it; colours are in the order they're first met. One piece is returned as it
+ * is, so a single pattern's estimate never changes.
+ */
+export function mergePalettes(
+  parts: readonly { palette: readonly PaletteEntry[]; carried: readonly number[] }[],
+): { palette: PaletteEntry[]; carried: number[] } {
+  if (parts.length === 1) return { palette: [...parts[0]!.palette], carried: [...parts[0]!.carried] }
+  const at = new Map<string, number>()
+  const palette: PaletteEntry[] = []
+  const carried: number[] = []
+  for (const part of parts) {
+    part.palette.forEach((entry, i) => {
+      const key = entry.hex.toLowerCase()
+      const j = at.get(key)
+      const c = part.carried[i] ?? 0
+      if (j === undefined) {
+        at.set(key, palette.length)
+        palette.push({ ...entry })
+        carried.push(c)
+      } else {
+        const m = palette[j]!
+        palette[j] = { ...m, count: m.count + entry.count, name: m.name || entry.name }
+        carried[j]! += c
+      }
+    })
+  }
+  return { palette, carried }
+}
+
 /** Balls by the estimate's own measure when the ball gives it, else by the other. */
 function balls(basis: Basis, metres: number | null, grams: number | null, ball: Ball): number | null {
   const byLength = metres !== null && positive(ball.metres) ? ballsFor(metres, ball.metres) : null
@@ -200,6 +233,9 @@ export interface UsageTextOptions {
   readonly ballNote: string | null
   /** The matched shade for each palette index, e.g. "Stylecraft Special DK 1001 White". */
   readonly shades?: readonly (string | null)[]
+  /** A project's pieces, each with its size, in place of `cols` × `rows`, when there's
+   *  more than one. */
+  readonly pieces?: readonly { label: string; cols: number; rows: number }[]
 }
 
 /** The estimate as plain text, for "Export yarn list". */
@@ -216,11 +252,26 @@ export function usageText(usage: Usage, o: UsageTextOptions): string {
     positive(ball.metres) ? formatLength(ball.metres, o.units) : null,
     positive(ball.grams) ? `${fieldValue(ball.grams, 1)} g` : null,
   ].filter(Boolean)
+  const sizeText = (cols: number, rows: number) => {
+    const s = finishedSize(cols, rows, swatch)
+    return s.widthCm !== null && s.heightCm !== null ? formatSize(s.widthCm, s.heightCm, o.units) : null
+  }
+  const pieces =
+    o.pieces && o.pieces.length > 1
+      ? o.pieces.map((p) => {
+          const s = sizeText(p.cols, p.rows)
+          return `${p.label}: ${p.cols} columns × ${p.rows} rows.${s ? ` Finished size: ${s}.` : ''}`
+        })
+      : null
   const lines = [
     `${o.patternName}: yarn estimate`,
     '',
-    `Pattern: ${o.cols} columns × ${o.rows} rows.` +
-      (size.widthCm !== null && size.heightCm !== null ? ` Finished size: ${formatSize(size.widthCm, size.heightCm, o.units)}.` : ''),
+    ...(pieces
+      ? [`Pieces, ${pieces.length}:`, ...pieces.map((l) => `  ${l}`)]
+      : [
+          `Pattern: ${o.cols} columns × ${o.rows} rows.` +
+            (size.widthCm !== null && size.heightCm !== null ? ` Finished size: ${formatSize(size.widthCm, size.heightCm, o.units)}.` : ''),
+        ]),
     `Swatch: ${swatch.stitches} stitches × ${swatch.rows} rows${measured}${weighed}.`,
     (usage.basis === 'weight'
       ? 'By the swatch’s weight.'

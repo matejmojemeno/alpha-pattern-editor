@@ -24,7 +24,7 @@ Pyodide for photo detection only.
 - **Tier B (Pyodide, lazy, in a Web Worker):** only `core/detect` and `confirm.py`, through
   `core/bridge.py`, which passes plain data only.
 - The Work and Design stages make **zero** Pyodide requests. The main chunk stays under
-  250 KB gzipped (about 103 KB today).
+  250 KB gzipped (about 122 KB today).
 - There is no backend: everything is stored locally, per browser origin.
 
 ## The Python is the spec

@@ -1832,3 +1832,165 @@ code {
   margin: 0.9rem 0 0;
   font-size: var(--text-sm);
 }
+
+/* --- projects with pieces (ui/screens/Library.tsx, ui/library/GroupDialogs.tsx) ------------ */
+
+/* A project's card shows up to four of its pieces' pictures, side by side or 2 × 2. */
+.group-thumbs {
+  display: grid;
+  gap: 0.25rem;
+  height: var(--card-thumb-h);
+}
+
+.group-thumbs--2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.group-thumbs--3,
+.group-thumbs--4 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.group-thumbs--3 > :first-child {
+  grid-row: span 2;
+}
+
+.group-thumbs .thumb {
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.group-thumbs .thumb--cells img {
+  padding: 0.25rem;
+}
+
+/* The names of the pieces on a project's card stay on one line. */
+.card--group .card__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group__summary {
+  display: grid;
+  gap: 0.35rem;
+  max-width: 28rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.group__count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.group__rename {
+  max-width: 28rem;
+  margin: 0.5rem 0;
+}
+
+/* One column that may shrink below an input's own width of about 20 letters
+   (rules.md#nothing-sticks-out). */
+.group-dialog__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.group-dialog__choices {
+  display: grid;
+  gap: 0.15rem;
+  max-height: min(50vh, 22rem);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow-y: auto;
+}
+
+.group-dialog__choice {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: var(--tap);
+  min-width: 0;
+  cursor: pointer;
+}
+
+.group-dialog__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.group-dialog__size {
+  flex: none;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.group-dialog__name {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.3rem;
+}
+
+.group-dialog__name label {
+  font-weight: 600;
+}
+
+.group-dialog__name input {
+  max-width: 100%;
+  min-height: var(--tap);
+  padding: 0 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+/* A project's view: ⋯ in the header is as tall as the buttons beside it. */
+.topbar__actions .card-menu__button {
+  min-height: var(--tap);
+  padding: 0 0.85rem;
+}
+
+/* Work: back to the project, by its name, which gives way to the pattern's own. */
+.work__project {
+  max-width: 12rem;
+  min-width: 0;
+}
+
+.work__project-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Work: the switcher between a project's pieces. It names the piece, so it takes the
+   name's place, and the name stays a heading for screen readers only
+   (.work__name--piece); otherwise a phone showed the name as one letter beside it. */
+.work__piece {
+  flex: 1 1 8rem;
+  min-width: 0;
+  max-width: 16rem;
+  min-height: var(--tap);
+  font: inherit;
+  font-weight: 600;
+}
+
+.work__name--piece {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* The space the name had, so Saved and Options stay at the right. */
+.work__piece + .work__saved {
+  margin-left: auto;
+}

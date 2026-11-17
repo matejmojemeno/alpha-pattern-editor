@@ -8,6 +8,9 @@
  * "Advanced: match to yarn" a yarn range can be chosen: each colour then shows its
  * nearest shade, which the exported list names too, and the ball defaults to the range's
  * own.
+ *
+ * A project with pieces opens it from the Library with every piece: their colours add up
+ * by hex (`mergePalettes`), and each piece gets its own finished size.
  */
 import { useId, useMemo } from 'react'
 
@@ -26,6 +29,7 @@ import {
   formatLength,
   formatSize,
   formatWeight,
+  mergePalettes,
   metresFrom,
   metresIn,
   usageText,
@@ -40,17 +44,30 @@ import { matchName, useChosenMatches } from '../yarn/useShades.ts'
 const UNIT_NAMES: Record<Units, string> = { metric: 'Metric (cm, m)', imperial: 'Imperial (in, yd)' }
 const POSITIVE = { value: 0, inclusive: false }
 
-export function YarnEstimate({ name, pattern, onClose }: { name: string; pattern: Pattern; onClose: () => void }) {
+export function YarnEstimate({
+  name,
+  pieces,
+  onClose,
+}: {
+  name: string
+  /** One piece for a pattern; a project's pieces, in order, each with its label. */
+  pieces: readonly { label: string; pattern: Pattern }[]
+  onClose: () => void
+}) {
   const [settings, set] = useSettings()
   const { units } = settings
   const metric = units === 'metric'
   const cm = metric ? 'cm' : 'in'
   const unitsName = useId()
-  const { library, matches } = useChosenMatches(pattern.palette.map((e) => e.hex))
+  // Carried as the Work stage shows it, with each pattern's own row directions.
+  const { palette, carried } = useMemo(
+    () => mergePalettes(pieces.map((p) => ({ palette: p.pattern.palette, carried: carriedStitches(p.pattern) }))),
+    [pieces],
+  )
+  const one = pieces.length === 1 ? pieces[0]!.pattern : null
+  const { library, matches } = useChosenMatches(palette.map((e) => e.hex))
   const libraryBall = library?.ball ?? null
 
-  // Carried as the Work stage shows it, with the pattern's own row directions.
-  const carried = useMemo(() => carriedStitches(pattern), [pattern])
   const swatch = {
     stitches: settings.swatchStitches,
     rows: settings.swatchRows,
@@ -68,16 +85,18 @@ export function YarnEstimate({ name, pattern, onClose }: { name: string; pattern
     marginPercent: settings.marginPercent,
     carried: settings.countCarried ? carried : null,
   }
-  const usage = yarnUsage(pattern.palette, inputs)
-  const size = finishedSize(pattern.cols, pattern.rows, swatch)
+  const usage = yarnUsage(palette, inputs)
+  const sizes = pieces.map((p) => ({ label: p.label, ...finishedSize(p.pattern.cols, p.pattern.rows, swatch) }))
+  const measured = sizes.every((z) => z.widthCm !== null && z.heightCm !== null)
   const fromLibrary = library && libraryBall && settings.ballMetres === null && settings.ballGrams === null
   const ballNote = fromLibrary ? LIBRARY_LABELS[library.id] : null
 
   const exportList = () => {
     const text = usageText(usage, {
       patternName: name,
-      cols: pattern.cols,
-      rows: pattern.rows,
+      cols: one?.cols ?? 0,
+      rows: one?.rows ?? 0,
+      pieces: pieces.map((p) => ({ label: p.label, cols: p.pattern.cols, rows: p.pattern.rows })),
       inputs,
       units,
       ballNote,
@@ -167,9 +186,19 @@ export function YarnEstimate({ name, pattern, onClose }: { name: string; pattern
           />
         </div>
         <p className="yarn__size" aria-live="polite">
-          {size.widthCm !== null && size.heightCm !== null ? (
+          {measured && one ? (
             <>
-              Finished size: <strong>{formatSize(size.widthCm, size.heightCm, units)}</strong>, before any border
+              Finished size: <strong>{formatSize(sizes[0]!.widthCm!, sizes[0]!.heightCm!, units)}</strong>, before any border
+            </>
+          ) : measured ? (
+            <>
+              Finished sizes, before any border:{' '}
+              {sizes.map((z, i) => (
+                <span key={i}>
+                  {i > 0 && ', '}
+                  {z.label} <strong>{formatSize(z.widthCm!, z.heightCm!, units)}</strong>
+                </span>
+              ))}
             </>
           ) : (
             <span className="muted">Enter your swatch’s width and height to see the finished size.</span>
