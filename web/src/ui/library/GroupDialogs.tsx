@@ -9,8 +9,10 @@ import type { ProjectGroup, ProjectRepo, ProjectSummary } from '../../storage/re
 import { Modal } from '../components.tsx'
 import { cleanName, MAX_NAME_LENGTH } from '../names.ts'
 
-// The yarn dialog is the Design stage's; only someone who opens it here downloads it.
-const YarnEstimate = lazy(() => import('../design/YarnEstimate.tsx').then((m) => ({ default: m.YarnEstimate })))
+// The yarn dialog is the Design stage's, so it comes with the Design chunk, which App
+// already loads lazily. Importing YarnEstimate.tsx on its own made Rollup split a shared
+// chunk off the entry for index.html to preload (rules.md#no-nested-lazy-chunks).
+const YarnEstimate = lazy(() => import('../screens/Design.tsx').then((m) => ({ default: m.YarnEstimate })))
 
 const NEW = '' // the radio value for a new project
 

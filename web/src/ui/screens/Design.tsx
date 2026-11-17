@@ -109,6 +109,10 @@ import { FromPatternPanel } from '../design/FromPatternPanel.tsx'
 import { StructurePanel, type TransformAction } from '../design/StructurePanel.tsx'
 import { Visualize } from '../design/Visualize.tsx'
 import { YarnEstimate } from '../design/YarnEstimate.tsx'
+
+// For a project's yarn in the Library (ui/library/GroupDialogs.tsx), which loads it with
+// this chunk rather than as a chunk of its own.
+export { YarnEstimate }
 import { useDocumentTitle, useMediaQuery } from '../hooks.ts'
 import { ProjectGate } from '../ProjectGate.tsx'
 
