@@ -33,6 +33,13 @@ Newest last, as they were built.
   library 1.1–2.1 KB, fetched on first use.
 - **Rule:** after changing a library or `palette.srgb_to_lab`, run
   `python scripts/gen_yarn_fixture.py`; `test_yarn_fixture.py` fails until you do.
+- <a id="project-yarn"></a>**A project's yarn** (`mergePalettes` in `yarn/usage.ts`): **Yarn & size**
+  on a project with pieces gives `YarnEstimate` every piece. Colours with the same hex,
+  ignoring case, are one yarn: their stitches and carried stitches add up, the first
+  piece's entry is kept with the first name any piece gave it, and the balls are counted
+  on the total (each colour is bought on its own). One piece is passed through as it is,
+  so a pattern's own estimate is unchanged. Each piece's finished size is listed, and the
+  exported list names each piece with its size (`usageText`'s `pieces`).
 - <a id="yarn-and-size"></a>**Yarn and size** (`yarn/usage.ts`, `ui/design/YarnEstimate.tsx`): the Design stage's
   "Advanced: match to yarn", its shade chips, "Use shade" and the yarn estimate panel
   are gone. **"Yarn & size"** opens a dialog: first beside "Save & edit pattern" on the

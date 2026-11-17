@@ -155,6 +155,53 @@ Newest last, as they were built.
     its throwaway contexts, on `main` too), so the WebKit check covers only the decoding:
     upright, 1365 × 2048.
 
+- <a id="projects"></a>**Projects with pieces** (`ui/screens/Library.tsx`, `app/groups.ts`,
+  `ui/library/GroupDialogs.tsx`; stored as in [storage](storage.md#groups)): step 2 of the
+  owner's plan for "multiple patterns", after Design's "From another pattern". A sweater's
+  Front, Back and Sleeves are one project, and each piece is an ordinary pattern, worked
+  and stored on its own. Agreed with the owner: a pattern is a piece of one project at
+  most; ungrouping (the owner's "deleting a project") asks first and never deletes a
+  pattern; no shaped pieces yet.
+  - **One card in the Library** (`GroupCard`): up to four of its pieces' thumbnails (side by
+    side, or 2 × 2, the first spanning both rows for three), "3 pieces: Front, Back,
+    Sleeve", and one bar. Its pieces have no cards of their own there.
+  - **The bar is weighted by stitches** (`groupProgress`): each piece adds its rows done ×
+    columns, so a 2,000-stitch sleeve counts for less than a 6,000-stitch back. It's
+    worked out from the summaries' `progress_pct`, so the Library still opens no archives.
+  - **Its section** (`groupStatus`): finished when every piece is, not started when none
+    is, otherwise in progress (one piece finished and the next not started is in
+    progress: the project is under way).
+  - **Continue opens the current piece** (`currentPiece`): the unfinished piece with
+    progress that was saved last, or, with none started, the first unfinished one in the
+    project's order. A not-started or finished project's button is **Open** instead,
+    to its view. The card's own link is named "Pieces of “…”", so it differs from Open.
+  - **Its place in the newest-first order** is its newest change, its own or any piece's.
+  - **Its view, `#/project/<id>`,** is the Library component with `group` set, so the
+    pieces' cards have every action and dialog a pattern's card has. A piece's card is
+    named by its label; renaming it there relabels it (the pattern's own name shows beside
+    its size when they differ). ⋯ adds **Move earlier**, **Move later** and **Remove from
+    project**. The header has **Continue** (in progress only), **Add patterns…** (only
+    patterns in no project: one in another project would be moved out of it unseen),
+    **Yarn & size** and ⋯ (**Rename**, **Export**, **Ungroup…**). The view takes no drops;
+    importing is the Library's.
+  - **Add to a project…** is on every pattern card's ⋯ in the Library: radio buttons for the
+    projects you have and **New project**, with a name field.
+  - **Yarn & size for a project** is the Design stage's dialog given every piece
+    (`YarnEstimate` takes `pieces`): colours with the same hex are one yarn
+    (`yarn/usage.ts` `mergePalettes`), and each piece gets its finished size. It's loaded
+    through `Design.tsx`, which App already loads lazily: importing `YarnEstimate.tsx` on
+    its own split a 32 KB (gzipped) chunk off the entry for `index.html` to preload
+    ([rule](../rules.md#no-nested-lazy-chunks)).
+  - **The Work stage** shows a switcher between the pieces (each with its % done) and a
+    back link with the project's name (`usePieces` in `Work.tsx`); see
+    [Work](work.md#pieces).
+  - **Not in v1:** shaped pieces, a project's own Make again, and starting a new piece from
+    the project (step 3 of the plan: Add piece → a blank at a size from the swatch).
+  - Tested: `tests/storage/groups.test.ts`, `tests/app/groups.test.ts`,
+    `tests/ui/groups.test.tsx`, `e2e/projects.spec.ts` (real Chromium: reload, switching
+    pieces, export and import into a fresh profile), and the overflow sweep's "a project
+    with pieces".
+
 ## During the port
 
 What each phase of the port built here, newest first. The plan each phase followed is in

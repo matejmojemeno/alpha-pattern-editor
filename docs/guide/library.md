@@ -56,10 +56,45 @@ the Work stage's **Options**.
 **Export**, on **⋯** on a card, saves the project as a `.alpha` file in your downloads. Export a
 project to keep a copy, or to move it to another device or browser.
 
+**Export** on a [project with pieces](#projects-with-pieces) saves one `.zip` file holding
+each piece's `.alpha` file. Import the `.zip` to get the whole project back, or unzip it
+to open the pieces one by one.
+
 ## Delete a project
 
 **Delete**, on **⋯** on a card, asks first, then removes the project from this browser. It can't
 be undone, so export anything you might want again before you delete it.
+
+## Projects with pieces
+
+Something made in parts, such as a sweater's front, back and sleeves, can be one project
+in the Library, with each part a pattern of its own: a **piece**.
+
+- **Make one:** press **⋯** on a pattern's card, then **Add to a project…**. Type a name
+  for a new project, or choose one you already have, and press **Add**.
+- **Its card** shows up to four of its pieces' pictures, how many pieces there are and
+  their names, and one bar for the whole project. The bar counts stitches, so a small
+  sleeve counts for less than a big back. The project is **In progress** once you've
+  started any piece, and **Finished** when every piece is.
+- **Continue** takes you to the piece you're on: the one you worked on last, or the next
+  one not finished. **Open**, or a click on the card, shows its pieces.
+- **Its pieces** are cards like any other, with every button they have on their own. On
+  **⋯**: **Move earlier** and **Move later** change their order, and **Remove from
+  project** puts one back in the Library on its own. Click a piece's name to rename it
+  in the project (**Front**, **Sleeve**); the pattern keeps its own name, which shows
+  beside its size.
+- At the top: **Add patterns…** adds patterns that aren't in a project yet, **Yarn &
+  size** adds up the yarn for every piece (a colour used in several pieces is counted
+  together) and gives each piece's finished size, and **⋯** has **Rename**, **Export**
+  and **Ungroup…**.
+- **In the Work stage,** a piece has a list at the top for moving to another piece of the
+  same project, each with how much of it is done, and **←** with the project's name takes
+  you back to it. Each piece keeps its own place.
+- **Ungroup…** asks first, then removes the project but keeps every piece, with its
+  progress, as a pattern on its own. **Delete** on a piece deletes that pattern; a
+  project whose last piece goes is removed too.
+
+A pattern can be in one project at a time.
 
 ## What a .alpha file is
 
@@ -92,3 +127,6 @@ a project that's already in your Library, the app asks **Already in your library
 showing how much of each copy is done. **Replace** swaps in the imported copy; **Cancel**
 keeps the one you have. This stops an old backup from overwriting newer progress by
 mistake.
+
+Importing a project's `.zip` asks the same about each of its pieces that's already in
+your Library, then puts the project back together around them.

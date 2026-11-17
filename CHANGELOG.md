@@ -8,6 +8,13 @@ line per change, under the release it's in.
 
 ### Added
 
+- **Projects with pieces** in the Library: put patterns made to go together, such as a
+  sweater's front, back and sleeves, in one project with **Add to a project…** on **⋯**.
+  It's one card with one bar for the whole project, and **Continue** takes you to the
+  piece you're on. The project shows its pieces, in the order you choose, and adds up
+  the yarn for all of them; in the Work stage you can move between its pieces. **Export**
+  saves the whole project as one file.
+
 - **A photo of what you made**: on a finished project, **Add photo…** on **⋯** in the
   Library (or **Add a photo of what you made…** in the Work stage) keeps a photo with the
   pattern, and it becomes the picture on its card. **Photo** on **⋯** shows it large, to

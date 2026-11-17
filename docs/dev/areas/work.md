@@ -387,6 +387,14 @@ Newest last, as they were built.
   - Record progress: **Mark as done** (was "Mark segment complete": nobody calls a block
     of one colour a segment) and **Save** (was "Save progress").
 
+- <a id="pieces"></a>**A piece of a project** (`usePieces` in `ui/screens/Work.tsx`; the projects
+  themselves are in [library](library.md#projects)): the header's **← Library** becomes
+  **←** and the project's name (cut short with an ellipsis), to the project's view, and a
+  list after the pattern's name moves to another piece, each listed with its % done.
+  Choosing one navigates to its Work stage, so this one unmounts and saves first, and the
+  next opens once the save is in (`trackSave`, `ProjectGate`). Both are left out for a
+  pattern on its own, and the list for a project of one piece.
+
 ## During the port
 
 What each phase of the port built here, newest first. The plan each phase followed is in
