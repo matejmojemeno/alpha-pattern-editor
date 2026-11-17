@@ -8,6 +8,12 @@ line per change, under the release it's in.
 
 ### Added
 
+- **Pieces that go together**: a project's **New piece…** starts a blank piece at the size
+  you want, working out the stitches from your swatch, with the project's colours ready
+  to paint with. **Use the same colours in every piece…** (on **⋯**) gives the same yarn
+  the same colour in every piece, and in Design, **From another pattern** lists the
+  project's other pieces first.
+
 - **Projects with pieces** in the Library: put patterns made to go together, such as a
   sweater's front, back and sleeves, in one project with **Add to a project…** on **⋯**.
   It's one card with one bar for the whole project, and **Continue** takes you to the

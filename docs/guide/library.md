@@ -83,10 +83,26 @@ in the Library, with each part a pattern of its own: a **piece**.
   project** puts one back in the Library on its own. Click a piece's name to rename it
   in the project (**Front**, **Sleeve**); the pattern keeps its own name, which shows
   beside its size.
-- At the top: **Add patterns…** adds patterns that aren't in a project yet, **Yarn &
-  size** adds up the yarn for every piece (a colour used in several pieces is counted
-  together) and gives each piece's finished size, and **⋯** has **Rename**, **Export**
-  and **Ungroup…**.
+- At the top: **New piece…** starts a blank piece (see below), **Add patterns…** adds
+  patterns that aren't in a project yet, **Yarn & size** adds up the yarn for every piece
+  (a colour used in several pieces is counted together) and gives each piece's finished
+  size, and **⋯** has **Rename**, **Use the same colours in every piece…**, **Export** and
+  **Ungroup…**.
+- **New piece…** makes a blank pattern for the project and opens it in Design. Give it a
+  name, then its size: **From a measurement** takes the width and height you want and
+  works out the stitches from your swatch (10 stitches and 10 rows measuring 10 × 8 cm
+  make a 52 × 56 cm back 52 × 70 stitches); **In stitches** takes the columns and rows.
+  The swatch is the same one **Yarn & size** uses, so you only measure it once. The piece
+  starts with every colour of the project, ready to paint with, in the background you
+  choose, and is worked the same way as the first piece (craft, first stitch corner,
+  rows back and forth or in the round).
+- **Use the same colours in every piece…** finds colours that are the same yarn in
+  different pieces but not quite the same colour, as two photos usually give, and lists
+  them. Each takes the colour and name it has in the earliest piece that has it (so the
+  first piece never changes), and only the ones you leave ticked change. No stitch moves
+  and no progress is lost, and **Yarn & size** then counts each yarn once.
+- **In Design,** a piece's **From another pattern** lists the other pieces of its project
+  first, so you can bring the motif from the front onto the back.
 - **In the Work stage,** a piece has a list at the top for moving to another piece of the
   same project, each with how much of it is done, and **←** with the project's name takes
   you back to it. Each piece keeps its own place.
