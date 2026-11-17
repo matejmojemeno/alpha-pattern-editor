@@ -9,6 +9,7 @@ import { resolve } from 'node:path'
 import { unzipSync, strFromU8 } from 'fflate'
 import { expect, test } from '@playwright/test'
 
+import { palette } from './colours.ts'
 import { fromCardMenu } from './importing.ts'
 
 const DESKTOP = resolve(import.meta.dirname, '../../fixtures/alpha/desktop')
@@ -83,4 +84,71 @@ test('make a project, work its pieces, reload, export, and import it into an emp
   } finally {
     await other.close()
   }
+})
+
+test('the links between pieces: a new piece from the swatch, the pieces first in Design, the same colours', async ({ page }) => {
+  await page.goto('/#/library')
+  await page.getByLabel('Choose a pattern file or chart image to import').setInputFiles([BASIC, WITH_SOURCE])
+  const cards = page.locator('.cards > li')
+  await expect(cards).toHaveCount(2)
+  await fromCardMenu(page, 'basic', 'Add to a project…')
+  await page.getByLabel('New project’s name').fill('Sweater')
+  await page.getByRole('button', { name: 'Add' }).click()
+  await fromCardMenu(page, 'with-source', 'Add to a project…')
+  await page.getByRole('radio', { name: 'Sweater' }).check()
+  await page.getByRole('button', { name: 'Add' }).click()
+  await cards.first().getByRole('link', { name: 'Pieces of “Sweater”' }).click()
+  const projectUrl = page.url()
+
+  // New piece…: 10 stitches and 10 rows in 10 × 8 cm, so 12 × 6 cm is 12 × 8 stitches.
+  await page.getByRole('button', { name: 'New piece…' }).click()
+  const dialog = page.getByRole('dialog', { name: 'New piece for “Sweater”' })
+  await dialog.getByLabel('Name').fill('Back')
+  await dialog.getByLabel('Swatch width').fill('10')
+  await dialog.getByLabel('Swatch height').fill('8')
+  await dialog.getByLabel('Width', { exact: true }).fill('12')
+  await dialog.getByLabel('Height', { exact: true }).fill('6')
+  await expect(dialog.locator('.new-piece__result')).toHaveText('12 × 8 stitches')
+  await expect(dialog.getByText('It starts with the project’s 4 colours, ready to paint with.')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Create' }).click()
+
+  // It opens in Design, blank, with the project's colours (white has the most stitches).
+  await expect(page).toHaveURL(/#\/design\//)
+  await expect(page.locator('.design__name, h1').first()).toContainText('Back')
+  await expect(palette(page)).toHaveCount(4)
+  await expect(palette(page).nth(0)).toHaveAccessibleName('White, #ffffff, 96 cells')
+  await expect(palette(page).nth(1)).toHaveAccessibleName('Red, #d93a3a, 0 cells')
+
+  // From another pattern lists the project's other pieces first.
+  await page.getByRole('button', { name: 'From another pattern' }).click()
+  const pieces = page.getByRole('list', { name: 'Pieces of “Sweater”' })
+  await expect(pieces.locator('.from-pattern__item-name')).toHaveText(['basic', 'with-source'])
+  await expect(page.getByRole('list', { name: 'Patterns in your Library' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Close', exact: true }).click()
+
+  // A red that's nearly the project's red, as a second photo would give.
+  await palette(page).nth(1).click()
+  const menu = page.getByRole('dialog', { name: 'Edit “Red”' })
+  await menu.getByLabel('Hex').fill('#dd3f3f')
+  await menu.getByLabel('Name').fill('Tomato')
+  await menu.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('.work__saved')).toHaveText('Saved')
+
+  // Back in the project: three pieces, and Same colours puts Back's red back.
+  await page.goto(projectUrl)
+  await expect(page.locator('.group__summary')).toContainText('3 pieces')
+  await page.locator('.topbar__actions').getByRole('button', { name: 'More for “Sweater”' }).click()
+  await page.getByRole('menuitem', { name: 'Use the same colours in every piece…' }).click()
+  const same = page.getByRole('dialog', { name: 'Same colours in every piece' })
+  await expect(same.getByRole('checkbox')).toHaveCount(1)
+  await expect(same.locator('.same-colours__piece legend')).toHaveText(['Back'])
+  await expect(same.locator('.same-colours__change')).toContainText('Tomato →')
+  await expect(same.locator('.same-colours__change .group-dialog__label')).toHaveText('Red')
+  await same.getByRole('button', { name: 'Use the same colours' }).click()
+  await expect(page.getByRole('status')).toContainText('Changed a colour in one piece')
+
+  // Back's red is the project's red again, after a reload.
+  await page.reload()
+  await page.getByRole('link', { name: 'Open “Back”' }).click()
+  await expect(palette(page).nth(1)).toHaveAccessibleName('Red, #d93a3a, 0 cells')
 })

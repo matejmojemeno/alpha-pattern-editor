@@ -110,9 +110,11 @@ import { StructurePanel, type TransformAction } from '../design/StructurePanel.t
 import { Visualize } from '../design/Visualize.tsx'
 import { YarnEstimate } from '../design/YarnEstimate.tsx'
 
-// For a project's yarn in the Library (ui/library/GroupDialogs.tsx), which loads it with
-// this chunk rather than as a chunk of its own.
+// For a project's yarn, and its New piece and Same colours dialogs, in the Library
+// (ui/library/GroupDialogs.tsx), which loads them with this chunk rather than as chunks of
+// their own (rules.md#no-nested-lazy-chunks).
 export { YarnEstimate }
+export { NewPieceDialog, SameColoursDialog } from '../library/ProjectLinks.tsx'
 import { useDocumentTitle, useMediaQuery } from '../hooks.ts'
 import { ProjectGate } from '../ProjectGate.tsx'
 

@@ -13,6 +13,48 @@ import { cleanName, MAX_NAME_LENGTH } from '../names.ts'
 // already loads lazily. Importing YarnEstimate.tsx on its own made Rollup split a shared
 // chunk off the entry for index.html to preload (rules.md#no-nested-lazy-chunks).
 const YarnEstimate = lazy(() => import('../screens/Design.tsx').then((m) => ({ default: m.YarnEstimate })))
+// The links between a project's pieces (ProjectLinks.tsx), loaded the same way.
+const NewPieceLazy = lazy(() => import('../screens/Design.tsx').then((m) => ({ default: m.NewPieceDialog })))
+const SameColoursLazy = lazy(() => import('../screens/Design.tsx').then((m) => ({ default: m.SameColoursDialog })))
+
+/** "New piece…" in a project's view: a blank pattern at a size from your swatch. */
+export function NewPiece(props: { repo: ProjectRepo; group: ProjectGroup; onCancel: () => void }) {
+  return (
+    <Suspense fallback={<Loading title="New piece" onClose={props.onCancel} />}>
+      <NewPieceLazy {...props} />
+    </Suspense>
+  )
+}
+
+/** "Use the same colours in every piece…" in a project's view. */
+export function SameColours(props: {
+  repo: ProjectRepo
+  group: ProjectGroup
+  onCancel: () => void
+  onDone: (colours: number, pieces: number) => void
+}) {
+  return (
+    <Suspense fallback={<Loading title="Same colours in every piece" onClose={props.onCancel} />}>
+      <SameColoursLazy {...props} />
+    </Suspense>
+  )
+}
+
+function Loading({ title, onClose }: { title: string; onClose: () => void }) {
+  return (
+    <Modal
+      title={title}
+      onClose={onClose}
+      buttons={
+        <button type="button" className="button" onClick={onClose}>
+          Cancel
+        </button>
+      }
+    >
+      <p className="muted">Loading…</p>
+    </Modal>
+  )
+}
 
 const NEW = '' // the radio value for a new project
 
