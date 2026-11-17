@@ -87,6 +87,8 @@ function Screen({ route }: { route: Route }) {
       return <Landing />
     case 'library':
       return <Library />
+    case 'project':
+      return <Library group={route.id} />
     case 'settings':
       return <Settings />
     case 'import':

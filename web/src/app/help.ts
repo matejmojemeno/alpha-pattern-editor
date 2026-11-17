@@ -18,6 +18,7 @@ export const CHANGELOG_URL = `${REPO_URL}/blob/main/CHANGELOG.md`
 export const HELP = {
   home: { page: 'index.md' },
   library: { page: 'library.md' },
+  projects: { page: 'library.md', anchor: 'projects-with-pieces' },
   settings: { page: 'settings.md' },
   import: { page: 'import.md' },
   photo: { page: 'import.md', anchor: 'photo-to-pattern' },
@@ -37,6 +38,7 @@ export function helpUrl(topic: HelpTopic): string {
 export const HELP_LABEL: Record<HelpTopic, string> = {
   home: 'getting started',
   library: 'the Library',
+  projects: 'projects with pieces',
   settings: 'Settings',
   import: 'importing',
   photo: 'Photo to pattern',

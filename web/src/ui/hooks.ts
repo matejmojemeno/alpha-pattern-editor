@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type RefObject } from 'react'
 
-import type { ProjectRepo, ProjectSummary } from '../storage/repo.ts'
+import type { ProjectGroup, ProjectRepo, ProjectSummary } from '../storage/repo.ts'
 
 /**
  * Show a Blob in an <img>: returns a ref for the image. The object URL is set on the
@@ -111,6 +111,31 @@ export function useProjects(repo: ProjectRepo | null): ProjectSummary[] | null {
     }
   }, [repo])
   return projects
+}
+
+/** Every project with pieces, re-listed after every change to the repository, like
+ *  useProjects. Null until first listed. */
+export function useGroups(repo: ProjectRepo | null): ProjectGroup[] | null {
+  const [groups, setGroups] = useState<ProjectGroup[] | null>(null)
+  useEffect(() => {
+    if (!repo) return
+    let live = true
+    let latest = 0
+    const relist = () => {
+      const seq = ++latest
+      repo.groups().then(
+        (l) => live && seq === latest && setGroups(l),
+        () => {},
+      )
+    }
+    const unsubscribe = repo.subscribe(relist)
+    relist()
+    return () => {
+      live = false
+      unsubscribe()
+    }
+  }, [repo])
+  return groups
 }
 
 /** An element's content size, kept current by a ResizeObserver. Zero until measured

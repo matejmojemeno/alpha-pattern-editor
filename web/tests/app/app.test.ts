@@ -17,6 +17,7 @@ describe('parseHash', () => {
   it('round-trips ids through paths.work', () => {
     for (const id of ['f17aaabc20bfe045075927934fed52d2', 'a b/c?d#e', 'ünï']) {
       expect(parseHash(`#${paths.work(id)}`)).toEqual({ name: 'work', id })
+      expect(parseHash(`#${paths.project(id)}`)).toEqual({ name: 'project', id })
     }
   })
 
