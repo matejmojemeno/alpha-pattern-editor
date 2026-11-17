@@ -112,6 +112,21 @@ export function finishedSize(cols: number, rows: number, s: Swatch): { widthCm: 
   }
 }
 
+/**
+ * The other way round: the columns and rows a piece of `widthCm` × `heightCm` takes, from
+ * the swatch, each rounded to the nearest whole stitch (at least 1). Null on a side whose
+ * swatch measurement, or the size asked for, is missing.
+ */
+export function stitchesFor(
+  widthCm: number | null,
+  heightCm: number | null,
+  s: Swatch,
+): { cols: number | null; rows: number | null } {
+  const one = stitchSize(s)
+  const count = (size: number | null, per: number | null) => (positive(size) && per !== null ? Math.max(1, Math.round(size / per)) : null)
+  return { cols: count(widthCm, one.widthCm), rows: count(heightCm, one.heightCm) }
+}
+
 export function yarnUsage(palette: readonly PaletteEntry[], inputs: UsageInputs): Usage {
   const { swatch, ball } = inputs
   const k = 1 + inputs.marginPercent / 100
