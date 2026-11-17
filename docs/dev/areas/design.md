@@ -257,6 +257,11 @@ Newest last, as they were built.
     new pattern and then replaces the address with the plain one, so a reload doesn't
     reopen the panel. "Open in Photo to pattern" keeps `into`. `parseHash` reads the query
     after the path; ids are encoded, so a `?` or `&` in one can't reach it.
+  - **A project's pieces first** (step 3 of the plan, [links](library.md#links)): when the
+    open pattern is a piece of a project, the picker lists the project's other pieces
+    first, under "Pieces of “…”", by their labels and in the project's order, then
+    "Other patterns". It looks the project up with `repo.groupOf` on every repository
+    change, so a piece added in another tab shows up.
   - **Remembered per tab** (`remembered`), like the clipboard: the panel reopens on the
     last pattern chosen, in this pattern or the next, but never on the pattern itself.
   - **The header button wraps the header** between 1100 and about 1270 px: **Start

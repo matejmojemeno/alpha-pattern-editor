@@ -32,7 +32,7 @@ import {
   TopBar,
 } from '../components.tsx'
 import { RenameIcon } from '../icons.tsx'
-import { AddPiecesDialog, AddToGroupDialog, GroupYarn } from '../library/GroupDialogs.tsx'
+import { AddPiecesDialog, AddToGroupDialog, GroupYarn, NewPiece, SameColours } from '../library/GroupDialogs.tsx'
 import { againName } from '../names.ts'
 import { useDocumentTitle, useFileDrop, useGroups, usePastedImage, useProjects } from '../hooks.ts'
 import { MadePhotoDialog } from '../MadePhoto.tsx'
@@ -94,6 +94,8 @@ export function Library({ group: groupId }: { group?: string } = {}) {
   const [addingPieces, setAddingPieces] = useState(false)
   const [yarnFor, setYarnFor] = useState<ProjectGroup | null>(null)
   const [renamingGroup, setRenamingGroup] = useState(false)
+  const [newPiece, setNewPiece] = useState(false)
+  const [sameColours, setSameColours] = useState(false)
 
   const ok = (text: string) => {
     setNotices([])
@@ -268,6 +270,20 @@ export function Library({ group: groupId }: { group?: string } = {}) {
         />
       )}
       {yarnFor && repo && <GroupYarn repo={repo} group={yarnFor} onClose={() => setYarnFor(null)} />}
+      {newPiece && repo && open && <NewPiece repo={repo} group={open} onCancel={() => setNewPiece(false)} />}
+      {sameColours && repo && open && (
+        <SameColours
+          repo={repo}
+          group={open}
+          onCancel={() => setSameColours(false)}
+          onDone={(colours, pieces) => {
+            setSameColours(false)
+            ok(
+              `Changed ${colours === 1 ? 'a colour' : `${colours} colours`} in ${pieces === 1 ? 'one piece' : `${pieces} pieces`}, so every piece uses the same colours.`,
+            )
+          }}
+        />
+      )}
       <input
         ref={photoInput}
         type="file"
@@ -365,6 +381,7 @@ export function Library({ group: groupId }: { group?: string } = {}) {
     const current = currentPiece(pieces)
     const menu: MenuItem[] = [
       { label: 'Rename', onSelect: () => setRenamingGroup(true) },
+      ...(pieces.length > 1 ? [{ label: 'Use the same colours in every piece…', onSelect: () => setSameColours(true) }] : []),
       { label: 'Export', onSelect: () => void onExportGroup(open) },
       { label: 'Ungroup…', onSelect: () => setUngrouping(open), danger: true },
     ]
@@ -377,6 +394,9 @@ export function Library({ group: groupId }: { group?: string } = {}) {
                 Continue
               </a>
             )}
+            <button type="button" className="button" onClick={() => setNewPiece(true)}>
+              New piece…
+            </button>
             <button type="button" className="button" onClick={() => setAddingPieces(true)}>
               Add patterns…
             </button>

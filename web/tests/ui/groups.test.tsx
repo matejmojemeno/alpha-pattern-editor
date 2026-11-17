@@ -3,6 +3,8 @@ import { waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
+import { newId, newPattern } from '../../src/logic/edit.ts'
+import { emptyProgress } from '../../src/model/types.ts'
 import { readAlpha } from '../../src/storage/alpha.ts'
 import { alphaFile, fixture, freshRepo, hashChanged, renderApp, screen } from './helpers.tsx'
 
@@ -195,5 +197,129 @@ describe('Work: a piece of a project', () => {
     await screen.findByRole('heading', { level: 1, name: 'basic' })
     expect(screen.queryByRole('combobox', { name: /Piece of/ })).toBeNull()
     expect(screen.getByRole('link', { name: /Library/ }).getAttribute('href')).toBe('#/library')
+  })
+})
+
+describe('Project view: the links between pieces', () => {
+  /** A saved pattern of one row: each colour `count` stitches. */
+  async function saveRow(repo: Awaited<ReturnType<typeof freshRepo>>, name: string, colours: [string, string, number][]) {
+    const total = colours.reduce((n, c) => n + c[2], 0)
+    const base = newPattern(total, 1, colours[0]![0], { name })
+    const cells = new Uint16Array(total)
+    let at = 0
+    colours.forEach((c, i) => {
+      cells.fill(i, at, at + c[2])
+      at += c[2]
+    })
+    const pattern = { ...base, cells, palette: colours.map(([hex, n, count]) => ({ id: newId(), hex, name: n, dmc: null, count })) }
+    return (await repo.save({ pattern, progress: emptyProgress(), stage: 'design' })).pattern
+  }
+
+  it('New piece…: a blank at a size from the swatch, with the project’s colours, opened in Design', async () => {
+    const repo = await freshRepo()
+    const front = await saveRow(repo, 'Front', [
+      ['#ffffff', 'White', 6],
+      ['#cc0000', 'Red', 2],
+    ])
+    const g = await repo.createGroup('Sweater', [front.id])
+    await renderApp(`#/project/${g.id}`, { repo })
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'New piece…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New piece for “Sweater”' })
+    const create = within(dialog).getByRole('button', { name: 'Create' }) as HTMLButtonElement
+    expect(within(dialog).getByText('Measure your swatch to work out the stitches.')).toBeTruthy()
+    expect(create.disabled).toBe(true)
+    await user.clear(within(dialog).getByLabelText('Name'))
+    await user.type(within(dialog).getByLabelText('Name'), 'Back')
+    await user.type(within(dialog).getByLabelText('Swatch width'), '10')
+    await user.type(within(dialog).getByLabelText('Swatch height'), '8')
+    await user.type(within(dialog).getByLabelText('Width'), '52')
+    await user.type(within(dialog).getByLabelText('Height'), '56')
+    // 10 stitches in 10 cm, 10 rows in 8 cm: 52 × 70.
+    expect(dialog.querySelector('.new-piece__result')!.textContent).toBe('52 × 70 stitches')
+    // White has the most stitches, so it's the background unless another is chosen.
+    expect((within(dialog).getByRole('radio', { name: 'White' }) as HTMLInputElement).checked).toBe(true)
+    expect(within(dialog).getByText('It starts with the project’s 2 colours, ready to paint with.')).toBeTruthy()
+    await user.click(create)
+    await waitFor(() => expect(window.location.hash).toMatch(/^#\/design\//))
+    const id = window.location.hash.slice('#/design/'.length)
+    expect((await repo.group(g.id))!.pieces).toEqual([
+      { id: front.id, label: 'Front' },
+      { id, label: 'Back' },
+    ])
+    const { project } = await repo.open(id)
+    expect(project.pattern).toMatchObject({ name: 'Back', cols: 52, rows: 70 })
+    expect(project.pattern.palette.map((e) => [e.hex, e.name, e.count])).toEqual([
+      ['#ffffff', 'White', 52 * 70],
+      ['#cc0000', 'Red', 0],
+    ])
+  })
+
+  it('New piece… in stitches', async () => {
+    const repo = await freshRepo()
+    const front = await saveRow(repo, 'Front', [['#ffffff', 'White', 4]])
+    const g = await repo.createGroup('Hat', [front.id])
+    await renderApp(`#/project/${g.id}`, { repo })
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'New piece…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New piece for “Hat”' })
+    await user.click(within(dialog).getByRole('radio', { name: 'In stitches' }))
+    await user.clear(within(dialog).getByLabelText('Columns'))
+    await user.type(within(dialog).getByLabelText('Columns'), '12')
+    await user.click(within(dialog).getByRole('button', { name: 'Create' }))
+    await waitFor(() => expect(window.location.hash).toMatch(/^#\/design\//))
+    const { project } = await repo.open(window.location.hash.slice('#/design/'.length))
+    expect(project.pattern).toMatchObject({ name: 'Piece 2', cols: 12, rows: 40 })
+  })
+
+  it('Use the same colours in every piece…: shows what changes, then changes the ticked ones', async () => {
+    const repo = await freshRepo()
+    const front = await saveRow(repo, 'Front', [
+      ['#ffffff', 'White', 10],
+      ['#c0392b', 'Red', 6],
+    ])
+    const back = await saveRow(repo, 'Back', [
+      ['#fefefe', 'Snow', 4],
+      ['#c43d30', 'Tomato', 3],
+    ])
+    const g = await repo.createGroup('Sweater', [front.id, back.id])
+    await renderApp(`#/project/${g.id}`, { repo })
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'More for “Sweater”' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Use the same colours in every piece…' }))
+    const changes = await screen.findAllByRole('checkbox')
+    const dialog = screen.getByRole('dialog', { name: 'Same colours in every piece' })
+    expect(changes.map((c) => (c as HTMLInputElement).checked)).toEqual([true, true])
+    expect(changes.map((c) => c.closest('label')!.textContent)).toEqual(['Snow becomesSnow →White4 st', 'Tomato becomesTomato →Red3 st'])
+    // Keep Snow as it is.
+    await user.click(changes[0]!)
+    await user.click(within(dialog).getByRole('button', { name: 'Use the same colours' }))
+    await screen.findByText('Changed a colour in one piece, so every piece uses the same colours.')
+    const after = (await repo.open(back.id)).project.pattern
+    expect(after.palette.map((e) => [e.hex, e.name])).toEqual([
+      ['#fefefe', 'Snow'],
+      ['#c0392b', 'Red'],
+    ])
+    expect(after.cells).toEqual(back.cells)
+    expect((await repo.open(front.id)).project.pattern.palette).toEqual(front.palette)
+  })
+
+  it('says so when the pieces already agree, and a project of one piece has no such item', async () => {
+    const repo = await freshRepo()
+    const a = await saveRow(repo, 'A', [['#ffffff', 'White', 2]])
+    const b = await saveRow(repo, 'B', [['#ffffff', 'White', 3]])
+    const g = await repo.createGroup('Pair', [a.id])
+    await renderApp(`#/project/${g.id}`, { repo })
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'More for “Pair”' }))
+    expect(screen.queryByRole('menuitem', { name: /same colours/ })).toBeNull()
+    await user.keyboard('{Escape}')
+    await repo.addPieces(g.id, [b.id])
+    await screen.findByText('2 pieces')
+    await user.click(screen.getByRole('button', { name: 'More for “Pair”' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Use the same colours in every piece…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Same colours in every piece' })
+    await within(dialog).findByText(/Every piece already uses the same colours/)
+    expect(within(dialog).queryByRole('button', { name: 'Use the same colours' })).toBeNull()
   })
 })

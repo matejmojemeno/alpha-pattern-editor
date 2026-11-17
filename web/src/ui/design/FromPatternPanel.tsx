@@ -8,6 +8,9 @@
  * come with it and it lands floating, ready to drag, as one undo step. The other pattern
  * is never saved from here: picking in it changes nothing.
  *
+ * When the open pattern is a piece of a project (a sweater's Back), the project's other
+ * pieces are listed first, by their labels, so copying the dog from the Front is one step.
+ *
  * The pattern chosen is remembered for as long as the tab is open (`remembered`), as the
  * clipboard is, so the panel opens on it again, in this pattern or the next.
  */
@@ -18,7 +21,7 @@ import { clipFor, pickAll, pickShape, type Picked } from '../../design/source.ts
 import { rectBetween, rectCols, rectRows, type Clip } from '../../design/selection.ts'
 import type { Pattern } from '../../model/types.ts'
 import { fitCell, zoomStep, type Cell } from '../../render/design.ts'
-import type { ProjectRepo, ProjectSummary } from '../../storage/repo.ts'
+import type { ProjectGroup, ProjectRepo, ProjectSummary } from '../../storage/repo.ts'
 import { Thumb } from '../components.tsx'
 import { DesignCanvas } from './DesignCanvas.tsx'
 
@@ -61,22 +64,31 @@ export function FromPatternPanel({
         ? { status: 'ready', pattern: opened.pattern }
         : { status: 'missing' }
   const [list, setList] = useState<ProjectSummary[] | null>(null)
+  const [group, setGroup] = useState<ProjectGroup | null>(null)
 
-  // The Library, kept current: an import or a rename elsewhere shows here.
+  // The Library and the project this pattern is a piece of, kept current: an import, a
+  // rename or a new piece elsewhere shows here.
   useEffect(() => {
     let live = true
-    const load = () =>
-      void repo.list().then(
-        (l) => live && setList(l),
-        () => live && setList([]),
+    let latest = 0
+    const load = () => {
+      const seq = ++latest
+      void Promise.all([repo.list(), repo.groupOf(currentId)]).then(
+        ([l, g]) => {
+          if (!live || seq !== latest) return
+          setList(l)
+          setGroup(g ?? null)
+        },
+        () => live && seq === latest && setList([]),
       )
+    }
     load()
     const off = repo.subscribe(load)
     return () => {
       live = false
       off()
     }
-  }, [repo])
+  }, [repo, currentId])
 
   useEffect(() => {
     if (!chosen) return
@@ -95,7 +107,18 @@ export function FromPatternPanel({
     }
   }, [repo, chosen])
 
-  const others = useMemo(() => (list ?? []).filter((s) => s.id !== currentId), [list, currentId])
+  // The project's other pieces, in its order and by their labels, then everything else.
+  const { pieces, others } = useMemo(() => {
+    const all = (list ?? []).filter((s) => s.id !== currentId)
+    if (!group) return { pieces: [], others: all }
+    const byId = new Map(all.map((s) => [s.id, s]))
+    const pieces = group.pieces.flatMap((p) => {
+      const s = byId.get(p.id)
+      return s ? [{ summary: s, label: p.label || s.name }] : []
+    })
+    const inGroup = new Set(pieces.map((p) => p.summary.id))
+    return { pieces, others: all.filter((s) => !inGroup.has(s.id)) }
+  }, [list, group, currentId])
 
   return (
     <section className="from-pattern" aria-labelledby="source-heading">
@@ -127,20 +150,29 @@ export function FromPatternPanel({
               That pattern isn’t in your Library any more.
             </p>
           )}
-          <Picker others={others} loading={list === null} currentId={currentId} onPick={setChosen} />
+          <Picker
+            project={group ? { name: group.name, pieces } : null}
+            others={others}
+            loading={list === null}
+            currentId={currentId}
+            onPick={setChosen}
+          />
         </>
       )}
     </section>
   )
 }
 
-/** The Library's other patterns to choose from, and a way to import one. */
+/** The Library's other patterns to choose from (the project's pieces first), and a way to
+ *  import one. */
 function Picker({
+  project,
   others,
   loading,
   currentId,
   onPick,
 }: {
+  project: { name: string; pieces: readonly { summary: ProjectSummary; label: string }[] } | null
   others: readonly ProjectSummary[]
   loading: boolean
   currentId: string
@@ -158,24 +190,49 @@ function Picker({
       </div>
       {loading ? (
         <p className="muted">Loading your Library…</p>
-      ) : others.length === 0 ? (
+      ) : !project?.pieces.length && others.length === 0 ? (
         <p className="muted">No other patterns in your Library yet.</p>
       ) : (
-        <ul className="from-pattern__list" aria-label="Patterns in your Library">
-          {others.map((s) => (
-            <li key={s.id}>
-              <button type="button" className="from-pattern__item" onClick={() => onPick(s.id)}>
-                <Thumb blob={s.thumbnail} kind={s.thumbnail_kind} />
-                <span className="from-pattern__item-name">{s.name}</span>
-                <span className="from-pattern__item-size muted">
-                  {s.cols} × {s.rows}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="from-pattern__lists">
+          {project && project.pieces.length > 0 && (
+            <>
+              <h3 className="from-pattern__group">Pieces of “{project.name}”</h3>
+              <PatternList label={`Pieces of “${project.name}”`} items={project.pieces} onPick={onPick} />
+              {others.length > 0 && <h3 className="from-pattern__group">Other patterns</h3>}
+            </>
+          )}
+          {others.length > 0 && (
+            <PatternList label="Patterns in your Library" items={others.map((s) => ({ summary: s, label: s.name }))} onPick={onPick} />
+          )}
+        </div>
       )}
     </div>
+  )
+}
+
+function PatternList({
+  label,
+  items,
+  onPick,
+}: {
+  label: string
+  items: readonly { summary: ProjectSummary; label: string }[]
+  onPick: (id: string) => void
+}) {
+  return (
+    <ul className="from-pattern__list" aria-label={label}>
+      {items.map(({ summary: s, label: name }) => (
+        <li key={s.id}>
+          <button type="button" className="from-pattern__item" onClick={() => onPick(s.id)}>
+            <Thumb blob={s.thumbnail} kind={s.thumbnail_kind} />
+            <span className="from-pattern__item-name">{name}</span>
+            <span className="from-pattern__item-size muted">
+              {s.cols} × {s.rows}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
   )
 }
 

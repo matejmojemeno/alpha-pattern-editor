@@ -267,3 +267,44 @@ describe('groupFile', () => {
     })
   })
 })
+
+describe('the links between pieces', () => {
+  it('a new piece is saved in Design and put last in its project, with its label', async () => {
+    await repo.save(project('f', 'Front'))
+    const g = await repo.createGroup('Sweater', ['f'])
+    now = 3000
+    const saved = await repo.addNewPiece(g.id, project('new', 'Sleeve').pattern, 'Sleeve')
+    expect(saved.stage).toBe('design')
+    expect(saved.progress).toEqual(emptyProgress())
+    const after = await repo.group(g.id)
+    expect(after?.pieces).toEqual([
+      { id: 'f', label: 'Front' },
+      { id: 'new', label: 'Sleeve' },
+    ])
+    expect(after?.updated_at).toBe(3000)
+    expect((await repo.summary('new'))?.name).toBe('Sleeve')
+  })
+
+  it('no new piece for a project that has gone, and nothing left in the Library', async () => {
+    await repo.save(project('f'))
+    const g = await repo.createGroup('Sweater', ['f'])
+    await repo.ungroup(g.id)
+    await expect(repo.addNewPiece(g.id, project('new').pattern, 'Sleeve')).rejects.toBeInstanceOf(GroupNotFoundError)
+    expect((await repo.list()).map((s) => s.id)).toEqual(['f'])
+  })
+
+  it('editPattern changes the pattern and keeps progress, stage and images', async () => {
+    const p = project('f')
+    const png = new Uint8Array([137, 80, 78, 71])
+    await repo.save({ ...p, progress: { ...emptyProgress(), completed_row_ids: new Set(['f-0']), current_row_id: 'f-1' } }, { sourcePng: png })
+    now = 4000
+    const saved = await repo.editPattern('f', (x) => ({ ...x, palette: x.palette.map((e) => ({ ...e, hex: '#fefefe' })) }))
+    expect(saved.pattern.palette[0]!.hex).toBe('#fefefe')
+    const back = await repo.open('f')
+    expect(back.project.pattern.palette[0]!.hex).toBe('#fefefe')
+    expect([...back.project.progress.completed_row_ids]).toEqual(['f-0'])
+    expect(back.project.stage).toBe('work')
+    expect(back.sourcePng).toEqual(png)
+    expect(back.project.pattern.updated_at).toBe(4000)
+  })
+})

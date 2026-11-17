@@ -924,6 +924,19 @@
   gap: 0.35rem;
 }
 
+.from-pattern__lists {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* "Pieces of “Sweater”" and "Other patterns": the project's pieces come first. */
+.from-pattern__group {
+  margin: 0.3rem 0 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 .from-pattern__list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));

@@ -195,12 +195,54 @@ Newest last, as they were built.
   - **The Work stage** shows a switcher between the pieces (each with its % done) and a
     back link with the project's name (`usePieces` in `Work.tsx`); see
     [Work](work.md#pieces).
-  - **Not in v1:** shaped pieces, a project's own Make again, and starting a new piece from
-    the project (step 3 of the plan: Add piece → a blank at a size from the swatch).
+  - **Not in v1:** shaped pieces and a project's own Make again. Starting a new piece from
+    the project came in step 3 ([links](#links)).
   - Tested: `tests/storage/groups.test.ts`, `tests/app/groups.test.ts`,
     `tests/ui/groups.test.tsx`, `e2e/projects.spec.ts` (real Chromium: reload, switching
     pieces, export and import into a fresh profile), and the overflow sweep's "a project
     with pieces".
+
+- <a id="links"></a>**The links between a project's pieces** (`ui/library/ProjectLinks.tsx`,
+  `app/projectColours.ts`): step 3 of the plan, as agreed with the owner: the pieces first
+  in Design's picker, a blank piece at a size from the swatch, then the same colours in
+  every piece.
+  - **New piece…** (header, beside **Add patterns…**; "New" because Add patterns adds ones
+    that exist): a name (`Piece N` to start), a size **From a measurement** (width and
+    height in the Settings units, turned into stitches by `stitchesFor`, the inverse of
+    `finishedSize`, rounded to the nearest stitch) or **In stitches**, and the background
+    from the project's colours. The swatch's stitches, rows, width and height are the
+    app-wide settings Yarn & size edits, shown again here so a crocheter who hasn't
+    measured it yet doesn't have to leave the dialog. The piece starts with every project
+    colour (one per hex, `projectColours`, most stitches first, so the background is
+    preselected) with 0 stitches, and with the first piece's craft, first stitch corner,
+    row directions and filet mesh (`blankPiece`): a sweater's pieces are made the same
+    way. `repo.addNewPiece` saves it in Design and puts it last in the project; if the
+    project went meanwhile it deletes the pattern again rather than leave one unasked
+    for. Then Design opens on it.
+  - **Use the same colours in every piece…** (project ⋯, with two pieces or more):
+    `sameColoursPlan` matches colours of different pieces within ΔE 15 (CIE76, the
+    import's fixed merge) and gives each the hex and name of the **earliest piece in the
+    project's order** that has it. The first version let the colour with the most stitches
+    win, and looking at the screen showed a new, nearly blank piece (all background)
+    proposing to recolour the white of every piece already made; the order is the
+    crocheter's and the first piece never changes. Two colours of one piece are never
+    matched to one colour (that would merge them). Only palette hex and name change
+    (`recolorPaletteEntry`, `renamePaletteEntry`), never cells, so progress and row ids
+    are untouched. The dialog lists each change, ticked, by piece; **Use the same colours**
+    changes the ticked ones through `repo.editPattern` (open, edit, save, keeping progress,
+    stage and images, serialised per id like `rename`). It asks first instead of offering
+    Undo: it changes other patterns, outside any Design undo stack.
+  - **The pieces first in the picker:** Design's [From another pattern](design.md#from-another-pattern).
+  - Projects are web-only, so there's no Python twin; every change to a pattern goes
+    through edits the golden fixtures already check (`newPattern`, `addPaletteEntry`,
+    `recolorPaletteEntry`, `renamePaletteEntry`).
+  - Both dialogs come with the Design chunk (re-exported from `Design.tsx`, like the
+    project's Yarn & size), because they use the yarn dialog's fields and `yarn.css`.
+  - Tested: `tests/app/projectColours.test.ts`, `tests/storage/groups.test.ts` ("the links
+    between pieces"), `tests/ui/groups.test.tsx`, `tests/ui/from-pattern.test.tsx`,
+    `e2e/projects.spec.ts` (the whole flow in real Chromium: a 12 × 8 piece from a
+    10 × 8 cm swatch, the picker, a recolour in Design, Same colours, a reload) and the
+    overflow sweep (both dialogs).
 
 ## During the port
 

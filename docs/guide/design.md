@@ -118,7 +118,8 @@ tablet, over the chart).
 
 <img src="media/design-from-another-pattern.png" alt="A blank sweater front in Design, with the From another pattern panel showing the Toadstool pattern; the toadstool, picked with Rectangle inside its border, sits selected in the middle of the sweater front" width="800">
 
-1. Choose a pattern from your Library. If it isn't there yet, **Import a chart** or
+1. Choose a pattern from your Library. If the pattern you're making is a piece of a
+   project, the project's other pieces are listed first. If it isn't there yet, **Import a chart** or
    **Photo to pattern** takes you to the import screen. When you save, you come back here
    with the new pattern open in the panel.
 2. Pick what you want from it: with **Shape**, click a motif to pick it without the

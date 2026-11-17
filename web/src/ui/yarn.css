@@ -254,3 +254,92 @@
   border: 1px solid var(--border);
   border-radius: 2px;
 }
+
+/* --- A project's New piece and Same colours dialogs (ui/library/ProjectLinks.tsx) --- */
+
+.new-piece,
+.same-colours {
+  width: min(100%, 30rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+}
+
+.new-piece__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.new-piece__group,
+.same-colours__piece {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.new-piece__group legend,
+.same-colours__piece legend {
+  margin-bottom: 0.4rem;
+  padding: 0;
+  font-weight: 600;
+}
+
+.new-piece__by {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.new-piece__by label,
+.new-piece__colour {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: var(--tap);
+  cursor: pointer;
+}
+
+.new-piece__swatch-title {
+  margin: 0.25rem 0 0.4rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.new-piece__result {
+  margin: 0;
+}
+
+.new-piece__colours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1rem;
+}
+
+.new-piece__colour {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.new-piece__note {
+  margin: 0.25rem 0 0;
+  font-size: var(--text-sm);
+}
+
+.project-colour__swatch {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 1px solid;
+  border-radius: var(--radius-sm);
+}
+
+.same-colours__intro {
+  margin: 0;
+}
+
+.same-colours__change {
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}

@@ -7,7 +7,7 @@
  */
 import { workStatus } from '../app/stages.ts'
 import { newId } from '../logic/edit.ts'
-import { emptyProgress, type Project } from '../model/types.ts'
+import { emptyProgress, type Pattern, type Project } from '../model/types.ts'
 import { alphaFileName, progressPct, readAlpha, writeAlpha, type AlphaContents } from './alpha.ts'
 import * as db from './db.ts'
 import { groupFileName, writeGroupFile } from './groupFile.ts'
@@ -213,6 +213,15 @@ export class ProjectRepo {
     })
   }
 
+  /** Change a stored pattern with `edit`, keeping its progress, stage and images, as
+   *  `rename` does. Returns the saved copy. */
+  editPattern(id: string, edit: (p: Pattern) => Pattern): Promise<Project> {
+    return this.serial(id, async () => {
+      const { project } = await this.open(id)
+      return this.write({ ...project, pattern: edit(project.pattern) }, {})
+    })
+  }
+
   /** The stored photo of what was made from this project (made.jpg), or null. */
   async madePhoto(id: string): Promise<Uint8Array | null> {
     return (await this.open(id)).madePhoto
@@ -365,6 +374,24 @@ export class ProjectRepo {
       ...g,
       pieces: [...g.pieces, ...patternIds.filter((id) => !g.pieces.some((p) => p.id === id)).map((id) => ({ id, label: names.get(id) ?? '' }))],
     }))
+  }
+
+  /**
+   * Save `pattern` as a new pattern in the Design stage and put it at the end of a project,
+   * labelled `label`. If the project has gone meanwhile (ungrouped in another tab), the
+   * new pattern is deleted again rather than left in the Library unasked for, and this
+   * throws GroupNotFoundError.
+   */
+  async addNewPiece(groupId: string, pattern: Pattern, label: string): Promise<Project> {
+    if (!(await this.group(groupId))) throw new GroupNotFoundError(groupId)
+    const saved = await this.save({ pattern, progress: emptyProgress(), stage: 'design' }, { sourcePng: null, madePhoto: null })
+    try {
+      await this.editGroup(groupId, (g) => ({ ...g, pieces: [...g.pieces, { id: saved.pattern.id, label }] }))
+    } catch (e) {
+      await this.delete(saved.pattern.id)
+      throw e
+    }
+    return saved
   }
 
   /** Take a pattern out of its project, keeping the pattern. The last piece out removes
