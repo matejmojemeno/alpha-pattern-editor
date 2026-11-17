@@ -34,8 +34,10 @@ export function AddToGroupDialog({
   onDone: (group: ProjectGroup, isNew: boolean) => void
 }) {
   const id = useId()
-  const sorted = [...groups].sort((a, b) => a.name.localeCompare(b.name))
-  const [choice, setChoice] = useState<string>(NEW)
+  // The project changed last first, and chosen: adding the next piece of what you've just
+  // grouped is the usual case.
+  const sorted = [...groups].sort((a, b) => b.updated_at - a.updated_at)
+  const [choice, setChoice] = useState<string>(sorted[0]?.id ?? NEW)
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -64,7 +66,7 @@ export function AddToGroupDialog({
     <Modal
       title={`Add “${pattern.name}” to a project`}
       onClose={onCancel}
-      initialFocus={sorted.length ? first : nameField}
+      initialFocus={choice === NEW ? nameField : first}
       className="group-dialog"
       buttons={
         <>

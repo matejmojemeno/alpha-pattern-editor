@@ -346,7 +346,7 @@ function WorkStage({ repo, initial }: { repo: ProjectRepo; initial: Project }) {
           />
         ) : (
           <>
-            <h1 tabIndex={-1} className="work__name">
+            <h1 tabIndex={-1} className={pieces ? 'work__name work__name--piece' : 'work__name'}>
               {p.name}
             </h1>
           </>

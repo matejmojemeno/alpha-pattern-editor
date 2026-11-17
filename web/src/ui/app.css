@@ -1952,6 +1952,12 @@ code {
   font: inherit;
 }
 
+/* A project's view: ⋯ in the header is as tall as the buttons beside it. */
+.topbar__actions .card-menu__button {
+  min-height: var(--tap);
+  padding: 0 0.85rem;
+}
+
 /* Work: back to the project, by its name, which gives way to the pattern's own. */
 .work__project {
   max-width: 12rem;
@@ -1964,11 +1970,27 @@ code {
   white-space: nowrap;
 }
 
-/* Work: the switcher between a project's pieces. */
+/* Work: the switcher between a project's pieces. It names the piece, so it takes the
+   name's place, and the name stays a heading for screen readers only
+   (.work__name--piece); otherwise a phone showed the name as one letter beside it. */
 .work__piece {
-  flex: 0 1 auto;
+  flex: 1 1 8rem;
   min-width: 0;
-  max-width: 12rem;
+  max-width: 16rem;
   min-height: var(--tap);
   font: inherit;
+  font-weight: 600;
+}
+
+.work__name--piece {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* The space the name had, so Saved and Options stay at the right. */
+.work__piece + .work__saved {
+  margin-left: auto;
 }
