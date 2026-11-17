@@ -399,10 +399,7 @@ export function Library({ group: groupId }: { group?: string } = {}) {
           />
         )}
         <div className="group__summary">
-          <span className="group__count">
-            {piecesText(pieces.length)}
-            {status !== 'not-started' && `, ${Math.floor(pct)}% done`}
-          </span>
+          <span className="group__count">{piecesText(pieces.length)}</span>
           {status !== 'not-started' && <ProgressBar pct={pct} />}
         </div>
         <ol className="cards group__pieces" aria-label="Pieces">

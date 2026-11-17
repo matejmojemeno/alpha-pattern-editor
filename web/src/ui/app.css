@@ -1890,8 +1890,11 @@ code {
   margin: 0.5rem 0;
 }
 
+/* One column that may shrink below an input's own width of about 20 letters
+   (rules.md#nothing-sticks-out). */
 .group-dialog__form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
 }
 
@@ -1930,6 +1933,7 @@ code {
 
 .group-dialog__name {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.3rem;
 }
 
